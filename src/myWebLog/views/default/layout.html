@@ -1,0 +1,46 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width" />
+  <meta name="generator" content="@Model.generator" />
+  <title>@Model.pageTitle | @Model.webLog.name</title>
+  <link rel="stylesheet" type="text/css" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css" />
+  <link rel="stylesheet" type="text/css" href="/styles/bootstrap-theme.min.css" />
+  <link rel="stylesheet" type="text/css" href="//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" />
+  @Section['Head'];
+</head>
+<body>
+  <header>
+    <nav class="navbar navbar-default">
+      <div class="container-fluid">
+        <div class="navbar-header">
+          <a class="navbar-brand" href="/">@Model.webLog.name</a>
+        </div>
+        <p class="navbar-text">@Model.webLog.subtitle</p>
+        <ul class="nav navbar-nav navbar-left">
+          @Each.webLog.pageList
+          <li>
+            <a href="/@Current.permalink">@Current.title</a>
+            @EndEach
+        </ul>
+        <ul class="nav navbar-nav navbar-right">
+          @If.isAuthenticated
+          <li><a href="/admin">@Translate.Dashboard</a></li>
+          <li><a href="/user/logoff">@Translate.LogOff</a></li>
+          @EndIf
+          @IfNot.isAuthenticated
+          <li><a href="/user/logon">@Translate.LogOn</a></li>
+          @EndIf
+        </ul>
+      </div>
+    </nav>
+  </header>
+  <div class="container">
+    @Section['Content'];
+  </div>
+  @Section['Footer'];
+  <script type="text/javascript" src="//ajax.aspnetcdn.com/ajax/jQuery/jquery-2.1.3.min.js"></script>
+  <script type="text/javascript" src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js"></script>
+  @Section['Scripts'];
+</body>
+</html>

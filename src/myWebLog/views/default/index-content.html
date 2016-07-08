@@ -1,0 +1,38 @@
+﻿@If.subTitle
+  <h2>
+    <span class="label label-info">@Model.subTitle</span>
+  </h2>
+@EndIf
+@Each.posts
+  <div class="row">
+    <div class="col-xs-12">
+      <article>
+        <h1>
+          <a href="/@Current.permalink" title="Permanent Link to &quot;@Current.title@quot;">@Current.title</a>
+        </h1>
+        <!-- var pubDate = moment(post.publishedDate) -->
+        <p>
+          <i class="fa fa-calendar" title="@Translate.Date" /> &nbsp; @Current.publishedDate <!-- #{pubDate.format('MMMM Do, YYYY')} -->
+          <i class="fa fa-clock-o" title="@Translate.Time" /> &nbsp; @Current.publishedTime <!-- #{pubDate.format('h:mma')} -->
+        </p>
+        @Current.text
+      </article>
+      <hr />
+    </div>
+  </div>
+@EndEach
+<div class="row">
+  <div class="col-xs-3 col-xs-offset-3">
+    // TODO: stopped here
+    if hasNext
+      - var nextLink = (2 < page) ? '/page/' + (page - 1) : '/'
+      if '/posts' == extraUrl && 2 == page
+        //- Leave the "next" link at '/'
+      else
+        - nextLink = extraUrl + nextLink
+      p: a.btn.btn-primary(href="#{nextLink}")= __("Newer Posts")
+    </div>
+  .col-xs-3.text-right
+    if hasPrior
+      p: a.btn.btn-primary(href=extraUrl + '/page/' + (page + 1))= __("Older Posts")
+  </div>
