@@ -1,0 +1,60 @@
+﻿@Master['admin/admin-layout']
+
+@Section['Content']
+  <div class="row">
+    <p>
+      <a class="btn btn-primary" href="/post/new/edit">
+        <i class="fa fa-plus"></i> | &nbsp; @Translate.AddNew
+      </a>
+    </p>
+  </div>
+  <div class="row">
+    <table class="table table-hover">
+      <tr>
+        <th>@Translate.Date</th>
+        <th>@Translate.Title</th>
+        <th>@Translate.Status</th>
+        <th>@Translate.Tags</th>
+      </tr>
+      @Each.posts
+        <!-- - var theDate = moment(post.publishedDate ? post.publishedDate : post.lastUpdatedDate)
+        - var tags = (post.tag || []).sort() -->
+        <tr>
+          <td>
+            <!-- =theDate.format('MMM D, YYYY')
+              br
+              #{__("at")} #{theDate.format('h:mma')} -->
+            // TODO format date
+          </td>
+          <td>
+            @Current.title<br />
+            <a href="/@Current.permalink">@Translate.View</a> | &nbsp;
+            <a href="/post/@Current.id/edit">@Translate.Edit</a> | &nbsp;
+            <a href="/post/@Current.id/delete">@Translate.Delete</a>
+          </td>
+          <td>@Current.status</td>
+          <td>
+            <!-- if 5 > tags.length
+            =tags.join(' | ')
+            else
+            =tags.slice(0, 3).join(' | ') + ' | '
+            span(title=tags.slice(3).join(' | '))= __("and %d more...", tags.slice(3).length) -->
+            // TODO fix tags
+          </td>
+        </tr>
+      @EndEach
+    </table>
+  </div>
+  <div class="row">
+    <div class="col-xs-3 col-xs-offset-2">
+      @If.hasNewer
+        <p><a class="btn btn-default" href="@Model.newerLink">&#xab; &nbsp;@Translate.NewerPosts</a></p>
+      @EndIf
+    </div>
+    <div class="col-xs-3 col-xs-offset-1 text-right">
+      @If.hasOlder
+      <p><a class="btn btn-default" href="@Model.olderLink">@Translate.OlderPosts&nbsp; &#xbb;</a></p>
+      @EndIf
+    </div>
+  </div>
+@EndSection

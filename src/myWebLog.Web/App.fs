@@ -11,37 +11,32 @@ open Nancy.Bootstrapper
 open Nancy.Cryptography
 open Nancy.Owin
 open Nancy.Security
-open Nancy.Session
 open Nancy.Session.Persistable
 open Nancy.Session.RethinkDb
 open Nancy.TinyIoc
 open Nancy.ViewEngines.SuperSimpleViewEngine
-open RethinkDb.Driver
 open RethinkDb.Driver.Net
 open Suave
 open Suave.Owin
+open System
 open System.Text.RegularExpressions
 
 /// Set up a database connection
-let cfg =
-  { database = "myWebLog"
-    conn = RethinkDB.R.Connection()
-             .Hostname(RethinkDBConstants.DefaultHostname)
-             .Port(RethinkDBConstants.DefaultPort)
-             .AuthKey(RethinkDBConstants.DefaultAuthkey)
-             .Db("myWebLog")
-             .Timeout(RethinkDBConstants.DefaultTimeout)
-             .Connect() }
+let cfg = try DataConfig.fromJson (System.IO.File.ReadAllText "data-config.json")
+          with ex -> ApplicationException("Could not convert data-config.json to RethinkDB connection", ex)
+                     |> raise
 
 do
   startUpCheck cfg
 
+
+/// Support RESX lookup via the @Translate SSVE alias
 type TranslateTokenViewEngineMatcher() =
   static let regex = Regex("@Translate\.(?<TranslationKey>[a-zA-Z0-9-_]+);?", RegexOptions.Compiled)
   interface ISuperSimpleViewEngineMatcher with
     member this.Invoke (content, model, host) =
       regex.Replace(content, fun m -> let key = m.Groups.["TranslationKey"].Value
-                                      match Resources.ResourceManager.GetString key with
+                                      match myWebLog.Resources.ResourceManager.GetString key with
                                       | null -> key
                                       | xlat -> xlat)
 
@@ -51,8 +46,8 @@ type MyWebLogUser(name, claims) =
   interface IUserIdentity with
     member this.UserName with get() = name
     member this.Claims   with get() = claims
-  member this.UserName with get() = (this :> IUserIdentity).UserName
-  member this.Claims   with get() = (this :> IUserIdentity).Claims
+(*member this.UserName with get() = (this :> IUserIdentity).UserName
+  member this.Claims   with get() = (this :> IUserIdentity).Claims -- do we need these? *)
  
 type MyWebLogUserMapper(container : TinyIoCContainer) =
   
@@ -63,17 +58,22 @@ type MyWebLogUserMapper(container : TinyIoCContainer) =
       | _ -> null
 
 
-/// Set up the RethinkDB connection instance to be used by the IoC container
-type ApplicationBootstrapper() =
+/// Set up the application environment
+type MyWebLogBootstrapper() =
   inherit DefaultNancyBootstrapper()
+  
   override this.ConfigureRequestContainer (container, context) =
     base.ConfigureRequestContainer (container, context)
+    /// User mapper for forms authentication
     container.Register<IUserMapper, MyWebLogUserMapper>()
     |> ignore
+
   override this.ApplicationStartup (container, pipelines) =
     base.ApplicationStartup (container, pipelines)
-    // Data configuration
+    // Data configuration (both config and the connection; Nancy modules just need the connection)
     container.Register<DataConfig>(cfg)
+    |> ignore
+    container.Register<IConnection>(cfg.conn)
     |> ignore
     // I18N in SSVE
     container.Register<seq<ISuperSimpleViewEngineMatcher>>(fun _ _ -> 
@@ -81,7 +81,7 @@ type ApplicationBootstrapper() =
     |> ignore
     // Forms authentication configuration
     let salt = (System.Text.ASCIIEncoding()).GetBytes "NoneOfYourBeesWax"
-    let auth  =
+    let auth =
       FormsAuthenticationConfiguration(
         CryptographyConfiguration = CryptographyConfiguration
                                       (RijndaelEncryptionProvider(PassphraseKeyGenerator("Secrets",     salt)),
@@ -99,7 +99,7 @@ type ApplicationBootstrapper() =
 
 
 let version = 
-  let v = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version
+  let v = Reflection.Assembly.GetExecutingAssembly().GetName().Version
   match v.Build with
   | 0 -> match v.Minor with
          | 0 -> string v.Major
@@ -112,13 +112,13 @@ type RequestEnvironment() =
   interface IRequestStartup with
     member this.Initialize (pipelines, context) =
       pipelines.BeforeRequest.AddItemToStartOfPipeline
-        (fun ctx -> ctx.Items.["requestStart"] <- System.DateTime.Now.Ticks
-                    match tryFindWebLogByUrlBase cfg ctx.Request.Url.HostName with
-                    | Some webLog -> ctx.Items.["webLog"] <- webLog
-                    | None        -> System.ApplicationException
+        (fun ctx -> ctx.Items.[Keys.RequestStart] <- DateTime.Now.Ticks
+                    match tryFindWebLogByUrlBase cfg.conn ctx.Request.Url.HostName with
+                    | Some webLog -> ctx.Items.[Keys.WebLog] <- webLog
+                    | None        -> ApplicationException
                                        (sprintf "%s is not properly configured for myWebLog" ctx.Request.Url.HostName)
                                      |> raise
-                    ctx.Items.["version"] <- version
+                    ctx.Items.[Keys.Version] <- version
                     null)
 
       

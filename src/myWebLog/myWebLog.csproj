@@ -48,6 +48,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+    <None Include="data-config.json" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\myWebLog.Data\myWebLog.Data.fsproj">
@@ -65,9 +66,14 @@
   </ItemGroup>
   <ItemGroup />
   <ItemGroup>
+    <Content Include="content\styles\admin.css" />
+    <Content Include="views\admin\admin-layout.html" />
+    <Content Include="views\admin\post\list.html" />
     <Content Include="views\default\index-content.html" />
     <Content Include="views\default\index.html" />
     <Content Include="views\default\layout.html" />
+    <Content Include="views\default\page-content.html" />
+    <Content Include="views\default\page.html" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

@@ -52,6 +52,9 @@
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Keys.fs" />
+    <Compile Include="ViewModels.fs" />
+    <Compile Include="MyWebLogModule.fs" />
+    <Compile Include="PostModule.fs" />
     <Compile Include="App.fs" />
     <Content Include="packages.config" />
   </ItemGroup>

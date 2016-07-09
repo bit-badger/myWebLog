@@ -23,16 +23,17 @@
 @EndEach
 <div class="row">
   <div class="col-xs-3 col-xs-offset-3">
-    // TODO: stopped here
-    if hasNext
-      - var nextLink = (2 < page) ? '/page/' + (page - 1) : '/'
-      if '/posts' == extraUrl && 2 == page
-        //- Leave the "next" link at '/'
-      else
-        - nextLink = extraUrl + nextLink
-      p: a.btn.btn-primary(href="#{nextLink}")= __("Newer Posts")
-    </div>
-  .col-xs-3.text-right
-    if hasPrior
-      p: a.btn.btn-primary(href=extraUrl + '/page/' + (page + 1))= __("Older Posts")
+    @If.hasNewer
+      <p>
+        <a class="btn btn-primary" href="@Model.newerLink">@Translate.NewerPosts</a>
+      </p>
+    @EndIf
   </div>
+  <div class="col-xs-3 text-right">
+    @If.hasOlder
+      <p>
+        <a class="btn btn-primary" href="@Model.olderLink">@Translate.OlderPosts</a>
+      </p>
+    @EndIf
+  </div>
+</div>

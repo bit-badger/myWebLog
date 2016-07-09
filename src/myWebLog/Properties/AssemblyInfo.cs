@@ -2,7 +2,7 @@
 using System.Runtime.InteropServices;
 
 [assembly: AssemblyTitle("myWebLog")]
-[assembly: AssemblyDescription("A lightweight blogging platform built on Nancy and RethinkDB")]
+[assembly: AssemblyDescription("A lightweight blogging platform built on Suave, Nancy, and RethinkDB")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("myWebLog")]
