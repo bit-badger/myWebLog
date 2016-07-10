@@ -78,6 +78,52 @@ type MyWebLogModel(ctx : NancyContext, webLog : WebLog) =
     (this.zonedTime ticks
      |> ZonedDateTimePattern.CreateWithCurrentCulture("h':'mmtt", DateTimeZoneProviders.Tzdb).Format).ToLower()
 
+
+// ---- Admin models ----
+
+/// Admin Dashboard view model
+type DashboardModel(ctx, webLog) =
+  inherit MyWebLogModel(ctx, webLog)
+  /// The number of posts for the current web log
+  member val posts = 0 with get, set
+  /// The number of pages for the current web log
+  member val pages = 0 with get, set
+  /// The number of categories for the current web log
+  member val categories = 0 with get, set
+
+
+// ---- Page models ----
+
+/// Model for page display
+type PageModel(ctx, webLog, page) =
+  inherit MyWebLogModel(ctx, webLog)
+
+  /// The page to be displayed
+  member this.page : Page = page
+
+
+// ---- Post models ----
+
+/// Model for post display
+type PostModel(ctx, webLog, post) =
+  inherit MyWebLogModel(ctx, webLog)
+  /// The post being displayed
+  member this.post : Post = post
+  /// The next newer post
+  member val newerPost = Option<Post>.None with get, set
+  /// The next older post
+  member val olderPost = Option<Post>.None with get, set
+  /// The date the post was published
+  member this.publishedDate = this.displayLongDate this.post.publishedOn
+  /// The time the post was published
+  member this.publishedTime = this.displayTime this.post.publishedOn
+  /// Does the post have tags?
+  member this.hasTags = List.length post.tags > 0
+  /// Get the tags sorted
+  member this.tags = post.tags
+                     |> List.sort
+                     |> List.map (fun tag -> tag, tag.Replace(' ', '+'))
+
 /// Model for all page-of-posts pages
 type PostsModel(ctx, webLog) =
   inherit MyWebLogModel(ctx, webLog)
@@ -105,14 +151,6 @@ type PostsModel(ctx, webLog) =
 
   /// The link for the prior (older) page of posts
   member this.olderLink = sprintf "%s/page/%i" this.urlPrefix (this.pageNbr + 1)
-
-
-/// Model for page display
-type PageModel(ctx, webLog, page) =
-  inherit MyWebLogModel(ctx, webLog)
-
-  /// The page to be displayed
-  member this.page : Page = page
 
 
 /// Form for editing a post

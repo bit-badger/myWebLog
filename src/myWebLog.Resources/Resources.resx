@@ -156,6 +156,9 @@
   <data name="ErrNotConfigured" xml:space="preserve">
     <value>is not properly configured for myWebLog</value>
   </data>
+  <data name="ListAll" xml:space="preserve">
+    <value>List All</value>
+  </data>
   <data name="LogOff" xml:space="preserve">
     <value>Log Off</value>
   </data>
@@ -168,11 +171,17 @@
   <data name="NewerPosts" xml:space="preserve">
     <value>Newer Posts</value>
   </data>
+  <data name="NextPost" xml:space="preserve">
+    <value>Next Post</value>
+  </data>
   <data name="OlderPosts" xml:space="preserve">
     <value>Older Posts</value>
   </data>
   <data name="PageHash" xml:space="preserve">
     <value>Page #</value>
+  </data>
+  <data name="Pages" xml:space="preserve">
+    <value>Pages</value>
   </data>
   <data name="Permalink" xml:space="preserve">
     <value>Permalink</value>
@@ -186,8 +195,14 @@
   <data name="Posts" xml:space="preserve">
     <value>Posts</value>
   </data>
+  <data name="PostsTagged" xml:space="preserve">
+    <value>Posts tagged</value>
+  </data>
   <data name="PostStatus" xml:space="preserve">
     <value>Post Status</value>
+  </data>
+  <data name="PreviousPost" xml:space="preserve">
+    <value>Previous Post</value>
   </data>
   <data name="PublishedDate" xml:space="preserve">
     <value>PublishedDate</value>

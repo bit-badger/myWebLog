@@ -1,0 +1,69 @@
+﻿<article>
+  <div class="row">
+    <div class="col-xs-12"><h1>@Model.post.title</h1></div>
+  </div>
+  <div class="row">
+    <div class="col-xs-12">
+      <h4>
+        <i class="fa fa-calendar" title="@Translate.Date"></i> &nbsp;@Model.publishedDate
+        <i class="fa fa-clock-o" title="@Translate.Time"></i> &nbsp;@Model.publishedTime &nbsp; &nbsp; &nbsp;
+        @Each.post.categories
+          <i class="fa fa-folder-open-o" title="@Translate.Category"></i> &nbsp;
+          <!-- <a href="/category/@Current.slug" title=__("Categorized under %s", category.name)) -->
+          @Current.name &nbsp; &nbsp;
+        @EndEach
+      </h4>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-xs-12">@Model.post.text</div>
+  </div>
+  @If.hasTags
+    <div class="row">
+      <div class="col-xs-12">
+        @Each.tags
+          <a href="/tag/@Current.Item2" title="@Translate.PostsTagged &quot;@Current.Item1&quot;">
+            <i class="fa fa-tag"></i> @Current.Item1
+          </a> &nbsp; &nbsp;
+        @EndEach
+      </div>
+    </div>
+  @EndIf
+</article>
+<div class="row">
+  <div class="col-xs-12"><hr /></div>
+</div>
+<!-- // TODO: format comments -->
+<!-- .row
+  .col-xs-12
+    each comment in post.comments
+      if 'Approved' == comment.status
+        h4
+          if comment.url
+            a(href=comment.url)= comment.name
+          else
+            = comment.name
+          | &nbsp; &nbsp;
+          small
+            =moment(comment.postedDate).format('MMMM Do, YYYY / h:mma')
+        != comment.text -->
+<div class="row">
+  <div class="col-xs-12"><hr /></div>
+</div>
+<div class="row">
+  <div class="col-xs-6">
+    @If.newerPost.IsSome
+      <a href="/@Model.newerPost.Value.permalink" title="@Translate.NextPost - &quot;@Model.newerPost.Value.title&quot;">
+        &#xab;&nbsp; @Model.newerPost.Value.title
+      </a>
+    @EndIf
+  </div>
+  <div class="col-xs-6 text-right">
+    @If.olderPost.IsSome
+      <a href="/@Model.olderPost.Value.permalink"
+         title="@Translate.PreviousPost - &quot;@Model.olderPost.Value.title&quot;">
+        @Model.olderPost.Value.title &nbsp;&#xbb;
+      </a>
+    @EndIf
+  </div>
+</div>

@@ -6,6 +6,7 @@ open RethinkDb.Driver.Net
 let private r = RethinkDb.Driver.RethinkDB.R
 let private await task = task |> Async.AwaitTask |> Async.RunSynchronously
 
+let count (expr : ReqlExpr) = expr.Count ()
 let delete (expr : ReqlExpr) = expr.Delete ()
 let filter (expr : ReqlExpr -> ReqlExpr) (table : ReqlExpr) = table.Filter expr
 let get (expr : obj) (table : Table) = table.Get expr

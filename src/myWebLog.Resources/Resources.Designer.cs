@@ -178,6 +178,15 @@ namespace myWebLog {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to List All.
+        /// </summary>
+        public static string ListAll {
+            get {
+                return ResourceManager.GetString("ListAll", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Log Off.
         /// </summary>
         public static string LogOff {
@@ -214,6 +223,15 @@ namespace myWebLog {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Next Post.
+        /// </summary>
+        public static string NextPost {
+            get {
+                return ResourceManager.GetString("NextPost", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Older Posts.
         /// </summary>
         public static string OlderPosts {
@@ -228,6 +246,15 @@ namespace myWebLog {
         public static string PageHash {
             get {
                 return ResourceManager.GetString("PageHash", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Pages.
+        /// </summary>
+        public static string Pages {
+            get {
+                return ResourceManager.GetString("Pages", resourceCulture);
             }
         }
         
@@ -268,11 +295,29 @@ namespace myWebLog {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Posts tagged.
+        /// </summary>
+        public static string PostsTagged {
+            get {
+                return ResourceManager.GetString("PostsTagged", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Post Status.
         /// </summary>
         public static string PostStatus {
             get {
                 return ResourceManager.GetString("PostStatus", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Previous Post.
+        /// </summary>
+        public static string PreviousPost {
+            get {
+                return ResourceManager.GetString("PreviousPost", resourceCulture);
             }
         }
         

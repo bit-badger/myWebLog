@@ -6,14 +6,13 @@ open myWebLog.Data.Page
 open myWebLog.Data.Post
 open myWebLog.Entities
 open Nancy
-open Nancy.Authentication.Forms
 open Nancy.ModelBinding
 open Nancy.Security
 open Nancy.Session.Persistable
 open NodaTime
 open RethinkDb.Driver.Net
 
-/// Routes dealing with posts (including the home page)
+/// Routes dealing with posts (including the home page and catch-all routes)
 type PostModule(conn : IConnection, clock : IClock) as this =
   inherit NancyModule()
 
@@ -21,6 +20,7 @@ type PostModule(conn : IConnection, clock : IClock) as this =
 
   do
     this.Get .["/"                          ] <- fun _     -> upcast this.HomePage ()
+    this.Get .["/{permalink*}"              ] <- fun parms -> upcast this.CatchAll (downcast parms)
     this.Get .["/posts/page/{page:int}"     ] <- fun parms -> upcast this.DisplayPageOfPublishedPosts (getPage parms)
     this.Get .["/posts/list"                ] <- fun _     -> upcast this.PostList 1
     this.Get .["/posts/list/page/{page:int}"] <- fun parms -> upcast this.PostList (getPage parms)
@@ -55,6 +55,31 @@ type PostModule(conn : IConnection, clock : IClock) as this =
                                 model.pageTitle <- page.title
                                 this.ThemedView "page" model
                  | None      -> this.NotFound ()
+
+  /// Derive a post or page from the URL, or redirect from a prior URL to the current one
+  member this.CatchAll (parameters : DynamicDictionary) =
+    let url : string = downcast parameters.["permalink"]
+    match tryFindPostByPermalink conn this.WebLog.id url with
+    | Some post -> // Hopefully the most common result; the permalink is a permalink!
+                   let model = PostModel(this.Context, this.WebLog, post)
+                   model.newerPost <- tryFindNewerPost conn post
+                   model.olderPost <- tryFindOlderPost conn post
+                   model.pageTitle <- post.title
+                   this.ThemedView "single" model
+    | None      -> // Maybe it's a page permalink instead...
+                   match tryFindPageByPermalink conn this.WebLog.id url with
+                   | Some page -> // ...and it is!
+                                  let model = PageModel(this.Context, this.WebLog, page)
+                                  model.pageTitle <- page.title
+                                  this.ThemedView "page" model
+                   | None      -> // Maybe it's an old permalink for a post
+                                  match tryFindPostByPriorPermalink conn this.WebLog.id url with
+                                  | Some post -> // Redirect them to the proper permalink
+                                                 this.Negotiate
+                                                   .WithHeader("Location", sprintf "/%s" post.permalink)
+                                                   .WithStatusCode(HttpStatusCode.MovedPermanently)
+                                  | None      -> this.NotFound ()
+
 
   // ---- Administer posts ----
 

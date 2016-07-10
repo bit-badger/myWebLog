@@ -1,0 +1,32 @@
+﻿@Master['admin/admin-layout']
+
+@Section['Content']
+  <div class="row">
+    <div class="col-xs-6">
+      <h3>@Translate.Posts &nbsp;<span class="badge">@Model.posts</span></h3>
+      <p>
+        <a href="/posts/list"><i class="fa fa-list-ul"></i> @Translate.ListAll</a>
+        &nbsp; &nbsp;
+        <a href="/post/new/edit"><i class="fa fa-plus"></i> @Translate.AddNew</a>
+      </p>
+    </div>
+    <div class="col-xs-6">
+      <h3>@Translate.Pages &nbsp;<span class="badge">@Model.pages</span></h3>
+      <p>
+        <a href="/pages/list"><i class="fa fa-list-ul"></i> @Translate.ListAll</a>
+        &nbsp; &nbsp;
+        <a href="/page/new/edit"><i class="fa fa-plus"></i> @Translate.AddNew</a>
+      </p>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-xs-6">
+      <h3>@Translate.Categories &nbsp;<span class="badge">@Model.categories</span></h3>
+      <p>
+        <a href="/categories/list"><i class="fa fa-list.ul"></i> @Translate.ListAll</a>
+        &nbsp; &nbsp;
+        <a href="/category/new/edit"><i class="fa fa-plus"></i> @Translate.AddNew</a>
+      </p>
+    </div>
+  </div>
+@EndSection

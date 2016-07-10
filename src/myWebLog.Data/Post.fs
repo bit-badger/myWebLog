@@ -1,8 +1,11 @@
 ﻿module myWebLog.Data.Post
 
+open FSharp.Interop.Dynamic
 open myWebLog.Entities
 open Rethink
 open RethinkDb.Driver
+open RethinkDb.Driver.Ast
+open System.Dynamic
 
 let private r = RethinkDB.R
 
@@ -58,6 +61,34 @@ let tryFindPost conn webLogId postId : Post option =
   | null -> None
   | post -> Some <| unbox post
 
+/// Try to find a post by its permalink
+let tryFindPostByPermalink conn webLogId permalink =
+  (table Table.Post
+   |> getAll [| webLogId, permalink |]
+   |> optArg "index" "permalink"
+   |> without [| "revisions" |])
+   .Merge(fun post -> ExpandoObject()?categories <-
+                        post.["categoryIds"]
+                          .Map(ReqlFunction1(fun cat -> upcast r.Table(Table.Category).Get(cat).Without("children")))
+                          .CoerceTo("array"))
+   .Merge(fun post -> ExpandoObject()?comments <-
+                        r.Table(Table.Comment)
+                          .GetAll(post.["id"]).OptArg("index", "postId")
+                          .OrderBy("postedOn")
+                          .CoerceTo("array"))
+  |> runCursorAsync<Post> conn
+  |> Seq.tryHead
+
+/// Try to find a post by its prior permalink
+let tryFindPostByPriorPermalink conn webLogId permalink =
+  (table Table.Post
+   |> getAll [| webLogId |]
+   |> optArg "index" "webLogId")
+   .Filter(fun post -> post.["priorPermalinks"].Contains(permalink :> obj))
+  |> without [| "revisions" |]
+  |> runCursorAsync<Post> conn
+  |> Seq.tryHead
+
 /// Save a post
 let savePost conn post =
   match post.id with
@@ -73,3 +104,11 @@ let savePost conn post =
              |> runResultAsync conn
              |> ignore
              post.id
+
+/// Count posts for a web log
+let countPosts conn webLogId =
+  table Table.Post
+  |> getAll [| webLogId |]
+  |> optArg "index" "webLogId"
+  |> count
+  |> runAtomAsync<int> conn

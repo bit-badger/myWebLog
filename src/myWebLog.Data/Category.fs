@@ -26,3 +26,11 @@ let getAllCategories conn webLogId =
   |> runCursorAsync<Category> conn
   |> Seq.toList
   |> sortCategories
+
+/// Count categories for a web log
+let countCategories conn webLogId =
+  table Table.Category
+  |> getAll [| webLogId |]
+  |> optArg "index" "webLogId"
+  |> count
+  |> runAtomAsync<int> conn
