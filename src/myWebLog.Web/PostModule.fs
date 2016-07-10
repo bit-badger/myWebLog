@@ -1,28 +1,36 @@
 ﻿namespace myWebLog
 
+open FSharp.Markdown
+open myWebLog.Data.Category
 open myWebLog.Data.Page
 open myWebLog.Data.Post
+open myWebLog.Entities
 open Nancy
 open Nancy.Authentication.Forms
+open Nancy.ModelBinding
 open Nancy.Security
+open Nancy.Session.Persistable
+open NodaTime
 open RethinkDb.Driver.Net
-open myWebLog.Entities
 
-type PostModule(conn : IConnection) as this =
-  inherit MyWebLogModule()
+/// Routes dealing with posts (including the home page)
+type PostModule(conn : IConnection, clock : IClock) as this =
+  inherit NancyModule()
+
+  let getPage (parms : obj) = ((parms :?> DynamicDictionary).["page"] :?> int)
 
   do
-    this.Get.["/"]                          <- fun _     -> upcast this.HomePage ()
-    this.Get.["/posts/page/{page:int}"]     <- fun parms -> upcast this.GetPageOfPublishedPosts (downcast parms)
-
-    this.Get.["/posts/list"]                <- fun _     -> upcast this.PostList 1
-    this.Get.["/posts/list/page/{page:int"] <- fun parms -> upcast this.PostList
-                                                                     ((parms :?> DynamicDictionary).["page"] :?> int)
+    this.Get .["/"                          ] <- fun _     -> upcast this.HomePage ()
+    this.Get .["/posts/page/{page:int}"     ] <- fun parms -> upcast this.DisplayPageOfPublishedPosts (getPage parms)
+    this.Get .["/posts/list"                ] <- fun _     -> upcast this.PostList 1
+    this.Get .["/posts/list/page/{page:int}"] <- fun parms -> upcast this.PostList (getPage parms)
+    this.Get .["/post/{postId}/edit"        ] <- fun parms -> upcast this.EditPost (downcast parms)
+    this.Post.["/post/{postId}/edit"        ] <- fun parms -> upcast this.SavePost (downcast parms)
 
   // ---- Display posts to users ----
 
   /// Display a page of published posts
-  member private this.DisplayPageOfPublishedPosts pageNbr =
+  member this.DisplayPageOfPublishedPosts pageNbr =
     let model = PostsModel(this.Context, this.WebLog)
     model.pageNbr   <- pageNbr
     model.posts     <- findPageOfPublishedPosts conn this.WebLog.id pageNbr 10
@@ -35,22 +43,18 @@ type PostModule(conn : IConnection) as this =
     model.urlPrefix <- "/posts"
     model.pageTitle <- match pageNbr with
                        | 1 -> ""
-                       | _ -> sprintf "Page #%i" pageNbr
-    this.ThemedRender "posts" model
+                       | _ -> sprintf "%s%i" Resources.PageHash pageNbr
+    this.ThemedView "posts" model
 
   /// Display either the newest posts or the configured home page
   member this.HomePage () =
     match this.WebLog.defaultPage with
     | "posts" -> this.DisplayPageOfPublishedPosts 1
-    | page    -> match tryFindPage conn this.WebLog.id page with
+    | page    -> match tryFindPageWithoutRevisions conn this.WebLog.id page with
                  | Some page -> let model = PageModel(this.Context, this.WebLog, page)
                                 model.pageTitle <- page.title
-                                this.ThemedRender "page" model
-                 | None      -> this.Negotiate.WithStatusCode 404
-
-  /// Get a page of public posts (other than the first one if the home page is a page of posts)
-  member this.GetPageOfPublishedPosts (parameters : DynamicDictionary) =
-    this.DisplayPageOfPublishedPosts (parameters.["page"] :?> int)
+                                this.ThemedView "page" model
+                 | None      -> this.NotFound ()
 
   // ---- Administer posts ----
 
@@ -61,7 +65,78 @@ type PostModule(conn : IConnection) as this =
     model.pageNbr   <- pageNbr
     model.posts     <- findPageOfAllPosts conn this.WebLog.id pageNbr 25
     model.hasNewer  <- pageNbr > 1
-    model.hasOlder  <- 25 > List.length model.posts
+    model.hasOlder  <- List.length model.posts < 25
     model.urlPrefix <- "/post/list"
-    model.pageTitle <- "Posts"
+    model.pageTitle <- Resources.Posts
     this.View.["admin/post/list", model]
+
+  /// Edit a post
+  member this.EditPost (parameters : DynamicDictionary) =
+    this.RequiresAccessLevel AuthorizationLevel.Administrator
+    let postId : string = downcast parameters.["postId"]
+    match (match postId with
+           | "new" -> Some Post.empty
+           | _     -> tryFindPost conn this.WebLog.id postId) with
+    | Some post -> let rev = match post.revisions
+                                   |> List.sortByDescending (fun r -> r.asOf)
+                                   |> List.tryHead with
+                             | Some r -> r
+                             | None   -> Revision.empty
+                   let model = EditPostModel(this.Context, this.WebLog, post, rev)
+                   model.categories <- getAllCategories conn this.WebLog.id
+                                       |> List.map (fun cat -> string (fst cat).id,
+                                                               sprintf "%s%s"
+                                                                       (String.replicate (snd cat) " &nbsp; &nbsp; ")
+                                                                       (fst cat).name)
+                   model.pageTitle  <- match post.id with
+                                       | "new" -> Resources.AddNewPost
+                                       | _     -> Resources.EditPost
+                   this.View.["admin/post/edit"]
+    | None      -> this.NotFound ()
+
+  /// Save a post
+  member this.SavePost (parameters : DynamicDictionary) =
+    this.RequiresAccessLevel AuthorizationLevel.Administrator
+    this.ValidateCsrfToken ()
+    let postId : string = downcast parameters.["postId"]
+    let form = this.Bind<EditPostForm>()
+    let now = clock.Now.Ticks
+    match (match postId with
+           | "new" -> Some Post.empty
+           | _     -> tryFindPost conn this.WebLog.id postId) with
+    | Some p -> let justPublished = p.publishedOn = int64 0 && form.publishNow
+                let post          = match postId with
+                                    | "new" -> { p with
+                                                   webLogId = this.WebLog.id
+                                                   authorId = (this.Request.PersistableSession.GetOrDefault<User>
+                                                                (Keys.User, User.empty)).id }
+                                    | _     -> p
+                let pId = { post with
+                              status      = match form.publishNow with
+                                            | true -> PostStatus.Published
+                                            | _    -> PostStatus.Draft
+                              title       = form.title
+                              permalink   = form.permalink
+                              publishedOn = match justPublished with | true -> now | _ -> int64 0
+                              updatedOn   = now
+                              text        = match form.source with
+                                            | RevisionSource.Markdown -> Markdown.TransformHtml form.text
+                                            | _                       -> form.text
+                              categoryIds = Array.toList form.categories
+                              tags        = form.tags.Split ','
+                                            |> Seq.map (fun t -> t.Trim().ToLowerInvariant())
+                                            |> Seq.toList
+                              revisions   = { asOf       = now
+                                              sourceType = form.source
+                                              text       = form.text } :: post.revisions }
+                          |> savePost conn
+                let model = MyWebLogModel(this.Context, this.WebLog)
+                { level   = Level.Info
+                  message = System.String.Format
+                              (Resources.MsgPostEditSuccess,
+                               (match postId with | "new" -> Resources.Added | _ -> Resources.Updated),
+                               (match justPublished with | true  -> Resources.AndPublished | _ -> ""))
+                  details = None }
+                |> model.addMessage
+                this.Redirect (sprintf "/post/%s/edit" pId) model
+    | None   -> this.NotFound ()

@@ -3,6 +3,9 @@
 open myWebLog.Entities
 open Nancy
 open Nancy.Session.Persistable
+open NodaTime
+open NodaTime.Text
+
 
 /// Levels for a user message
 module Level =
@@ -57,6 +60,23 @@ type MyWebLogModel(ctx : NancyContext, webLog : WebLog) =
   /// Add a message to the output
   member this.addMessage message = this.messages <- message :: this.messages
 
+  /// Convert ticks to a zoned date/time for the current web log
+  member this.zonedTime ticks = Instant(ticks).InZone(DateTimeZoneProviders.Tzdb.[this.webLog.timeZone])
+
+  /// Display a long date
+  member this.displayLongDate ticks =
+    this.zonedTime ticks
+    |> ZonedDateTimePattern.CreateWithCurrentCulture("MMMM d',' yyyy", DateTimeZoneProviders.Tzdb).Format
+  
+  /// Display a short date
+  member this.displayShortDate ticks =
+    this.zonedTime ticks
+    |> ZonedDateTimePattern.CreateWithCurrentCulture("MMM d',' yyyy", DateTimeZoneProviders.Tzdb).Format
+  
+  /// Display the time
+  member this.displayTime ticks =
+    (this.zonedTime ticks
+     |> ZonedDateTimePattern.CreateWithCurrentCulture("h':'mmtt", DateTimeZoneProviders.Tzdb).Format).ToLower()
 
 /// Model for all page-of-posts pages
 type PostsModel(ctx, webLog) =
@@ -93,3 +113,52 @@ type PageModel(ctx, webLog, page) =
 
   /// The page to be displayed
   member this.page : Page = page
+
+
+/// Form for editing a post
+type EditPostForm() =
+  /// The title of the post
+  member val title = "" with get, set
+  /// The permalink for the post
+  member val permalink = "" with get, set
+  /// The source type for this revision
+  member val source = "" with get, set
+  /// The text
+  member val text = "" with get, set
+  /// Tags for the post
+  member val tags = "" with get, set
+  /// The selected category Ids for the post
+  member val categories = Array.empty<string> with get, set
+  /// Whether the post should be published
+  member val publishNow = true with get, set
+
+  /// Fill the form with applicable values from a post
+  member this.forPost post =
+    this.title      <- post.title
+    this.permalink  <- post.permalink
+    this.tags       <- List.reduce (fun acc x -> sprintf "%s, %s" acc x) post.tags
+    this.categories <- List.toArray post.categoryIds
+    this
+
+  /// Fill the form with applicable values from a revision
+  member this.forRevision rev =
+    this.source <- rev.sourceType
+    this.text   <- rev.text
+    this
+
+/// View model for the edit post page
+type EditPostModel(ctx, webLog, post, revision) =
+  inherit MyWebLogModel(ctx, webLog)
+
+  /// The form
+  member val form = EditPostForm().forPost(post).forRevision(revision) with get, set
+  /// The post being edited
+  member val post = post with get, set
+  /// The categories to which the post may be assigned
+  member val categories = List.empty<string * string> with get, set
+  /// Whether the post is currently published
+  member this.isPublished = PostStatus.Published = this.post.status
+  /// The published date
+  member this.publishedDate = this.displayLongDate this.post.publishedOn
+  /// The published time
+  member this.publishedTime = this.displayTime this.post.publishedOn

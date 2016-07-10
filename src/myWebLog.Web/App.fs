@@ -15,6 +15,7 @@ open Nancy.Session.Persistable
 open Nancy.Session.RethinkDb
 open Nancy.TinyIoc
 open Nancy.ViewEngines.SuperSimpleViewEngine
+open NodaTime
 open RethinkDb.Driver.Net
 open Suave
 open Suave.Owin
@@ -23,8 +24,7 @@ open System.Text.RegularExpressions
 
 /// Set up a database connection
 let cfg = try DataConfig.fromJson (System.IO.File.ReadAllText "data-config.json")
-          with ex -> ApplicationException("Could not convert data-config.json to RethinkDB connection", ex)
-                     |> raise
+          with ex -> raise <| ApplicationException(Resources.ErrDataConfig, ex)
 
 do
   startUpCheck cfg
@@ -75,6 +75,9 @@ type MyWebLogBootstrapper() =
     |> ignore
     container.Register<IConnection>(cfg.conn)
     |> ignore
+    // NodaTime
+    container.Register<IClock>(SystemClock.Instance)
+    |> ignore
     // I18N in SSVE
     container.Register<seq<ISuperSimpleViewEngineMatcher>>(fun _ _ -> 
       Seq.singleton (TranslateTokenViewEngineMatcher() :> ISuperSimpleViewEngineMatcher))
@@ -116,7 +119,7 @@ type RequestEnvironment() =
                     match tryFindWebLogByUrlBase cfg.conn ctx.Request.Url.HostName with
                     | Some webLog -> ctx.Items.[Keys.WebLog] <- webLog
                     | None        -> ApplicationException
-                                       (sprintf "%s is not properly configured for myWebLog" ctx.Request.Url.HostName)
+                                       (sprintf "%s %s" ctx.Request.Url.HostName Resources.ErrNotConfigured)
                                      |> raise
                     ctx.Items.[Keys.Version] <- version
                     null)

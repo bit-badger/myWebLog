@@ -12,3 +12,14 @@ let tryFindPage conn webLogId pageId : Page option =
         |> box with
   | null -> None
   | page -> Some <| unbox page
+
+/// Get a page by its Id (excluding revisions)
+let tryFindPageWithoutRevisions conn webLogId pageId : Page option =
+  match table Table.Page
+        |> get pageId
+        |> filter (fun p -> upcast p.["webLogId"].Eq(webLogId))
+        |> without [| "revisions" |]
+        |> runAtomAsync<Page> conn
+        |> box with
+  | null -> None
+  | page -> Some <| unbox page

@@ -66,8 +66,10 @@
   </ItemGroup>
   <ItemGroup />
   <ItemGroup>
+    <Content Include="content\scripts\tinymce-init.js" />
     <Content Include="content\styles\admin.css" />
     <Content Include="views\admin\admin-layout.html" />
+    <Content Include="views\admin\post\edit.html" />
     <Content Include="views\admin\post\list.html" />
     <Content Include="views\default\index-content.html" />
     <Content Include="views\default\index.html" />

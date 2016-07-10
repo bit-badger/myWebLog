@@ -6,17 +6,23 @@ open Newtonsoft.Json
 
 /// Constants to use for revision source language
 module RevisionSource =
+  [<Literal>]
   let Markdown = "markdown"
+  [<Literal>]
   let HTML     = "html"
 
 /// Constants to use for authorization levels
 module AuthorizationLevel =
+  [<Literal>]
   let Administrator = "Administrator"
+  [<Literal>]
   let User          = "User"
 
 /// Constants to use for post statuses
 module PostStatus =
+  [<Literal>]
   let Draft     = "Draft"
+  [<Literal>]
   let Published = "Published"
 
 // ---- Entities ----
@@ -30,7 +36,12 @@ type Revision = {
   /// The text
   text : string
   }
-
+with
+  /// An empty revision
+  static member empty =
+    { asOf       = int64 0
+      sourceType = RevisionSource.HTML
+      text       = "" }
 
 /// A page with static content
 type Page = {
@@ -247,7 +258,7 @@ type Post = {
   }
 with
   static member empty =
-    { id              = ""
+    { id              = "new"
       webLogId        = ""
       authorId        = ""
       status          = PostStatus.Draft

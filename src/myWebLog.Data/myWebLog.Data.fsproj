@@ -56,6 +56,7 @@
     <Compile Include="DataConfig.fs" />
     <Compile Include="Rethink.fs" />
     <Compile Include="SetUp.fs" />
+    <Compile Include="Category.fs" />
     <Compile Include="Page.fs" />
     <Compile Include="Post.fs" />
     <Compile Include="WebLog.fs" />

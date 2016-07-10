@@ -47,3 +47,29 @@ let findPageOfAllPosts conn webLogId pageNbr nbrPerPage =
   |> slice ((pageNbr - 1) * nbrPerPage) (pageNbr * nbrPerPage)
   |> runCursorAsync<Post> conn
   |> Seq.toList
+
+/// Try to find a post by its Id and web log Id
+let tryFindPost conn webLogId postId : Post option =
+  match table Table.Post
+        |> get postId
+        |> filter (fun p -> upcast p.["webLogId"].Eq(webLogId))
+        |> runAtomAsync<Post> conn
+        |> box with
+  | null -> None
+  | post -> Some <| unbox post
+
+/// Save a post
+let savePost conn post =
+  match post.id with
+  | "new" -> let newPost = { post with id = string <| System.Guid.NewGuid() }
+             table Table.Post
+             |> insert newPost
+             |> runResultAsync conn
+             |> ignore
+             newPost.id
+  | _     -> table Table.Post
+             |> get post.id
+             |> replace post
+             |> runResultAsync conn
+             |> ignore
+             post.id

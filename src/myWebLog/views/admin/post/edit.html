@@ -1,0 +1,95 @@
+﻿@Master['admin/admin-layout']
+
+@Section['Content']
+  <form action='/post/@Model.post.id/edit' method="post">
+    @AntiForgeryToken
+    <div class="row">
+      <div class="col-sm-9">
+        <div class="form-group">
+          <label class="control-label" for="title">@Translate.Title</label>
+          <input type="text" name="title" id="title" class="form-control" value="@Model.form.title" />
+        </div>
+        <div class="form-group">
+          <label class="control-label" for="permalink">@Translate.Permalink</label>
+          <input type="text" name="permalink" id="permalink" class="form-control" value="@Model.form.permalink" />
+          <!-- // FIXME: hard-coded "http" -->
+          <p class="form-hint"><em>@Translate.startingWith</em> http://@Model.webLog.urlBase/ </p>
+        </div>
+        <!-- // TODO: Markdown / HTML choice -->
+        <div class="form-group">
+          <textarea name="text" id="text" rows="15">@Model.form.text</textarea>
+        </div>
+        <div class="form-group">
+          <label class="control-label" for="tags">@Translate.Tags</label>
+          <input type="text" name="tags" id="tags" class="form-control" value="@Model.form.tags" />
+        </div>
+      </div>
+      <div class="col-sm-3">
+        <div class="panel panel-default">
+          <div class="panel-heading">
+            <h4 class="panel-title">@Translate.PostDetails</h4>
+          </div>
+          <div class="panel-body">
+            <div class="form-group">
+              <label class="control-label">@Translate.PostStatus</label>
+              <p class="static-control">@Model.post.status</p>
+            </div>
+            @If.isPublished
+              <div class="form-group">
+                <label class="control-label">@Translate.PublishedDate</label>
+                <p class="static-control">@Model.publishedDate<br />@Model.publishedTime</p>
+              </div>
+            @EndIf
+          </div>
+        </div>
+        <div class="panel panel-default">
+          <div class="panel-heading">
+            <h4 class="panel-title">@Translate.Categories</h4>
+          </div>
+          <div class="panel-body" style="max-height:350px;overflow:scroll;">
+            <!-- // TODO: how to check the ones that are already selected? -->
+            @Each.categories
+              <!-- - var tab = 0
+              while tab < item.indent
+                | &nbsp; &nbsp;
+                - tab++
+              - var attributes = {}
+              if -1 < currentCategories.indexOf(item.category.id)
+                - attributes.checked = 'checked' -->
+              <input type="checkbox" id="category-@Current.Item1" name="category", value="@Current.Item1" />
+              &nbsp;
+              <!-- // FIXME: the title should be the category description -->
+              <label for="category-@Current.Item1" title="@Current.Item2">@Current.Item2</label>
+              <br/>
+            @EndEach
+          </div>
+        </div>
+        <div class="text-center">
+          @If.isPublished
+            <input type="hidden" name="publishNow" value="true" />
+          @EndIf
+          @IfNot.isPublished
+            <div>
+              <input type="checkbox" name="publishNow" id="publishNow" value="true" checked="checked" />
+              &nbsp; <label for="publishNow">@Translate.PublishThisPost</label>
+            </div>
+          @EndIf
+          <p>
+            <button type="submit" class="btn btn-primary">
+              <i class="fa fa-floppy-o"></i> &nbsp; @Translate.Save
+            </button>
+          </p>
+        </div>
+      </div>
+    </div>
+  </form>
+@EndSection
+
+@Section['Scripts']
+  <script type="text/javascript" src="/content/scripts/tinymce-init.js"></script>
+  <script type="text/javascript">
+    /** <![CDATA[ */
+    $(document).ready(function () { $("#title").focus() })
+    /** ]]> */
+  </script>
+@EndSection
