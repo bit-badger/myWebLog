@@ -166,6 +166,8 @@ with
 type Category = {
   /// The Id
   id : string
+  /// The Id of the web log to which this category belongs
+  webLogId : string
   /// The displayed name
   name : string
   /// The slug (used in category URLs)
@@ -180,7 +182,8 @@ type Category = {
 with
   /// An empty category
   static member empty =
-    { id          = ""
+    { id          = "new"
+      webLogId    = ""
       name        = ""
       slug        = ""
       description = None

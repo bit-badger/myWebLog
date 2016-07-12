@@ -92,6 +92,60 @@ type DashboardModel(ctx, webLog) =
   member val categories = 0 with get, set
 
 
+// ---- Category models ----
+
+type IndentedCategory = {
+  category : Category
+  indent   : int
+  selected : bool
+  }
+with
+  /// Create an indented category
+  static member create (cat : Category * int) (isSelected : string -> bool) =
+    { category = fst cat
+      indent   = snd cat
+      selected = isSelected (fst cat).id }
+  /// Display name for a category on the list page, complete with indents
+  member this.listName = sprintf "%s%s" (String.replicate this.indent " &#xabb; &nbsp; ") this.category.name
+  /// Display for this category as an option within a select box
+  member this.option =
+    seq {
+      yield sprintf "<option value=\"%s\"" this.category.id
+      yield (match this.selected with | true -> """ selected="selected">""" | _ -> ">")
+      yield String.replicate this.indent " &nbsp; &nbsp; "
+      yield this.category.name
+      yield "</option>"
+      }
+    |> String.concat ""
+
+/// Model for the list of categories
+type CategoryListModel(ctx, webLog, categories) =
+  inherit MyWebLogModel(ctx, webLog)
+  /// The categories
+  member this.categories : IndentedCategory list = categories
+
+
+/// Form for editing a category
+type CategoryForm(category : Category) =
+  new() = CategoryForm(Category.empty)
+  /// The name of the category
+  member val name = category.name with get, set
+  /// The slug of the category (used in category URLs)
+  member val slug = category.slug with get, set
+  /// The description of the category
+  member val description = defaultArg category.description "" with get, set
+  /// The parent category for this one
+  member val parentId = defaultArg category.parentId "" with get, set
+
+/// Model for editing a category
+type CategoryEditModel(ctx, webLog, category) =
+  inherit MyWebLogModel(ctx, webLog)
+  /// The form with the category information
+  member val form = CategoryForm(category) with get, set
+  /// The categories
+  member val categories : IndentedCategory list = List.empty with get, set
+
+
 // ---- Page models ----
 
 /// Model for page display
@@ -101,6 +155,12 @@ type PageModel(ctx, webLog, page) =
   /// The page to be displayed
   member this.page : Page = page
 
+
+/// Model for page list display
+type PagesModel(ctx, webLog, pages) =
+  inherit MyWebLogModel(ctx, webLog)
+  /// The pages
+  member this.pages : Page list = pages
 
 // ---- Post models ----
 

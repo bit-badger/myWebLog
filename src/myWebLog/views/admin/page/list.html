@@ -1,0 +1,47 @@
+﻿@Master['admin/admin-layout']
+
+@Section['Content']
+  <div class="row">
+    <p><a class="btn btn-primary" href="/page/new/edit"><i class="fa fa-plus"></i> @Translate.AddNew</a></p>
+  </div>
+  <div class="row">
+    <table class="table table-hover">
+      <tr>
+        <th>@Translate.Title</th>
+        <th>@Translate.LastUpdated</th>
+      </tr>
+      @Each.pages
+        <tr>
+          <td>
+            @Current.title<br />
+            <a href="/@Current.permalink">@Translate.View</a> &nbsp;
+            <a href="/page/@Current.id}/edit">@Translate.Edit</a> &nbsp;
+            <a href="javascript:void(0)" onclick="deletePage('@Current.id', '@Current.title')">@Translate.Delete</a>
+          </td>
+          <td>
+            <!-- // TODO: make the formatting stuff work in a loop 
+            =theDate.format('MMM D, YYYY')
+            br
+            #{__("at")} #{theDate.format('h:mma')} -->
+          </td>
+        </tr>
+      @EndEach
+    </table>
+  </div>
+  <form method="delete" id="deleteForm">
+    @AntiForgeryToken
+  </form>
+@EndSection
+
+@Section['Scripts']
+  <script type="text/javascript">
+    /* <![CDATA[ */
+    function deletePage(id, title) {
+      if (confirm('@Translate.PageDeleteWarning "' + title + '"?')) {
+        document.getElementById("deleteForm").action = "/page/" + id + "/delete"
+        document.getElementById("deleteForm").submit()
+      }
+    }
+    /* ]] */
+  </script>
+@EndSection

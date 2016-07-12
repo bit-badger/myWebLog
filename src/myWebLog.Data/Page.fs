@@ -3,11 +3,15 @@
 open myWebLog.Entities
 open Rethink
 
+/// Shorthand to get the page by its Id, filtering on web log Id
+let private page webLogId pageId =
+  table Table.Page
+  |> get pageId
+  |> filter (fun p -> upcast p.["webLogId"].Eq(webLogId))
+
 /// Get a page by its Id
 let tryFindPage conn webLogId pageId : Page option =
-  match table Table.Page
-        |> get pageId
-        |> filter (fun p -> upcast p.["webLogId"].Eq(webLogId))
+  match page webLogId pageId
         |> runAtomAsync<Page> conn
         |> box with
   | null -> None
@@ -15,9 +19,7 @@ let tryFindPage conn webLogId pageId : Page option =
 
 /// Get a page by its Id (excluding revisions)
 let tryFindPageWithoutRevisions conn webLogId pageId : Page option =
-  match table Table.Page
-        |> get pageId
-        |> filter (fun p -> upcast p.["webLogId"].Eq(webLogId))
+  match page webLogId pageId
         |> without [| "revisions" |]
         |> runAtomAsync<Page> conn
         |> box with
@@ -40,3 +42,19 @@ let countPages conn webLogId =
   |> optArg "index" "webLogId"
   |> count
   |> runAtomAsync<int> conn
+
+/// Get a list of all pages (excludes page text and revisions)
+let findAllPages conn webLogId =
+  table Table.Page
+  |> getAll [| webLogId |]
+  |> orderBy (fun p -> upcast p.["title"])
+  |> without [| "text"; "revisions" |]
+  |> runCursorAsync<Page> conn
+  |> Seq.toList
+
+/// Delete a page
+let deletePage conn webLogId pageId =
+  page webLogId pageId
+  |> delete
+  |> runResultAsync conn
+  |> ignore

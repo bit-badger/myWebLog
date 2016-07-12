@@ -61,6 +61,15 @@ namespace myWebLog {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Action.
+        /// </summary>
+        public static string Action {
+            get {
+                return ResourceManager.GetString("Action", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Added.
         /// </summary>
         public static string Added {
@@ -115,6 +124,24 @@ namespace myWebLog {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Category.
+        /// </summary>
+        public static string Category {
+            get {
+                return ResourceManager.GetString("Category", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Are you sure you wish to delete the category.
+        /// </summary>
+        public static string CategoryDeleteWarning {
+            get {
+                return ResourceManager.GetString("CategoryDeleteWarning", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Dashboard.
         /// </summary>
         public static string Dashboard {
@@ -138,6 +165,15 @@ namespace myWebLog {
         public static string Delete {
             get {
                 return ResourceManager.GetString("Delete", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Description.
+        /// </summary>
+        public static string Description {
+            get {
+                return ResourceManager.GetString("Description", resourceCulture);
             }
         }
         
@@ -178,6 +214,15 @@ namespace myWebLog {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Last Updated.
+        /// </summary>
+        public static string LastUpdated {
+            get {
+                return ResourceManager.GetString("LastUpdated", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to List All.
         /// </summary>
         public static string ListAll {
@@ -205,11 +250,47 @@ namespace myWebLog {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Deleted category {0} successfully.
+        /// </summary>
+        public static string MsgCategoryDeleted {
+            get {
+                return ResourceManager.GetString("MsgCategoryDeleted", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to {0} category successfully.
+        /// </summary>
+        public static string MsgCategoryEditSuccess {
+            get {
+                return ResourceManager.GetString("MsgCategoryEditSuccess", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Deleted page successfully.
+        /// </summary>
+        public static string MsgPageDeleted {
+            get {
+                return ResourceManager.GetString("MsgPageDeleted", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to {0}{1} post successfully.
         /// </summary>
         public static string MsgPostEditSuccess {
             get {
                 return ResourceManager.GetString("MsgPostEditSuccess", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Name.
+        /// </summary>
+        public static string Name {
+            get {
+                return ResourceManager.GetString("Name", resourceCulture);
             }
         }
         
@@ -232,11 +313,29 @@ namespace myWebLog {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to No Parent.
+        /// </summary>
+        public static string NoParent {
+            get {
+                return ResourceManager.GetString("NoParent", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Older Posts.
         /// </summary>
         public static string OlderPosts {
             get {
                 return ResourceManager.GetString("OlderPosts", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Are you sure you wish to delete the page.
+        /// </summary>
+        public static string PageDeleteWarning {
+            get {
+                return ResourceManager.GetString("PageDeleteWarning", resourceCulture);
             }
         }
         
@@ -255,6 +354,15 @@ namespace myWebLog {
         public static string Pages {
             get {
                 return ResourceManager.GetString("Pages", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Parent Category.
+        /// </summary>
+        public static string ParentCategory {
+            get {
+                return ResourceManager.GetString("ParentCategory", resourceCulture);
             }
         }
         
@@ -345,6 +453,15 @@ namespace myWebLog {
         public static string Save {
             get {
                 return ResourceManager.GetString("Save", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Slug.
+        /// </summary>
+        public static string Slug {
+            get {
+                return ResourceManager.GetString("Slug", resourceCulture);
             }
         }
         

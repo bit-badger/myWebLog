@@ -234,4 +234,43 @@
   <data name="View" xml:space="preserve">
     <value>View</value>
   </data>
+  <data name="Action" xml:space="preserve">
+    <value>Action</value>
+  </data>
+  <data name="Category" xml:space="preserve">
+    <value>Category</value>
+  </data>
+  <data name="CategoryDeleteWarning" xml:space="preserve">
+    <value>Are you sure you wish to delete the category</value>
+  </data>
+  <data name="Description" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="LastUpdated" xml:space="preserve">
+    <value>Last Updated</value>
+  </data>
+  <data name="MsgCategoryDeleted" xml:space="preserve">
+    <value>Deleted category {0} successfully</value>
+  </data>
+  <data name="MsgCategoryEditSuccess" xml:space="preserve">
+    <value>{0} category successfully</value>
+  </data>
+  <data name="MsgPageDeleted" xml:space="preserve">
+    <value>Deleted page successfully</value>
+  </data>
+  <data name="Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="NoParent" xml:space="preserve">
+    <value>No Parent</value>
+  </data>
+  <data name="PageDeleteWarning" xml:space="preserve">
+    <value>Are you sure you wish to delete the page</value>
+  </data>
+  <data name="ParentCategory" xml:space="preserve">
+    <value>Parent Category</value>
+  </data>
+  <data name="Slug" xml:space="preserve">
+    <value>Slug</value>
+  </data>
 </root>

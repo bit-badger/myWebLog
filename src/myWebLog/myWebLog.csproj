@@ -69,7 +69,10 @@
     <Content Include="content\scripts\tinymce-init.js" />
     <Content Include="content\styles\admin.css" />
     <Content Include="views\admin\admin-layout.html" />
+    <Content Include="views\admin\category\edit.html" />
+    <Content Include="views\admin\category\list.html" />
     <Content Include="views\admin\dashboard.html" />
+    <Content Include="views\admin\page\list.html" />
     <Content Include="views\admin\post\edit.html" />
     <Content Include="views\admin\post\list.html" />
     <Content Include="views\default\index-content.html" />

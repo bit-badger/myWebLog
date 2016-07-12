@@ -1,0 +1,44 @@
+﻿@Master['admin/admin-layout']
+
+@Section['Content']
+  <div class="row">
+    <p><a class="btn btn-primary" href="/category/new/edit"><i class="fa fa-plus"></i> @Translate.AddNew"</a></p>
+  </div>
+  <div class="row">
+    <table class="table table-hover">
+      <tr>
+        <th>@Translate.Action</th>
+        <th>@Translate.Category</th>
+        <th>@Translate.Description</th>
+      </tr>
+      @Each.categories
+        <tr>
+          <td>
+            <a href="/category/@Current.category.id/edit">@Translate.Edit</a> &nbsp;
+            <a href="javascript:void(0)" onclick="deleteCategory('@Current.category.id', '@Current.category.name')">
+              @Translate.Delete
+            </a>
+          </td>
+          <td>@Current.listName</td>
+          <td>@Current.category.description</td>
+        </tr>
+      @EndEach
+    </table>
+  </div>
+  <form method="delete" id="deleteForm">
+    @AntiForgeryToken
+  </form>
+@EndSection
+
+@Section['Scripts']
+  <script type="text/javascript">
+    /* <![CDATA[ */
+    function deleteCategory(id, title) {
+      if (confirm('@Translate.CategoryDeleteWarning "' + title + '"?')) {
+        document.getElementById("deleteForm").action = "/category/" + id + "/delete"
+        document.getElementById("deleteForm").submit()
+      }
+    }
+    /* ]] */
+  </script>
+@EndSection

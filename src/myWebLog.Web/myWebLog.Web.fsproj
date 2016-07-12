@@ -55,6 +55,8 @@
     <Compile Include="ViewModels.fs" />
     <Compile Include="ModuleExtensions.fs" />
     <Compile Include="AdminModule.fs" />
+    <Compile Include="CategoryModule.fs" />
+    <Compile Include="PageModule.fs" />
     <Compile Include="PostModule.fs" />
     <Compile Include="App.fs" />
     <Content Include="packages.config" />
