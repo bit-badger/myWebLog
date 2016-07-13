@@ -88,6 +88,15 @@ namespace myWebLog {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Add New Page.
+        /// </summary>
+        public static string AddNewPage {
+            get {
+                return ResourceManager.GetString("AddNewPage", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Add New Post.
         /// </summary>
         public static string AddNewPost {
@@ -187,11 +196,38 @@ namespace myWebLog {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Edit Page.
+        /// </summary>
+        public static string EditPage {
+            get {
+                return ResourceManager.GetString("EditPage", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Edit Post.
         /// </summary>
         public static string EditPost {
             get {
                 return ResourceManager.GetString("EditPost", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to E-mail Address.
+        /// </summary>
+        public static string EmailAddress {
+            get {
+                return ResourceManager.GetString("EmailAddress", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Invalid e-mail address or password.
+        /// </summary>
+        public static string ErrBadLogOnAttempt {
+            get {
+                return ResourceManager.GetString("ErrBadLogOnAttempt", resourceCulture);
             }
         }
         
@@ -219,6 +255,15 @@ namespace myWebLog {
         public static string LastUpdated {
             get {
                 return ResourceManager.GetString("LastUpdated", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Last Updated Date.
+        /// </summary>
+        public static string LastUpdatedDate {
+            get {
+                return ResourceManager.GetString("LastUpdatedDate", resourceCulture);
             }
         }
         
@@ -268,11 +313,38 @@ namespace myWebLog {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Log off successful | Have a nice day!.
+        /// </summary>
+        public static string MsgLogOffSuccess {
+            get {
+                return ResourceManager.GetString("MsgLogOffSuccess", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Log on successful | Welcome to myWebLog!.
+        /// </summary>
+        public static string MsgLogOnSuccess {
+            get {
+                return ResourceManager.GetString("MsgLogOnSuccess", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Deleted page successfully.
         /// </summary>
         public static string MsgPageDeleted {
             get {
                 return ResourceManager.GetString("MsgPageDeleted", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to {0} edited successfully.
+        /// </summary>
+        public static string MsgPageEditSuccess {
+            get {
+                return ResourceManager.GetString("MsgPageEditSuccess", resourceCulture);
             }
         }
         
@@ -340,6 +412,15 @@ namespace myWebLog {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Page Details.
+        /// </summary>
+        public static string PageDetails {
+            get {
+                return ResourceManager.GetString("PageDetails", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Page #.
         /// </summary>
         public static string PageHash {
@@ -363,6 +444,15 @@ namespace myWebLog {
         public static string ParentCategory {
             get {
                 return ResourceManager.GetString("ParentCategory", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Password.
+        /// </summary>
+        public static string Password {
+            get {
+                return ResourceManager.GetString("Password", resourceCulture);
             }
         }
         
@@ -430,7 +520,7 @@ namespace myWebLog {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to PublishedDate.
+        ///   Looks up a localized string similar to Published Date.
         /// </summary>
         public static string PublishedDate {
             get {
@@ -453,6 +543,15 @@ namespace myWebLog {
         public static string Save {
             get {
                 return ResourceManager.GetString("Save", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Show in Page List.
+        /// </summary>
+        public static string ShowInPageList {
+            get {
+                return ResourceManager.GetString("ShowInPageList", resourceCulture);
             }
         }
         

@@ -1,7 +1,9 @@
 ﻿module myWebLog.Data.Page
 
+open FSharp.Interop.Dynamic
 open myWebLog.Entities
 open Rethink
+open System.Dynamic
 
 /// Shorthand to get the page by its Id, filtering on web log Id
 let private page webLogId pageId =
@@ -51,6 +53,28 @@ let findAllPages conn webLogId =
   |> without [| "text"; "revisions" |]
   |> runCursorAsync<Page> conn
   |> Seq.toList
+
+/// Save a page
+let savePage conn (pg : Page) =
+  match pg.id with
+  | "new" -> let newPage = { pg with id = string <| System.Guid.NewGuid() }
+             table Table.Page
+             |> insert page
+             |> runResultAsync conn
+             |> ignore
+             newPage.id
+  | _     -> let upd8 = ExpandoObject()
+             upd8?title         <- pg.title
+             upd8?permalink     <- pg.permalink
+             upd8?publishedOn   <- pg.publishedOn
+             upd8?lastUpdatedOn <- pg.lastUpdatedOn
+             upd8?text          <- pg.text
+             upd8?revisions     <- pg.revisions
+             page pg.webLogId pg.id
+             |> update upd8
+             |> runResultAsync conn
+             |> ignore
+             pg.id
 
 /// Delete a page
 let deletePage conn webLogId pageId =

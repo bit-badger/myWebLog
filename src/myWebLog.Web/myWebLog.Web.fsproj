@@ -58,6 +58,7 @@
     <Compile Include="CategoryModule.fs" />
     <Compile Include="PageModule.fs" />
     <Compile Include="PostModule.fs" />
+    <Compile Include="UserModule.fs" />
     <Compile Include="App.fs" />
     <Content Include="packages.config" />
   </ItemGroup>

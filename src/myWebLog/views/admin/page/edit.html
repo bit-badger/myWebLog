@@ -1,0 +1,57 @@
+﻿@Master['admin/admin-layout']
+
+@Section['Content']
+  <form action="/page/@Model.page.id/edit" method="post">
+    @AntiForgeryToken
+    <div class="row">
+      <div class="col-sm-9">
+        <div class="form-group">
+          <label class="control-label" for="title">@Translate.Title</label>
+          <input type="text" name="title" id="title" class="form-control" value="@Model.form.title" />
+        </div>
+        <div class="form-group">
+          <label class="control-label" for="permalink">@Translate.Permalink</label>
+          <input type="text" name="permalink" id="permalink" class="form-control" value="@Model.form.permalink" />
+          <p class="form-hint"><em>@Translate.startingWith</em> http://@Model.webLog.urlBase/ </p>
+        </div>
+        <!-- // TODO: Markdown / HTML choice -->
+       <div class="form-group">
+          <textarea name="text" id="text" rows="15" class="form-control">@Model.form.text</textarea>
+        </div>
+      </div>
+      <div class="col-sm-3">
+        <div class="panel panel-default">
+          <div class="panel-heading">@Translate.PageDetails</div>
+          <div class="panel-body">
+            @IfNot.isNew
+              <div class="form-group">
+                <label class="control-label">@Translate.PublishedDate</label>
+                <p class="static-control">@Model.publishedDate<br />@Model.publishedTime</p>
+              </div>
+              <div class="form-group">
+                <label class="control-label">@Translate.LastUpdatedDate</label>
+                <p class="static-control">@Model.lastUpdatedDate<br />@Model.lastUpdatedTime</p>
+              </div>
+            @EndIf
+            <div class="form-group">
+              <input type="checkbox" name="showInPageList" id="showInPageList" @Model.pageListChecked />
+              &nbsp; <label for="showInPageList">@Translate.ShowInPageList</label>
+            </div>
+          </div>
+        </div>
+        <div class="text-center">
+          <p><button class="btn btn-primary" type="submit"><i class="fa fa-floppy-o"></i> @Translate.Save</button></p>
+        </div>
+      </div>
+    </div>
+  </form>
+@EndSection
+
+@Section['Scripts']
+  <script type="text/javascript" src="/content/scripts/tinymce-init.js"></script>
+  <script type="text/javascript">
+    /* <![CDATA[ */
+    $(document).ready(function () { $("#title").focus() })
+    /* ]]> */
+  </script>
+@EndSection

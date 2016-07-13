@@ -162,6 +162,55 @@ type PagesModel(ctx, webLog, pages) =
   /// The pages
   member this.pages : Page list = pages
 
+
+/// Form used to edit a page
+type EditPageForm() =
+  /// The title of the page
+  member val title = "" with get, set
+  /// The link for the page
+  member val permalink = "" with get, set
+  /// The source type of the revision
+  member val source = "" with get, set
+  /// The text of the revision
+  member val text = "" with get, set
+  /// Whether to show the page in the web log's page list
+  member val showInPageList = false with get, set
+  
+  /// Fill the form with applicable values from a page
+  member this.forPage (page : Page) =
+    this.title          <- page.title
+    this.permalink      <- page.permalink
+    this.showInPageList <- page.showInPageList
+    this
+  
+  /// Fill the form with applicable values from a revision
+  member this.forRevision rev =
+    this.source <- rev.sourceType
+    this.text   <- rev.text
+    this
+
+
+/// Model for the edit page page
+type EditPageModel(ctx, webLog, page, revision) =
+  inherit MyWebLogModel(ctx, webLog)
+  /// The page edit form
+  member val form = EditPageForm().forPage(page).forRevision(revision)
+  /// The page itself
+  member this.page = page
+  /// The page's published date
+  member this.publishedDate = this.displayLongDate page.publishedOn
+  /// The page's published time
+  member this.publishedTime = this.displayTime page.publishedOn
+  /// The page's last updated date
+  member this.lastUpdatedDate = this.displayLongDate page.lastUpdatedOn
+  /// The page's last updated time
+  member this.lastUpdatedTime = this.displayTime page.lastUpdatedOn
+  /// Is this a new page?
+  member this.isNew = "new" = page.id
+  /// Generate a checked attribute if this page shows in the page list
+  member this.pageListChecked = match page.showInPageList with | true -> "checked=\"checked\"" | _ -> ""
+
+
 // ---- Post models ----
 
 /// Model for post display
@@ -187,6 +236,9 @@ type PostModel(ctx, webLog, post) =
 /// Model for all page-of-posts pages
 type PostsModel(ctx, webLog) =
   inherit MyWebLogModel(ctx, webLog)
+
+  /// The subtitle for the page
+  member val subtitle = Option<string>.None with get, set
 
   /// The posts to display
   member val posts = List.empty<Post> with get, set
@@ -260,3 +312,16 @@ type EditPostModel(ctx, webLog, post, revision) =
   member this.publishedDate = this.displayLongDate this.post.publishedOn
   /// The published time
   member this.publishedTime = this.displayTime this.post.publishedOn
+
+
+// ---- User models ----
+
+/// Model to support the user log on page
+type LogOnModel(ctx, webLog) =
+  inherit MyWebLogModel(ctx, webLog)
+  /// The URL to which the user will be directed upon successful log on
+  member val returnUrl = "" with get, set
+  /// The e-mail address
+  member val email = "" with get, set
+  /// The user's passwor
+  member val password = "" with get, set

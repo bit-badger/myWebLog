@@ -12,25 +12,31 @@ open Nancy.Session.Persistable
 open NodaTime
 open RethinkDb.Driver.Net
 
-/// Routes dealing with posts (including the home page and catch-all routes)
+/// Routes dealing with posts (including the home page, /tag, /category, and catch-all routes)
 type PostModule(conn : IConnection, clock : IClock) as this =
   inherit NancyModule()
 
-  let getPage (parms : obj) = ((parms :?> DynamicDictionary).["page"] :?> int)
+  /// Get the page number from the dictionary
+  let getPage (parameters : DynamicDictionary) =
+    match parameters.ContainsKey "page" with | true -> downcast parameters.["page"] | _ -> 1
 
   do
-    this.Get .["/"                          ] <- fun _     -> upcast this.HomePage ()
-    this.Get .["/{permalink*}"              ] <- fun parms -> upcast this.CatchAll (downcast parms)
-    this.Get .["/posts/page/{page:int}"     ] <- fun parms -> upcast this.DisplayPageOfPublishedPosts (getPage parms)
-    this.Get .["/posts/list"                ] <- fun _     -> upcast this.PostList 1
-    this.Get .["/posts/list/page/{page:int}"] <- fun parms -> upcast this.PostList (getPage parms)
-    this.Get .["/post/{postId}/edit"        ] <- fun parms -> upcast this.EditPost (downcast parms)
-    this.Post.["/post/{postId}/edit"        ] <- fun parms -> upcast this.SavePost (downcast parms)
+    this.Get .["/"                               ] <- fun _     -> upcast this.HomePage ()
+    this.Get .["/{permalink*}"                   ] <- fun parms -> upcast this.CatchAll (downcast parms)
+    this.Get .["/posts/page/{page:int}"          ] <- fun parms -> upcast this.PublishedPostsPage (getPage <| downcast parms)
+    this.Get .["/category/{slug}"                ] <- fun parms -> upcast this.CategorizedPosts (downcast parms)
+    this.Get .["/category/{slug}/page/{page:int}"] <- fun parms -> upcast this.CategorizedPosts (downcast parms)
+    this.Get .["/tag/{tag}"                      ] <- fun parms -> upcast this.TaggedPosts (downcast parms)
+    this.Get .["/tag/{tag}/page/{page:int}"      ] <- fun parms -> upcast this.TaggedPosts (downcast parms)
+    this.Get .["/posts/list"                     ] <- fun _     -> upcast this.PostList 1
+    this.Get .["/posts/list/page/{page:int}"     ] <- fun parms -> upcast this.PostList (getPage <| downcast parms)
+    this.Get .["/post/{postId}/edit"             ] <- fun parms -> upcast this.EditPost (downcast parms)
+    this.Post.["/post/{postId}/edit"             ] <- fun parms -> upcast this.SavePost (downcast parms)
 
   // ---- Display posts to users ----
 
   /// Display a page of published posts
-  member this.DisplayPageOfPublishedPosts pageNbr =
+  member this.PublishedPostsPage pageNbr =
     let model = PostsModel(this.Context, this.WebLog)
     model.pageNbr   <- pageNbr
     model.posts     <- findPageOfPublishedPosts conn this.WebLog.id pageNbr 10
@@ -49,8 +55,8 @@ type PostModule(conn : IConnection, clock : IClock) as this =
   /// Display either the newest posts or the configured home page
   member this.HomePage () =
     match this.WebLog.defaultPage with
-    | "posts" -> this.DisplayPageOfPublishedPosts 1
-    | page    -> match tryFindPageWithoutRevisions conn this.WebLog.id page with
+    | "posts" -> this.PublishedPostsPage 1
+    | pageId  -> match tryFindPageWithoutRevisions conn this.WebLog.id pageId with
                  | Some page -> let model = PageModel(this.Context, this.WebLog, page)
                                 model.pageTitle <- page.title
                                 this.ThemedView "page" model
@@ -77,8 +83,51 @@ type PostModule(conn : IConnection, clock : IClock) as this =
                                   | Some post -> // Redirect them to the proper permalink
                                                  this.Negotiate
                                                    .WithHeader("Location", sprintf "/%s" post.permalink)
-                                                   .WithStatusCode(HttpStatusCode.MovedPermanently)
+                                                   .WithStatusCode HttpStatusCode.MovedPermanently
                                   | None      -> this.NotFound ()
+
+  /// Display categorized posts
+  member this.CategorizedPosts (parameters : DynamicDictionary) =
+    let slug : string = downcast parameters.["slug"]
+    match tryFindCategoryBySlug conn this.WebLog.id slug with
+    | Some cat -> let pageNbr = getPage parameters
+                  let model   = PostsModel(this.Context, this.WebLog)
+                  model.pageNbr   <- pageNbr
+                  model.posts     <- findPageOfCategorizedPosts conn this.WebLog.id cat.id pageNbr 10
+                  model.hasNewer  <- match List.isEmpty model.posts with
+                                     | true -> false
+                                     | _    -> Option.isSome <| tryFindNewerCategorizedPost conn cat.id
+                                                                                            (List.last model.posts)
+                  model.hasOlder  <- match List.isEmpty model.posts with
+                                     | true -> false
+                                     | _    -> Option.isSome <| tryFindOlderCategorizedPost conn cat.id
+                                                                                            (List.last model.posts)
+                  model.urlPrefix <- sprintf "/category/%s" slug
+                  model.pageTitle <- sprintf "\"%s\" Category%s" cat.name
+                                             (match pageNbr with | 1 -> "" | n -> sprintf " | Page %i" n)
+                  model.subtitle  <- Some <| match cat.description with
+                                             | Some desc -> desc
+                                             | None      -> sprintf "Posts in the \"%s\" category" cat.name
+                  this.ThemedView "posts" model
+    | None     -> this.NotFound ()
+
+  /// Display tagged posts
+  member this.TaggedPosts (parameters : DynamicDictionary) =
+    let tag : string = downcast parameters.["tag"]
+    let pageNbr      = getPage parameters
+    let model        = PostsModel(this.Context, this.WebLog)
+    model.pageNbr   <- pageNbr
+    model.posts     <- findPageOfTaggedPosts conn this.WebLog.id tag pageNbr 10
+    model.hasNewer  <- match List.isEmpty model.posts with
+                       | true -> false
+                       | _    -> Option.isSome <| tryFindNewerTaggedPost conn tag (List.last model.posts)
+    model.hasOlder  <- match List.isEmpty model.posts with
+                       | true -> false
+                       | _    -> Option.isSome <| tryFindOlderTaggedPost conn tag (List.last model.posts)
+    model.urlPrefix <- sprintf "/tag/%s" tag
+    model.pageTitle <- sprintf "\"%s\" Tag%s" tag (match pageNbr with | 1 -> "" | n -> sprintf " | Page %i" n)
+    model.subtitle  <- Some <| sprintf "Posts tagged \"%s\"" tag
+    this.ThemedView "posts" model
 
 
   // ---- Administer posts ----

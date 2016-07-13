@@ -130,3 +130,12 @@ let deleteCategory conn cat =
   |> delete
   |> runResultAsync conn
   |> ignore
+
+/// Get a category by its slug
+let tryFindCategoryBySlug conn webLogId slug =
+  table Table.Category
+  |> getAll [| slug |]
+  |> optArg "index" "slug"
+  |> filter (fun c -> upcast c.["webLogId"].Eq(webLogId))
+  |> runCursorAsync<Category> conn
+  |> Seq.tryHead

@@ -19,9 +19,8 @@
         <p class="navbar-text">@Model.webLog.subtitle</p>
         <ul class="nav navbar-nav navbar-left">
           @Each.webLog.pageList
-          <li>
-            <a href="/@Current.permalink">@Current.title</a>
-            @EndEach
+            <li><a href="/@Current.permalink">@Current.title</a></li>
+          @EndEach
         </ul>
         <ul class="nav navbar-nav navbar-right">
           @If.isAuthenticated

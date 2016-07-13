@@ -205,7 +205,7 @@
     <value>Previous Post</value>
   </data>
   <data name="PublishedDate" xml:space="preserve">
-    <value>PublishedDate</value>
+    <value>Published Date</value>
   </data>
   <data name="PublishThisPost" xml:space="preserve">
     <value>Publish This Post</value>
@@ -272,5 +272,38 @@
   </data>
   <data name="Slug" xml:space="preserve">
     <value>Slug</value>
+  </data>
+  <data name="AddNewPage" xml:space="preserve">
+    <value>Add New Page</value>
+  </data>
+  <data name="EditPage" xml:space="preserve">
+    <value>Edit Page</value>
+  </data>
+  <data name="EmailAddress" xml:space="preserve">
+    <value>E-mail Address</value>
+  </data>
+  <data name="ErrBadLogOnAttempt" xml:space="preserve">
+    <value>Invalid e-mail address or password</value>
+  </data>
+  <data name="LastUpdatedDate" xml:space="preserve">
+    <value>Last Updated Date</value>
+  </data>
+  <data name="MsgLogOffSuccess" xml:space="preserve">
+    <value>Log off successful | Have a nice day!</value>
+  </data>
+  <data name="MsgLogOnSuccess" xml:space="preserve">
+    <value>Log on successful | Welcome to myWebLog!</value>
+  </data>
+  <data name="MsgPageEditSuccess" xml:space="preserve">
+    <value>{0} edited successfully</value>
+  </data>
+  <data name="PageDetails" xml:space="preserve">
+    <value>Page Details</value>
+  </data>
+  <data name="Password" xml:space="preserve">
+    <value>Password</value>
+  </data>
+  <data name="ShowInPageList" xml:space="preserve">
+    <value>Show in Page List</value>
   </data>
 </root>

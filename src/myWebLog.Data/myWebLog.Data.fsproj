@@ -59,6 +59,7 @@
     <Compile Include="Category.fs" />
     <Compile Include="Page.fs" />
     <Compile Include="Post.fs" />
+    <Compile Include="User.fs" />
     <Compile Include="WebLog.fs" />
     <Content Include="packages.config" />
   </ItemGroup>

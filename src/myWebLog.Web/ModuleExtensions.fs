@@ -13,7 +13,7 @@ type NancyModule with
   member this.WebLog = this.Context.Items.[Keys.WebLog] :?> WebLog
 
   /// Display a view using the theme specified for the web log 
-  member this.ThemedView view model = this.View.[(sprintf "%s/%s" this.WebLog.themePath view), model]
+  member this.ThemedView view model = this.View.[(sprintf "themes/%s/%s" this.WebLog.themePath view), model]
 
   /// Return a 404
   member this.NotFound () = this.Negotiate.WithStatusCode 404
