@@ -48,7 +48,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
-    <None Include="data-config.json" />
+    <Content Include="data-config.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\myWebLog.Data\myWebLog.Data.fsproj">
@@ -68,22 +70,54 @@
   <ItemGroup>
     <Content Include="content\scripts\tinymce-init.js" />
     <Content Include="content\styles\admin.css" />
-    <Content Include="views\admin\admin-layout.html" />
-    <Content Include="views\admin\category\edit.html" />
-    <Content Include="views\admin\category\list.html" />
-    <Content Include="views\admin\dashboard.html" />
-    <Content Include="views\admin\page\edit.html" />
-    <Content Include="views\admin\page\list.html" />
-    <Content Include="views\admin\post\edit.html" />
-    <Content Include="views\admin\post\list.html" />
-    <Content Include="views\admin\user\logon.html" />
-    <Content Include="views\themes\default\index-content.html" />
-    <Content Include="views\themes\default\index.html" />
-    <Content Include="views\themes\default\layout.html" />
-    <Content Include="views\themes\default\page-content.html" />
-    <Content Include="views\themes\default\page.html" />
-    <Content Include="views\themes\default\single-content.html" />
-    <Content Include="views\themes\default\single.html" />
+    <Content Include="views\admin\admin-layout.html">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="views\admin\category\edit.html">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="views\admin\category\list.html">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="views\admin\dashboard.html">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="views\admin\page\edit.html">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="views\admin\page\list.html">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="views\admin\post\edit.html">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="views\admin\post\list.html">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="views\admin\user\logon.html">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="views\themes\default\index-content.html">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="views\themes\default\index.html">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="views\themes\default\layout.html">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="views\themes\default\page-content.html">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="views\themes\default\page.html">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="views\themes\default\single-content.html">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="views\themes\default\single.html">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

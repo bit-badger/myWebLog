@@ -48,7 +48,7 @@ let createIndex cfg table index =
   |> runResultAsync cfg.conn
   |> ignore
   (tbl cfg table).IndexWait(index)
-  |> runResultAsync cfg.conn
+  |> runAtomAsync cfg.conn
   |> ignore
   logStepDone ()
 
@@ -79,7 +79,7 @@ let checkPageIndexes cfg =
             |> runResultAsync cfg.conn
             |> ignore
             (tbl cfg Table.Page).IndexWait "permalink"
-            |> runResultAsync cfg.conn
+            |> runAtomAsync cfg.conn
             |> ignore
             logStepDone ()
   match idx.Contains "pageList" with
@@ -90,7 +90,7 @@ let checkPageIndexes cfg =
             |> runResultAsync cfg.conn
             |> ignore
             (tbl cfg Table.Page).IndexWait "pageList"
-            |> runResultAsync cfg.conn
+            |> runAtomAsync cfg.conn
             |> ignore
             logStepDone ()
 
@@ -104,7 +104,7 @@ let checkPostIndexes cfg =
             |> runResultAsync cfg.conn
             |> ignore
             (tbl cfg Table.Post).IndexWait "webLogAndStatus"
-            |> runResultAsync cfg.conn
+            |> runAtomAsync cfg.conn
             |> ignore
             logStepDone ()
   match idx.Contains "permalink" with
@@ -115,7 +115,7 @@ let checkPostIndexes cfg =
             |> runResultAsync cfg.conn
             |> ignore
             (tbl cfg Table.Post).IndexWait "permalink"
-            |> runResultAsync cfg.conn
+            |> runAtomAsync cfg.conn
             |> ignore
             logStepDone ()
 
@@ -129,7 +129,7 @@ let checkUserIndexes cfg =
             |> runResultAsync cfg.conn
             |> ignore
             (tbl cfg Table.User).IndexWait "logOn"
-            |> runResultAsync cfg.conn
+            |> runAtomAsync cfg.conn
             |> ignore
             logStepDone ()
 

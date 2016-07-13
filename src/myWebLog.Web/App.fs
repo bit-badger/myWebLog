@@ -8,6 +8,7 @@ open myWebLog.Entities
 open Nancy
 open Nancy.Authentication.Forms
 open Nancy.Bootstrapper
+open Nancy.Conventions
 open Nancy.Cryptography
 open Nancy.Owin
 open Nancy.Security
@@ -20,6 +21,7 @@ open RethinkDb.Driver.Net
 open Suave
 open Suave.Owin
 open System
+open System.IO
 open System.Text.RegularExpressions
 
 /// Set up a database connection
@@ -67,6 +69,16 @@ type MyWebLogBootstrapper() =
     /// User mapper for forms authentication
     container.Register<IUserMapper, MyWebLogUserMapper>()
     |> ignore
+
+  override this.ConfigureConventions (conventions) =
+    base.ConfigureConventions conventions
+    // Make theme content available at [theme-name]/
+    Directory.EnumerateDirectories "views/themes"
+    |> Seq.iter (fun dir -> let contentDir = sprintf "views/themes/%s/content" dir
+                            match Directory.Exists contentDir with
+                            | true -> conventions.StaticContentsConventions.Add
+                                        (StaticContentConventionBuilder.AddDirectory (dir, contentDir))
+                            | _    -> ())
 
   override this.ApplicationStartup (container, pipelines) =
     base.ApplicationStartup (container, pipelines)
