@@ -50,7 +50,7 @@ type PostModule(conn : IConnection, clock : IClock) as this =
     model.pageTitle <- match pageNbr with
                        | 1 -> ""
                        | _ -> sprintf "%s%i" Resources.PageHash pageNbr
-    this.ThemedView "posts" model
+    this.ThemedView "index" model
 
   /// Display either the newest posts or the configured home page
   member this.HomePage () =
@@ -64,7 +64,7 @@ type PostModule(conn : IConnection, clock : IClock) as this =
 
   /// Derive a post or page from the URL, or redirect from a prior URL to the current one
   member this.CatchAll (parameters : DynamicDictionary) =
-    let url : string = downcast parameters.["permalink"]
+    let url : string = parameters.["permalink"].ToString ()
     match tryFindPostByPermalink conn this.WebLog.id url with
     | Some post -> // Hopefully the most common result; the permalink is a permalink!
                    let model = PostModel(this.Context, this.WebLog, post)
@@ -108,7 +108,7 @@ type PostModule(conn : IConnection, clock : IClock) as this =
                   model.subtitle  <- Some <| match cat.description with
                                              | Some desc -> desc
                                              | None      -> sprintf "Posts in the \"%s\" category" cat.name
-                  this.ThemedView "posts" model
+                  this.ThemedView "index" model
     | None     -> this.NotFound ()
 
   /// Display tagged posts
@@ -127,7 +127,7 @@ type PostModule(conn : IConnection, clock : IClock) as this =
     model.urlPrefix <- sprintf "/tag/%s" tag
     model.pageTitle <- sprintf "\"%s\" Tag%s" tag (match pageNbr with | 1 -> "" | n -> sprintf " | Page %i" n)
     model.subtitle  <- Some <| sprintf "Posts tagged \"%s\"" tag
-    this.ThemedView "posts" model
+    this.ThemedView "index" model
 
 
   // ---- Administer posts ----

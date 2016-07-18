@@ -51,6 +51,9 @@
     <Content Include="data-config.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+    <Content Include="views\themes\default\content\bootstrap-theme.css.map">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\myWebLog.Data\myWebLog.Data.fsproj">
@@ -79,6 +82,7 @@
     <Content Include="views\admin\category\list.html">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+    <Content Include="views\admin\content\logo.png" />
     <Content Include="views\admin\dashboard.html">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
@@ -95,6 +99,12 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <Content Include="views\admin\user\logon.html">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="views\themes\default\content\bootstrap-theme.css">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="views\themes\default\content\bootstrap-theme.min.css">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <Content Include="views\themes\default\index-content.html">

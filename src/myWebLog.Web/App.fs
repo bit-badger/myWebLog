@@ -72,12 +72,15 @@ type MyWebLogBootstrapper() =
 
   override this.ConfigureConventions (conventions) =
     base.ConfigureConventions conventions
+    conventions.StaticContentsConventions.Add
+      (StaticContentConventionBuilder.AddDirectory("admin/content", "views/admin/content"))
     // Make theme content available at [theme-name]/
-    Directory.EnumerateDirectories "views/themes"
-    |> Seq.iter (fun dir -> let contentDir = sprintf "views/themes/%s/content" dir
+    Directory.EnumerateDirectories (Path.Combine [| "views"; "themes" |])
+    |> Seq.iter (fun dir -> let contentDir = Path.Combine [| dir; "content" |]
                             match Directory.Exists contentDir with
                             | true -> conventions.StaticContentsConventions.Add
-                                        (StaticContentConventionBuilder.AddDirectory (dir, contentDir))
+                                        (StaticContentConventionBuilder.AddDirectory
+                                          ((Path.GetFileName dir), contentDir))
                             | _    -> ())
 
   override this.ApplicationStartup (container, pipelines) =

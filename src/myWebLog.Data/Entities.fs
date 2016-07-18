@@ -25,6 +25,15 @@ module PostStatus =
   [<Literal>]
   let Published = "Published"
 
+/// Constants to use for comment statuses
+module CommentStatus =
+  [<Literal>]
+  let Approved = "Approved"
+  [<Literal>]
+  let Pending  = "Pending"
+  [<Literal>]
+  let Spam     = "Spam"
+
 // ---- Entities ----
 
 /// A revision of a post or page
@@ -58,7 +67,7 @@ type Page = {
   /// The instant this page was published
   publishedOn : int64
   /// The instant this page was last updated
-  lastUpdatedOn : int64
+  updatedOn : int64
   /// Whether this page shows as part of the web log's navigation
   showInPageList : bool
   /// The current text of the page
@@ -74,7 +83,7 @@ with
       title          = ""
       permalink      = ""
       publishedOn    = int64 0
-      lastUpdatedOn  = int64 0
+      updatedOn      = int64 0
       showInPageList = false
       text           = ""
       revisions      = List.empty
@@ -206,6 +215,8 @@ type Comment = {
   email : string
   /// The URL of the commentor's personal website
   url : string option
+  /// The status of the comment
+  status : string
   /// The instant the comment was posted
   postedOn : int64
   /// The text of the comment
@@ -219,6 +230,7 @@ with
       name        = ""
       email       = ""
       url         = None
+      status      = CommentStatus.Pending
       postedOn    = int64 0
       text        = ""
     }

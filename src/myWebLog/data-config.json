@@ -1,3 +1,4 @@
 ﻿{
-  "database": "myWebLog"
+  "database": "myWebLog",
+  "hostname": "severus-server"
 }

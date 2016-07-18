@@ -12,7 +12,7 @@ let private r = RethinkDB.R
 /// Shorthand to select all published posts for a web log
 let private publishedPosts webLogId =
   table Table.Post
-  |> getAll [| webLogId, PostStatus.Published |]
+  |> getAll [| webLogId; PostStatus.Published |]
   |> optArg "index" "webLogAndStatus"
 
 /// Shorthand to sort posts by published date, slice for the given page, and return a list
@@ -20,11 +20,12 @@ let private toPostList conn pageNbr nbrPerPage filter =
   filter
   |> orderBy (fun p -> upcast r.Desc(p.["publishedOn"]))
   |> slice ((pageNbr - 1) * nbrPerPage) (pageNbr * nbrPerPage)
-  |> runCursorAsync<Post> conn
+  |> runAtomAsync<System.Collections.Generic.List<Post>> conn
   |> Seq.toList
 
 /// Shorthand to get a newer or older post
 let private adjacentPost conn post theFilter =
+  System.Console.WriteLine "Adjacent post"
   publishedPosts post.webLogId
   |> filter theFilter
   |> orderBy (fun p -> upcast p.["publishedOn"])
@@ -96,7 +97,7 @@ let tryFindPost conn webLogId postId : Post option =
 /// Try to find a post by its permalink
 let tryFindPostByPermalink conn webLogId permalink =
   (table Table.Post
-   |> getAll [| webLogId, permalink |]
+   |> getAll [| webLogId; permalink |]
    |> optArg "index" "permalink"
    |> filter (fun p -> upcast p.["status"].Eq(PostStatus.Published))
    |> without [| "revisions" |])

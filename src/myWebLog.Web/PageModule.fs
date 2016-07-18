@@ -59,16 +59,16 @@ type PageModule(conn : IConnection, clock : IClock) as this =
                            | "new" -> { p with webLogId = this.WebLog.id }
                            | _     -> p
                 let pId = { p with
-                              title         = form.title
-                              permalink     = form.permalink
-                              publishedOn   = match pageId with | "new" -> now | _ -> page.publishedOn
-                              lastUpdatedOn = now
-                              text          = match form.source with
-                                              | RevisionSource.Markdown -> Markdown.TransformHtml form.text
-                                              | _                       -> form.text
-                              revisions     = { asOf = now
-                                                sourceType = form.source
-                                                text       = form.text } :: page.revisions }
+                              title       = form.title
+                              permalink   = form.permalink
+                              publishedOn = match pageId with | "new" -> now | _ -> page.publishedOn
+                              updatedOn   = now
+                              text        = match form.source with
+                                            | RevisionSource.Markdown -> Markdown.TransformHtml form.text
+                                            | _                       -> form.text
+                              revisions   = { asOf       = now
+                                              sourceType = form.source
+                                              text       = form.text } :: page.revisions }
                           |> savePage conn
                 let model = MyWebLogModel(this.Context, this.WebLog)
                 { level   = Level.Info

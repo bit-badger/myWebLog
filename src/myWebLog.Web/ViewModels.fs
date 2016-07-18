@@ -202,9 +202,9 @@ type EditPageModel(ctx, webLog, page, revision) =
   /// The page's published time
   member this.publishedTime = this.displayTime page.publishedOn
   /// The page's last updated date
-  member this.lastUpdatedDate = this.displayLongDate page.lastUpdatedOn
+  member this.lastUpdatedDate = this.displayLongDate page.updatedOn
   /// The page's last updated time
-  member this.lastUpdatedTime = this.displayTime page.lastUpdatedOn
+  member this.lastUpdatedTime = this.displayTime page.updatedOn
   /// Is this a new page?
   member this.isNew = "new" = page.id
   /// Generate a checked attribute if this page shows in the page list

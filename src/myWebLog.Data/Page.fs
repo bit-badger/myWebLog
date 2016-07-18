@@ -31,7 +31,7 @@ let tryFindPageWithoutRevisions conn webLogId pageId : Page option =
 /// Find a page by its permalink
 let tryFindPageByPermalink conn webLogId permalink =
   table Table.Page
-  |> getAll [| webLogId, permalink |]
+  |> getAll [| webLogId; permalink |]
   |> optArg "index" "permalink"
   |> without [| "revisions" |]
   |> runCursorAsync<Page> conn
@@ -64,12 +64,12 @@ let savePage conn (pg : Page) =
              |> ignore
              newPage.id
   | _     -> let upd8 = ExpandoObject()
-             upd8?title         <- pg.title
-             upd8?permalink     <- pg.permalink
-             upd8?publishedOn   <- pg.publishedOn
-             upd8?lastUpdatedOn <- pg.lastUpdatedOn
-             upd8?text          <- pg.text
-             upd8?revisions     <- pg.revisions
+             upd8?title       <- pg.title
+             upd8?permalink   <- pg.permalink
+             upd8?publishedOn <- pg.publishedOn
+             upd8?updatedOn   <- pg.updatedOn
+             upd8?text        <- pg.text
+             upd8?revisions   <- pg.revisions
              page pg.webLogId pg.id
              |> update upd8
              |> runResultAsync conn
