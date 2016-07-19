@@ -47,6 +47,8 @@ type MyWebLogModel(ctx : NancyContext, webLog : WebLog) =
 
   /// The web log for this request
   member this.webLog = webLog
+  /// The subtitle for the webLog (SSVE can't do IsSome that deep)
+  member this.webLogSubtitle = defaultArg this.webLog.subtitle ""
   /// User messages
   member val messages = getMessages () with get, set
   /// The currently logged in user

@@ -30,8 +30,7 @@ let cfg = try DataConfig.fromJson (System.IO.File.ReadAllText "data-config.json"
 
 do
   startUpCheck cfg
-
-
+  
 /// Support RESX lookup via the @Translate SSVE alias
 type TranslateTokenViewEngineMatcher() =
   static let regex = Regex("@Translate\.(?<TranslationKey>[a-zA-Z0-9-_]+);?", RegexOptions.Compiled)
