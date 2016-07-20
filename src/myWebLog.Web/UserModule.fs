@@ -28,7 +28,9 @@ type UserModule(conn : IConnection) as this =
   /// Show the log on page
   member this.ShowLogOn (parameters : DynamicDictionary) =
     let model = LogOnModel(this.Context, this.WebLog)
-    model.returnUrl <- defaultArg (Option.ofObj(downcast parameters.["returnUrl"])) ""
+    model.returnUrl <- match parameters.ContainsKey "returnUrl" with
+                       | true -> parameters.["returnUrl"].ToString ()
+                       | _    -> ""
     this.View.["admin/user/logon", model]
 
   /// Process a user log on

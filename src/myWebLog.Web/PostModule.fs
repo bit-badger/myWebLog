@@ -64,7 +64,7 @@ type PostModule(conn : IConnection, clock : IClock) as this =
 
   /// Derive a post or page from the URL, or redirect from a prior URL to the current one
   member this.CatchAll (parameters : DynamicDictionary) =
-    let url : string = parameters.["permalink"].ToString ()
+    let url = parameters.["permalink"].ToString ()
     match tryFindPostByPermalink conn this.WebLog.id url with
     | Some post -> // Hopefully the most common result; the permalink is a permalink!
                    let model = PostModel(this.Context, this.WebLog, post)
@@ -88,7 +88,7 @@ type PostModule(conn : IConnection, clock : IClock) as this =
 
   /// Display categorized posts
   member this.CategorizedPosts (parameters : DynamicDictionary) =
-    let slug : string = downcast parameters.["slug"]
+    let slug = parameters.["slug"].ToString ()
     match tryFindCategoryBySlug conn this.WebLog.id slug with
     | Some cat -> let pageNbr = getPage parameters
                   let model   = PostsModel(this.Context, this.WebLog)
@@ -113,9 +113,9 @@ type PostModule(conn : IConnection, clock : IClock) as this =
 
   /// Display tagged posts
   member this.TaggedPosts (parameters : DynamicDictionary) =
-    let tag : string = downcast parameters.["tag"]
-    let pageNbr      = getPage parameters
-    let model        = PostsModel(this.Context, this.WebLog)
+    let tag     = parameters.["tag"].ToString ()
+    let pageNbr = getPage parameters
+    let model   = PostsModel(this.Context, this.WebLog)
     model.pageNbr   <- pageNbr
     model.posts     <- findPageOfTaggedPosts conn this.WebLog.id tag pageNbr 10
     model.hasNewer  <- match List.isEmpty model.posts with
