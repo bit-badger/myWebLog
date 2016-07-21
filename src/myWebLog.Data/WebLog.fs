@@ -7,18 +7,20 @@ open System.Dynamic
 
 let private r = RethinkDb.Driver.RethinkDB.R
 
-type PageList = { pageList : obj }
-
 /// Detemine the web log by the URL base
+// TODO: see if we can make .Merge work for page list even though the attribute is ignored
+//       (needs to be ignored for serialization, but included for deserialization)
 let tryFindWebLogByUrlBase conn (urlBase : string) =
-  r.Table(Table.WebLog)
-    .GetAll(urlBase).OptArg("index", "urlBase")
-    .Merge(fun webLog -> { pageList =
-                             r.Table(Table.Page)
-                              .GetAll(webLog.["id"], true).OptArg("index", "pageList")
-                              .OrderBy("title")
-                              .Pluck("title", "permalink")
-                              .CoerceTo("array") })
-    .RunCursorAsync<WebLog>(conn)
-  |> await
-  |> Seq.tryHead
+  let webLog = r.Table(Table.WebLog)
+                .GetAll(urlBase).OptArg("index", "urlBase")
+                .RunCursorAsync<WebLog>(conn)
+              |> await
+              |> Seq.tryHead
+  match webLog with
+  | Some w -> Some { w with pageList = r.Table(Table.Page)
+                                        .GetAll(w.id).OptArg("index", "webLogId")
+                                        .Filter(fun pg -> pg.["showInPageList"].Eq(true))
+                                        .OrderBy("title")
+                                        .Pluck("title", "permalink")
+                                        .RunListAsync<PageListEntry>(conn) |> await |> Seq.toList }
+  | None   -> None

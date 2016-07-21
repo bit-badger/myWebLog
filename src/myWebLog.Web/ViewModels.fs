@@ -55,6 +55,8 @@ type MyWebLogModel(ctx : NancyContext, webLog : WebLog) =
   member this.user = ctx.Request.PersistableSession.GetOrDefault<User>(Keys.User, User.empty)
   /// The title of the page
   member val pageTitle = "" with get, set
+  /// The name and version of the application
+  member this.generator = sprintf "myWebLog %s" (ctx.Items.[Keys.Version].ToString ())
   /// The request start time
   member this.requestStart = ctx.Items.[Keys.RequestStart] :?> int64
   /// Is a user authenticated for this request?

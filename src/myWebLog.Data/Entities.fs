@@ -90,6 +90,12 @@ with
     }
 
 
+/// An entry in the list of pages displayed as part of the web log (derived via query)
+type PageListEntry = {
+  permalink : string
+  title     : string
+  }
+
 /// A web log
 type WebLog = {
   /// The Id
@@ -100,7 +106,7 @@ type WebLog = {
   subtitle : string option
   /// The default page ("posts" or a page Id)
   defaultPage : string
-  /// The path of the theme (within /views)
+  /// The path of the theme (within /views/themes)
   themePath : string
   /// The URL base
   urlBase : string
@@ -108,7 +114,7 @@ type WebLog = {
   timeZone : string
   /// A list of pages to be rendered as part of the site navigation
   [<JsonIgnore>]
-  pageList : Page list
+  pageList : PageListEntry list
   }
 with
   /// An empty web log

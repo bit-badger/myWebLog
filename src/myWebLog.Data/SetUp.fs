@@ -37,46 +37,52 @@ let checkTables cfg =
 let tbl cfg table = r.Db(cfg.database).Table(table)
 
 /// Create the given index
-let createIndex cfg table (index : string * obj) =
-  logStepStart (sprintf """  Creating index "%s" on table %s""" (fst index) table)
-  (tbl cfg table).IndexCreate(fst index, snd index).RunResultAsync(cfg.conn) |> await |> ignore
-  (tbl cfg table).IndexWait(fst index).RunAtomAsync(cfg.conn)                |> await |> ignore
+let createIndex cfg table (index : string * (ReqlExpr -> obj) option) =
+  let idxName, idxFunc = index
+  logStepStart (sprintf """  Creating index "%s" on table %s""" idxName table)
+  match idxFunc with
+  | Some f -> (tbl cfg table).IndexCreate(idxName, f).RunResultAsync(cfg.conn)
+  | None   -> (tbl cfg table).IndexCreate(idxName   ).RunResultAsync(cfg.conn)
+  |> await |> ignore
+  (tbl cfg table).IndexWait(idxName).RunAtomAsync(cfg.conn) |> await |> ignore
   logStepDone ()
 
 /// Ensure that the given indexes exist, and create them if required
-let ensureIndexes cfg (indexes : (string * (string * obj) list) list) =
+let ensureIndexes cfg (indexes : (string * (string * (ReqlExpr -> obj) option) list) list) =
+  let ensureForTable tabl =
+    let idx = (tbl cfg (fst tabl)).IndexList().RunListAsync<string>(cfg.conn) |> await
+    snd tabl
+    |> List.iter (fun index -> match idx.Contains (fst index) with
+                                | true -> ()
+                                | _    -> createIndex cfg (fst tabl) index)
   indexes
-  |> List.iter (fun tabl -> let idx = (tbl cfg (fst tabl)).IndexList().RunListAsync<string>(cfg.conn) |> await
-                            snd tabl
-                            |> List.iter (fun index -> match idx.Contains (fst index) with
-                                                       | true -> ()
-                                                       | _    -> createIndex cfg (fst tabl) index))
+  |> List.iter ensureForTable
 
 /// Create an index on a single field
 let singleField (name : string) : obj = upcast (fun row -> (row :> ReqlExpr).[name])
 
 /// Create an index on web log Id and the given field
-let webLogField (name : string) : obj = upcast (fun row -> r.Array((row :> ReqlExpr).["webLogId"], row.[name]))
+let webLogField (name : string) : (ReqlExpr -> obj) option =
+  Some <| fun row -> upcast r.Array(row.["webLogId"], row.[name])
 
 /// Ensure all the required indexes exist
 let checkIndexes cfg =
   logStep "|> Checking indexes"
-  [ Table.Category, [ "webLogId", singleField "webLogId"
+  [ Table.Category, [ "webLogId", None
                       "slug",     webLogField "slug"
                     ]
-    Table.Comment, [ "postId", singleField "postId"
+    Table.Comment, [ "postId", None
                    ]
-    Table.Page, [ "webLogId",  singleField "webLogId"
+    Table.Page, [ "webLogId",  None
                   "permalink", webLogField "permalink"
-                  "pageList",  webLogField "showInPageList"
                 ]
-    Table.Post, [ "webLogId",        singleField "webLogId"
+    Table.Post, [ "webLogId",        None
                   "webLogAndStatus", webLogField "status"
                   "permalink",       webLogField "permalink"
                 ]
-    Table.User, [ "logOn", upcast (fun row -> r.Array((row :> ReqlExpr).["userName"], row.["passwordHash"]))
+    Table.User, [ "logOn", Some <| fun row -> upcast r.Array(row.["userName"], row.["passwordHash"])
                 ]
-    Table.WebLog, [ "urlBase", singleField "urlBase"
+    Table.WebLog, [ "urlBase", None
                   ]
   ]
   |> ensureIndexes cfg
