@@ -18,7 +18,10 @@ type PostModule(conn : IConnection, clock : IClock) as this =
 
   /// Get the page number from the dictionary
   let getPage (parameters : DynamicDictionary) =
-    match parameters.ContainsKey "page" with | true -> downcast parameters.["page"] | _ -> 1
+    match parameters.ContainsKey "page" with | true -> System.Int32.Parse (parameters.["page"].ToString ()) | _ -> 1
+
+  /// Convert a list of posts to a list of posts for display
+  let forDisplay posts = posts |> List.map (fun post -> PostForDisplay(this.WebLog, post))
 
   do
     this.Get .["/"                               ] <- fun _     -> upcast this.HomePage ()
@@ -39,13 +42,15 @@ type PostModule(conn : IConnection, clock : IClock) as this =
   member this.PublishedPostsPage pageNbr =
     let model = PostsModel(this.Context, this.WebLog)
     model.pageNbr   <- pageNbr
-    model.posts     <- findPageOfPublishedPosts conn this.WebLog.id pageNbr 10
-    model.hasNewer  <- match List.isEmpty model.posts with
-                       | true -> false
-                       | _    -> Option.isSome <| tryFindNewerPost conn (List.last model.posts)
+    model.posts     <- findPageOfPublishedPosts conn this.WebLog.id pageNbr 10 |> forDisplay
+    model.hasNewer  <- match pageNbr with
+                       | 1 -> false
+                       | _ -> match List.isEmpty model.posts with
+                              | true -> false
+                              | _    -> Option.isSome <| tryFindNewerPost conn (List.last model.posts).post
     model.hasOlder  <- match List.isEmpty model.posts with
                        | true -> false
-                       | _    -> Option.isSome <| tryFindOlderPost conn (List.head model.posts)
+                       | _    -> Option.isSome <| tryFindOlderPost conn (List.head model.posts).post
     model.urlPrefix <- "/posts"
     model.pageTitle <- match pageNbr with
                        | 1 -> ""
@@ -93,15 +98,15 @@ type PostModule(conn : IConnection, clock : IClock) as this =
     | Some cat -> let pageNbr = getPage parameters
                   let model   = PostsModel(this.Context, this.WebLog)
                   model.pageNbr   <- pageNbr
-                  model.posts     <- findPageOfCategorizedPosts conn this.WebLog.id cat.id pageNbr 10
+                  model.posts     <- findPageOfCategorizedPosts conn this.WebLog.id cat.id pageNbr 10 |> forDisplay
                   model.hasNewer  <- match List.isEmpty model.posts with
                                      | true -> false
                                      | _    -> Option.isSome <| tryFindNewerCategorizedPost conn cat.id
-                                                                                            (List.last model.posts)
+                                                                                            (List.last model.posts).post
                   model.hasOlder  <- match List.isEmpty model.posts with
                                      | true -> false
                                      | _    -> Option.isSome <| tryFindOlderCategorizedPost conn cat.id
-                                                                                            (List.last model.posts)
+                                                                                            (List.last model.posts).post
                   model.urlPrefix <- sprintf "/category/%s" slug
                   model.pageTitle <- sprintf "\"%s\" Category%s" cat.name
                                              (match pageNbr with | 1 -> "" | n -> sprintf " | Page %i" n)
@@ -117,13 +122,13 @@ type PostModule(conn : IConnection, clock : IClock) as this =
     let pageNbr = getPage parameters
     let model   = PostsModel(this.Context, this.WebLog)
     model.pageNbr   <- pageNbr
-    model.posts     <- findPageOfTaggedPosts conn this.WebLog.id tag pageNbr 10
+    model.posts     <- findPageOfTaggedPosts conn this.WebLog.id tag pageNbr 10 |> forDisplay
     model.hasNewer  <- match List.isEmpty model.posts with
                        | true -> false
-                       | _    -> Option.isSome <| tryFindNewerTaggedPost conn tag (List.last model.posts)
+                       | _    -> Option.isSome <| tryFindNewerTaggedPost conn tag (List.last model.posts).post
     model.hasOlder  <- match List.isEmpty model.posts with
                        | true -> false
-                       | _    -> Option.isSome <| tryFindOlderTaggedPost conn tag (List.last model.posts)
+                       | _    -> Option.isSome <| tryFindOlderTaggedPost conn tag (List.last model.posts).post
     model.urlPrefix <- sprintf "/tag/%s" tag
     model.pageTitle <- sprintf "\"%s\" Tag%s" tag (match pageNbr with | 1 -> "" | n -> sprintf " | Page %i" n)
     model.subtitle  <- Some <| sprintf "Posts tagged \"%s\"" tag
@@ -137,10 +142,10 @@ type PostModule(conn : IConnection, clock : IClock) as this =
     this.RequiresAccessLevel AuthorizationLevel.Administrator
     let model = PostsModel(this.Context, this.WebLog)
     model.pageNbr   <- pageNbr
-    model.posts     <- findPageOfAllPosts conn this.WebLog.id pageNbr 25
+    model.posts     <- findPageOfAllPosts conn this.WebLog.id pageNbr 25 |> forDisplay
     model.hasNewer  <- pageNbr > 1
-    model.hasOlder  <- List.length model.posts < 25
-    model.urlPrefix <- "/post/list"
+    model.hasOlder  <- List.length model.posts > 24
+    model.urlPrefix <- "/posts/list"
     model.pageTitle <- Resources.Posts
     this.View.["admin/post/list", model]
 

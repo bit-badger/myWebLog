@@ -124,6 +124,15 @@ namespace myWebLog {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to and {0} more....
+        /// </summary>
+        public static string andXMore {
+            get {
+                return ResourceManager.GetString("andXMore", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Categories.
         /// </summary>
         public static string Categories {
@@ -147,6 +156,15 @@ namespace myWebLog {
         public static string CategoryDeleteWarning {
             get {
                 return ResourceManager.GetString("CategoryDeleteWarning", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Close.
+        /// </summary>
+        public static string Close {
+            get {
+                return ResourceManager.GetString("Close", resourceCulture);
             }
         }
         
@@ -246,6 +264,15 @@ namespace myWebLog {
         public static string ErrNotConfigured {
             get {
                 return ResourceManager.GetString("ErrNotConfigured", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Error.
+        /// </summary>
+        public static string Error {
+            get {
+                return ResourceManager.GetString("Error", resourceCulture);
             }
         }
         
@@ -624,6 +651,15 @@ namespace myWebLog {
         public static string View {
             get {
                 return ResourceManager.GetString("View", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Warning.
+        /// </summary>
+        public static string Warning {
+            get {
+                return ResourceManager.GetString("Warning", resourceCulture);
             }
         }
     }

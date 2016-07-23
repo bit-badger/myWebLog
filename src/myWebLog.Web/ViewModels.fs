@@ -1,8 +1,10 @@
 ﻿namespace myWebLog
 
+open myWebLog.Data.WebLog
 open myWebLog.Entities
 open Nancy
 open Nancy.Session.Persistable
+open Newtonsoft.Json
 open NodaTime
 open NodaTime.Text
 
@@ -10,10 +12,13 @@ open NodaTime.Text
 /// Levels for a user message
 module Level =
   /// An informational message
+  [<Literal>]
   let Info = "Info"
   /// A message regarding a non-fatal but non-optimal condition
+  [<Literal>]
   let Warning = "WARNING"
   /// A message regarding a failure of the expected result
+  [<Literal>]
   let Error = "ERROR"
 
 
@@ -28,11 +33,63 @@ type UserMessage = {
   }
 with
   /// An empty message
-  static member empty =
-    { level   = Level.Info
-      message = ""
-      details = None }
+  static member empty = {
+    level   = Level.Info
+    message = ""
+    details = None
+    }
 
+  /// Display version
+  [<JsonIgnore>]
+  member this.toDisplay =
+    let classAndLabel =
+      dict [
+        Level.Error,   ("danger",  Resources.Error)
+        Level.Warning, ("warning", Resources.Warning)
+        Level.Info,    ("info",    "")
+        ]
+    seq {
+      yield "<div class=\"alert alert-dismissable alert-"
+      yield fst classAndLabel.[this.level]
+      yield "\" role=\"alert\"><button type=\"button\" class=\"close\" data-dismiss=\"alert\" aria-label=\""
+      yield Resources.Close
+      yield "\">&times;</button><strong>"
+      match snd classAndLabel.[this.level] with
+      | ""  -> ()
+      | lbl -> yield lbl.ToUpper ()
+               yield " &#xbb; "
+      yield this.message
+      yield "</strong>"
+      match this.details with
+      | Some d -> yield "<br />"
+                  yield d
+      | None   -> ()
+      yield "</div>"
+      }
+    |> Seq.reduce (fun acc x -> acc + x)
+
+
+/// Helpers to format local date/time using NodaTime
+module FormatDateTime =
+  
+  /// Convert ticks to a zoned date/time
+  let zonedTime timeZone ticks = Instant(ticks).InZone(DateTimeZoneProviders.Tzdb.[timeZone])
+
+  /// Display a long date
+  let longDate timeZone ticks =
+    zonedTime timeZone ticks
+    |> ZonedDateTimePattern.CreateWithCurrentCulture("MMMM d',' yyyy", DateTimeZoneProviders.Tzdb).Format
+  
+  /// Display a short date
+  let shortDate timeZone ticks =
+    zonedTime timeZone ticks
+    |> ZonedDateTimePattern.CreateWithCurrentCulture("MMM d',' yyyy", DateTimeZoneProviders.Tzdb).Format
+  
+  /// Display the time
+  let time timeZone ticks =
+    (zonedTime timeZone ticks
+     |> ZonedDateTimePattern.CreateWithCurrentCulture("h':'mmtt", DateTimeZoneProviders.Tzdb).Format).ToLower()
+  
 
 /// Parent view model for all myWebLog views
 type MyWebLogModel(ctx : NancyContext, webLog : WebLog) =
@@ -64,36 +121,25 @@ type MyWebLogModel(ctx : NancyContext, webLog : WebLog) =
   /// Add a message to the output
   member this.addMessage message = this.messages <- message :: this.messages
 
-  /// Convert ticks to a zoned date/time for the current web log
-  member this.zonedTime ticks = Instant(ticks).InZone(DateTimeZoneProviders.Tzdb.[this.webLog.timeZone])
-
   /// Display a long date
-  member this.displayLongDate ticks =
-    this.zonedTime ticks
-    |> ZonedDateTimePattern.CreateWithCurrentCulture("MMMM d',' yyyy", DateTimeZoneProviders.Tzdb).Format
-  
+  member this.displayLongDate ticks = FormatDateTime.longDate this.webLog.timeZone ticks
   /// Display a short date
-  member this.displayShortDate ticks =
-    this.zonedTime ticks
-    |> ZonedDateTimePattern.CreateWithCurrentCulture("MMM d',' yyyy", DateTimeZoneProviders.Tzdb).Format
-  
+  member this.displayShortDate ticks = FormatDateTime.shortDate this.webLog.timeZone ticks
   /// Display the time
-  member this.displayTime ticks =
-    (this.zonedTime ticks
-     |> ZonedDateTimePattern.CreateWithCurrentCulture("h':'mmtt", DateTimeZoneProviders.Tzdb).Format).ToLower()
+  member this.displayTime ticks = FormatDateTime.time this.webLog.timeZone ticks
 
 
 // ---- Admin models ----
 
 /// Admin Dashboard view model
-type DashboardModel(ctx, webLog) =
+type DashboardModel(ctx, webLog, counts : DashboardCounts) =
   inherit MyWebLogModel(ctx, webLog)
   /// The number of posts for the current web log
-  member val posts = 0 with get, set
+  member val posts = counts.posts with get, set
   /// The number of pages for the current web log
-  member val pages = 0 with get, set
+  member val pages = counts.pages with get, set
   /// The number of categories for the current web log
-  member val categories = 0 with get, set
+  member val categories = counts.categories with get, set
 
 
 // ---- Category models ----
@@ -110,7 +156,7 @@ with
       indent   = snd cat
       selected = isSelected (fst cat).id }
   /// Display name for a category on the list page, complete with indents
-  member this.listName = sprintf "%s%s" (String.replicate this.indent " &#xabb; &nbsp; ") this.category.name
+  member this.listName = sprintf "%s%s" (String.replicate this.indent " &#xbb; &nbsp; ") this.category.name
   /// Display for this category as an option within a select box
   member this.option =
     seq {
@@ -121,6 +167,9 @@ with
       yield "</option>"
       }
     |> String.concat ""
+  /// Does the category have a description?
+  member this.hasDescription = this.category.description.IsSome
+
 
 /// Model for the list of categories
 type CategoryListModel(ctx, webLog, categories) =
@@ -237,6 +286,28 @@ type PostModel(ctx, webLog, post) =
                      |> List.sort
                      |> List.map (fun tag -> tag, tag.Replace(' ', '+'))
 
+
+/// Wrapper for a post with additional properties
+type PostForDisplay(webLog : WebLog, post : Post) =
+  /// Turn tags into a pipe-delimited string of tags
+  let pipedTags tags = tags |> List.reduce (fun acc x -> sprintf "%s | %s" acc x)
+  /// The actual post
+  member this.post = post
+  /// The time zone for the web log to which this post belongs
+  member this.timeZone = webLog.timeZone
+  /// The date the post was published
+  member this.publishedDate = FormatDateTime.longDate this.timeZone this.post.publishedOn
+  /// The time the post was published
+  member this.publishedTime = FormatDateTime.time this.timeZone this.post.publishedOn
+  /// Tags
+  member this.tags =
+    match List.length this.post.tags with
+    | 0                 -> ""
+    | 1 | 2 | 3 | 4 | 5 -> this.post.tags |> pipedTags
+    | count             -> sprintf "%s %s" (this.post.tags |> List.take 3 |> pipedTags)
+                                           (System.String.Format(Resources.andXMore, count - 3))
+
+
 /// Model for all page-of-posts pages
 type PostsModel(ctx, webLog) =
   inherit MyWebLogModel(ctx, webLog)
@@ -245,7 +316,7 @@ type PostsModel(ctx, webLog) =
   member val subtitle = Option<string>.None with get, set
 
   /// The posts to display
-  member val posts = List.empty<Post> with get, set
+  member val posts = List.empty<PostForDisplay> with get, set
 
   /// The page number of the post list
   member val pageNbr = 0 with get, set
@@ -320,12 +391,18 @@ type EditPostModel(ctx, webLog, post, revision) =
 
 // ---- User models ----
 
-/// Model to support the user log on page
-type LogOnModel(ctx, webLog) =
-  inherit MyWebLogModel(ctx, webLog)
+/// Form for the log on page
+type LogOnForm() =
   /// The URL to which the user will be directed upon successful log on
   member val returnUrl = "" with get, set
   /// The e-mail address
   member val email = "" with get, set
   /// The user's passwor
   member val password = "" with get, set
+
+
+/// Model to support the user log on page
+type LogOnModel(ctx, webLog) =
+  inherit MyWebLogModel(ctx, webLog)
+  /// The log on form
+  member val form = LogOnForm() with get, set

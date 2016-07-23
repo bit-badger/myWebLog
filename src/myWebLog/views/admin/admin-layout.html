@@ -32,7 +32,9 @@
     </nav>
   </header>
   <div class="container">
-    <!-- Partial['admin/messages', Model] // TODO -->
+    @Each.messages
+      @Current.toDisplay
+    @EndEach
     @Section['Content'];
   </div>
   <footer>

@@ -2,7 +2,7 @@
 
 @Section['Content']
   <div class="row">
-    <p><a class="btn btn-primary" href="/category/new/edit"><i class="fa fa-plus"></i> @Translate.AddNew"</a></p>
+    <p><a class="btn btn-primary" href="/category/new/edit"><i class="fa fa-plus"></i> @Translate.AddNew</a></p>
   </div>
   <div class="row">
     <table class="table table-hover">
@@ -20,7 +20,14 @@
             </a>
           </td>
           <td>@Current.listName</td>
-          <td>@Current.category.description</td>
+          <td>
+            @If.hasDescription
+              @Current.category.description.Value
+            @EndIf
+            @IfNot.hasDescription
+              &nbsp;
+            @EndIf
+          </td>
         </tr>
       @EndEach
     </table>

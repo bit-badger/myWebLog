@@ -18,7 +18,7 @@ type UserModule(conn : IConnection) as this =
   /// Hash the user's password
   let pbkdf2 (pw : string) =
     PassphraseKeyGenerator(pw, UTF8Encoding().GetBytes("// TODO: make this salt part of the config"), 4096).GetBytes 512
-    |> Seq.fold (fun acc bit -> System.String.Format("{0}{1:x2}", acc, bit)) ""
+    |> Seq.fold (fun acc byt -> sprintf "%s%s" acc (byt.ToString "x2")) ""
   
   do
     this.Get .["/logon" ] <- fun parms -> upcast this.ShowLogOn (downcast parms)
@@ -28,16 +28,17 @@ type UserModule(conn : IConnection) as this =
   /// Show the log on page
   member this.ShowLogOn (parameters : DynamicDictionary) =
     let model = LogOnModel(this.Context, this.WebLog)
-    model.returnUrl <- match parameters.ContainsKey "returnUrl" with
-                       | true -> parameters.["returnUrl"].ToString ()
-                       | _    -> ""
+    model.form.returnUrl <- match parameters.ContainsKey "returnUrl" with
+                            | true -> parameters.["returnUrl"].ToString ()
+                            | _    -> ""
     this.View.["admin/user/logon", model]
 
   /// Process a user log on
   member this.DoLogOn (parameters : DynamicDictionary) =
     this.ValidateCsrfToken ()
-    let model = this.Bind<LogOnModel> ()
-    match tryUserLogOn conn model.email (pbkdf2 model.password) with
+    let form  = this.Bind<LogOnForm> ()
+    let model = MyWebLogModel(this.Context, this.WebLog)
+    match tryUserLogOn conn form.email (pbkdf2 form.password) with
     | Some user -> this.Session.[Keys.User] <- user
                    { level   = Level.Info
                      message = Resources.MsgLogOnSuccess
@@ -46,14 +47,14 @@ type UserModule(conn : IConnection) as this =
                    this.Redirect "" model |> ignore // Save the messages in the session before the Nancy redirect
                    // TODO: investigate if addMessage should update the session when it's called
                    this.LoginAndRedirect
-                     (System.Guid.Parse user.id, fallbackRedirectUrl = defaultArg (Option.ofObj(model.returnUrl)) "/")
+                     (System.Guid.Parse user.id, fallbackRedirectUrl = defaultArg (Option.ofObj(form.returnUrl)) "/")
     | None      -> { level   = Level.Error
                      message = Resources.ErrBadLogOnAttempt
                      details = None }
                    |> model.addMessage
                    this.Redirect "" model |> ignore // Save the messages in the session before the Nancy redirect
                    // Can't redirect with a negotiator when the other leg uses a straight response... :/
-                   this.Response.AsRedirect((sprintf "/user/logon?returnUrl=%s" model.returnUrl),
+                   this.Response.AsRedirect((sprintf "/user/logon?returnUrl=%s" form.returnUrl),
                                             Responses.RedirectResponse.RedirectType.SeeOther)
 
   /// Log a user off

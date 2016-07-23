@@ -5,8 +5,8 @@
   <div class="row">
     <div class="col-xs-12">
       <h4>
-        <i class="fa fa-calendar" title="@Translate.Date"></i> &nbsp;@Model.publishedDate
-        <i class="fa fa-clock-o" title="@Translate.Time"></i> &nbsp;@Model.publishedTime &nbsp; &nbsp; &nbsp;
+        <i class="fa fa-calendar" title="@Translate.Date"></i> @Model.publishedDate &nbsp;
+        <i class="fa fa-clock-o" title="@Translate.Time"></i> @Model.publishedTime &nbsp; &nbsp; &nbsp;
         @Each.post.categories
           <i class="fa fa-folder-open-o" title="@Translate.Category"></i> &nbsp;
           <!-- <a href="/category/@Current.slug" title=__("Categorized under %s", category.name)) -->

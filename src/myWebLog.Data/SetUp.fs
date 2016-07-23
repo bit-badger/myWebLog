@@ -80,7 +80,7 @@ let checkIndexes cfg =
                   "webLogAndStatus", webLogField "status"
                   "permalink",       webLogField "permalink"
                 ]
-    Table.User, [ "logOn", Some <| fun row -> upcast r.Array(row.["userName"], row.["passwordHash"])
+    Table.User, [ "userName", None
                 ]
     Table.WebLog, [ "urlBase", None
                   ]

@@ -37,20 +37,13 @@ let tryFindPageByPermalink conn (webLogId : string) (permalink : string) =
   |> await
   |> Seq.tryHead
 
-/// Count pages for a web log
-let countPages conn (webLogId : string) =
-  r.Table(Table.Page)
-    .GetAll(webLogId).OptArg("index", "webLogId")
-    .Count()
-    .RunAtomAsync<int>(conn) |> await
-
 /// Get a list of all pages (excludes page text and revisions)
 let findAllPages conn (webLogId : string) =
   r.Table(Table.Page)
-    .GetAll(webLogId)
+    .GetAll(webLogId).OptArg("index", "webLogId")
     .OrderBy("title")
     .Without("text", "revisions")
-    .RunCursorAsync<Page>(conn)
+    .RunListAsync<Page>(conn)
   |> await
   |> Seq.toList
 

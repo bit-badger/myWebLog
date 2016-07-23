@@ -25,7 +25,7 @@ let private toPostList conn pageNbr nbrPerPage (filter : ReqlExpr) =
 /// Shorthand to get a newer or older post
 // TODO: older posts need to sort by published on DESC
 //let private adjacentPost conn post (theFilter : ReqlExpr -> ReqlExpr) (sort :ReqlExpr) : Post option =
-let private adjacentPost conn post (theFilter : obj) (sort : obj) : Post option =
+let private adjacentPost conn post (theFilter : ReqlExpr -> obj) (sort : obj) : Post option =
   (publishedPosts post.webLogId)
     .Filter(theFilter)
     .OrderBy(sort)
@@ -58,36 +58,37 @@ let findPageOfTaggedPosts conn webLogId (tag : string) pageNbr nbrPerPage =
   |> toPostList conn pageNbr nbrPerPage
 
 /// Try to get the next newest post from the given post
-let tryFindNewerPost conn post = newerPost conn post (fun p -> (p :> ReqlExpr).["publishedOn"].Gt(post.publishedOn))
+let tryFindNewerPost conn post = newerPost conn post (fun p -> upcast p.["publishedOn"].Gt(post.publishedOn))
  
 /// Try to get the next newest post assigned to the given category
 let tryFindNewerCategorizedPost conn (categoryId : string) post =
-  newerPost conn post (fun p -> (p :> ReqlExpr).["publishedOn"].Gt(post.publishedOn)
-                                  .And(p.["categoryIds"].Contains(categoryId)))
+  newerPost conn post (fun p -> upcast p.["publishedOn"].Gt(post.publishedOn)
+                                        .And(p.["categoryIds"].Contains(categoryId)))
  
 /// Try to get the next newest tagged post from the given tagged post
 let tryFindNewerTaggedPost conn (tag : string) post =
-  newerPost conn post (fun p -> (p :> ReqlExpr).["publishedOn"].Gt(post.publishedOn).And(p.["tags"].Contains(tag)))
+  newerPost conn post (fun p -> upcast p.["publishedOn"].Gt(post.publishedOn).And(p.["tags"].Contains(tag)))
  
 /// Try to get the next oldest post from the given post
-let tryFindOlderPost conn post = olderPost conn post (fun p -> (p :> ReqlExpr).["publishedOn"].Lt(post.publishedOn))
+let tryFindOlderPost conn post = olderPost conn post (fun p -> upcast p.["publishedOn"].Lt(post.publishedOn))
 
 /// Try to get the next oldest post assigned to the given category
 let tryFindOlderCategorizedPost conn (categoryId : string) post =
-  olderPost conn post (fun p -> (p :> ReqlExpr).["publishedOn"].Lt(post.publishedOn)
-                                  .And(p.["categoryIds"].Contains(categoryId)))
+  olderPost conn post (fun p -> upcast p.["publishedOn"].Lt(post.publishedOn)
+                                        .And(p.["categoryIds"].Contains(categoryId)))
 
 /// Try to get the next oldest tagged post from the given tagged post
 let tryFindOlderTaggedPost conn (tag : string) post =
-  olderPost conn post (fun p -> (p :> ReqlExpr).["publishedOn"].Lt(post.publishedOn).And(p.["tags"].Contains(tag)))
+  olderPost conn post (fun p -> upcast p.["publishedOn"].Lt(post.publishedOn).And(p.["tags"].Contains(tag)))
 
 /// Get a page of all posts in all statuses
 let findPageOfAllPosts conn (webLogId : string) pageNbr nbrPerPage =
+  // FIXME: sort unpublished posts by their last updated date
   r.Table(Table.Post)
     .GetAll(webLogId).OptArg("index", "webLogId")
-    .OrderBy(fun p -> r.Desc(r.Branch(p.["publishedOn"].Eq(int64 0), p.["lastUpdatedOn"], p.["publishedOn"])))
+    .OrderBy(r.Desc("publishedOn"))
     .Slice((pageNbr - 1) * nbrPerPage, pageNbr * nbrPerPage)
-    .RunCursorAsync<Post>(conn)
+    .RunListAsync<Post>(conn)
   |> await
   |> Seq.toList
 
@@ -107,15 +108,15 @@ let tryFindPostByPermalink conn webLogId permalink =
     .GetAll(r.Array(webLogId, permalink)).OptArg("index", "permalink")
     .Filter(fun p -> p.["status"].Eq(PostStatus.Published))
     .Without("revisions")
-    .Merge(fun post -> ExpandoObject()?categories <-
+    .Merge(fun post -> r.HashMap("categories",
                          post.["categoryIds"]
                            .Map(ReqlFunction1(fun cat -> upcast r.Table(Table.Category).Get(cat).Without("children")))
-                           .CoerceTo("array"))
-    .Merge(fun post -> ExpandoObject()?comments <-
+                           .CoerceTo("array")))
+    .Merge(fun post -> r.HashMap("comments",
                          r.Table(Table.Comment)
                            .GetAll(post.["id"]).OptArg("index", "postId")
                            .OrderBy("postedOn")
-                           .CoerceTo("array"))
+                           .CoerceTo("array")))
     .RunCursorAsync<Post>(conn)
   |> await
   |> Seq.tryHead
@@ -145,11 +146,3 @@ let savePost conn post =
                .RunResultAsync(conn)
              |> ignore
              post.id
-
-/// Count posts for a web log
-let countPosts conn (webLogId : string) =
-  r.Table(Table.Post)
-    .GetAll(webLogId).OptArg("index", "webLogId")
-    .Count()
-    .RunAtomAsync<int>(conn)
-  |> await

@@ -306,4 +306,16 @@
   <data name="ShowInPageList" xml:space="preserve">
     <value>Show in Page List</value>
   </data>
+  <data name="andXMore" xml:space="preserve">
+    <value>and {0} more...</value>
+  </data>
+  <data name="Close" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="Error" xml:space="preserve">
+    <value>Error</value>
+  </data>
+  <data name="Warning" xml:space="preserve">
+    <value>Warning</value>
+  </data>
 </root>

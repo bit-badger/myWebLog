@@ -1,4 +1,7 @@
-﻿@If.subTitle.IsSome
+﻿@Each.messages
+  @Current.toDisplay
+@EndEach
+@If.subTitle.IsSome
   <h2>
     <span class="label label-info">@Model.subTitle</span>
   </h2>
@@ -8,14 +11,14 @@
     <div class="col-xs-12">
       <article>
         <h1>
-          <a href="/@Current.permalink" title="@Translate.PermanentLinkTo &quot;@Current.title@quot;">@Current.title</a>
+          <a href="/@Current.post.permalink"
+             title="@Translate.PermanentLinkTo &quot;@Current.post.title@quot;">@Current.post.title</a>
         </h1>
-        <!-- var pubDate = moment(post.publishedDate) -->
         <p>
-          <i class="fa fa-calendar" title="@Translate.Date"></i> &nbsp; @Current.publishedDate <!-- #{pubDate.format('MMMM Do, YYYY')} -->
-          <i class="fa fa-clock-o" title="@Translate.Time"></i> &nbsp; @Current.publishedTime <!-- #{pubDate.format('h:mma')} -->
+          <i class="fa fa-calendar" title="@Translate.Date"></i> @Current.publishedDate &nbsp;
+          <i class="fa fa-clock-o" title="@Translate.Time"></i> @Current.publishedTime
         </p>
-        @Current.text
+        @Current.post.text
       </article>
       <hr />
     </div>

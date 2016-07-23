@@ -32,17 +32,10 @@ let getAllCategories conn (webLogId : string) =
   r.Table(Table.Category)
     .GetAll(webLogId).OptArg("index", "webLogId")
     .OrderBy("name")
-    .RunCursorAsync<Category>(conn)
+    .RunListAsync<Category>(conn)
   |> await
   |> Seq.toList
   |> sortCategories
-
-/// Count categories for a web log
-let countCategories conn (webLogId : string) =
-  r.Table(Table.Category)
-    .GetAll(webLogId).OptArg("index", "webLogId")
-    .Count()
-    .RunAtomAsync<int>(conn) |> await
 
 /// Get a specific category by its Id
 let tryFindCategory conn webLogId catId : Category option =

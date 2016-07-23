@@ -4,7 +4,7 @@
   <div class="row">
     <p>
       <a class="btn btn-primary" href="/post/new/edit">
-        <i class="fa fa-plus"></i> | &nbsp; @Translate.AddNew
+        <i class="fa fa-plus"></i> &nbsp; @Translate.AddNew
       </a>
     </p>
   </div>
@@ -17,30 +17,19 @@
         <th>@Translate.Tags</th>
       </tr>
       @Each.posts
-        <!-- - var theDate = moment(post.publishedDate ? post.publishedDate : post.lastUpdatedDate)
-        - var tags = (post.tag || []).sort() -->
         <tr>
-          <td>
-            <!-- =theDate.format('MMM D, YYYY')
-              br
-              #{__("at")} #{theDate.format('h:mma')} -->
-            // TODO format date
+          <td style="white-space:nowrap;">
+            @Current.publishedDate<br />
+            @Translate.at @Current.publishedTime
           </td>
           <td>
-            @Current.title<br />
-            <a href="/@Current.permalink">@Translate.View</a> | &nbsp;
-            <a href="/post/@Current.id/edit">@Translate.Edit</a> | &nbsp;
-            <a href="/post/@Current.id/delete">@Translate.Delete</a>
+            @Current.post.title<br />
+            <a href="/@Current.post.permalink">@Translate.View</a> &nbsp;|&nbsp;
+            <a href="/post/@Current.post.id/edit">@Translate.Edit</a> &nbsp;|&nbsp;
+            <a href="/post/@Current.post.id/delete">@Translate.Delete</a>
           </td>
-          <td>@Current.status</td>
-          <td>
-            <!-- if 5 > tags.length
-            =tags.join(' | ')
-            else
-            =tags.slice(0, 3).join(' | ') + ' | '
-            span(title=tags.slice(3).join(' | '))= __("and %d more...", tags.slice(3).length) -->
-            // TODO fix tags
-          </td>
+          <td>@Current.post.status</td>
+          <td>@Current.tags</td>
         </tr>
       @EndEach
     </table>

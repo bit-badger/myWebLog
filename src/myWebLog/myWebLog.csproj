@@ -51,6 +51,7 @@
     <Content Include="data-config.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+    <Content Include="views\admin\message.html" />
     <Content Include="views\themes\default\content\bootstrap-theme.css.map">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
