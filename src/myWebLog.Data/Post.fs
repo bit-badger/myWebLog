@@ -138,6 +138,24 @@ let tryFindPostByPriorPermalink conn (webLogId : string) (permalink : string) =
   |> await
   |> Seq.tryHead
 
+/// Get a set of posts for RSS
+let findFeedPosts conn webLogId nbr : (Post * User option) list =
+  findPageOfPublishedPosts conn webLogId 1 nbr
+  |> List.map (fun post -> { post with categories = r.Table(Table.Category)
+                                                      .GetAll(post.categoryIds |> List.toArray)
+                                                      .OrderBy("name")
+                                                      .Pluck("id", "name")
+                                                      .RunListAsync<Category>(conn)
+                                                    |> await
+                                                    |> Seq.toList },
+                           (match r.Table(Table.User)
+                                  .Get(post.authorId)
+                                  .RunAtomAsync<User>(conn)
+                                 |> await
+                                 |> box with
+                           | null -> None
+                           | user -> Some <| unbox user))
+
 /// Save a post
 let savePost conn post =
   match post.id with

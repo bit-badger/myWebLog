@@ -148,6 +148,7 @@
     <Reference Include="System.ComponentModel.DataAnnotations" />
     <Reference Include="System.Core" />
     <Reference Include="System.Numerics" />
+    <Reference Include="System.ServiceModel" />
     <Reference Include="System.Web.Razor">
       <HintPath>..\packages\FSharp.Formatting.2.14.4\lib\net40\System.Web.Razor.dll</HintPath>
       <Private>True</Private>
