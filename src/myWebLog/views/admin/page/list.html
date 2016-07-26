@@ -13,17 +13,12 @@
       @Each.pages
         <tr>
           <td>
-            @Current.title<br />
-            <a href="/@Current.permalink">@Translate.View</a> &nbsp;
-            <a href="/page/@Current.id/edit">@Translate.Edit</a> &nbsp;
-            <a href="javascript:void(0)" onclick="deletePage('@Current.id', '@Current.title')">@Translate.Delete</a>
+            @Current.page.title<br />
+            <a href="/@Current.page.permalink">@Translate.View</a> &nbsp;
+            <a href="/page/@Current.page.id/edit">@Translate.Edit</a> &nbsp;
+            <a href="javascript:void(0)" onclick="deletePage('@Current.page.id', '@Current.title')">@Translate.Delete</a>
           </td>
-          <td>
-            <!-- // TODO: make the formatting stuff work in a loop 
-            =theDate.format('MMM D, YYYY')
-            br
-            #{__("at")} #{theDate.format('h:mma')} -->
-          </td>
+          <td>@Current.updatedDate<br />@Translate.at @Current.updatedTime</td>
         </tr>
       @EndEach
     </table>

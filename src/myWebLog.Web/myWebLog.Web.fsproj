@@ -75,6 +75,10 @@
       <HintPath>..\packages\FSharp.Formatting.2.14.4\lib\net40\CSharpFormat.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="Dynamitey">
+      <HintPath>..\packages\Dynamitey.1.0.2.0\lib\net40\Dynamitey.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="FSharp.CodeFormat">
       <HintPath>..\packages\FSharp.Formatting.2.14.4\lib\net40\FSharp.CodeFormat.dll</HintPath>
       <Private>True</Private>
@@ -89,6 +93,10 @@
     </Reference>
     <Reference Include="FSharp.Formatting.Common">
       <HintPath>..\packages\FSharp.Formatting.2.14.4\lib\net40\FSharp.Formatting.Common.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="FSharp.Interop.Dynamic">
+      <HintPath>..\packages\FSharp.Interop.Dynamic.3.0.0.0\lib\portable-net45+sl50+win\FSharp.Interop.Dynamic.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="FSharp.Literate">
@@ -137,7 +145,7 @@
       <Private>True</Private>
     </Reference>
     <Reference Include="RethinkDb.Driver">
-      <HintPath>..\packages\RethinkDb.Driver.2.3.8\lib\net45\RethinkDb.Driver.dll</HintPath>
+      <HintPath>..\packages\RethinkDb.Driver.2.3.9\lib\net45\RethinkDb.Driver.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="Suave">

@@ -3,6 +3,7 @@
 open FSharp.Interop.Dynamic
 open myWebLog.Entities
 open Rethink
+open RethinkDb.Driver.Ast
 open System.Dynamic
 
 let private r = RethinkDb.Driver.RethinkDB.R
@@ -11,14 +12,18 @@ let private r = RethinkDb.Driver.RethinkDB.R
 let private page (webLogId : string) (pageId : string) =
   r.Table(Table.Page)
     .Get(pageId)
-    .Filter(fun p -> p.["webLogId"].Eq(webLogId))
+    .Filter(ReqlFunction1(fun p -> upcast p.["webLogId"].Eq(webLogId)))
 
 /// Get a page by its Id
-let tryFindPage conn webLogId pageId : Page option =
-  match (page webLogId pageId)
+let tryFindPage conn webLogId pageId =
+  match r.Table(Table.Page)
+          .Get(pageId)
           .RunAtomAsync<Page>(conn) |> await |> box with
   | null -> None
-  | page -> Some <| unbox page
+  | page -> let pg : Page = unbox page
+            match pg.webLogId = webLogId with
+            | true -> Some pg
+            | _    -> None
 
 /// Get a page by its Id (excluding revisions)
 let tryFindPageWithoutRevisions conn webLogId pageId : Page option =

@@ -22,7 +22,8 @@ type PageModule(conn : IConnection, clock : IClock) as this =
   /// List all pages
   member this.PageList () =
     this.RequiresAccessLevel AuthorizationLevel.Administrator
-    let model = PagesModel(this.Context, this.WebLog, findAllPages conn this.WebLog.id)
+    let model = PagesModel(this.Context, this.WebLog, (findAllPages conn this.WebLog.id
+                                                       |> List.map (fun p -> PageForDisplay(this.WebLog, p))))
     model.pageTitle <- Resources.Pages
     upcast this.View.["admin/page/list", model]
 
@@ -42,7 +43,7 @@ type PageModule(conn : IConnection, clock : IClock) as this =
                    model.pageTitle <- match pageId with
                                       | "new" -> Resources.AddNewPage
                                       | _     -> Resources.EditPage
-                   upcast this.View.["admin/page/edit"]
+                   upcast this.View.["admin/page/edit", model]
     | None      -> this.NotFound ()
 
   /// Save a page

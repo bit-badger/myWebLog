@@ -228,11 +228,23 @@ type PageModel(ctx, webLog, page) =
   member this.page : Page = page
 
 
+/// Wrapper for a page with additional properties
+type PageForDisplay(webLog, page) =
+  /// The page
+  member this.page : Page = page
+  /// The time zone of the web log
+  member this.timeZone = webLog.timeZone
+  /// The date the page was last updated
+  member this.updatedDate = FormatDateTime.longDate this.timeZone page.updatedOn
+  /// The time the page was last updated
+  member this.updatedTime = FormatDateTime.time this.timeZone page.updatedOn
+
+
 /// Model for page list display
 type PagesModel(ctx, webLog, pages) =
   inherit MyWebLogModel(ctx, webLog)
   /// The pages
-  member this.pages : Page list = pages
+  member this.pages : PageForDisplay list = pages
 
 
 /// Form used to edit a page

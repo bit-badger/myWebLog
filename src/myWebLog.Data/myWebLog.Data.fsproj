@@ -91,7 +91,7 @@
       <Private>True</Private>
     </Reference>
     <Reference Include="RethinkDb.Driver">
-      <HintPath>..\packages\RethinkDb.Driver.2.3.8\lib\net45\RethinkDb.Driver.dll</HintPath>
+      <HintPath>..\packages\RethinkDb.Driver.2.3.9\lib\net45\RethinkDb.Driver.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="System" />

@@ -25,6 +25,37 @@ type PostModule(conn : IConnection, clock : IClock) as this =
   /// Convert a list of posts to a list of posts for display
   let forDisplay posts = posts |> List.map (fun post -> PostForDisplay(this.WebLog, post))
 
+  /// Generate an RSS/Atom feed of the latest posts
+  let generateFeed format : obj =
+    let posts  = findFeedPosts conn this.WebLog.id 10
+    let feed   =
+      SyndicationFeed(
+        this.WebLog.name, defaultArg this.WebLog.subtitle null,
+        Uri(sprintf "%s://%s" this.Request.Url.Scheme this.WebLog.urlBase), null,
+        (match posts |> List.tryHead with
+         | Some (post, _) -> Instant(post.updatedOn).ToDateTimeOffset ()
+         | _              -> System.DateTimeOffset(System.DateTime.MinValue)),
+        posts
+        |> List.map (fun (post, user) ->
+            let item =
+              SyndicationItem(
+                BaseUri         = Uri(sprintf "%s://%s/%s" this.Request.Url.Scheme this.WebLog.urlBase post.permalink),
+                PublishDate     = Instant(post.publishedOn).ToDateTimeOffset (),
+                LastUpdatedTime = Instant(post.updatedOn).ToDateTimeOffset (),
+                Title           = TextSyndicationContent(post.title),
+                Content         = TextSyndicationContent(post.text, TextSyndicationContentKind.Html))
+            user
+            |> Option.iter (fun u -> item.Authors.Add
+                                       (SyndicationPerson(u.userName, u.preferredName, defaultArg u.url null)))
+            post.categories
+            |> List.iter (fun c -> item.Categories.Add(SyndicationCategory(c.name)))
+            item))
+    let stream = new IO.MemoryStream()
+    Xml.XmlWriter.Create(stream)
+    |> match format with | "atom" -> feed.SaveAsAtom10 | _ -> feed.SaveAsRss20
+    stream.Position <- int64 0
+    upcast this.Response.FromStream(stream, sprintf "application/%s+xml" format)
+
   do
     this.Get .["/"                               ] <- fun _     -> this.HomePage ()
     this.Get .["/{permalink*}"                   ] <- fun parms -> this.CatchAll (downcast parms)
@@ -33,7 +64,7 @@ type PostModule(conn : IConnection, clock : IClock) as this =
     this.Get .["/category/{slug}/page/{page:int}"] <- fun parms -> this.CategorizedPosts (downcast parms)
     this.Get .["/tag/{tag}"                      ] <- fun parms -> this.TaggedPosts (downcast parms)
     this.Get .["/tag/{tag}/page/{page:int}"      ] <- fun parms -> this.TaggedPosts (downcast parms)
-    this.Get .["/feed"                           ] <- fun parms -> this.GenerateFeed (downcast parms)
+    this.Get .["/feed"                           ] <- fun _     -> this.Feed ()
     this.Get .["/posts/list"                     ] <- fun _     -> this.PostList 1
     this.Get .["/posts/list/page/{page:int}"     ] <- fun parms -> this.PostList (getPage <| downcast parms)
     this.Get .["/post/{postId}/edit"             ] <- fun parms -> this.EditPost (downcast parms)
@@ -137,38 +168,14 @@ type PostModule(conn : IConnection, clock : IClock) as this =
     this.ThemedView "index" model
 
   /// Generate an RSS feed
-  member this.GenerateFeed (parameters : DynamicDictionary) =
-    let format = match parameters.ContainsKey "format" with // FIXME: format not coming through on query string
-                 | true -> parameters.["format"].ToString ()
-                 | _    -> "rss"
-    let posts  = findFeedPosts conn this.WebLog.id 10
-    let feed   =
-      SyndicationFeed(
-        this.WebLog.name, defaultArg this.WebLog.subtitle null,
-        Uri(sprintf "%s://%s" this.Request.Url.Scheme this.WebLog.urlBase), null,
-        (match posts |> List.tryHead with
-         | Some (post, _) -> Instant(post.updatedOn).ToDateTimeOffset ()
-         | _              -> System.DateTimeOffset(System.DateTime.MinValue)),
-        posts
-        |> List.map (fun (post, user) ->
-            let item =
-              SyndicationItem(
-                BaseUri         = Uri(sprintf "%s://%s/%s" this.Request.Url.Scheme this.WebLog.urlBase post.permalink),
-                PublishDate     = Instant(post.publishedOn).ToDateTimeOffset (),
-                LastUpdatedTime = Instant(post.updatedOn).ToDateTimeOffset (),
-                Title           = TextSyndicationContent(post.title),
-                Content         = TextSyndicationContent(post.text, TextSyndicationContentKind.Html))
-            user
-            |> Option.iter (fun u -> item.Authors.Add
-                                       (SyndicationPerson(u.userName, u.preferredName, defaultArg u.url null)))
-            post.categories
-            |> List.iter (fun c -> item.Categories.Add(SyndicationCategory(c.name)))
-            item))
-    let stream = new IO.MemoryStream()
-    Xml.XmlWriter.Create(stream)
-    |> match format with | "atom" -> feed.SaveAsAtom10 | _ -> feed.SaveAsRss20
-    stream.Position <- int64 0
-    upcast this.Response.FromStream(stream, sprintf "application/%s+xml" format)
+  member this.Feed () =
+    let query = this.Request.Query :?> DynamicDictionary
+    match query.ContainsKey "format" with
+    | true -> match query.["format"].ToString () with
+              | x when x = "atom" || x = "rss" -> generateFeed x
+              | x when x = "rss2"              -> generateFeed "rss"
+              | _                              -> this.Redirect "/feed" (MyWebLogModel(this.Context, this.WebLog))
+    | _    -> generateFeed "rss"
 
   // ---- Administer posts ----
 
