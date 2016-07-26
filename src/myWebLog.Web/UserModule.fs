@@ -21,9 +21,9 @@ type UserModule(conn : IConnection) as this =
     |> Seq.fold (fun acc byt -> sprintf "%s%s" acc (byt.ToString "x2")) ""
   
   do
-    this.Get .["/logon" ] <- fun parms -> upcast this.ShowLogOn (downcast parms)
-    this.Post.["/logon" ] <- fun parms -> upcast this.DoLogOn   (downcast parms)
-    this.Get .["/logoff"] <- fun parms -> upcast this.LogOff ()
+    this.Get .["/logon" ] <- fun parms -> this.ShowLogOn (downcast parms)
+    this.Post.["/logon" ] <- fun parms -> this.DoLogOn   (downcast parms)
+    this.Get .["/logoff"] <- fun parms -> this.LogOff ()
 
   /// Show the log on page
   member this.ShowLogOn (parameters : DynamicDictionary) =
@@ -31,7 +31,7 @@ type UserModule(conn : IConnection) as this =
     model.form.returnUrl <- match parameters.ContainsKey "returnUrl" with
                             | true -> parameters.["returnUrl"].ToString ()
                             | _    -> ""
-    this.View.["admin/user/logon", model]
+    upcast this.View.["admin/user/logon", model]
 
   /// Process a user log on
   member this.DoLogOn (parameters : DynamicDictionary) =
@@ -46,16 +46,13 @@ type UserModule(conn : IConnection) as this =
                    |> model.addMessage
                    this.Redirect "" model |> ignore // Save the messages in the session before the Nancy redirect
                    // TODO: investigate if addMessage should update the session when it's called
-                   this.LoginAndRedirect
-                     (System.Guid.Parse user.id, fallbackRedirectUrl = defaultArg (Option.ofObj(form.returnUrl)) "/")
+                   upcast this.LoginAndRedirect (System.Guid.Parse user.id,
+                                                 fallbackRedirectUrl = defaultArg (Option.ofObj(form.returnUrl)) "/")
     | None      -> { level   = Level.Error
                      message = Resources.ErrBadLogOnAttempt
                      details = None }
                    |> model.addMessage
-                   this.Redirect "" model |> ignore // Save the messages in the session before the Nancy redirect
-                   // Can't redirect with a negotiator when the other leg uses a straight response... :/
-                   this.Response.AsRedirect((sprintf "/user/logon?returnUrl=%s" form.returnUrl),
-                                            Responses.RedirectResponse.RedirectType.SeeOther)
+                   this.Redirect (sprintf "/user/logon?returnUrl=%s" form.returnUrl) model
 
   /// Log a user off
   member this.LogOff () =
@@ -67,4 +64,4 @@ type UserModule(conn : IConnection) as this =
       details = None }
     |> model.addMessage
     this.Redirect "" model |> ignore
-    this.LogoutAndRedirect "/"
+    upcast this.LogoutAndRedirect "/"

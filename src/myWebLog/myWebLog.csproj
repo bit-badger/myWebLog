@@ -108,6 +108,12 @@
     <Content Include="views\themes\default\content\bootstrap-theme.min.css">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+    <Content Include="views\themes\default\content\footer-logo.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="views\themes\default\footer.html">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Include="views\themes\default\index-content.html">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>

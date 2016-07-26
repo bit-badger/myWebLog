@@ -120,7 +120,7 @@ let deleteCategory conn cat =
 /// Get a category by its slug
 let tryFindCategoryBySlug conn (webLogId : string) (slug : string) =
   r.Table(Table.Category)
-    .GetAll(webLogId, slug).OptArg("index", "slug")
+    .GetAll(r.Array(webLogId, slug)).OptArg("index", "slug")
     .RunCursorAsync<Category>(conn)
   |> await
   |> Seq.tryHead

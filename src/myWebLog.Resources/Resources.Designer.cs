@@ -304,6 +304,15 @@ namespace myWebLog {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Loaded in.
+        /// </summary>
+        public static string LoadedIn {
+            get {
+                return ResourceManager.GetString("LoadedIn", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Log Off.
         /// </summary>
         public static string LogOff {
@@ -538,6 +547,15 @@ namespace myWebLog {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Powered by.
+        /// </summary>
+        public static string PoweredBy {
+            get {
+                return ResourceManager.GetString("PoweredBy", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Previous Post.
         /// </summary>
         public static string PreviousPost {
@@ -570,6 +588,15 @@ namespace myWebLog {
         public static string Save {
             get {
                 return ResourceManager.GetString("Save", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Seconds.
+        /// </summary>
+        public static string Seconds {
+            get {
+                return ResourceManager.GetString("Seconds", resourceCulture);
             }
         }
         

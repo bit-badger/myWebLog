@@ -7,18 +7,16 @@ open Nancy.Session.Persistable
 open Newtonsoft.Json
 open NodaTime
 open NodaTime.Text
+open System
 
 
 /// Levels for a user message
 module Level =
   /// An informational message
-  [<Literal>]
   let Info = "Info"
   /// A message regarding a non-fatal but non-optimal condition
-  [<Literal>]
   let Warning = "WARNING"
   /// A message regarding a failure of the expected result
-  [<Literal>]
   let Error = "ERROR"
 
 
@@ -127,7 +125,28 @@ type MyWebLogModel(ctx : NancyContext, webLog : WebLog) =
   member this.displayShortDate ticks = FormatDateTime.shortDate this.webLog.timeZone ticks
   /// Display the time
   member this.displayTime ticks = FormatDateTime.time this.webLog.timeZone ticks
+  /// The page title with the web log name appended
+  member this.displayPageTitle =
+    match this.pageTitle with
+    | "" -> match this.webLog.subtitle with
+            | Some st -> sprintf "%s | %s" this.webLog.name st
+            | None    -> this.webLog.name
+    | pt -> sprintf "%s | %s" pt this.webLog.name
 
+  /// An image with the version and load time in the tool tip
+  member this.footerLogo =
+    seq {
+      yield "<img src=\"/default/footer-logo.png\" alt=\"myWebLog\" title=\""
+      yield sprintf "%s %s &bull; " Resources.PoweredBy this.generator
+      yield Resources.LoadedIn
+      yield " "
+      yield TimeSpan(System.DateTime.Now.Ticks - this.requestStart).TotalSeconds.ToString "f3"
+      yield " "
+      yield Resources.Seconds.ToLower ()
+      yield "\" />"
+      }
+    |> Seq.reduce (fun acc x -> acc + x)
+ 
 
 // ---- Admin models ----
 
@@ -266,7 +285,7 @@ type EditPageModel(ctx, webLog, page, revision) =
 
 // ---- Post models ----
 
-/// Model for post display
+/// Model for single post display
 type PostModel(ctx, webLog, post) =
   inherit MyWebLogModel(ctx, webLog)
   /// The post being displayed
@@ -285,7 +304,10 @@ type PostModel(ctx, webLog, post) =
   member this.tags = post.tags
                      |> List.sort
                      |> List.map (fun tag -> tag, tag.Replace(' ', '+'))
-
+  /// Does this post have a newer post?
+  member this.hasNewer = this.newerPost.IsSome
+  /// Does this post have an older post?
+  member this.hasOlder = this.olderPost.IsSome
 
 /// Wrapper for a post with additional properties
 type PostForDisplay(webLog : WebLog, post : Post) =
@@ -311,22 +333,16 @@ type PostForDisplay(webLog : WebLog, post : Post) =
 /// Model for all page-of-posts pages
 type PostsModel(ctx, webLog) =
   inherit MyWebLogModel(ctx, webLog)
-
   /// The subtitle for the page
   member val subtitle = Option<string>.None with get, set
-
   /// The posts to display
   member val posts = List.empty<PostForDisplay> with get, set
-
   /// The page number of the post list
   member val pageNbr = 0 with get, set
-
   /// Whether there is a newer page of posts for the list
   member val hasNewer = false with get, set
-
   /// Whether there is an older page of posts for the list
   member val hasOlder = true with get, set
-
   /// The prefix for the next/prior links
   member val urlPrefix = "" with get, set
 

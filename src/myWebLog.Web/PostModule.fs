@@ -24,17 +24,17 @@ type PostModule(conn : IConnection, clock : IClock) as this =
   let forDisplay posts = posts |> List.map (fun post -> PostForDisplay(this.WebLog, post))
 
   do
-    this.Get .["/"                               ] <- fun _     -> upcast this.HomePage ()
-    this.Get .["/{permalink*}"                   ] <- fun parms -> upcast this.CatchAll (downcast parms)
-    this.Get .["/posts/page/{page:int}"          ] <- fun parms -> upcast this.PublishedPostsPage (getPage <| downcast parms)
-    this.Get .["/category/{slug}"                ] <- fun parms -> upcast this.CategorizedPosts (downcast parms)
-    this.Get .["/category/{slug}/page/{page:int}"] <- fun parms -> upcast this.CategorizedPosts (downcast parms)
-    this.Get .["/tag/{tag}"                      ] <- fun parms -> upcast this.TaggedPosts (downcast parms)
-    this.Get .["/tag/{tag}/page/{page:int}"      ] <- fun parms -> upcast this.TaggedPosts (downcast parms)
-    this.Get .["/posts/list"                     ] <- fun _     -> upcast this.PostList 1
-    this.Get .["/posts/list/page/{page:int}"     ] <- fun parms -> upcast this.PostList (getPage <| downcast parms)
-    this.Get .["/post/{postId}/edit"             ] <- fun parms -> upcast this.EditPost (downcast parms)
-    this.Post.["/post/{postId}/edit"             ] <- fun parms -> upcast this.SavePost (downcast parms)
+    this.Get .["/"                               ] <- fun _     -> this.HomePage ()
+    this.Get .["/{permalink*}"                   ] <- fun parms -> this.CatchAll (downcast parms)
+    this.Get .["/posts/page/{page:int}"          ] <- fun parms -> this.PublishedPostsPage (getPage <| downcast parms)
+    this.Get .["/category/{slug}"                ] <- fun parms -> this.CategorizedPosts (downcast parms)
+    this.Get .["/category/{slug}/page/{page:int}"] <- fun parms -> this.CategorizedPosts (downcast parms)
+    this.Get .["/tag/{tag}"                      ] <- fun parms -> this.TaggedPosts (downcast parms)
+    this.Get .["/tag/{tag}/page/{page:int}"      ] <- fun parms -> this.TaggedPosts (downcast parms)
+    this.Get .["/posts/list"                     ] <- fun _     -> this.PostList 1
+    this.Get .["/posts/list/page/{page:int}"     ] <- fun parms -> this.PostList (getPage <| downcast parms)
+    this.Get .["/post/{postId}/edit"             ] <- fun parms -> this.EditPost (downcast parms)
+    this.Post.["/post/{postId}/edit"             ] <- fun parms -> this.SavePost (downcast parms)
 
   // ---- Display posts to users ----
 
@@ -86,9 +86,8 @@ type PostModule(conn : IConnection, clock : IClock) as this =
                    | None      -> // Maybe it's an old permalink for a post
                                   match tryFindPostByPriorPermalink conn this.WebLog.id url with
                                   | Some post -> // Redirect them to the proper permalink
-                                                 this.Negotiate
-                                                   .WithHeader("Location", sprintf "/%s" post.permalink)
-                                                   .WithStatusCode HttpStatusCode.MovedPermanently
+                                                 upcast this.Response.AsRedirect(sprintf "/%s" post.permalink)
+                                                          .WithStatusCode HttpStatusCode.MovedPermanently
                                   | None      -> this.NotFound ()
 
   /// Display categorized posts
@@ -102,7 +101,7 @@ type PostModule(conn : IConnection, clock : IClock) as this =
                   model.hasNewer  <- match List.isEmpty model.posts with
                                      | true -> false
                                      | _    -> Option.isSome <| tryFindNewerCategorizedPost conn cat.id
-                                                                                            (List.last model.posts).post
+                                                                                            (List.head model.posts).post
                   model.hasOlder  <- match List.isEmpty model.posts with
                                      | true -> false
                                      | _    -> Option.isSome <| tryFindOlderCategorizedPost conn cat.id
@@ -125,7 +124,7 @@ type PostModule(conn : IConnection, clock : IClock) as this =
     model.posts     <- findPageOfTaggedPosts conn this.WebLog.id tag pageNbr 10 |> forDisplay
     model.hasNewer  <- match List.isEmpty model.posts with
                        | true -> false
-                       | _    -> Option.isSome <| tryFindNewerTaggedPost conn tag (List.last model.posts).post
+                       | _    -> Option.isSome <| tryFindNewerTaggedPost conn tag (List.head model.posts).post
     model.hasOlder  <- match List.isEmpty model.posts with
                        | true -> false
                        | _    -> Option.isSome <| tryFindOlderTaggedPost conn tag (List.last model.posts).post
@@ -147,7 +146,7 @@ type PostModule(conn : IConnection, clock : IClock) as this =
     model.hasOlder  <- List.length model.posts > 24
     model.urlPrefix <- "/posts/list"
     model.pageTitle <- Resources.Posts
-    this.View.["admin/post/list", model]
+    upcast this.View.["admin/post/list", model]
 
   /// Edit a post
   member this.EditPost (parameters : DynamicDictionary) =
@@ -170,7 +169,7 @@ type PostModule(conn : IConnection, clock : IClock) as this =
                    model.pageTitle  <- match post.id with
                                        | "new" -> Resources.AddNewPost
                                        | _     -> Resources.EditPost
-                   this.View.["admin/post/edit"]
+                   upcast this.View.["admin/post/edit"]
     | None      -> this.NotFound ()
 
   /// Save a post

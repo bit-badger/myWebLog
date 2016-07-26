@@ -12,10 +12,10 @@ type CategoryModule(conn : IConnection) as this =
   inherit NancyModule()
 
   do
-    this.Get   .["/categories"          ] <- fun _     -> upcast this.CategoryList   ()
-    this.Get   .["/category/{id}/edit"  ] <- fun parms -> upcast this.EditCategory   (downcast parms)
-    this.Post  .["/category/{id}/edit"  ] <- fun parms -> upcast this.SaveCategory   (downcast parms)
-    this.Delete.["/category/{id}/delete"] <- fun parms -> upcast this.DeleteCategory (downcast parms)
+    this.Get   .["/categories"          ] <- fun _     -> this.CategoryList   ()
+    this.Get   .["/category/{id}/edit"  ] <- fun parms -> this.EditCategory   (downcast parms)
+    this.Post  .["/category/{id}/edit"  ] <- fun parms -> this.SaveCategory   (downcast parms)
+    this.Delete.["/category/{id}/delete"] <- fun parms -> this.DeleteCategory (downcast parms)
 
   /// Display a list of categories
   member this.CategoryList () =
@@ -23,7 +23,7 @@ type CategoryModule(conn : IConnection) as this =
     let model = CategoryListModel(this.Context, this.WebLog,
                                   (getAllCategories conn this.WebLog.id
                                    |> List.map (fun cat -> IndentedCategory.create cat (fun _ -> false))))
-    this.View.["/admin/category/list", model]
+    upcast this.View.["/admin/category/list", model]
   
   /// Edit a category
   member this.EditCategory (parameters : DynamicDictionary) =
@@ -39,7 +39,7 @@ type CategoryModule(conn : IConnection) as this =
                   model.categories <- getAllCategories conn this.WebLog.id
                                       |> List.map (fun cat -> IndentedCategory.create cat
                                                                 (fun c -> c = defaultArg (fst cat).parentId ""))
-                  this.View.["admin/category/edit", model]
+                  upcast this.View.["admin/category/edit", model]
     | None     -> this.NotFound ()
 
   /// Save a category

@@ -31,7 +31,7 @@ let tryFindPageWithoutRevisions conn webLogId pageId : Page option =
 /// Find a page by its permalink
 let tryFindPageByPermalink conn (webLogId : string) (permalink : string) =
   r.Table(Table.Page)
-    .GetAll(webLogId, permalink).OptArg("index", "permalink")
+    .GetAll(r.Array(webLogId, permalink)).OptArg("index", "permalink")
     .Without("revisions")
     .RunCursorAsync<Page>(conn)
   |> await

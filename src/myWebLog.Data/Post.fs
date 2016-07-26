@@ -48,13 +48,13 @@ let findPageOfPublishedPosts conn webLogId pageNbr nbrPerPage =
 /// Get a page of published posts assigned to a given category
 let findPageOfCategorizedPosts conn webLogId (categoryId : string) pageNbr nbrPerPage =
   (publishedPosts webLogId)
-    .Filter(fun p -> p.["categoryIds"].Contains(categoryId))
+    .Filter(ReqlFunction1(fun p -> upcast p.["categoryIds"].Contains(categoryId)))
   |> toPostList conn pageNbr nbrPerPage
 
 /// Get a page of published posts tagged with a given tag
 let findPageOfTaggedPosts conn webLogId (tag : string) pageNbr nbrPerPage =
   (publishedPosts webLogId)
-    .Filter(fun p -> p.["tags"].Contains(tag))
+    .Filter(ReqlFunction1(fun p -> upcast p.["tags"].Contains(tag)))
   |> toPostList conn pageNbr nbrPerPage
 
 /// Try to get the next newest post from the given post
@@ -103,23 +103,30 @@ let tryFindPost conn webLogId postId : Post option =
   | post -> Some <| unbox post
 
 /// Try to find a post by its permalink
+// TODO: see if we can make .Merge work for page list even though the attribute is ignored
+//       (needs to be ignored for serialization, but included for deserialization)
 let tryFindPostByPermalink conn webLogId permalink =
-  r.Table(Table.Post)
-    .GetAll(r.Array(webLogId, permalink)).OptArg("index", "permalink")
-    .Filter(fun p -> p.["status"].Eq(PostStatus.Published))
-    .Without("revisions")
-    .Merge(fun post -> r.HashMap("categories",
-                         post.["categoryIds"]
-                           .Map(ReqlFunction1(fun cat -> upcast r.Table(Table.Category).Get(cat).Without("children")))
-                           .CoerceTo("array")))
-    .Merge(fun post -> r.HashMap("comments",
-                         r.Table(Table.Comment)
-                           .GetAll(post.["id"]).OptArg("index", "postId")
-                           .OrderBy("postedOn")
-                           .CoerceTo("array")))
-    .RunCursorAsync<Post>(conn)
-  |> await
-  |> Seq.tryHead
+  match r.Table(Table.Post)
+          .GetAll(r.Array(webLogId, permalink)).OptArg("index", "permalink")
+          .Filter(fun p -> p.["status"].Eq(PostStatus.Published))
+          .Without("revisions")
+          .RunCursorAsync<Post>(conn)
+        |> await
+        |> Seq.tryHead with
+  | Some p -> Some { p with categories = r.Table(Table.Category)
+                                           .GetAll(p.categoryIds |> List.toArray)
+                                           .Without("children")
+                                           .OrderBy("name")
+                                           .RunListAsync<Category>(conn)
+                                         |> await
+                                         |> Seq.toList
+                            comments   = r.Table(Table.Comment)
+                                           .GetAll(p.id).OptArg("index", "postId")
+                                           .OrderBy("postedOn")
+                                           .RunListAsync<Comment>(conn)
+                                         |> await
+                                         |> Seq.toList }
+  | None   -> None
 
 /// Try to find a post by its prior permalink
 let tryFindPostByPriorPermalink conn (webLogId : string) (permalink : string) =

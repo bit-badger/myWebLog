@@ -318,4 +318,13 @@
   <data name="Warning" xml:space="preserve">
     <value>Warning</value>
   </data>
+  <data name="LoadedIn" xml:space="preserve">
+    <value>Loaded in</value>
+  </data>
+  <data name="PoweredBy" xml:space="preserve">
+    <value>Powered by</value>
+  </data>
+  <data name="Seconds" xml:space="preserve">
+    <value>Seconds</value>
+  </data>
 </root>

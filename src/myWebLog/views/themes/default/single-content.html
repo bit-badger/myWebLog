@@ -8,9 +8,11 @@
         <i class="fa fa-calendar" title="@Translate.Date"></i> @Model.publishedDate &nbsp;
         <i class="fa fa-clock-o" title="@Translate.Time"></i> @Model.publishedTime &nbsp; &nbsp; &nbsp;
         @Each.post.categories
-          <i class="fa fa-folder-open-o" title="@Translate.Category"></i> &nbsp;
-          <!-- <a href="/category/@Current.slug" title=__("Categorized under %s", category.name)) -->
-          @Current.name &nbsp; &nbsp;
+          <span style="white-space:nowrap;">
+            <i class="fa fa-folder-open-o" title="@Translate.Category"></i>
+            <a href="/category/@Current.slug" title="@Translate.CategorizedUnder @Current.name">@Current.name</a>
+            &nbsp; &nbsp;
+          </span>
         @EndEach
       </h4>
     </div>
@@ -22,9 +24,11 @@
     <div class="row">
       <div class="col-xs-12">
         @Each.tags
-          <a href="/tag/@Current.Item2" title="@Translate.PostsTagged &quot;@Current.Item1&quot;">
-            <i class="fa fa-tag"></i> @Current.Item1
-          </a> &nbsp; &nbsp;
+          <span style="white-space:nowrap;">
+            <a href="/tag/@Current.Item2" title="@Translate.PostsTagged &quot;@Current.Item1&quot;">
+              <i class="fa fa-tag"></i> @Current.Item1
+            </a> &nbsp; &nbsp;
+          </span>
         @EndEach
       </div>
     </div>
@@ -52,14 +56,14 @@
 </div>
 <div class="row">
   <div class="col-xs-6">
-    @If.newerPost.IsSome
+    @If.hasNewer
       <a href="/@Model.newerPost.Value.permalink" title="@Translate.NextPost - &quot;@Model.newerPost.Value.title&quot;">
         &#xab;&nbsp; @Model.newerPost.Value.title
       </a>
     @EndIf
   </div>
   <div class="col-xs-6 text-right">
-    @If.olderPost.IsSome
+    @If.hasOlder
       <a href="/@Model.olderPost.Value.permalink"
          title="@Translate.PreviousPost - &quot;@Model.olderPost.Value.title&quot;">
         @Model.olderPost.Value.title &nbsp;&#xbb;

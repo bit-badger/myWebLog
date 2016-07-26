@@ -14,22 +14,22 @@ type PageModule(conn : IConnection, clock : IClock) as this =
   inherit NancyModule()
 
   do
-    this.Get   .["/pages"           ] <- fun _     -> upcast this.PageList ()
-    this.Get   .["/page/{id}/edit"  ] <- fun parms -> upcast this.EditPage   (downcast parms)
-    this.Post  .["/page/{id}/edit"  ] <- fun parms -> upcast this.SavePage   (downcast parms)
-    this.Delete.["/page/{id}/delete"] <- fun parms -> upcast this.DeletePage (downcast parms)
+    this.Get   .["/pages"           ] <- fun _     -> this.PageList ()
+    this.Get   .["/page/{id}/edit"  ] <- fun parms -> this.EditPage   (downcast parms)
+    this.Post  .["/page/{id}/edit"  ] <- fun parms -> this.SavePage   (downcast parms)
+    this.Delete.["/page/{id}/delete"] <- fun parms -> this.DeletePage (downcast parms)
 
   /// List all pages
   member this.PageList () =
     this.RequiresAccessLevel AuthorizationLevel.Administrator
     let model = PagesModel(this.Context, this.WebLog, findAllPages conn this.WebLog.id)
     model.pageTitle <- Resources.Pages
-    this.View.["admin/page/list", model]
+    upcast this.View.["admin/page/list", model]
 
   /// Edit a page
   member this.EditPage (parameters : DynamicDictionary) =
     this.RequiresAccessLevel AuthorizationLevel.Administrator
-    let pageId : string = downcast parameters.["id"]
+    let pageId = parameters.["id"].ToString ()
     match (match pageId with
            | "new" -> Some Page.empty
            | _     -> tryFindPage conn this.WebLog.id pageId) with
@@ -42,16 +42,16 @@ type PageModule(conn : IConnection, clock : IClock) as this =
                    model.pageTitle <- match pageId with
                                       | "new" -> Resources.AddNewPage
                                       | _     -> Resources.EditPage
-                   this.View.["admin/page/edit"]
+                   upcast this.View.["admin/page/edit"]
     | None      -> this.NotFound ()
 
   /// Save a page
   member this.SavePage (parameters : DynamicDictionary) =
     this.ValidateCsrfToken ()
     this.RequiresAccessLevel AuthorizationLevel.Administrator
-    let pageId : string = downcast parameters.["id"]
-    let form = this.Bind<EditPageForm> ()
-    let now  = clock.Now.Ticks
+    let pageId = parameters.["id"].ToString ()
+    let form   = this.Bind<EditPageForm> ()
+    let now    = clock.Now.Ticks
     match (match pageId with
            | "new" -> Some Page.empty
            | _     -> tryFindPage conn this.WebLog.id pageId) with
@@ -84,7 +84,7 @@ type PageModule(conn : IConnection, clock : IClock) as this =
   member this.DeletePage (parameters : DynamicDictionary) =
     this.ValidateCsrfToken ()
     this.RequiresAccessLevel AuthorizationLevel.Administrator
-    let pageId : string = downcast parameters.["id"]
+    let pageId = parameters.["id"].ToString ()
     match tryFindPageWithoutRevisions conn this.WebLog.id pageId with
     | Some page -> deletePage conn page.webLogId page.id
                    let model = MyWebLogModel(this.Context, this.WebLog)
