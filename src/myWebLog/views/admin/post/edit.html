@@ -1,27 +1,27 @@
 ﻿@Master['admin/admin-layout']
 
 @Section['Content']
-  <form action='/post/@Model.post.id/edit' method="post">
+  <form action='/post/@Model.Post.Id/edit' method="post">
     @AntiForgeryToken
     <div class="row">
       <div class="col-sm-9">
         <div class="form-group">
-          <label class="control-label" for="title">@Translate.Title</label>
-          <input type="text" name="title" id="title" class="form-control" value="@Model.form.title" />
+          <label class="control-label" for="Title">@Translate.Title</label>
+          <input type="text" name="Title" id="Title" class="form-control" value="@Model.Form.Title" />
         </div>
         <div class="form-group">
-          <label class="control-label" for="permalink">@Translate.Permalink</label>
-          <input type="text" name="permalink" id="permalink" class="form-control" value="@Model.form.permalink" />
+          <label class="control-label" for="Permalink">@Translate.Permalink</label>
+          <input type="text" name="Permalink" id="Permalink" class="form-control" value="@Model.Form.Permalink" />
           <!-- // FIXME: hard-coded "http" -->
           <p class="form-hint"><em>@Translate.startingWith</em> http://@Model.webLog.urlBase/ </p>
         </div>
         <!-- // TODO: Markdown / HTML choice -->
         <div class="form-group">
-          <textarea name="text" id="text" rows="15">@Model.form.text</textarea>
+          <textarea name="Text" id="Text" rows="15">@Model.Form.Text</textarea>
         </div>
         <div class="form-group">
-          <label class="control-label" for="tags">@Translate.Tags</label>
-          <input type="text" name="tags" id="tags" class="form-control" value="@Model.form.tags" />
+          <label class="control-label" for="Tags">@Translate.Tags</label>
+          <input type="text" name="Tags" id="Tags" class="form-control" value="@Model.Form.Tags" />
         </div>
       </div>
       <div class="col-sm-3">
@@ -32,12 +32,12 @@
           <div class="panel-body">
             <div class="form-group">
               <label class="control-label">@Translate.PostStatus</label>
-              <p class="static-control">@Model.post.status</p>
+              <p class="static-control">@Model.Post.Status</p>
             </div>
-            @If.isPublished
+            @If.IsPublished
               <div class="form-group">
                 <label class="control-label">@Translate.PublishedDate</label>
-                <p class="static-control">@Model.publishedDate<br />@Model.publishedTime</p>
+                <p class="static-control">@Model.PublishedDate<br />@Model.PublishedTime</p>
               </div>
             @EndIf
           </div>
@@ -48,7 +48,7 @@
           </div>
           <div class="panel-body" style="max-height:350px;overflow:scroll;">
             <!-- // TODO: how to check the ones that are already selected? -->
-            @Each.categories
+            @Each.Categories
               <!-- - var tab = 0
               while tab < item.indent
                 | &nbsp; &nbsp;
@@ -56,22 +56,22 @@
               - var attributes = {}
               if -1 < currentCategories.indexOf(item.category.id)
                 - attributes.checked = 'checked' -->
-              <input type="checkbox" id="category-@Current.Item1" name="category", value="@Current.Item1" />
+              <input type="checkbox" id="Category-@Current.Item1" name="Category", value="@Current.Item1" />
               &nbsp;
               <!-- // FIXME: the title should be the category description -->
-              <label for="category-@Current.Item1" title="@Current.Item2">@Current.Item2</label>
+              <label for="Category-@Current.Item1" title="@Current.Item2">@Current.Item2</label>
               <br/>
             @EndEach
           </div>
         </div>
         <div class="text-center">
-          @If.isPublished
-            <input type="hidden" name="publishNow" value="true" />
+          @If.IsPublished
+            <input type="hidden" name="PublishNow" value="true" />
           @EndIf
-          @IfNot.isPublished
+          @IfNot.IsPublished
             <div>
-              <input type="checkbox" name="publishNow" id="publishNow" value="true" checked="checked" />
-              &nbsp; <label for="publishNow">@Translate.PublishThisPost</label>
+              <input type="checkbox" name="PublishNow" id="PublishNow" value="true" checked="checked" />
+              &nbsp; <label for="PublishNow">@Translate.PublishThisPost</label>
             </div>
           @EndIf
           <p>
@@ -89,7 +89,7 @@
   <script type="text/javascript" src="/content/scripts/tinymce-init.js"></script>
   <script type="text/javascript">
     /** <![CDATA[ */
-    $(document).ready(function () { $("#title").focus() })
+    $(document).ready(function () { $("#Title").focus() })
     /** ]]> */
   </script>
 @EndSection

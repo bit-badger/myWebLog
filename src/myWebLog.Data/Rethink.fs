@@ -1,4 +1,4 @@
-﻿module myWebLog.Data.Rethink
+﻿module MyWebLog.Data.Rethink
 
 open RethinkDb.Driver.Ast
 open RethinkDb.Driver.Net

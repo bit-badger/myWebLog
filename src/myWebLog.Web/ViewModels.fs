@@ -1,7 +1,7 @@
-﻿namespace myWebLog
+﻿namespace MyWebLog
 
-open myWebLog.Data.WebLog
-open myWebLog.Entities
+open MyWebLog.Data.WebLog
+open MyWebLog.Entities
 open Nancy
 open Nancy.Session.Persistable
 open Newtonsoft.Json
@@ -21,25 +21,23 @@ module Level =
 
 
 /// A message for the user
-type UserMessage = {
-  /// The level of the message (use Level module constants)
-  level : string
-  /// The text of the message
-  message : string
-  /// Further details regarding the message
-  details : string option
-  }
+type UserMessage = 
+  { /// The level of the message (use Level module constants)
+    Level : string
+    /// The text of the message
+    Message : string
+    /// Further details regarding the message
+    Details : string option }
 with
   /// An empty message
-  static member empty = {
-    level   = Level.Info
-    message = ""
-    details = None
-    }
+  static member Empty =
+    { Level   = Level.Info
+      Message = ""
+      Details = None }
 
   /// Display version
   [<JsonIgnore>]
-  member this.toDisplay =
+  member this.ToDisplay =
     let classAndLabel =
       dict [
         Level.Error,   ("danger",  Resources.Error)
@@ -48,23 +46,23 @@ with
         ]
     seq {
       yield "<div class=\"alert alert-dismissable alert-"
-      yield fst classAndLabel.[this.level]
+      yield fst classAndLabel.[this.Level]
       yield "\" role=\"alert\"><button type=\"button\" class=\"close\" data-dismiss=\"alert\" aria-label=\""
       yield Resources.Close
       yield "\">&times;</button><strong>"
-      match snd classAndLabel.[this.level] with
+      match snd classAndLabel.[this.Level] with
       | ""  -> ()
       | lbl -> yield lbl.ToUpper ()
                yield " &#xbb; "
-      yield this.message
+      yield this.Message
       yield "</strong>"
-      match this.details with
+      match this.Details with
       | Some d -> yield "<br />"
                   yield d
       | None   -> ()
       yield "</div>"
       }
-    |> Seq.reduce (fun acc x -> acc + x)
+    |> Seq.reduce (+)
 
 
 /// Helpers to format local date/time using NodaTime
@@ -94,58 +92,58 @@ type MyWebLogModel(ctx : NancyContext, webLog : WebLog) =
   
   /// Get the messages from the session
   let getMessages () =
-    let msg = ctx.Request.PersistableSession.GetOrDefault<UserMessage list>(Keys.Messages, List.empty)
+    let msg = ctx.Request.PersistableSession.GetOrDefault<UserMessage list>(Keys.Messages, [])
     match List.length msg with
     | 0 -> ()
     | _ -> ctx.Request.Session.Delete Keys.Messages
     msg
 
   /// The web log for this request
-  member this.webLog = webLog
+  member this.WebLog = webLog
   /// The subtitle for the webLog (SSVE can't do IsSome that deep)
-  member this.webLogSubtitle = defaultArg this.webLog.subtitle ""
+  member this.WebLogSubtitle = defaultArg this.WebLog.Subtitle ""
   /// User messages
-  member val messages = getMessages () with get, set
+  member val Messages = getMessages () with get, set
   /// The currently logged in user
-  member this.user = ctx.Request.PersistableSession.GetOrDefault<User>(Keys.User, User.empty)
+  member this.User = ctx.Request.PersistableSession.GetOrDefault<User>(Keys.User, User.Empty)
   /// The title of the page
-  member val pageTitle = "" with get, set
+  member val PageTitle = "" with get, set
   /// The name and version of the application
-  member this.generator = sprintf "myWebLog %s" (ctx.Items.[Keys.Version].ToString ())
+  member this.Generator = sprintf "myWebLog %s" (ctx.Items.[Keys.Version].ToString ())
   /// The request start time
-  member this.requestStart = ctx.Items.[Keys.RequestStart] :?> int64
+  member this.RequestStart = ctx.Items.[Keys.RequestStart] :?> int64
   /// Is a user authenticated for this request?
-  member this.isAuthenticated = "" <> this.user.id
+  member this.IsAuthenticated = "" <> this.User.Id
   /// Add a message to the output
-  member this.addMessage message = this.messages <- message :: this.messages
+  member this.AddMessage message = this.Messages <- message :: this.Messages
 
   /// Display a long date
-  member this.displayLongDate ticks = FormatDateTime.longDate this.webLog.timeZone ticks
+  member this.DisplayLongDate ticks = FormatDateTime.longDate this.WebLog.TimeZone ticks
   /// Display a short date
-  member this.displayShortDate ticks = FormatDateTime.shortDate this.webLog.timeZone ticks
+  member this.DisplayShortDate ticks = FormatDateTime.shortDate this.WebLog.TimeZone ticks
   /// Display the time
-  member this.displayTime ticks = FormatDateTime.time this.webLog.timeZone ticks
+  member this.DisplayTime ticks = FormatDateTime.time this.WebLog.TimeZone ticks
   /// The page title with the web log name appended
-  member this.displayPageTitle =
-    match this.pageTitle with
-    | "" -> match this.webLog.subtitle with
-            | Some st -> sprintf "%s | %s" this.webLog.name st
-            | None    -> this.webLog.name
-    | pt -> sprintf "%s | %s" pt this.webLog.name
+  member this.DisplayPageTitle =
+    match this.PageTitle with
+    | "" -> match this.WebLog.Subtitle with
+            | Some st -> sprintf "%s | %s" this.WebLog.Name st
+            | None    -> this.WebLog.Name
+    | pt -> sprintf "%s | %s" pt this.WebLog.Name
 
   /// An image with the version and load time in the tool tip
-  member this.footerLogo =
+  member this.FooterLogo =
     seq {
       yield "<img src=\"/default/footer-logo.png\" alt=\"myWebLog\" title=\""
-      yield sprintf "%s %s &bull; " Resources.PoweredBy this.generator
+      yield sprintf "%s %s &bull; " Resources.PoweredBy this.Generator
       yield Resources.LoadedIn
       yield " "
-      yield TimeSpan(System.DateTime.Now.Ticks - this.requestStart).TotalSeconds.ToString "f3"
+      yield TimeSpan(System.DateTime.Now.Ticks - this.RequestStart).TotalSeconds.ToString "f3"
       yield " "
       yield Resources.Seconds.ToLower ()
       yield "\" />"
       }
-    |> Seq.reduce (fun acc x -> acc + x)
+    |> Seq.reduce (+)
  
 
 // ---- Admin models ----
@@ -154,68 +152,67 @@ type MyWebLogModel(ctx : NancyContext, webLog : WebLog) =
 type DashboardModel(ctx, webLog, counts : DashboardCounts) =
   inherit MyWebLogModel(ctx, webLog)
   /// The number of posts for the current web log
-  member val posts = counts.posts with get, set
+  member val Posts = counts.Posts with get, set
   /// The number of pages for the current web log
-  member val pages = counts.pages with get, set
+  member val Pages = counts.Pages with get, set
   /// The number of categories for the current web log
-  member val categories = counts.categories with get, set
+  member val Categories = counts.Categories with get, set
 
 
 // ---- Category models ----
 
-type IndentedCategory = {
-  category : Category
-  indent   : int
-  selected : bool
-  }
+type IndentedCategory =
+  { Category : Category
+    Indent   : int
+    Selected : bool }
 with
   /// Create an indented category
-  static member create (cat : Category * int) (isSelected : string -> bool) =
-    { category = fst cat
-      indent   = snd cat
-      selected = isSelected (fst cat).id }
+  static member Create (cat : Category * int) (isSelected : string -> bool) =
+    { Category = fst cat
+      Indent   = snd cat
+      Selected = isSelected (fst cat).Id }
   /// Display name for a category on the list page, complete with indents
-  member this.listName = sprintf "%s%s" (String.replicate this.indent " &#xbb; &nbsp; ") this.category.name
+  member this.ListName = sprintf "%s%s" (String.replicate this.Indent " &#xbb; &nbsp; ") this.Category.Name
   /// Display for this category as an option within a select box
-  member this.option =
+  member this.Option =
     seq {
-      yield sprintf "<option value=\"%s\"" this.category.id
-      yield (match this.selected with | true -> """ selected="selected">""" | _ -> ">")
-      yield String.replicate this.indent " &nbsp; &nbsp; "
-      yield this.category.name
+      yield sprintf "<option value=\"%s\"" this.Category.Id
+      yield (match this.Selected with | true -> """ selected="selected">""" | _ -> ">")
+      yield String.replicate this.Indent " &nbsp; &nbsp; "
+      yield this.Category.Name
       yield "</option>"
       }
     |> String.concat ""
   /// Does the category have a description?
-  member this.hasDescription = this.category.description.IsSome
+  member this.HasDescription = this.Category.Description.IsSome
 
 
 /// Model for the list of categories
 type CategoryListModel(ctx, webLog, categories) =
   inherit MyWebLogModel(ctx, webLog)
   /// The categories
-  member this.categories : IndentedCategory list = categories
+  member this.Categories : IndentedCategory list = categories
 
 
 /// Form for editing a category
 type CategoryForm(category : Category) =
   new() = CategoryForm(Category.empty)
   /// The name of the category
-  member val name = category.name with get, set
+  member val Name = category.Name with get, set
   /// The slug of the category (used in category URLs)
-  member val slug = category.slug with get, set
+  member val Slug = category.Slug with get, set
   /// The description of the category
-  member val description = defaultArg category.description "" with get, set
+  member val Description = defaultArg category.Description "" with get, set
   /// The parent category for this one
-  member val parentId = defaultArg category.parentId "" with get, set
+  member val ParentId = defaultArg category.ParentId "" with get, set
 
 /// Model for editing a category
 type CategoryEditModel(ctx, webLog, category) =
   inherit MyWebLogModel(ctx, webLog)
   /// The form with the category information
-  member val form = CategoryForm(category) with get, set
+  member val Form = CategoryForm(category) with get, set
   /// The categories
-  member val categories : IndentedCategory list = List.empty with get, set
+  member val Categories : IndentedCategory list = [] with get, set
 
 
 // ---- Page models ----
@@ -223,54 +220,53 @@ type CategoryEditModel(ctx, webLog, category) =
 /// Model for page display
 type PageModel(ctx, webLog, page) =
   inherit MyWebLogModel(ctx, webLog)
-
   /// The page to be displayed
-  member this.page : Page = page
+  member this.Page : Page = page
 
 
 /// Wrapper for a page with additional properties
 type PageForDisplay(webLog, page) =
   /// The page
-  member this.page : Page = page
+  member this.Page : Page = page
   /// The time zone of the web log
-  member this.timeZone = webLog.timeZone
+  member this.TimeZone = webLog.TimeZone
   /// The date the page was last updated
-  member this.updatedDate = FormatDateTime.longDate this.timeZone page.updatedOn
+  member this.UpdatedDate = FormatDateTime.longDate this.TimeZone page.UpdatedOn
   /// The time the page was last updated
-  member this.updatedTime = FormatDateTime.time this.timeZone page.updatedOn
+  member this.UpdatedTime = FormatDateTime.time this.TimeZone page.UpdatedOn
 
 
 /// Model for page list display
 type PagesModel(ctx, webLog, pages) =
   inherit MyWebLogModel(ctx, webLog)
   /// The pages
-  member this.pages : PageForDisplay list = pages
+  member this.Pages : PageForDisplay list = pages
 
 
 /// Form used to edit a page
 type EditPageForm() =
   /// The title of the page
-  member val title = "" with get, set
+  member val Title = "" with get, set
   /// The link for the page
-  member val permalink = "" with get, set
+  member val Permalink = "" with get, set
   /// The source type of the revision
-  member val source = "" with get, set
+  member val Source = "" with get, set
   /// The text of the revision
-  member val text = "" with get, set
+  member val Text = "" with get, set
   /// Whether to show the page in the web log's page list
-  member val showInPageList = false with get, set
+  member val ShowInPageList = false with get, set
   
   /// Fill the form with applicable values from a page
-  member this.forPage (page : Page) =
-    this.title          <- page.title
-    this.permalink      <- page.permalink
-    this.showInPageList <- page.showInPageList
+  member this.ForPage (page : Page) =
+    this.Title          <- page.Title
+    this.Permalink      <- page.Permalink
+    this.ShowInPageList <- page.ShowInPageList
     this
   
   /// Fill the form with applicable values from a revision
-  member this.forRevision rev =
-    this.source <- rev.sourceType
-    this.text   <- rev.text
+  member this.ForRevision rev =
+    this.Source <- rev.SourceType
+    this.Text   <- rev.Text
     this
 
 
@@ -278,21 +274,21 @@ type EditPageForm() =
 type EditPageModel(ctx, webLog, page, revision) =
   inherit MyWebLogModel(ctx, webLog)
   /// The page edit form
-  member val form = EditPageForm().forPage(page).forRevision(revision)
+  member val Form = EditPageForm().ForPage(page).ForRevision(revision)
   /// The page itself
-  member this.page = page
+  member this.Page = page
   /// The page's published date
-  member this.publishedDate = this.displayLongDate page.publishedOn
+  member this.PublishedDate = this.DisplayLongDate page.PublishedOn
   /// The page's published time
-  member this.publishedTime = this.displayTime page.publishedOn
+  member this.PublishedTime = this.DisplayTime page.PublishedOn
   /// The page's last updated date
-  member this.lastUpdatedDate = this.displayLongDate page.updatedOn
+  member this.LastUpdatedDate = this.DisplayLongDate page.UpdatedOn
   /// The page's last updated time
-  member this.lastUpdatedTime = this.displayTime page.updatedOn
+  member this.LastUpdatedTime = this.DisplayTime page.UpdatedOn
   /// Is this a new page?
-  member this.isNew = "new" = page.id
+  member this.IsNew = "new" = page.Id
   /// Generate a checked attribute if this page shows in the page list
-  member this.pageListChecked = match page.showInPageList with | true -> "checked=\"checked\"" | _ -> ""
+  member this.PageListChecked = match page.ShowInPageList with true -> "checked=\"checked\"" | _ -> ""
 
 
 // ---- Post models ----
@@ -301,102 +297,103 @@ type EditPageModel(ctx, webLog, page, revision) =
 type PostModel(ctx, webLog, post) =
   inherit MyWebLogModel(ctx, webLog)
   /// The post being displayed
-  member this.post : Post = post
+  member this.Post : Post = post
   /// The next newer post
-  member val newerPost = Option<Post>.None with get, set
+  member val NewerPost = Option<Post>.None with get, set
   /// The next older post
-  member val olderPost = Option<Post>.None with get, set
+  member val OlderPost = Option<Post>.None with get, set
   /// The date the post was published
-  member this.publishedDate = this.displayLongDate this.post.publishedOn
+  member this.PublishedDate = this.DisplayLongDate this.Post.PublishedOn
   /// The time the post was published
-  member this.publishedTime = this.displayTime this.post.publishedOn
+  member this.PublishedTime = this.DisplayTime this.Post.PublishedOn
   /// Does the post have tags?
-  member this.hasTags = List.length post.tags > 0
+  member this.HasTags = not (List.isEmpty post.Tags)
   /// Get the tags sorted
-  member this.tags = post.tags
+  member this.Tags = post.Tags
                      |> List.sort
                      |> List.map (fun tag -> tag, tag.Replace(' ', '+'))
   /// Does this post have a newer post?
-  member this.hasNewer = this.newerPost.IsSome
+  member this.HasNewer = this.NewerPost.IsSome
   /// Does this post have an older post?
-  member this.hasOlder = this.olderPost.IsSome
+  member this.HasOlder = this.OlderPost.IsSome
+
 
 /// Wrapper for a post with additional properties
 type PostForDisplay(webLog : WebLog, post : Post) =
   /// Turn tags into a pipe-delimited string of tags
   let pipedTags tags = tags |> List.reduce (fun acc x -> sprintf "%s | %s" acc x)
   /// The actual post
-  member this.post = post
+  member this.Post = post
   /// The time zone for the web log to which this post belongs
-  member this.timeZone = webLog.timeZone
+  member this.TimeZone = webLog.TimeZone
   /// The date the post was published
-  member this.publishedDate = FormatDateTime.longDate this.timeZone this.post.publishedOn
+  member this.PublishedDate = FormatDateTime.longDate this.TimeZone this.Post.PublishedOn
   /// The time the post was published
-  member this.publishedTime = FormatDateTime.time this.timeZone this.post.publishedOn
+  member this.PublishedTime = FormatDateTime.time this.TimeZone this.Post.PublishedOn
   /// Tags
-  member this.tags =
-    match List.length this.post.tags with
-    | 0                 -> ""
-    | 1 | 2 | 3 | 4 | 5 -> this.post.tags |> pipedTags
-    | count             -> sprintf "%s %s" (this.post.tags |> List.take 3 |> pipedTags)
-                                           (System.String.Format(Resources.andXMore, count - 3))
+  member this.Tags =
+    match List.length this.Post.Tags with
+    | 0 -> ""
+    | 1 | 2 | 3 | 4 | 5 -> this.Post.Tags |> pipedTags
+    | count -> sprintf "%s %s" (this.Post.Tags |> List.take 3 |> pipedTags)
+                               (System.String.Format(Resources.andXMore, count - 3))
 
 
 /// Model for all page-of-posts pages
 type PostsModel(ctx, webLog) =
   inherit MyWebLogModel(ctx, webLog)
   /// The subtitle for the page
-  member val subtitle = Option<string>.None with get, set
+  member val Subtitle = Option<string>.None with get, set
   /// The posts to display
-  member val posts = List.empty<PostForDisplay> with get, set
+  member val Posts : PostForDisplay list = [] with get, set
   /// The page number of the post list
-  member val pageNbr = 0 with get, set
+  member val PageNbr = 0 with get, set
   /// Whether there is a newer page of posts for the list
-  member val hasNewer = false with get, set
+  member val HasNewer = false with get, set
   /// Whether there is an older page of posts for the list
-  member val hasOlder = true with get, set
+  member val HasOlder = true with get, set
   /// The prefix for the next/prior links
-  member val urlPrefix = "" with get, set
+  member val UrlPrefix = "" with get, set
 
   /// The link for the next newer page of posts
-  member this.newerLink =
-    match this.urlPrefix = "/posts" && this.pageNbr = 2 && this.webLog.defaultPage = "posts" with
+  member this.NewerLink =
+    match this.UrlPrefix = "/posts" && this.PageNbr = 2 && this.WebLog.DefaultPage = "posts" with
     | true -> "/"
-    | _    -> sprintf "%s/page/%i" this.urlPrefix (this.pageNbr - 1)
+    | _    -> sprintf "%s/page/%i" this.UrlPrefix (this.PageNbr - 1)
 
   /// The link for the prior (older) page of posts
-  member this.olderLink = sprintf "%s/page/%i" this.urlPrefix (this.pageNbr + 1)
+  member this.OlderLink = sprintf "%s/page/%i" this.UrlPrefix (this.PageNbr + 1)
 
 
 /// Form for editing a post
 type EditPostForm() =
   /// The title of the post
-  member val title = "" with get, set
+  member val Title = "" with get, set
   /// The permalink for the post
-  member val permalink = "" with get, set
+  member val Permalink = "" with get, set
   /// The source type for this revision
-  member val source = "" with get, set
+  member val Source = "" with get, set
   /// The text
-  member val text = "" with get, set
+  member val Text = "" with get, set
   /// Tags for the post
-  member val tags = "" with get, set
+  member val Tags = "" with get, set
   /// The selected category Ids for the post
-  member val categories = Array.empty<string> with get, set
+  member val Categories : string[] = [||] with get, set
   /// Whether the post should be published
-  member val publishNow = true with get, set
+  member val PublishNow = true with get, set
 
   /// Fill the form with applicable values from a post
-  member this.forPost post =
-    this.title      <- post.title
-    this.permalink  <- post.permalink
-    this.tags       <- List.reduce (fun acc x -> sprintf "%s, %s" acc x) post.tags
-    this.categories <- List.toArray post.categoryIds
+  member this.ForPost post =
+    this.Title      <- post.Title
+    this.Permalink  <- post.Permalink
+    this.Tags       <- List.reduce (fun acc x -> sprintf "%s, %s" acc x) post.Tags
+    this.Categories <- List.toArray post.CategoryIds
     this
 
   /// Fill the form with applicable values from a revision
-  member this.forRevision rev =
-    this.source <- rev.sourceType
-    this.text   <- rev.text
+  member this.ForRevision rev =
+    this.Source <- rev.SourceType
+    this.Text   <- rev.Text
     this
 
 /// View model for the edit post page
@@ -404,17 +401,17 @@ type EditPostModel(ctx, webLog, post, revision) =
   inherit MyWebLogModel(ctx, webLog)
 
   /// The form
-  member val form = EditPostForm().forPost(post).forRevision(revision) with get, set
+  member val Form = EditPostForm().ForPost(post).ForRevision(revision) with get, set
   /// The post being edited
-  member val post = post with get, set
+  member val Post = post with get, set
   /// The categories to which the post may be assigned
-  member val categories = List.empty<string * string> with get, set
+  member val Categories : (string * string) list = [] with get, set
   /// Whether the post is currently published
-  member this.isPublished = PostStatus.Published = this.post.status
+  member this.IsPublished = PostStatus.Published = this.Post.Status
   /// The published date
-  member this.publishedDate = this.displayLongDate this.post.publishedOn
+  member this.PublishedDate = this.DisplayLongDate this.Post.PublishedOn
   /// The published time
-  member this.publishedTime = this.displayTime this.post.publishedOn
+  member this.PublishedTime = this.DisplayTime this.Post.PublishedOn
 
 
 // ---- User models ----
@@ -422,15 +419,15 @@ type EditPostModel(ctx, webLog, post, revision) =
 /// Form for the log on page
 type LogOnForm() =
   /// The URL to which the user will be directed upon successful log on
-  member val returnUrl = "" with get, set
+  member val ReturnUrl = "" with get, set
   /// The e-mail address
-  member val email = "" with get, set
+  member val Email = "" with get, set
   /// The user's passwor
-  member val password = "" with get, set
+  member val Password = "" with get, set
 
 
 /// Model to support the user log on page
 type LogOnModel(ctx, webLog) =
   inherit MyWebLogModel(ctx, webLog)
   /// The log on form
-  member val form = LogOnForm() with get, set
+  member val Form = LogOnForm() with get, set

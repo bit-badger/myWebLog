@@ -11,20 +11,20 @@
         <th>@Translate.Category</th>
         <th>@Translate.Description</th>
       </tr>
-      @Each.categories
+      @Each.Categories
         <tr>
           <td>
-            <a href="/category/@Current.category.id/edit">@Translate.Edit</a> &nbsp;
-            <a href="javascript:void(0)" onclick="deleteCategory('@Current.category.id', '@Current.category.name')">
+            <a href="/category/@Current.Category.Id/edit">@Translate.Edit</a> &nbsp;
+            <a href="javascript:void(0)" onclick="deleteCategory('@Current.Category.Id', '@Current.Category.Name')">
               @Translate.Delete
             </a>
           </td>
-          <td>@Current.listName</td>
+          <td>@Current.ListName</td>
           <td>
-            @If.hasDescription
-              @Current.category.description.Value
+            @If.HasDescription
+              @Current.Category.Description.Value
             @EndIf
-            @IfNot.hasDescription
+            @IfNot.HasDescription
               &nbsp;
             @EndIf
           </td>

@@ -1,7 +1,7 @@
-﻿namespace myWebLog
+﻿namespace MyWebLog
 
-open myWebLog.Data.Category
-open myWebLog.Entities
+open MyWebLog.Data.Category
+open MyWebLog.Entities
 open Nancy
 open Nancy.ModelBinding
 open Nancy.Security
@@ -21,24 +21,21 @@ type CategoryModule(conn : IConnection) as this =
   member this.CategoryList () =
     this.RequiresAccessLevel AuthorizationLevel.Administrator
     let model = CategoryListModel(this.Context, this.WebLog,
-                                  (getAllCategories conn this.WebLog.id
-                                   |> List.map (fun cat -> IndentedCategory.create cat (fun _ -> false))))
+                                  (getAllCategories conn this.WebLog.Id
+                                   |> List.map (fun cat -> IndentedCategory.Create cat (fun _ -> false))))
     upcast this.View.["/admin/category/list", model]
   
   /// Edit a category
   member this.EditCategory (parameters : DynamicDictionary) =
     this.RequiresAccessLevel AuthorizationLevel.Administrator
-    let catId : string = downcast parameters.["id"]
+    let catId = parameters.["id"].ToString ()
     match (match catId with
            | "new" -> Some Category.empty
-           | _     -> tryFindCategory conn this.WebLog.id catId) with
+           | _     -> tryFindCategory conn this.WebLog.Id catId) with
     | Some cat -> let model = CategoryEditModel(this.Context, this.WebLog, cat)
-                  let cats  = getAllCategories conn this.WebLog.id
-                              |> List.map (fun cat -> IndentedCategory.create cat
-                                                        (fun c -> c = defaultArg (fst cat).parentId ""))
-                  model.categories <- getAllCategories conn this.WebLog.id
-                                      |> List.map (fun cat -> IndentedCategory.create cat
-                                                                (fun c -> c = defaultArg (fst cat).parentId ""))
+                  model.Categories <- getAllCategories conn this.WebLog.Id
+                                      |> List.map (fun cat -> IndentedCategory.Create cat
+                                                                (fun c -> c = defaultArg (fst cat).ParentId ""))
                   upcast this.View.["admin/category/edit", model]
     | None     -> this.NotFound ()
 
@@ -46,32 +43,32 @@ type CategoryModule(conn : IConnection) as this =
   member this.SaveCategory (parameters : DynamicDictionary) =
     this.ValidateCsrfToken ()
     this.RequiresAccessLevel AuthorizationLevel.Administrator
-    let catId : string = downcast parameters.["id"]
+    let catId  = parameters.["id"].ToString ()
     let form   = this.Bind<CategoryForm> ()
     let oldCat = match catId with
                  | "new" -> Some Category.empty
-                 | _     -> tryFindCategory conn this.WebLog.id catId
+                 | _     -> tryFindCategory conn this.WebLog.Id catId
     match oldCat with
-    | Some old -> let cat = { old with name        = form.name
-                                       slug        = form.slug
-                                       description = match form.description with | "" -> None | d -> Some d
-                                       parentId    = match form.parentId    with | "" -> None | p -> Some p }
-                  let newCatId = saveCategory conn this.WebLog.id cat
-                  match old.parentId = cat.parentId with
+    | Some old -> let cat = { old with Name        = form.Name
+                                       Slug        = form.Slug
+                                       Description = match form.Description with "" -> None | d -> Some d
+                                       ParentId    = match form.ParentId    with "" -> None | p -> Some p }
+                  let newCatId = saveCategory conn this.WebLog.Id cat
+                  match old.ParentId = cat.ParentId with
                   | true -> ()
-                  | _    -> match old.parentId with
-                            | Some parentId -> removeCategoryFromParent conn this.WebLog.id parentId newCatId
+                  | _    -> match old.ParentId with
+                            | Some parentId -> removeCategoryFromParent conn this.WebLog.Id parentId newCatId
                             | None          -> ()
-                            match cat.parentId with
-                            | Some parentId -> addCategoryToParent conn this.WebLog.id parentId newCatId
+                            match cat.ParentId with
+                            | Some parentId -> addCategoryToParent conn this.WebLog.Id parentId newCatId
                             | None          -> ()
                   let model = MyWebLogModel(this.Context, this.WebLog)
-                  { level   = Level.Info
-                    message = System.String.Format
-                                (Resources.MsgCategoryEditSuccess,
-                                  (match catId with | "new" -> Resources.Added | _ -> Resources.Updated))
-                    details = None }
-                  |> model.addMessage
+                  { UserMessage.Empty with
+                      Level   = Level.Info
+                      Message = System.String.Format
+                                  (Resources.MsgCategoryEditSuccess,
+                                    (match catId with | "new" -> Resources.Added | _ -> Resources.Updated)) }
+                  |> model.AddMessage
                   this.Redirect (sprintf "/category/%s/edit" newCatId) model
     | None     -> this.NotFound ()
 
@@ -79,13 +76,12 @@ type CategoryModule(conn : IConnection) as this =
   member this.DeleteCategory (parameters : DynamicDictionary) =
     this.ValidateCsrfToken ()
     this.RequiresAccessLevel AuthorizationLevel.Administrator
-    let catId : string = downcast parameters.["id"]
-    match tryFindCategory conn this.WebLog.id catId with
+    let catId = parameters.["id"].ToString ()
+    match tryFindCategory conn this.WebLog.Id catId with
     | Some cat -> deleteCategory conn cat
                   let model = MyWebLogModel(this.Context, this.WebLog)
-                  { level  = Level.Info
-                    message = System.String.Format(Resources.MsgCategoryDeleted, cat.name)
-                    details = None }
-                  |> model.addMessage
+                  { UserMessage.Empty with Level   = Level.Info
+                                           Message = System.String.Format(Resources.MsgCategoryDeleted, cat.Name) }
+                  |> model.AddMessage
                   this.Redirect "/categories" model
     | None     -> this.NotFound ()

@@ -1,22 +1,22 @@
 ﻿@Master['admin/admin-layout']
 
 @Section['Content']
-  <form action="/page/@Model.page.id/edit" method="post">
+  <form action="/page/@Model.Page.Id/edit" method="post">
     @AntiForgeryToken
     <div class="row">
       <div class="col-sm-9">
         <div class="form-group">
-          <label class="control-label" for="title">@Translate.Title</label>
-          <input type="text" name="title" id="title" class="form-control" value="@Model.form.title" />
+          <label class="control-label" for="Title">@Translate.Title</label>
+          <input type="text" name="Title" id="Title" class="form-control" value="@Model.Form.Title" />
         </div>
         <div class="form-group">
-          <label class="control-label" for="permalink">@Translate.Permalink</label>
-          <input type="text" name="permalink" id="permalink" class="form-control" value="@Model.form.permalink" />
+          <label class="control-label" for="Permalink">@Translate.Permalink</label>
+          <input type="text" name="Permalink" id="Permalink" class="form-control" value="@Model.Form.Permalink" />
           <p class="form-hint"><em>@Translate.startingWith</em> http://@Model.webLog.urlBase/ </p>
         </div>
         <!-- // TODO: Markdown / HTML choice -->
        <div class="form-group">
-          <textarea name="text" id="text" rows="15" class="form-control">@Model.form.text</textarea>
+          <textarea name="Text" id="Text" rows="15" class="form-control">@Model.Form.Text</textarea>
         </div>
       </div>
       <div class="col-sm-3">
@@ -26,16 +26,16 @@
             @IfNot.isNew
               <div class="form-group">
                 <label class="control-label">@Translate.PublishedDate</label>
-                <p class="static-control">@Model.publishedDate<br />@Model.publishedTime</p>
+                <p class="static-control">@Model.PublishedDate<br />@Model.PublishedTime</p>
               </div>
               <div class="form-group">
                 <label class="control-label">@Translate.LastUpdatedDate</label>
-                <p class="static-control">@Model.lastUpdatedDate<br />@Model.lastUpdatedTime</p>
+                <p class="static-control">@Model.LastUpdatedDate<br />@Model.LastUpdatedTime</p>
               </div>
             @EndIf
             <div class="form-group">
-              <input type="checkbox" name="showInPageList" id="showInPageList" @Model.pageListChecked />
-              &nbsp; <label for="showInPageList">@Translate.ShowInPageList</label>
+              <input type="checkbox" name="ShowInPageList" id="ShowInPageList" @Model.PageListChecked />
+              &nbsp; <label for="ShowInPageList">@Translate.ShowInPageList</label>
             </div>
           </div>
         </div>
@@ -51,7 +51,7 @@
   <script type="text/javascript" src="/content/scripts/tinymce-init.js"></script>
   <script type="text/javascript">
     /* <![CDATA[ */
-    $(document).ready(function () { $("#title").focus() })
+    $(document).ready(function () { $("#Title").focus() })
     /* ]]> */
   </script>
 @EndSection

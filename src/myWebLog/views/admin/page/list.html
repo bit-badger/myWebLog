@@ -10,15 +10,15 @@
         <th>@Translate.Title</th>
         <th>@Translate.LastUpdated</th>
       </tr>
-      @Each.pages
+      @Each.Pages
         <tr>
           <td>
-            @Current.page.title<br />
-            <a href="/@Current.page.permalink">@Translate.View</a> &nbsp;
-            <a href="/page/@Current.page.id/edit">@Translate.Edit</a> &nbsp;
-            <a href="javascript:void(0)" onclick="deletePage('@Current.page.id', '@Current.title')">@Translate.Delete</a>
+            @Current.Page.Title<br />
+            <a href="/@Current.Page.Permalink">@Translate.View</a> &nbsp;
+            <a href="/page/@Current.Page.Id/edit">@Translate.Edit</a> &nbsp;
+            <a href="javascript:void(0)" onclick="deletePage('@Current.Page.Id', '@Current.Page.Title')">@Translate.Delete</a>
           </td>
-          <td>@Current.updatedDate<br />@Translate.at @Current.updatedTime</td>
+          <td>@Current.UpdatedDate<br />@Translate.at @Current.UpdatedTime</td>
         </tr>
       @EndEach
     </table>

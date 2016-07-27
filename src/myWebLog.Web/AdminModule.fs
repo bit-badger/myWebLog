@@ -1,7 +1,7 @@
-﻿namespace myWebLog
+﻿namespace MyWebLog
 
-open myWebLog.Data.WebLog
-open myWebLog.Entities
+open MyWebLog.Data.WebLog
+open MyWebLog.Entities
 open Nancy
 open RethinkDb.Driver.Net
 
@@ -15,6 +15,6 @@ type AdminModule(conn : IConnection) as this =
   /// Admin dashboard
   member this.Dashboard () =
     this.RequiresAccessLevel AuthorizationLevel.Administrator
-    let model = DashboardModel(this.Context, this.WebLog, findDashboardCounts conn this.WebLog.id)
-    model.pageTitle  <- Resources.Dashboard
+    let model = DashboardModel(this.Context, this.WebLog, findDashboardCounts conn this.WebLog.Id)
+    model.PageTitle  <- Resources.Dashboard
     upcast this.View.["admin/dashboard", model]

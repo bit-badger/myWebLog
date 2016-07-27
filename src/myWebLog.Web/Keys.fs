@@ -1,4 +1,4 @@
-﻿module myWebLog.Keys
+﻿module MyWebLog.Keys
 
 let Messages = "messages"
 

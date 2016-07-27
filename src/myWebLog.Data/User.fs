@@ -1,6 +1,6 @@
-﻿module myWebLog.Data.User
+﻿module MyWebLog.Data.User
 
-open myWebLog.Entities
+open MyWebLog.Entities
 open Rethink
 
 let private r = RethinkDb.Driver.RethinkDB.R
@@ -11,8 +11,8 @@ let private r = RethinkDb.Driver.RethinkDB.R
 //       http://rethinkdb.com/docs/secondary-indexes/java/ for more information.
 let tryUserLogOn conn (email : string) (passwordHash : string) =
   r.Table(Table.User)
-    .GetAll(email).OptArg("index", "userName")
-    .Filter(fun u -> u.["passwordHash"].Eq(passwordHash))
+    .GetAll(email).OptArg("index", "UserName")
+    .Filter(fun u -> u.["PasswordHash"].Eq(passwordHash))
     .RunCursorAsync<User>(conn)
   |> await
   |> Seq.tryHead

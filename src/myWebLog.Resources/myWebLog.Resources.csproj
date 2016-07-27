@@ -7,8 +7,8 @@
     <ProjectGuid>{A12EA8DA-88BC-4447-90CB-A0E2DCC37523}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>myWebLog</RootNamespace>
-    <AssemblyName>myWebLog.Resources</AssemblyName>
+    <RootNamespace>MyWebLog</RootNamespace>
+    <AssemblyName>MyWebLog.Resources</AssemblyName>
     <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>

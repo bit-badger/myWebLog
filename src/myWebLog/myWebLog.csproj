@@ -7,8 +7,8 @@
     <ProjectGuid>{B9F6DB52-65A1-4C2A-8C97-739E08A1D4FB}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>myWebLog</RootNamespace>
-    <AssemblyName>myWebLog</AssemblyName>
+    <RootNamespace>MyWebLog</RootNamespace>
+    <AssemblyName>MyWebLog</AssemblyName>
     <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -51,7 +51,6 @@
     <Content Include="data-config.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <Content Include="views\admin\message.html" />
     <Content Include="views\themes\default\content\bootstrap-theme.css.map">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>

@@ -16,33 +16,33 @@
         <th>@Translate.Status</th>
         <th>@Translate.Tags</th>
       </tr>
-      @Each.posts
+      @Each.Posts
         <tr>
           <td style="white-space:nowrap;">
-            @Current.publishedDate<br />
-            @Translate.at @Current.publishedTime
+            @Current.PublishedDate<br />
+            @Translate.at @Current.PublishedTime
           </td>
           <td>
-            @Current.post.title<br />
-            <a href="/@Current.post.permalink">@Translate.View</a> &nbsp;|&nbsp;
-            <a href="/post/@Current.post.id/edit">@Translate.Edit</a> &nbsp;|&nbsp;
-            <a href="/post/@Current.post.id/delete">@Translate.Delete</a>
+            @Current.Post.Title<br />
+            <a href="/@Current.Post.Permalink">@Translate.View</a> &nbsp;|&nbsp;
+            <a href="/post/@Current.Post.Id/edit">@Translate.Edit</a> &nbsp;|&nbsp;
+            <a href="/post/@Current.Post.Id/delete">@Translate.Delete</a>
           </td>
-          <td>@Current.post.status</td>
-          <td>@Current.tags</td>
+          <td>@Current.Post.Status</td>
+          <td>@Current.Tags</td>
         </tr>
       @EndEach
     </table>
   </div>
   <div class="row">
     <div class="col-xs-3 col-xs-offset-2">
-      @If.hasNewer
-        <p><a class="btn btn-default" href="@Model.newerLink">&#xab; &nbsp;@Translate.NewerPosts</a></p>
+      @If.HasNewer
+        <p><a class="btn btn-default" href="@Model.NewerLink">&#xab; &nbsp;@Translate.NewerPosts</a></p>
       @EndIf
     </div>
     <div class="col-xs-3 col-xs-offset-1 text-right">
-      @If.hasOlder
-      <p><a class="btn btn-default" href="@Model.olderLink">@Translate.OlderPosts&nbsp; &#xbb;</a></p>
+      @If.HasOlder
+      <p><a class="btn btn-default" href="@Model.OlderLink">@Translate.OlderPosts&nbsp; &#xbb;</a></p>
       @EndIf
     </div>
   </div>

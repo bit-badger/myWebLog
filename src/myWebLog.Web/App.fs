@@ -1,10 +1,10 @@
-﻿module myWebLog.App
+﻿module MyWebLog.App
 
-open myWebLog
-open myWebLog.Data
-open myWebLog.Data.SetUp
-open myWebLog.Data.WebLog
-open myWebLog.Entities
+open MyWebLog
+open MyWebLog.Data
+open MyWebLog.Data.SetUp
+open MyWebLog.Data.WebLog
+open MyWebLog.Entities
 open Nancy
 open Nancy.Authentication.Forms
 open Nancy.Bootstrapper
@@ -25,7 +25,7 @@ open System.IO
 open System.Text.RegularExpressions
 
 /// Set up a database connection
-let cfg = try DataConfig.fromJson (System.IO.File.ReadAllText "data-config.json")
+let cfg = try DataConfig.FromJson (System.IO.File.ReadAllText "data-config.json")
           with ex -> raise <| ApplicationException(Resources.ErrDataConfig, ex)
 
 do
@@ -37,7 +37,7 @@ type TranslateTokenViewEngineMatcher() =
   interface ISuperSimpleViewEngineMatcher with
     member this.Invoke (content, model, host) =
       regex.Replace(content, fun m -> let key = m.Groups.["TranslationKey"].Value
-                                      match myWebLog.Resources.ResourceManager.GetString key with
+                                      match MyWebLog.Resources.ResourceManager.GetString key with
                                       | null -> key
                                       | xlat -> xlat)
 
@@ -54,8 +54,8 @@ type MyWebLogUserMapper(container : TinyIoCContainer) =
   
   interface IUserMapper with
     member this.GetUserFromIdentifier (identifier, context) =
-      match context.Request.PersistableSession.GetOrDefault(Keys.User, User.empty) with
-      | user when user.id = string identifier -> upcast MyWebLogUser(user.preferredName, user.claims)
+      match context.Request.PersistableSession.GetOrDefault(Keys.User, User.Empty) with
+      | user when user.Id = string identifier -> upcast MyWebLogUser(user.PreferredName, user.Claims)
       | _ -> null
 
 
@@ -87,7 +87,7 @@ type MyWebLogBootstrapper() =
     // Data configuration (both config and the connection; Nancy modules just need the connection)
     container.Register<DataConfig>(cfg)
     |> ignore
-    container.Register<IConnection>(cfg.conn)
+    container.Register<IConnection>(cfg.Conn)
     |> ignore
     // NodaTime
     container.Register<IClock>(SystemClock.Instance)
@@ -109,8 +109,8 @@ type MyWebLogBootstrapper() =
     // CSRF
     Csrf.Enable pipelines
     // Sessions
-    let sessions = RethinkDbSessionConfiguration(cfg.conn)
-    sessions.Database <- cfg.database
+    let sessions = RethinkDbSessionConfiguration(cfg.Conn)
+    sessions.Database <- cfg.Database
     PersistableSessions.Enable (pipelines, sessions)
     ()
 
@@ -128,17 +128,18 @@ let version =
 type RequestEnvironment() =
   interface IRequestStartup with
     member this.Initialize (pipelines, context) =
-      pipelines.BeforeRequest.AddItemToStartOfPipeline
-        (fun ctx -> ctx.Items.[Keys.RequestStart] <- DateTime.Now.Ticks
-                    match tryFindWebLogByUrlBase cfg.conn ctx.Request.Url.HostName with
-                    | Some webLog -> ctx.Items.[Keys.WebLog] <- webLog
-                    | None        -> ApplicationException
-                                       (sprintf "%s %s" ctx.Request.Url.HostName Resources.ErrNotConfigured)
-                                     |> raise
-                    ctx.Items.[Keys.Version] <- version
-                    null)
+      let establishEnv (ctx : NancyContext) =
+        ctx.Items.[Keys.RequestStart] <- DateTime.Now.Ticks
+        match tryFindWebLogByUrlBase cfg.Conn ctx.Request.Url.HostName with
+        | Some webLog -> ctx.Items.[Keys.WebLog] <- webLog
+        | None        -> // TODO: redirect to domain set up page
+                          ApplicationException (sprintf "%s %s" ctx.Request.Url.HostName Resources.ErrNotConfigured)
+                          |> raise
+        ctx.Items.[Keys.Version] <- version
+        null
+      pipelines.BeforeRequest.AddItemToStartOfPipeline establishEnv
 
       
 let app = OwinApp.ofMidFunc "/" (NancyMiddleware.UseNancy (NancyOptions()))
 
-let run () = startWebServer defaultConfig app // webPart
+let Run () = startWebServer defaultConfig app // webPart

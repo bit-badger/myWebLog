@@ -1,4 +1,4 @@
-﻿module myWebLog.Data.SetUp
+﻿module MyWebLog.Data.SetUp
 
 open Rethink
 open RethinkDb.Driver.Ast
@@ -12,17 +12,17 @@ let private logStepDone  ()   = Console.Out.WriteLine (" done.")
 /// Ensure the myWebLog database exists
 let checkDatabase (cfg : DataConfig) =
   logStep "|> Checking database"
-  let dbs = r.DbList().RunListAsync<string>(cfg.conn) |> await
-  match dbs.Contains cfg.database with
+  let dbs = r.DbList().RunListAsync<string>(cfg.Conn) |> await
+  match dbs.Contains cfg.Database with
   | true -> ()
-  | _    -> logStepStart (sprintf "  %s database not found - creating" cfg.database)
-            r.DbCreate(cfg.database).RunResultAsync(cfg.conn) |> await |> ignore
+  | _    -> logStepStart (sprintf "  %s database not found - creating" cfg.Database)
+            r.DbCreate(cfg.Database).RunResultAsync(cfg.Conn) |> await |> ignore
             logStepDone ()
 
 /// Ensure all required tables exist
 let checkTables cfg =
   logStep "|> Checking tables"
-  let tables = r.Db(cfg.database).TableList().RunListAsync<string>(cfg.conn) |> await
+  let tables = r.Db(cfg.Database).TableList().RunListAsync<string>(cfg.Conn) |> await
   [ Table.Category; Table.Comment; Table.Page; Table.Post; Table.User; Table.WebLog ]
   |> List.map (fun tbl -> match tables.Contains tbl with
                           | true -> None
@@ -30,27 +30,27 @@ let checkTables cfg =
   |> List.filter (fun create -> create.IsSome)
   |> List.map    (fun create -> create.Value)
   |> List.iter   (fun (tbl, create) -> logStepStart (sprintf "  Creating table %s" tbl)
-                                       create.RunResultAsync(cfg.conn) |> await |> ignore
+                                       create.RunResultAsync(cfg.Conn) |> await |> ignore
                                        logStepDone ())
 
 /// Shorthand to get the table
-let tbl cfg table = r.Db(cfg.database).Table(table)
+let tbl cfg table = r.Db(cfg.Database).Table(table)
 
 /// Create the given index
 let createIndex cfg table (index : string * (ReqlExpr -> obj) option) =
   let idxName, idxFunc = index
   logStepStart (sprintf """  Creating index "%s" on table %s""" idxName table)
   match idxFunc with
-  | Some f -> (tbl cfg table).IndexCreate(idxName, f).RunResultAsync(cfg.conn)
-  | None   -> (tbl cfg table).IndexCreate(idxName   ).RunResultAsync(cfg.conn)
+  | Some f -> (tbl cfg table).IndexCreate(idxName, f).RunResultAsync(cfg.Conn)
+  | None   -> (tbl cfg table).IndexCreate(idxName   ).RunResultAsync(cfg.Conn)
   |> await |> ignore
-  (tbl cfg table).IndexWait(idxName).RunAtomAsync(cfg.conn) |> await |> ignore
+  (tbl cfg table).IndexWait(idxName).RunAtomAsync(cfg.Conn) |> await |> ignore
   logStepDone ()
 
 /// Ensure that the given indexes exist, and create them if required
 let ensureIndexes cfg (indexes : (string * (string * (ReqlExpr -> obj) option) list) list) =
   let ensureForTable tabl =
-    let idx = (tbl cfg (fst tabl)).IndexList().RunListAsync<string>(cfg.conn) |> await
+    let idx = (tbl cfg (fst tabl)).IndexList().RunListAsync<string>(cfg.Conn) |> await
     snd tabl
     |> List.iter (fun index -> match idx.Contains (fst index) with
                                 | true -> ()
@@ -68,21 +68,21 @@ let webLogField (name : string) : (ReqlExpr -> obj) option =
 /// Ensure all the required indexes exist
 let checkIndexes cfg =
   logStep "|> Checking indexes"
-  [ Table.Category, [ "webLogId", None
-                      "slug",     webLogField "slug"
+  [ Table.Category, [ "WebLogId", None
+                      "Slug",     webLogField "Slug"
                     ]
-    Table.Comment, [ "postId", None
+    Table.Comment, [ "PostId", None
                    ]
-    Table.Page, [ "webLogId",  None
-                  "permalink", webLogField "permalink"
+    Table.Page, [ "WebLogId",  None
+                  "Permalink", webLogField "Permalink"
                 ]
-    Table.Post, [ "webLogId",        None
-                  "webLogAndStatus", webLogField "status"
-                  "permalink",       webLogField "permalink"
+    Table.Post, [ "WebLogId",        None
+                  "WebLogAndStatus", webLogField "Status"
+                  "Permalink",       webLogField "Permalink"
                 ]
-    Table.User, [ "userName", None
+    Table.User, [ "UserName", None
                 ]
-    Table.WebLog, [ "urlBase", None
+    Table.WebLog, [ "UrlBase", None
                   ]
   ]
   |> ensureIndexes cfg

@@ -8,7 +8,7 @@
     <ProjectGuid>e6ee110a-27a6-4a19-b0cb-d24f48f71b53</ProjectGuid>
     <OutputType>Library</OutputType>
     <RootNamespace>myWebLog.Web</RootNamespace>
-    <AssemblyName>myWebLog.Web</AssemblyName>
+    <AssemblyName>MyWebLog.Web</AssemblyName>
     <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <TargetFSharpCoreVersion>4.4.0.0</TargetFSharpCoreVersion>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>

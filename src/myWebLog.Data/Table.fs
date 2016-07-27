@@ -1,4 +1,4 @@
-﻿module myWebLog.Data.Table
+﻿module MyWebLog.Data.Table
 
 /// The Category table
 let Category = "Category"

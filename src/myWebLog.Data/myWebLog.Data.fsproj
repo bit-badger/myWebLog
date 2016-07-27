@@ -8,7 +8,7 @@
     <ProjectGuid>1fba0b84-b09e-4b16-b9b6-5730dea27192</ProjectGuid>
     <OutputType>Library</OutputType>
     <RootNamespace>myWebLog.Data</RootNamespace>
-    <AssemblyName>myWebLog.Data</AssemblyName>
+    <AssemblyName>MyWebLog.Data</AssemblyName>
     <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <TargetFSharpCoreVersion>4.4.0.0</TargetFSharpCoreVersion>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -22,7 +22,7 @@
     <OutputPath>bin\Debug\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <WarningLevel>3</WarningLevel>
-    <DocumentationFile>bin\Debug\myWebLog.Data.xml</DocumentationFile>
+    <DocumentationFile>bin\Debug\MyWebLog.Data.xml</DocumentationFile>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>

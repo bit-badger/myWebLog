@@ -1,10 +1,10 @@
-﻿namespace myWebLog
+﻿namespace MyWebLog
 {
     class Program
     {
         static void Main(string[] args)
         {
-            App.run();
+            App.Run();
         }
     }
 }

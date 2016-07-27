@@ -1,8 +1,7 @@
 ﻿[<AutoOpen>]
-module myWebLog.ModuleExtensions
+module MyWebLog.ModuleExtensions
 
-open myWebLog
-open myWebLog.Entities
+open MyWebLog.Entities
 open Nancy
 open Nancy.Security
 
@@ -14,19 +13,19 @@ type NancyModule with
 
   /// Display a view using the theme specified for the web log 
   member this.ThemedView view (model : MyWebLogModel) : obj =
-    upcast this.View.[(sprintf "themes/%s/%s" this.WebLog.themePath view), model]
+    upcast this.View.[(sprintf "themes/%s/%s" this.WebLog.ThemePath view), model]
 
   /// Return a 404
   member this.NotFound () : obj = upcast HttpStatusCode.NotFound
 
   /// Redirect a request, storing messages in the session if they exist
   member this.Redirect url (model : MyWebLogModel) : obj =
-    match List.length model.messages with
+    match List.length model.Messages with
     | 0 -> ()
-    | _ -> this.Session.[Keys.Messages] <- model.messages
+    | _ -> this.Session.[Keys.Messages] <- model.Messages
     upcast this.Response.AsRedirect(url).WithStatusCode HttpStatusCode.TemporaryRedirect
 
   /// Require a specific level of access for the current web log
   member this.RequiresAccessLevel level =
     this.RequiresAuthentication()
-    this.RequiresClaims [| sprintf "%s|%s" this.WebLog.id level |]
+    this.RequiresClaims [| sprintf "%s|%s" this.WebLog.Id level |]

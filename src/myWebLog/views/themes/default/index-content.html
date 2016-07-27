@@ -1,24 +1,24 @@
-﻿@Each.messages
-  @Current.toDisplay
+﻿@Each.Messages
+  @Current.ToDisplay
 @EndEach
-@If.subTitle.IsSome
+@If.SubTitle.IsSome
   <h2>
-    <span class="label label-info">@Model.subTitle</span>
+    <span class="label label-info">@Model.SubTitle</span>
   </h2>
 @EndIf
-@Each.posts
+@Each.Posts
   <div class="row">
     <div class="col-xs-12">
       <article>
         <h1>
-          <a href="/@Current.post.permalink"
-             title="@Translate.PermanentLinkTo &quot;@Current.post.title@quot;">@Current.post.title</a>
+          <a href="/@Current.Post.Permalink"
+             title="@Translate.PermanentLinkTo &quot;@Current.Post.Title@quot;">@Current.Post.Title</a>
         </h1>
         <p>
-          <i class="fa fa-calendar" title="@Translate.Date"></i> @Current.publishedDate &nbsp;
-          <i class="fa fa-clock-o" title="@Translate.Time"></i> @Current.publishedTime
+          <i class="fa fa-calendar" title="@Translate.Date"></i> @Current.PublishedDate &nbsp;
+          <i class="fa fa-clock-o" title="@Translate.Time"></i> @Current.PublishedTime
         </p>
-        @Current.post.text
+        @Current.Post.Text
       </article>
       <hr />
     </div>
@@ -26,16 +26,16 @@
 @EndEach
 <div class="row">
   <div class="col-xs-3 col-xs-offset-3">
-    @If.hasNewer
+    @If.HasNewer
       <p>
-        <a class="btn btn-primary" href="@Model.newerLink">@Translate.NewerPosts</a>
+        <a class="btn btn-primary" href="@Model.NewerLink">@Translate.NewerPosts</a>
       </p>
     @EndIf
   </div>
   <div class="col-xs-3 text-right">
-    @If.hasOlder
+    @If.HasOlder
       <p>
-        <a class="btn btn-primary" href="@Model.olderLink">@Translate.OlderPosts</a>
+        <a class="btn btn-primary" href="@Model.OlderLink">@Translate.OlderPosts</a>
       </p>
     @EndIf
   </div>

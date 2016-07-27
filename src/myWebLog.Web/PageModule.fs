@@ -1,8 +1,8 @@
-﻿namespace myWebLog
+﻿namespace MyWebLog
 
 open FSharp.Markdown
-open myWebLog.Data.Page
-open myWebLog.Entities
+open MyWebLog.Data.Page
+open MyWebLog.Entities
 open Nancy
 open Nancy.ModelBinding
 open Nancy.Security
@@ -22,9 +22,9 @@ type PageModule(conn : IConnection, clock : IClock) as this =
   /// List all pages
   member this.PageList () =
     this.RequiresAccessLevel AuthorizationLevel.Administrator
-    let model = PagesModel(this.Context, this.WebLog, (findAllPages conn this.WebLog.id
+    let model = PagesModel(this.Context, this.WebLog, (findAllPages conn this.WebLog.Id
                                                        |> List.map (fun p -> PageForDisplay(this.WebLog, p))))
-    model.pageTitle <- Resources.Pages
+    model.PageTitle <- Resources.Pages
     upcast this.View.["admin/page/list", model]
 
   /// Edit a page
@@ -32,17 +32,15 @@ type PageModule(conn : IConnection, clock : IClock) as this =
     this.RequiresAccessLevel AuthorizationLevel.Administrator
     let pageId = parameters.["id"].ToString ()
     match (match pageId with
-           | "new" -> Some Page.empty
-           | _     -> tryFindPage conn this.WebLog.id pageId) with
-    | Some page -> let rev = match page.revisions
-                                   |> List.sortByDescending (fun r -> r.asOf)
+           | "new" -> Some Page.Empty
+           | _     -> tryFindPage conn this.WebLog.Id pageId) with
+    | Some page -> let rev = match page.Revisions
+                                   |> List.sortByDescending (fun r -> r.AsOf)
                                    |> List.tryHead with
                              | Some r -> r
-                             | None   -> Revision.empty
+                             | None   -> Revision.Empty
                    let model = EditPageModel(this.Context, this.WebLog, page, rev)
-                   model.pageTitle <- match pageId with
-                                      | "new" -> Resources.AddNewPage
-                                      | _     -> Resources.EditPage
+                   model.PageTitle <- match pageId with "new" -> Resources.AddNewPage | _ -> Resources.EditPage
                    upcast this.View.["admin/page/edit", model]
     | None      -> this.NotFound ()
 
@@ -54,30 +52,28 @@ type PageModule(conn : IConnection, clock : IClock) as this =
     let form   = this.Bind<EditPageForm> ()
     let now    = clock.Now.Ticks
     match (match pageId with
-           | "new" -> Some Page.empty
-           | _     -> tryFindPage conn this.WebLog.id pageId) with
-    | Some p -> let page = match pageId with
-                           | "new" -> { p with webLogId = this.WebLog.id }
-                           | _     -> p
+           | "new" -> Some Page.Empty
+           | _     -> tryFindPage conn this.WebLog.Id pageId) with
+    | Some p -> let page = match pageId with "new" -> { p with WebLogId = this.WebLog.Id } | _ -> p
                 let pId = { p with
-                              title       = form.title
-                              permalink   = form.permalink
-                              publishedOn = match pageId with | "new" -> now | _ -> page.publishedOn
-                              updatedOn   = now
-                              text        = match form.source with
-                                            | RevisionSource.Markdown -> Markdown.TransformHtml form.text
-                                            | _                       -> form.text
-                              revisions   = { asOf       = now
-                                              sourceType = form.source
-                                              text       = form.text } :: page.revisions }
+                              Title       = form.Title
+                              Permalink   = form.Permalink
+                              PublishedOn = match pageId with "new" -> now | _ -> page.PublishedOn
+                              UpdatedOn   = now
+                              Text        = match form.Source with
+                                            | RevisionSource.Markdown -> Markdown.TransformHtml form.Text
+                                            | _                       -> form.Text
+                              Revisions   = { AsOf       = now
+                                              SourceType = form.Source
+                                              Text       = form.Text } :: page.Revisions }
                           |> savePage conn
                 let model = MyWebLogModel(this.Context, this.WebLog)
-                { level   = Level.Info
-                  message = System.String.Format
-                              (Resources.MsgPageEditSuccess,
-                               (match pageId with | "new" -> Resources.Added | _ -> Resources.Updated))
-                  details = None }
-                |> model.addMessage
+                { UserMessage.Empty with
+                    Level   = Level.Info
+                    Message = System.String.Format
+                                (Resources.MsgPageEditSuccess,
+                                 (match pageId with | "new" -> Resources.Added | _ -> Resources.Updated)) }
+                |> model.AddMessage
                 this.Redirect (sprintf "/page/%s/edit" pId) model
     | None   -> this.NotFound ()
 
@@ -86,12 +82,11 @@ type PageModule(conn : IConnection, clock : IClock) as this =
     this.ValidateCsrfToken ()
     this.RequiresAccessLevel AuthorizationLevel.Administrator
     let pageId = parameters.["id"].ToString ()
-    match tryFindPageWithoutRevisions conn this.WebLog.id pageId with
-    | Some page -> deletePage conn page.webLogId page.id
+    match tryFindPageWithoutRevisions conn this.WebLog.Id pageId with
+    | Some page -> deletePage conn page.WebLogId page.Id
                    let model = MyWebLogModel(this.Context, this.WebLog)
-                   { level   = Level.Info
-                     message = Resources.MsgPageDeleted
-                     details = None }
-                   |> model.addMessage
+                   { UserMessage.Empty with Level   = Level.Info
+                                            Message = Resources.MsgPageDeleted }
+                   |> model.AddMessage
                    this.Redirect "/pages" model
     | None      -> this.NotFound ()

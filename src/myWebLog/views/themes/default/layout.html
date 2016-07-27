@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width" />
-  <meta name="generator" content="@Model.generator" />
-  <title>@Model.displayPageTitle</title>
+  <meta name="generator" content="@Model.Generator" />
+  <title>@Model.DisplayPageTitle</title>
   <link rel="stylesheet" type="text/css" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css" />
   <link rel="stylesheet" type="text/css" href="/default/bootstrap-theme.min.css" />
   <link rel="stylesheet" type="text/css" href="//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" />
-  <link rel="alternate" type="application/atom+xml" href="//@Model.webLog.urlBase/feed?format=atom" />
-  <link rel="alternate" type="application/rss+xml" href="//@Model.webLog.urlBase/feed" />
+  <link rel="alternate" type="application/atom+xml" href="//@Model.WebLog.UrlBase/feed?format=atom" />
+  <link rel="alternate" type="application/rss+xml" href="//@Model.WebLog.UrlBase/feed" />
   @Section['Head'];
 </head>
 <body>
@@ -17,20 +17,20 @@
     <nav class="navbar navbar-default">
       <div class="container-fluid">
         <div class="navbar-header">
-          <a class="navbar-brand" href="/">@Model.webLog.name</a>
+          <a class="navbar-brand" href="/">@Model.WebLog.Name</a>
         </div>
-        <p class="navbar-text">@Model.webLogSubtitle</p>
+        <p class="navbar-text">@Model.WebLogSubtitle</p>
         <ul class="nav navbar-nav navbar-left">
-          @Each.webLog.pageList
-            <li><a href="/@Current.permalink">@Current.title</a></li>
+          @Each.WebLog.PageList
+            <li><a href="/@Current.Permalink">@Current.Title</a></li>
           @EndEach
         </ul>
         <ul class="nav navbar-nav navbar-right">
-          @If.isAuthenticated
+          @If.IsAuthenticated
           <li><a href="/admin">@Translate.Dashboard</a></li>
           <li><a href="/user/logoff">@Translate.LogOff</a></li>
           @EndIf
-          @IfNot.isAuthenticated
+          @IfNot.IsAuthenticated
           <li><a href="/user/logon">@Translate.LogOn</a></li>
           @EndIf
         </ul>

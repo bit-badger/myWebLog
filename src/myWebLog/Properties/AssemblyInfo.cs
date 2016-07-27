@@ -1,11 +1,11 @@
 ﻿using System.Reflection;
 using System.Runtime.InteropServices;
 
-[assembly: AssemblyTitle("myWebLog")]
+[assembly: AssemblyTitle("MyWebLog")]
 [assembly: AssemblyDescription("A lightweight blogging platform built on Suave, Nancy, and RethinkDB")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("myWebLog")]
+[assembly: AssemblyProduct("MyWebLog")]
 [assembly: AssemblyCopyright("Copyright ©  2016")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]

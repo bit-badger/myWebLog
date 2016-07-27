@@ -4,11 +4,11 @@ open System.Reflection
 open System.Runtime.CompilerServices
 open System.Runtime.InteropServices
 
-[<assembly: AssemblyTitle("myWebLog.Data")>]
+[<assembly: AssemblyTitle("MyWebLog.Data")>]
 [<assembly: AssemblyDescription("Data access for myWebLog")>]
 [<assembly: AssemblyConfiguration("")>]
 [<assembly: AssemblyCompany("DJS Consulting")>]
-[<assembly: AssemblyProduct("myWebLog.Data")>]
+[<assembly: AssemblyProduct("MyWebLog.Data")>]
 [<assembly: AssemblyCopyright("Copyright ©  2016")>]
 [<assembly: AssemblyTrademark("")>]
 [<assembly: AssemblyCulture("")>]

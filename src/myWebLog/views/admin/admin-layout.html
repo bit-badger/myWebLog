@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width" />
-  <title>@Model.pageTitle | @Translate.Admin | @Model.webLog.name</title>
+  <title>@Model.PageTitle | @Translate.Admin | @Model.WebLog.Name</title>
   <link rel="stylesheet" type="text/css" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.css" />
   <link rel="stylesheet" type="text/css" href="//maxcdn.bootstrapcdn.com/bootswatch/3.3.4/cosmo/bootstrap.min.css" />
   <link rel="stylesheet" type="text/css" href="//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" />
@@ -14,17 +14,17 @@
     <nav class="navbar navbar-inverse">
       <div class="container-fluid">
         <div class="navbar-header">
-          <a class="navbar-brand" href="/">@Model.webLog.name</a>
+          <a class="navbar-brand" href="/">@Model.WebLog.Name</a>
         </div>
         <div class="navbar-left">
-          <p class="navbar-text">@Model.pageTitle</p>
+          <p class="navbar-text">@Model.PageTitle</p>
         </div>
         <ul class="nav navbar-nav navbar-right">
-          @If.isAuthenticated
+          @If.IsAuthenticated
             <li><a href="/admin">@Translate.Dashboard</a></li>
             <li><a href="/user/logoff">@Translate.LogOff</a></li>
           @EndIf
-          @IfNot.isAuthenticated
+          @IfNot.IsAuthenticated
             <li><a href="/user/logon">@Translate.LogOn</a></li>
           @EndIf
         </ul>
@@ -32,15 +32,15 @@
     </nav>
   </header>
   <div class="container">
-    @Each.messages
-      @Current.toDisplay
+    @Each.Messages
+      @Current.ToDisplay
     @EndEach
     @Section['Content'];
   </div>
   <footer>
     <div class="container-fluid">
       <div class="row">
-        <div class="col-xs-12 text-right">@Model.generator</div>
+        <div class="col-xs-12 text-right">@Model.Generator</div>
       </div>
     </div>
   </footer>
