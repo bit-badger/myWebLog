@@ -101,8 +101,6 @@ let tryFindPost conn webLogId postId : Post option =
   | post -> Some <| unbox post
 
 /// Try to find a post by its permalink
-// TODO: see if we can make .Merge work for page list even though the attribute is ignored
-//       (needs to be ignored for serialization, but included for deserialization)
 let tryFindPostByPermalink conn webLogId permalink =
   r.Table(Table.Post)
     .GetAll(r.Array(webLogId, permalink)).OptArg("index", "Permalink")
@@ -157,10 +155,10 @@ let savePost conn post =
                .RunResultAsync(conn)
              |> ignore
              newPost.Id
-  | _     -> r.Table(Table.Post)
-               .Get(post.Id)
-               .Replace( { post with Categories = List.empty
-                                     Comments   = List.empty } )
-               .RunResultAsync(conn)
-             |> ignore
-             post.Id
+  | _ -> r.Table(Table.Post)
+           .Get(post.Id)
+           .Replace( { post with Categories = []
+                                 Comments   = [] } )
+           .RunResultAsync(conn)
+         |> ignore
+         post.Id

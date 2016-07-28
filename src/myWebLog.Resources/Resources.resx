@@ -327,4 +327,7 @@
   <data name="Seconds" xml:space="preserve">
     <value>Seconds</value>
   </data>
+  <data name="ErrBadAppConfig" xml:space="preserve">
+    <value>Could not convert config.json to myWebLog configuration</value>
+  </data>
 </root>

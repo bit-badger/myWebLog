@@ -21,9 +21,7 @@ let tryFindPage conn webLogId pageId =
           .RunAtomAsync<Page>(conn) |> await |> box with
   | null -> None
   | page -> let pg : Page = unbox page
-            match pg.WebLogId = webLogId with
-            | true -> Some pg
-            | _    -> None
+            match pg.WebLogId = webLogId with true -> Some pg | _ -> None
 
 /// Get a page by its Id (excluding revisions)
 let tryFindPageWithoutRevisions conn webLogId pageId : Page option =
@@ -60,17 +58,17 @@ let savePage conn (pg : Page) =
                .Insert(page)
                .RunResultAsync(conn) |> await |> ignore
              newPage.Id
-  | _     -> let upd8 = ExpandoObject()
-             upd8?Title       <- pg.Title
-             upd8?Permalink   <- pg.Permalink
-             upd8?PublishedOn <- pg.PublishedOn
-             upd8?UpdatedOn   <- pg.UpdatedOn
-             upd8?Text        <- pg.Text
-             upd8?Revisions   <- pg.Revisions
-             (page pg.WebLogId pg.Id)
-               .Update(upd8)
-               .RunResultAsync(conn) |> await |> ignore
-             pg.Id
+  | _ -> let upd8 = ExpandoObject()
+         upd8?Title       <- pg.Title
+         upd8?Permalink   <- pg.Permalink
+         upd8?PublishedOn <- pg.PublishedOn
+         upd8?UpdatedOn   <- pg.UpdatedOn
+         upd8?Text        <- pg.Text
+         upd8?Revisions   <- pg.Revisions
+         (page pg.WebLogId pg.Id)
+           .Update(upd8)
+           .RunResultAsync(conn) |> await |> ignore
+         pg.Id
 
 /// Delete a page
 let deletePage conn webLogId pageId =

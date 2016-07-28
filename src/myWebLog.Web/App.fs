@@ -24,22 +24,22 @@ open System
 open System.IO
 open System.Text.RegularExpressions
 
-/// Set up a database connection
-let cfg = try DataConfig.FromJson (System.IO.File.ReadAllText "data-config.json")
-          with ex -> raise <| ApplicationException(Resources.ErrDataConfig, ex)
+/// Establish the configuration for this instance
+let cfg = try AppConfig.FromJson (System.IO.File.ReadAllText "config.json")
+          with ex -> raise <| ApplicationException(Resources.ErrBadAppConfig, ex)
 
 do
-  startUpCheck cfg
+  startUpCheck cfg.DataConfig
   
 /// Support RESX lookup via the @Translate SSVE alias
 type TranslateTokenViewEngineMatcher() =
   static let regex = Regex("@Translate\.(?<TranslationKey>[a-zA-Z0-9-_]+);?", RegexOptions.Compiled)
   interface ISuperSimpleViewEngineMatcher with
     member this.Invoke (content, model, host) =
-      regex.Replace(content, fun m -> let key = m.Groups.["TranslationKey"].Value
-                                      match MyWebLog.Resources.ResourceManager.GetString key with
-                                      | null -> key
-                                      | xlat -> xlat)
+      let translate (m : Match) =
+        let key = m.Groups.["TranslationKey"].Value
+        match MyWebLog.Resources.ResourceManager.GetString key with null -> key | xlat -> xlat
+      regex.Replace(content, translate)
 
 
 /// Handle forms authentication
@@ -47,8 +47,6 @@ type MyWebLogUser(name, claims) =
   interface IUserIdentity with
     member this.UserName with get() = name
     member this.Claims   with get() = claims
-(*member this.UserName with get() = (this :> IUserIdentity).UserName
-  member this.Claims   with get() = (this :> IUserIdentity).Claims -- do we need these? *)
  
 type MyWebLogUserMapper(container : TinyIoCContainer) =
   
@@ -71,23 +69,24 @@ type MyWebLogBootstrapper() =
 
   override this.ConfigureConventions (conventions) =
     base.ConfigureConventions conventions
+    // Make theme content available at [theme-name]/
+    let addContentDir dir =
+      let contentDir = Path.Combine [| dir; "content" |]
+      match Directory.Exists contentDir with
+      | true -> conventions.StaticContentsConventions.Add
+                  (StaticContentConventionBuilder.AddDirectory ((Path.GetFileName dir), contentDir))
+      | _ -> ()
     conventions.StaticContentsConventions.Add
       (StaticContentConventionBuilder.AddDirectory("admin/content", "views/admin/content"))
-    // Make theme content available at [theme-name]/
     Directory.EnumerateDirectories (Path.Combine [| "views"; "themes" |])
-    |> Seq.iter (fun dir -> let contentDir = Path.Combine [| dir; "content" |]
-                            match Directory.Exists contentDir with
-                            | true -> conventions.StaticContentsConventions.Add
-                                        (StaticContentConventionBuilder.AddDirectory
-                                          ((Path.GetFileName dir), contentDir))
-                            | _    -> ())
+    |> Seq.iter addContentDir
 
   override this.ApplicationStartup (container, pipelines) =
     base.ApplicationStartup (container, pipelines)
     // Data configuration (both config and the connection; Nancy modules just need the connection)
-    container.Register<DataConfig>(cfg)
+    container.Register<AppConfig>(cfg)
     |> ignore
-    container.Register<IConnection>(cfg.Conn)
+    container.Register<IConnection>(cfg.DataConfig.Conn)
     |> ignore
     // NodaTime
     container.Register<IClock>(SystemClock.Instance)
@@ -97,20 +96,20 @@ type MyWebLogBootstrapper() =
       Seq.singleton (TranslateTokenViewEngineMatcher() :> ISuperSimpleViewEngineMatcher))
     |> ignore
     // Forms authentication configuration
-    let salt = (System.Text.ASCIIEncoding()).GetBytes "NoneOfYourBeesWax"
     let auth =
       FormsAuthenticationConfiguration(
-        CryptographyConfiguration = CryptographyConfiguration
-                                      (RijndaelEncryptionProvider(PassphraseKeyGenerator("Secrets",     salt)),
-                                              DefaultHmacProvider(PassphraseKeyGenerator("Clandestine", salt))),
-        RedirectUrl               = "~/user/logon",
-        UserMapper                = container.Resolve<IUserMapper>())
+        CryptographyConfiguration =
+          CryptographyConfiguration(
+            RijndaelEncryptionProvider(PassphraseKeyGenerator(cfg.AuthEncryptionPassphrase, cfg.AuthSalt)),
+            DefaultHmacProvider(PassphraseKeyGenerator(cfg.AuthHmacPassphrase, cfg.AuthSalt))),
+        RedirectUrl = "~/user/logon",
+        UserMapper  = container.Resolve<IUserMapper>())
     FormsAuthentication.Enable (pipelines, auth)
     // CSRF
     Csrf.Enable pipelines
     // Sessions
-    let sessions = RethinkDbSessionConfiguration(cfg.Conn)
-    sessions.Database <- cfg.Database
+    let sessions = RethinkDbSessionConfiguration(cfg.DataConfig.Conn)
+    sessions.Database <- cfg.DataConfig.Database
     PersistableSessions.Enable (pipelines, sessions)
     ()
 
@@ -130,11 +129,11 @@ type RequestEnvironment() =
     member this.Initialize (pipelines, context) =
       let establishEnv (ctx : NancyContext) =
         ctx.Items.[Keys.RequestStart] <- DateTime.Now.Ticks
-        match tryFindWebLogByUrlBase cfg.Conn ctx.Request.Url.HostName with
+        match tryFindWebLogByUrlBase cfg.DataConfig.Conn ctx.Request.Url.HostName with
         | Some webLog -> ctx.Items.[Keys.WebLog] <- webLog
-        | None        -> // TODO: redirect to domain set up page
-                          ApplicationException (sprintf "%s %s" ctx.Request.Url.HostName Resources.ErrNotConfigured)
-                          |> raise
+        | None -> // TODO: redirect to domain set up page
+                  ApplicationException (sprintf "%s %s" ctx.Request.Url.HostName Resources.ErrNotConfigured)
+                  |> raise
         ctx.Items.[Keys.Version] <- version
         null
       pipelines.BeforeRequest.AddItemToStartOfPipeline establishEnv

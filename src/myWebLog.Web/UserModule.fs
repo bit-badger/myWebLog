@@ -12,12 +12,12 @@ open RethinkDb.Driver.Net
 open System.Text
 
 /// Handle /user URLs
-type UserModule(conn : IConnection) as this =
+type UserModule(conn : IConnection, cfg : AppConfig) as this =
   inherit NancyModule("/user")
 
   /// Hash the user's password
   let pbkdf2 (pw : string) =
-    PassphraseKeyGenerator(pw, UTF8Encoding().GetBytes("// TODO: make this salt part of the config"), 4096).GetBytes 512
+    PassphraseKeyGenerator(pw, cfg.PasswordSalt, 4096).GetBytes 512
     |> Seq.fold (fun acc byt -> sprintf "%s%s" acc (byt.ToString "x2")) ""
   
   do
@@ -29,9 +29,7 @@ type UserModule(conn : IConnection) as this =
   member this.ShowLogOn () =
     let model = LogOnModel(this.Context, this.WebLog)
     let query = this.Request.Query :?> DynamicDictionary
-    model.Form.ReturnUrl <- match query.ContainsKey "returnUrl" with
-                            | true -> query.["returnUrl"].ToString ()
-                            | _    -> ""
+    model.Form.ReturnUrl <- match query.ContainsKey "returnUrl" with true -> query.["returnUrl"].ToString () | _ -> ""
     upcast this.View.["admin/user/logon", model]
 
   /// Process a user log on
@@ -48,10 +46,10 @@ type UserModule(conn : IConnection) as this =
                    // TODO: investigate if addMessage should update the session when it's called
                    upcast this.LoginAndRedirect (System.Guid.Parse user.Id,
                                                  fallbackRedirectUrl = defaultArg (Option.ofObj form.ReturnUrl) "/")
-    | None      -> { UserMessage.Empty with Level   = Level.Error
-                                            Message = Resources.ErrBadLogOnAttempt }
-                   |> model.AddMessage
-                   this.Redirect (sprintf "/user/logon?returnUrl=%s" form.ReturnUrl) model
+    | None -> { UserMessage.Empty with Level   = Level.Error
+                                       Message = Resources.ErrBadLogOnAttempt }
+              |> model.AddMessage
+              this.Redirect (sprintf "/user/logon?returnUrl=%s" form.ReturnUrl) model
 
   /// Log a user off
   member this.LogOff () =

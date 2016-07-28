@@ -33,16 +33,16 @@ type PageModule(conn : IConnection, clock : IClock) as this =
     let pageId = parameters.["id"].ToString ()
     match (match pageId with
            | "new" -> Some Page.Empty
-           | _     -> tryFindPage conn this.WebLog.Id pageId) with
+           | _ -> tryFindPage conn this.WebLog.Id pageId) with
     | Some page -> let rev = match page.Revisions
                                    |> List.sortByDescending (fun r -> r.AsOf)
                                    |> List.tryHead with
                              | Some r -> r
-                             | None   -> Revision.Empty
+                             | None -> Revision.Empty
                    let model = EditPageModel(this.Context, this.WebLog, page, rev)
                    model.PageTitle <- match pageId with "new" -> Resources.AddNewPage | _ -> Resources.EditPage
                    upcast this.View.["admin/page/edit", model]
-    | None      -> this.NotFound ()
+    | None -> this.NotFound ()
 
   /// Save a page
   member this.SavePage (parameters : DynamicDictionary) =
@@ -51,9 +51,7 @@ type PageModule(conn : IConnection, clock : IClock) as this =
     let pageId = parameters.["id"].ToString ()
     let form   = this.Bind<EditPageForm> ()
     let now    = clock.Now.Ticks
-    match (match pageId with
-           | "new" -> Some Page.Empty
-           | _     -> tryFindPage conn this.WebLog.Id pageId) with
+    match (match pageId with "new" -> Some Page.Empty | _ -> tryFindPage conn this.WebLog.Id pageId) with
     | Some p -> let page = match pageId with "new" -> { p with WebLogId = this.WebLog.Id } | _ -> p
                 let pId = { p with
                               Title       = form.Title
@@ -62,7 +60,7 @@ type PageModule(conn : IConnection, clock : IClock) as this =
                               UpdatedOn   = now
                               Text        = match form.Source with
                                             | RevisionSource.Markdown -> Markdown.TransformHtml form.Text
-                                            | _                       -> form.Text
+                                            | _ -> form.Text
                               Revisions   = { AsOf       = now
                                               SourceType = form.Source
                                               Text       = form.Text } :: page.Revisions }
@@ -72,10 +70,10 @@ type PageModule(conn : IConnection, clock : IClock) as this =
                     Level   = Level.Info
                     Message = System.String.Format
                                 (Resources.MsgPageEditSuccess,
-                                 (match pageId with | "new" -> Resources.Added | _ -> Resources.Updated)) }
+                                 (match pageId with "new" -> Resources.Added | _ -> Resources.Updated)) }
                 |> model.AddMessage
                 this.Redirect (sprintf "/page/%s/edit" pId) model
-    | None   -> this.NotFound ()
+    | None -> this.NotFound ()
 
   /// Delete a page
   member this.DeletePage (parameters : DynamicDictionary) =
@@ -89,4 +87,4 @@ type PageModule(conn : IConnection, clock : IClock) as this =
                                             Message = Resources.MsgPageDeleted }
                    |> model.AddMessage
                    this.Redirect "/pages" model
-    | None      -> this.NotFound ()
+    | None -> this.NotFound ()

@@ -81,25 +81,23 @@ type PostModule(conn : IConnection, clock : IClock) as this =
                        | 1 -> false
                        | _ -> match List.isEmpty model.Posts with
                               | true -> false
-                              | _    -> Option.isSome <| tryFindNewerPost conn (List.last model.Posts).Post
+                              | _ -> Option.isSome <| tryFindNewerPost conn (List.last model.Posts).Post
     model.HasOlder  <- match List.isEmpty model.Posts with
                        | true -> false
-                       | _    -> Option.isSome <| tryFindOlderPost conn (List.head model.Posts).Post
+                       | _ -> Option.isSome <| tryFindOlderPost conn (List.head model.Posts).Post
     model.UrlPrefix <- "/posts"
-    model.PageTitle <- match pageNbr with
-                       | 1 -> ""
-                       | _ -> sprintf "%s%i" Resources.PageHash pageNbr
+    model.PageTitle <- match pageNbr with 1 -> "" | _ -> sprintf "%s%i" Resources.PageHash pageNbr
     this.ThemedView "index" model
 
   /// Display either the newest posts or the configured home page
   member this.HomePage () =
     match this.WebLog.DefaultPage with
     | "posts" -> this.PublishedPostsPage 1
-    | pageId  -> match tryFindPageWithoutRevisions conn this.WebLog.Id pageId with
-                 | Some page -> let model = PageModel(this.Context, this.WebLog, page)
-                                model.PageTitle <- page.Title
-                                this.ThemedView "page" model
-                 | None      -> this.NotFound ()
+    | pageId -> match tryFindPageWithoutRevisions conn this.WebLog.Id pageId with
+                | Some page -> let model = PageModel(this.Context, this.WebLog, page)
+                               model.PageTitle <- page.Title
+                               this.ThemedView "page" model
+                | None -> this.NotFound ()
 
   /// Derive a post or page from the URL, or redirect from a prior URL to the current one
   member this.CatchAll (parameters : DynamicDictionary) =
@@ -111,18 +109,18 @@ type PostModule(conn : IConnection, clock : IClock) as this =
                    model.OlderPost <- tryFindOlderPost conn post
                    model.PageTitle <- post.Title
                    this.ThemedView "single" model
-    | None      -> // Maybe it's a page permalink instead...
-                   match tryFindPageByPermalink conn this.WebLog.Id url with
-                   | Some page -> // ...and it is!
-                                  let model = PageModel(this.Context, this.WebLog, page)
-                                  model.PageTitle <- page.Title
-                                  this.ThemedView "page" model
-                   | None      -> // Maybe it's an old permalink for a post
-                                  match tryFindPostByPriorPermalink conn this.WebLog.Id url with
-                                  | Some post -> // Redirect them to the proper permalink
-                                                 upcast this.Response.AsRedirect(sprintf "/%s" post.Permalink)
-                                                          .WithStatusCode HttpStatusCode.MovedPermanently
-                                  | None      -> this.NotFound ()
+    | None -> // Maybe it's a page permalink instead...
+              match tryFindPageByPermalink conn this.WebLog.Id url with
+              | Some page -> // ...and it is!
+                             let model = PageModel(this.Context, this.WebLog, page)
+                             model.PageTitle <- page.Title
+                             this.ThemedView "page" model
+              | None -> // Maybe it's an old permalink for a post
+                        match tryFindPostByPriorPermalink conn this.WebLog.Id url with
+                        | Some post -> // Redirect them to the proper permalink
+                                       upcast this.Response.AsRedirect(sprintf "/%s" post.Permalink)
+                                                .WithStatusCode HttpStatusCode.MovedPermanently
+                        | None -> this.NotFound ()
 
   /// Display categorized posts
   member this.CategorizedPosts (parameters : DynamicDictionary) =
@@ -134,20 +132,20 @@ type PostModule(conn : IConnection, clock : IClock) as this =
                   model.Posts     <- findPageOfCategorizedPosts conn this.WebLog.Id cat.Id pageNbr 10 |> forDisplay
                   model.HasNewer  <- match List.isEmpty model.Posts with
                                      | true -> false
-                                     | _    -> Option.isSome <| tryFindNewerCategorizedPost conn cat.Id
-                                                                                            (List.head model.Posts).Post
+                                     | _ -> Option.isSome <| tryFindNewerCategorizedPost conn cat.Id
+                                                                                         (List.head model.Posts).Post
                   model.HasOlder  <- match List.isEmpty model.Posts with
                                      | true -> false
-                                     | _    -> Option.isSome <| tryFindOlderCategorizedPost conn cat.Id
-                                                                                            (List.last model.Posts).Post
+                                     | _ -> Option.isSome <| tryFindOlderCategorizedPost conn cat.Id
+                                                                                         (List.last model.Posts).Post
                   model.UrlPrefix <- sprintf "/category/%s" slug
                   model.PageTitle <- sprintf "\"%s\" Category%s" cat.Name
                                              (match pageNbr with | 1 -> "" | n -> sprintf " | Page %i" n)
                   model.Subtitle  <- Some <| match cat.Description with
                                              | Some desc -> desc
-                                             | None      -> sprintf "Posts in the \"%s\" category" cat.Name
+                                             | None -> sprintf "Posts in the \"%s\" category" cat.Name
                   this.ThemedView "index" model
-    | None     -> this.NotFound ()
+    | None -> this.NotFound ()
 
   /// Display tagged posts
   member this.TaggedPosts (parameters : DynamicDictionary) =
@@ -158,12 +156,12 @@ type PostModule(conn : IConnection, clock : IClock) as this =
     model.Posts     <- findPageOfTaggedPosts conn this.WebLog.Id tag pageNbr 10 |> forDisplay
     model.HasNewer  <- match List.isEmpty model.Posts with
                        | true -> false
-                       | _    -> Option.isSome <| tryFindNewerTaggedPost conn tag (List.head model.Posts).Post
+                       | _ -> Option.isSome <| tryFindNewerTaggedPost conn tag (List.head model.Posts).Post
     model.HasOlder  <- match List.isEmpty model.Posts with
                        | true -> false
-                       | _    -> Option.isSome <| tryFindOlderTaggedPost conn tag (List.last model.Posts).Post
+                       | _ -> Option.isSome <| tryFindOlderTaggedPost conn tag (List.last model.Posts).Post
     model.UrlPrefix <- sprintf "/tag/%s" tag
-    model.PageTitle <- sprintf "\"%s\" Tag%s" tag (match pageNbr with | 1 -> "" | n -> sprintf " | Page %i" n)
+    model.PageTitle <- sprintf "\"%s\" Tag%s" tag (match pageNbr with 1 -> "" | n -> sprintf " | Page %i" n)
     model.Subtitle  <- Some <| sprintf "Posts tagged \"%s\"" tag
     this.ThemedView "index" model
 
@@ -173,9 +171,9 @@ type PostModule(conn : IConnection, clock : IClock) as this =
     match query.ContainsKey "format" with
     | true -> match query.["format"].ToString () with
               | x when x = "atom" || x = "rss" -> generateFeed x
-              | x when x = "rss2"              -> generateFeed "rss"
-              | _                              -> this.Redirect "/feed" (MyWebLogModel(this.Context, this.WebLog))
-    | _    -> generateFeed "rss"
+              | x when x = "rss2" -> generateFeed "rss"
+              | _ -> this.Redirect "/feed" (MyWebLogModel(this.Context, this.WebLog))
+    | _ -> generateFeed "rss"
 
   // ---- Administer posts ----
 
@@ -195,9 +193,7 @@ type PostModule(conn : IConnection, clock : IClock) as this =
   member this.EditPost (parameters : DynamicDictionary) =
     this.RequiresAccessLevel AuthorizationLevel.Administrator
     let postId = parameters.["postId"].ToString ()
-    match (match postId with
-           | "new" -> Some Post.Empty
-           | _     -> tryFindPost conn this.WebLog.Id postId) with
+    match (match postId with "new" -> Some Post.Empty | _ -> tryFindPost conn this.WebLog.Id postId) with
     | Some post -> let rev = match post.Revisions
                                    |> List.sortByDescending (fun r -> r.AsOf)
                                    |> List.tryHead with
@@ -211,7 +207,7 @@ type PostModule(conn : IConnection, clock : IClock) as this =
                                                                        (fst cat).Name)
                    model.PageTitle  <- match post.Id with "new" -> Resources.AddNewPost | _ -> Resources.EditPost
                    upcast this.View.["admin/post/edit"]
-    | None      -> this.NotFound ()
+    | None -> this.NotFound ()
 
   /// Save a post
   member this.SavePost (parameters : DynamicDictionary) =
@@ -220,9 +216,7 @@ type PostModule(conn : IConnection, clock : IClock) as this =
     let postId = parameters.["postId"].ToString ()
     let form   = this.Bind<EditPostForm>()
     let now    = clock.Now.Ticks
-    match (match postId with
-           | "new" -> Some Post.Empty
-           | _     -> tryFindPost conn this.WebLog.Id postId) with
+    match (match postId with "new" -> Some Post.Empty | _ -> tryFindPost conn this.WebLog.Id postId) with
     | Some p -> let justPublished = p.PublishedOn = int64 0 && form.PublishNow
                 let post          = match postId with
                                     | "new" -> { p with
@@ -258,4 +252,4 @@ type PostModule(conn : IConnection, clock : IClock) as this =
                                  (match justPublished with | true  -> Resources.AndPublished | _ -> "")) }
                 |> model.AddMessage
                 this.Redirect (sprintf "/post/%s/edit" pId) model
-    | None   -> this.NotFound ()
+    | None -> this.NotFound ()

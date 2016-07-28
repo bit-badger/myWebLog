@@ -43,7 +43,7 @@ let tryFindCategory conn webLogId catId : Category option =
   match (category webLogId catId)
           .RunAtomAsync<Category>(conn) |> await |> box with
   | null -> None
-  | cat  -> Some <| unbox cat
+  | cat -> Some <| unbox cat
 
 /// Save a category
 let saveCategory conn webLogId (cat : Category) =
@@ -54,15 +54,15 @@ let saveCategory conn webLogId (cat : Category) =
                .Insert(newCat)
                .RunResultAsync(conn) |> await |> ignore
              newCat.Id
-  | _     -> let upd8 = ExpandoObject()
-             upd8?Name        <- cat.Name
-             upd8?Slug        <- cat.Slug
-             upd8?Description <- cat.Description
-             upd8?ParentId    <- cat.ParentId
-             (category webLogId cat.Id)
-               .Update(upd8)
-               .RunResultAsync(conn) |> await |> ignore
-             cat.Id
+  | _ -> let upd8 = ExpandoObject()
+         upd8?Name        <- cat.Name
+         upd8?Slug        <- cat.Slug
+         upd8?Description <- cat.Description
+         upd8?ParentId    <- cat.ParentId
+         (category webLogId cat.Id)
+           .Update(upd8)
+           .RunResultAsync(conn) |> await |> ignore
+         cat.Id
 
 /// Remove a category from a given parent
 let removeCategoryFromParent conn webLogId parentId catId =
@@ -73,7 +73,7 @@ let removeCategoryFromParent conn webLogId parentId catId =
                    (category webLogId parentId)
                      .Update(upd8)
                      .RunResultAsync(conn) |> await |> ignore
-  | None        -> ()
+  | None -> ()
 
 /// Add a category to a given parent
 let addCategoryToParent conn webLogId parentId catId =
@@ -83,14 +83,14 @@ let addCategoryToParent conn webLogId parentId catId =
                    (category webLogId parentId)
                      .Update(upd8)
                      .RunResultAsync(conn) |> await |> ignore
-  | None        -> ()
+  | None -> ()
 
 /// Delete a category
 let deleteCategory conn cat =
   // Remove the category from its parent
   match cat.ParentId with
   | Some parentId -> removeCategoryFromParent conn cat.WebLogId parentId cat.Id
-  | None          -> ()
+  | None -> ()
   // Move this category's children to its parent
   let newParent = ExpandoObject()
   newParent?ParentId <- cat.ParentId

@@ -1,4 +1,6 @@
-﻿module MyWebLog.Data.Table
+﻿/// Constants for tables used in myWebLog
+[<RequireQualifiedAccess>]
+module MyWebLog.Data.Table
 
 /// The Category table
 let Category = "Category"

@@ -11,6 +11,7 @@ open System
 
 
 /// Levels for a user message
+[<RequireQualifiedAccess>]
 module Level =
   /// An informational message
   let Info = "Info"
@@ -59,7 +60,7 @@ with
       match this.Details with
       | Some d -> yield "<br />"
                   yield d
-      | None   -> ()
+      | None -> ()
       yield "</div>"
       }
     |> Seq.reduce (+)
@@ -128,7 +129,7 @@ type MyWebLogModel(ctx : NancyContext, webLog : WebLog) =
     match this.PageTitle with
     | "" -> match this.WebLog.Subtitle with
             | Some st -> sprintf "%s | %s" this.WebLog.Name st
-            | None    -> this.WebLog.Name
+            | None -> this.WebLog.Name
     | pt -> sprintf "%s | %s" pt this.WebLog.Name
 
   /// An image with the version and load time in the tool tip
@@ -299,9 +300,9 @@ type PostModel(ctx, webLog, post) =
   /// The post being displayed
   member this.Post : Post = post
   /// The next newer post
-  member val NewerPost = Option<Post>.None with get, set
+  member val NewerPost : Post option = None with get, set
   /// The next older post
-  member val OlderPost = Option<Post>.None with get, set
+  member val OlderPost : Post option = None with get, set
   /// The date the post was published
   member this.PublishedDate = this.DisplayLongDate this.Post.PublishedOn
   /// The time the post was published
@@ -343,7 +344,7 @@ type PostForDisplay(webLog : WebLog, post : Post) =
 type PostsModel(ctx, webLog) =
   inherit MyWebLogModel(ctx, webLog)
   /// The subtitle for the page
-  member val Subtitle = Option<string>.None with get, set
+  member val Subtitle : string option = None with get, set
   /// The posts to display
   member val Posts : PostForDisplay list = [] with get, set
   /// The page number of the post list
@@ -359,7 +360,7 @@ type PostsModel(ctx, webLog) =
   member this.NewerLink =
     match this.UrlPrefix = "/posts" && this.PageNbr = 2 && this.WebLog.DefaultPage = "posts" with
     | true -> "/"
-    | _    -> sprintf "%s/page/%i" this.UrlPrefix (this.PageNbr - 1)
+    | _ -> sprintf "%s/page/%i" this.UrlPrefix (this.PageNbr - 1)
 
   /// The link for the prior (older) page of posts
   member this.OlderLink = sprintf "%s/page/%i" this.UrlPrefix (this.PageNbr + 1)

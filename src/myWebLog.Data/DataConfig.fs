@@ -25,8 +25,8 @@ type DataConfig =
     [<JsonIgnore>]
     Conn : IConnection }
 with
-  /// Create a data configuration from JSON
-  static member FromJson json =
+  /// Use RethinkDB defaults for non-provided options, and connect to the server
+  static member Connect config =
     let ensureHostname cfg = match cfg.Hostname with 
                              | null -> { cfg with Hostname = RethinkDBConstants.DefaultHostname }
                              | _ -> cfg
@@ -35,13 +35,13 @@ with
                              | _ -> cfg
     let ensureAuthKey  cfg = match cfg.AuthKey with
                              | null -> { cfg with AuthKey = RethinkDBConstants.DefaultAuthkey }
-                             | _    -> cfg
+                             | _ -> cfg
     let ensureTimeout  cfg = match cfg.Timeout with
                              | 0 -> { cfg with Timeout = RethinkDBConstants.DefaultTimeout }
                              | _ -> cfg
     let ensureDatabase cfg = match cfg.Database with
                              | null -> { cfg with Database = RethinkDBConstants.DefaultDbName }
-                             | _    -> cfg
+                             | _ -> cfg
     let connect        cfg = { cfg with Conn = RethinkDB.R.Connection()
                                                  .Hostname(cfg.Hostname)
                                                  .Port(cfg.Port)
@@ -49,11 +49,10 @@ with
                                                  .Db(cfg.Database)
                                                  .Timeout(cfg.Timeout)
                                                  .Connect() }
-    JsonConvert.DeserializeObject<DataConfig> json
+    config
     |> ensureHostname
     |> ensurePort
     |> ensureAuthKey
     |> ensureTimeout
     |> ensureDatabase
     |> connect
-    

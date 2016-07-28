@@ -241,6 +241,15 @@ namespace MyWebLog {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Could not convert config.json to myWebLog configuration.
+        /// </summary>
+        public static string ErrBadAppConfig {
+            get {
+                return ResourceManager.GetString("ErrBadAppConfig", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Invalid e-mail address or password.
         /// </summary>
         public static string ErrBadLogOnAttempt {

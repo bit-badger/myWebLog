@@ -1,0 +1,17 @@
+﻿{
+  // https://www.grc.com/passwords.htm is a great source of high-entropy passwords for these first 4 settings.
+  // Although what is there looks strong, keep in mind that it's what's in source control, so all instances of myWebLog
+  // could be using these values; that severly decreases their usefulness. :)
+  //
+  // WARNING: Changing this first one will render every single user's login inaccessible, including yours.  Only do
+  //          this if you are editing this file before setting up an instance, or if that is what you intend to do.
+  "password-salt": "3RVkw1jESpLFHr8F3WTThSbFnO3tFrMIckQsKzc9dymzEEXUoUS7nurF4rGpJ8Z",
+  // Changing any of these next 3 will render all current logins invalid, and the user will be force to reauthenticate.
+  "auth-salt": "2TweL5wcyGWg5CmMqZSZMonbe9xqQ2Q4vDNeysFRaUgVs4BpFZL85Iew79tn2IJ",
+  "encryption-passphrase": "jZjY6XyqUZypBcT0NaDXjEKc8xUjB4eb4V9EDHDedadRLuRUeRvIQx67yhx6bQP",
+  "hmac-passphrase": "42dzKb93X8YUkK8ms8JldjtkEvCKnPQGWCkO2yFaZ7lkNwECGCX00xzrx5ZSElO",
+  "data": {
+    "database": "myWebLog",
+    "hostname": "severus-server"
+  }
+}

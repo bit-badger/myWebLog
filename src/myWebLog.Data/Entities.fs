@@ -5,34 +5,38 @@ open Newtonsoft.Json
 // ---- Constants ----
 
 /// Constants to use for revision source language
+[<RequireQualifiedAccess>]
 module RevisionSource =
   [<Literal>]
   let Markdown = "markdown"
   [<Literal>]
-  let HTML     = "html"
+  let HTML = "html"
 
 /// Constants to use for authorization levels
+[<RequireQualifiedAccess>]
 module AuthorizationLevel =
   [<Literal>]
   let Administrator = "Administrator"
   [<Literal>]
-  let User          = "User"
+  let User = "User"
 
 /// Constants to use for post statuses
+[<RequireQualifiedAccess>]
 module PostStatus =
   [<Literal>]
-  let Draft     = "Draft"
+  let Draft = "Draft"
   [<Literal>]
   let Published = "Published"
 
 /// Constants to use for comment statuses
+[<RequireQualifiedAccess>]
 module CommentStatus =
   [<Literal>]
   let Approved = "Approved"
   [<Literal>]
-  let Pending  = "Pending"
+  let Pending = "Pending"
   [<Literal>]
-  let Spam     = "Spam"
+  let Spam = "Spam"
 
 // ---- Entities ----
 
@@ -84,7 +88,7 @@ with
       UpdatedOn      = int64 0
       ShowInPageList = false
       Text           = ""
-      Revisions      = List.empty
+      Revisions      = []
     }
 
 
@@ -121,7 +125,7 @@ with
       ThemePath   = "default"
       UrlBase     = ""
       TimeZone    = "America/New_York"
-      PageList    = List.empty }
+      PageList    = [] }
 
 
 /// An authorization between a user and a web log
@@ -160,7 +164,7 @@ with
       PreferredName  = ""
       PasswordHash   = ""
       Url            = None
-      Authorizations = List.empty }
+      Authorizations = [] }
   
   /// Claims for this user
   [<JsonIgnore>]
@@ -186,14 +190,14 @@ type Category =
     Children : string list }
 with
   /// An empty category
-  static member empty =
+  static member Empty =
     { Id          = "new"
       WebLogId    = ""
       Name        = ""
       Slug        = ""
       Description = None
       ParentId    = None
-      Children    = List.empty }
+      Children    = [] }
 
 
 /// A comment (applies to a post)
@@ -272,9 +276,9 @@ with
       PublishedOn     = int64 0
       UpdatedOn       = int64 0
       Text            = ""
-      CategoryIds     = List.empty
-      Tags            = List.empty
-      PriorPermalinks = List.empty
-      Revisions       = List.empty
-      Categories      = List.empty
-      Comments        = List.empty }
+      CategoryIds     = []
+      Tags            = []
+      PriorPermalinks = []
+      Revisions       = []
+      Categories      = []
+      Comments        = [] }
