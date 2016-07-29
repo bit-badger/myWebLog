@@ -197,7 +197,7 @@ type CategoryListModel(ctx, webLog, categories) =
 
 /// Form for editing a category
 type CategoryForm(category : Category) =
-  new() = CategoryForm(Category.empty)
+  new() = CategoryForm(Category.Empty)
   /// The name of the category
   member val Name = category.Name with get, set
   /// The slug of the category (used in category URLs)

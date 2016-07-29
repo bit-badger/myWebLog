@@ -22,7 +22,7 @@
     <OutputPath>bin\Debug\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <WarningLevel>3</WarningLevel>
-    <DocumentationFile>bin\Debug\myWebLog.Web.xml</DocumentationFile>
+    <DocumentationFile>bin\Debug\MyWebLog.Web.xml</DocumentationFile>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -126,11 +126,11 @@
       <Private>True</Private>
     </Reference>
     <Reference Include="Nancy.Session.Persistable">
-      <HintPath>..\packages\Nancy.Session.Persistable.0.8.6\lib\net452\Nancy.Session.Persistable.dll</HintPath>
+      <HintPath>..\packages\Nancy.Session.Persistable.0.9.0\lib\net452\Nancy.Session.Persistable.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="Nancy.Session.RethinkDb">
-      <HintPath>..\packages\Nancy.Session.RethinkDB.0.8.6\lib\net452\Nancy.Session.RethinkDb.dll</HintPath>
+      <HintPath>..\packages\Nancy.Session.RethinkDB.0.9.0\lib\net452\Nancy.Session.RethinkDb.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="Newtonsoft.Json">

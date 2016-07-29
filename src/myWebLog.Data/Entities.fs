@@ -58,6 +58,7 @@ with
 /// A page with static content
 type Page =
   { /// The Id
+    [<JsonProperty("id")>]
     Id : string
     /// The Id of the web log to which this page belongs
     WebLogId : string
@@ -100,6 +101,7 @@ type PageListEntry =
 /// A web log
 type WebLog =
   { /// The Id
+    [<JsonProperty("id")>]
     Id : string
     /// The name
     Name : string
@@ -139,6 +141,7 @@ type Authorization =
 /// A user of myWebLog
 type User =
   { /// The Id
+    [<JsonProperty("id")>]
     Id : string
     /// The user name (e-mail address)
     UserName : string
@@ -175,6 +178,7 @@ with
 /// A category to which posts may be assigned
 type Category =
   { /// The Id
+    [<JsonProperty("id")>]
     Id : string
     /// The Id of the web log to which this category belongs
     WebLogId : string
@@ -203,6 +207,7 @@ with
 /// A comment (applies to a post)
 type Comment =
   { /// The Id
+    [<JsonProperty("id")>]
     Id : string
     /// The Id of the post to which this comment applies
     PostId : string
@@ -236,6 +241,7 @@ with
 /// A post
 type Post =
   { /// The Id
+    [<JsonProperty("id")>]
     Id : string
     /// The Id of the web log to which this post belongs
     WebLogId : string

@@ -18,7 +18,7 @@ type DashboardCounts =
 /// Detemine the web log by the URL base
 let tryFindWebLogByUrlBase conn (urlBase : string) =
   r.Table(Table.WebLog)
-    .GetAll(urlBase).OptArg("index", "urlBase")
+    .GetAll(urlBase).OptArg("index", "UrlBase")
     .Merge(fun w -> r.HashMap("PageList", r.Table(Table.Page)
                                             .GetAll(w.["Id"]).OptArg("index", "WebLogId")
                                             .Filter(ReqlFunction1(fun pg -> upcast pg.["ShowInPageList"].Eq(true)))
