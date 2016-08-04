@@ -55,12 +55,9 @@ let private ensureIndexes cfg (indexes : (string * (string * (ReqlExpr -> obj) o
   indexes
   |> List.iter ensureForTable
 
-/// Create an index on a single field
-let private singleField (name : string) : obj = upcast (fun row -> (row :> ReqlExpr).[name])
-
 /// Create an index on web log Id and the given field
 let private webLogField (name : string) : (ReqlExpr -> obj) option =
-  Some <| fun row -> upcast r.Array(row.["webLogId"], row.[name])
+  Some <| fun row -> upcast r.Array(row.["WebLogId"], row.[name])
 
 /// Ensure all the required indexes exist
 let private checkIndexes cfg =

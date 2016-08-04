@@ -122,9 +122,9 @@ let tryFindPostByPermalink conn webLogId permalink =
 /// Try to find a post by its prior permalink
 let tryFindPostByPriorPermalink conn (webLogId : string) (permalink : string) =
   r.Table(Table.Post)
-    .GetAll(webLogId).OptArg("index", "webLogId")
-    .Filter(fun p -> p.["priorPermalinks"].Contains(permalink).And(p.["status"].Eq(PostStatus.Published)))
-    .Without("revisions")
+    .GetAll(webLogId).OptArg("index", "WebLogId")
+    .Filter(fun p -> p.["PriorPermalinks"].Contains(permalink).And(p.["Status"].Eq(PostStatus.Published)))
+    .Without("Revisions")
     .RunCursorAsync<Post>(conn)
   |> await
   |> Seq.tryHead
