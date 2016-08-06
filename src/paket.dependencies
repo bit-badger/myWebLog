@@ -1,0 +1,13 @@
+framework: net40, net45, net452
+source https://www.nuget.org/api/v2
+nuget Common.Logging 3.3.0
+nuget FAKE
+nuget FSharp.Interop.Dynamic
+nuget FSharp.Formatting
+nuget Nancy
+nuget Nancy.Authentication.Forms
+nuget Nancy.Session.RethinkDb
+nuget Newtonsoft.Json
+nuget NodaTime
+nuget RethinkDb.Driver
+nuget Suave

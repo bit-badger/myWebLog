@@ -56,20 +56,27 @@
     </Content>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\myWebLog.Data\myWebLog.Data.fsproj">
-      <Project>{1fba0b84-b09e-4b16-b9b6-5730dea27192}</Project>
-      <Name>myWebLog.Data</Name>
+    <ProjectReference Include="..\MyWebLog.App\MyWebLog.App.fsproj">
+      <Project>{9cea3a8b-e8aa-44e6-9f5f-2095ceed54eb}</Project>
+      <Name>MyWebLog.App</Name>
     </ProjectReference>
-    <ProjectReference Include="..\myWebLog.Resources\myWebLog.Resources.csproj">
+    <ProjectReference Include="..\MyWebLog.Data.RethinkDB\MyWebLog.Data.RethinkDB.fsproj">
+      <Project>{d6c2be5e-883a-4f34-9905-b730543ca380}</Project>
+      <Name>myWebLog.Web</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\MyWebLog.Entities\MyWebLog.Entities.fsproj">
+      <Project>{a87f3cf5-2189-442b-8acf-929f5153ac22}</Project>
+      <Name>MyWebLog.Entities</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\MyWebLog.Logic\MyWebLog.Logic.fsproj">
+      <Project>{29f6eda3-4f43-4bb3-9c63-ae238a9b7f12}</Project>
+      <Name>MyWebLog.Entities</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\MyWebLog.Resources\MyWebLog.Resources.csproj">
       <Project>{a12ea8da-88bc-4447-90cb-a0e2dcc37523}</Project>
       <Name>myWebLog.Resources</Name>
     </ProjectReference>
-    <ProjectReference Include="..\myWebLog.Web\myWebLog.Web.fsproj">
-      <Project>{e6ee110a-27a6-4a19-b0cb-d24f48f71b53}</Project>
-      <Name>myWebLog.Web</Name>
-    </ProjectReference>
   </ItemGroup>
-  <ItemGroup />
   <ItemGroup>
     <Content Include="content\scripts\tinymce-init.js" />
     <Content Include="content\styles\admin.css" />

@@ -1,0 +1,7 @@
+FSharp.Formatting
+Nancy
+Nancy.Authentication.Forms
+Nancy.Session.RethinkDB
+NodaTime
+RethinkDb.Driver
+Suave
