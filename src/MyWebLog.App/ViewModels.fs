@@ -2,6 +2,7 @@
 
 open MyWebLog.Entities
 open MyWebLog.Logic.WebLog
+open MyWebLog.Resources
 open Nancy
 open Nancy.Session.Persistable
 open Newtonsoft.Json
@@ -41,15 +42,15 @@ with
   member this.ToDisplay =
     let classAndLabel =
       dict [
-        Level.Error,   ("danger",  Resources.Error)
-        Level.Warning, ("warning", Resources.Warning)
+        Level.Error,   ("danger",  Strings.get "Error")
+        Level.Warning, ("warning", Strings.get "Warning")
         Level.Info,    ("info",    "")
         ]
     seq {
       yield "<div class=\"alert alert-dismissable alert-"
       yield fst classAndLabel.[this.Level]
       yield "\" role=\"alert\"><button type=\"button\" class=\"close\" data-dismiss=\"alert\" aria-label=\""
-      yield Resources.Close
+      yield Strings.get "Close"
       yield "\">&times;</button><strong>"
       match snd classAndLabel.[this.Level] with
       | ""  -> ()
@@ -136,12 +137,12 @@ type MyWebLogModel(ctx : NancyContext, webLog : WebLog) =
   member this.FooterLogo =
     seq {
       yield "<img src=\"/default/footer-logo.png\" alt=\"myWebLog\" title=\""
-      yield sprintf "%s %s &bull; " Resources.PoweredBy this.Generator
-      yield Resources.LoadedIn
+      yield sprintf "%s %s &bull; " (Strings.get "PoweredBy") this.Generator
+      yield Strings.get "LoadedIn"
       yield " "
       yield TimeSpan(System.DateTime.Now.Ticks - this.RequestStart).TotalSeconds.ToString "f3"
       yield " "
-      yield Resources.Seconds.ToLower ()
+      yield (Strings.get "Seconds").ToLower ()
       yield "\" />"
       }
     |> Seq.reduce (+)
@@ -337,7 +338,7 @@ type PostForDisplay(webLog : WebLog, post : Post) =
     | 0 -> ""
     | 1 | 2 | 3 | 4 | 5 -> this.Post.Tags |> pipedTags
     | count -> sprintf "%s %s" (this.Post.Tags |> List.take 3 |> pipedTags)
-                               (System.String.Format(Resources.andXMore, count - 3))
+                               (System.String.Format(Strings.get "andXMore", count - 3))
 
 
 /// Model for all page-of-posts pages

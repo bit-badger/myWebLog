@@ -1,9 +1,7 @@
 ﻿module MyWebLog.Data.RethinkDB.Post
 
-open FSharp.Interop.Dynamic
 open MyWebLog.Entities
 open RethinkDb.Driver.Ast
-open System.Dynamic
 
 let private r = RethinkDb.Driver.RethinkDB.R
 

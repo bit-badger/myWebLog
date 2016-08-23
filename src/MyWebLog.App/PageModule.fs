@@ -4,6 +4,7 @@ open FSharp.Markdown
 open MyWebLog.Data
 open MyWebLog.Entities
 open MyWebLog.Logic.Page
+open MyWebLog.Resources
 open Nancy
 open Nancy.ModelBinding
 open Nancy.Security
@@ -15,10 +16,10 @@ type PageModule(data : IMyWebLogData, clock : IClock) as this =
   inherit NancyModule()
 
   do
-    this.Get   .["/pages"           ] <- fun _     -> this.PageList ()
-    this.Get   .["/page/{id}/edit"  ] <- fun parms -> this.EditPage   (downcast parms)
-    this.Post  .["/page/{id}/edit"  ] <- fun parms -> this.SavePage   (downcast parms)
-    this.Delete.["/page/{id}/delete"] <- fun parms -> this.DeletePage (downcast parms)
+    this.Get   ("/pages",            fun _     -> this.PageList   ())
+    this.Get   ("/page/{id}/edit",   fun parms -> this.EditPage   (downcast parms))
+    this.Post  ("/page/{id}/edit",   fun parms -> this.SavePage   (downcast parms))
+    this.Delete("/page/{id}/delete", fun parms -> this.DeletePage (downcast parms))
 
   /// List all pages
   member this.PageList () =
@@ -32,18 +33,17 @@ type PageModule(data : IMyWebLogData, clock : IClock) as this =
   member this.EditPage (parameters : DynamicDictionary) =
     this.RequiresAccessLevel AuthorizationLevel.Administrator
     let pageId = parameters.["id"].ToString ()
-    match (match pageId with
-           | "new" -> Some Page.Empty
-           | _ -> tryFindPage data this.WebLog.Id pageId) with
-    | Some page -> let rev = match page.Revisions
-                                   |> List.sortByDescending (fun r -> r.AsOf)
-                                   |> List.tryHead with
-                             | Some r -> r
-                             | _ -> Revision.Empty
-                   let model = EditPageModel(this.Context, this.WebLog, page, rev)
-                   model.PageTitle <- match pageId with "new" -> Resources.AddNewPage | _ -> Resources.EditPage
-                   upcast this.View.["admin/page/edit", model]
-    | _ -> this.NotFound ()
+    match pageId with "new" -> Some Page.Empty | _ -> tryFindPage data this.WebLog.Id pageId
+    |> function
+       | Some page -> let rev = match page.Revisions
+                                      |> List.sortByDescending (fun r -> r.AsOf)
+                                      |> List.tryHead with
+                                | Some r -> r
+                                | _ -> Revision.Empty
+                      let model = EditPageModel(this.Context, this.WebLog, page, rev)
+                      model.PageTitle <- Strings.get <| match pageId with "new" -> "AddNewPage" | _ -> "EditPage"
+                      upcast this.View.["admin/page/edit", model]
+       | _ -> this.NotFound ()
 
   /// Save a page
   member this.SavePage (parameters : DynamicDictionary) =
@@ -70,8 +70,8 @@ type PageModule(data : IMyWebLogData, clock : IClock) as this =
                 { UserMessage.Empty with
                     Level   = Level.Info
                     Message = System.String.Format
-                                (Resources.MsgPageEditSuccess,
-                                 (match pageId with "new" -> Resources.Added | _ -> Resources.Updated)) }
+                                (Strings.get "MsgPageEditSuccess",
+                                 Strings.get (match pageId with "new" -> "Added" | _ -> "Updated")) }
                 |> model.AddMessage
                 this.Redirect (sprintf "/page/%s/edit" pId) model
     | _ -> this.NotFound ()
@@ -85,7 +85,7 @@ type PageModule(data : IMyWebLogData, clock : IClock) as this =
     | Some page -> deletePage data page.WebLogId page.Id
                    let model = MyWebLogModel(this.Context, this.WebLog)
                    { UserMessage.Empty with Level   = Level.Info
-                                            Message = Resources.MsgPageDeleted }
+                                            Message = Strings.get "MsgPageDeleted" }
                    |> model.AddMessage
                    this.Redirect "/pages" model
     | _ -> this.NotFound ()

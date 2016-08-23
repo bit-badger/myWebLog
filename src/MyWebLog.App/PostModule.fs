@@ -1,11 +1,11 @@
 ﻿namespace MyWebLog
 
-open FSharp.Markdown
 open MyWebLog.Data
 open MyWebLog.Entities
 open MyWebLog.Logic.Category
 open MyWebLog.Logic.Page
 open MyWebLog.Logic.Post
+open MyWebLog.Resources
 open Nancy
 open Nancy.ModelBinding
 open Nancy.Security
@@ -58,18 +58,18 @@ type PostModule(data : IMyWebLogData, clock : IClock) as this =
     upcast this.Response.FromStream(stream, sprintf "application/%s+xml" format)
 
   do
-    this.Get .["/"                               ] <- fun _     -> this.HomePage ()
-    this.Get .["/{permalink*}"                   ] <- fun parms -> this.CatchAll (downcast parms)
-    this.Get .["/posts/page/{page:int}"          ] <- fun parms -> this.PublishedPostsPage (getPage <| downcast parms)
-    this.Get .["/category/{slug}"                ] <- fun parms -> this.CategorizedPosts (downcast parms)
-    this.Get .["/category/{slug}/page/{page:int}"] <- fun parms -> this.CategorizedPosts (downcast parms)
-    this.Get .["/tag/{tag}"                      ] <- fun parms -> this.TaggedPosts (downcast parms)
-    this.Get .["/tag/{tag}/page/{page:int}"      ] <- fun parms -> this.TaggedPosts (downcast parms)
-    this.Get .["/feed"                           ] <- fun _     -> this.Feed ()
-    this.Get .["/posts/list"                     ] <- fun _     -> this.PostList 1
-    this.Get .["/posts/list/page/{page:int}"     ] <- fun parms -> this.PostList (getPage <| downcast parms)
-    this.Get .["/post/{postId}/edit"             ] <- fun parms -> this.EditPost (downcast parms)
-    this.Post.["/post/{postId}/edit"             ] <- fun parms -> this.SavePost (downcast parms)
+    this.Get ("/",                                fun _     -> this.HomePage ())
+    this.Get ("/{permalink*}",                    fun parms -> this.CatchAll (downcast parms))
+    this.Get ("/posts/page/{page:int}",           fun parms -> this.PublishedPostsPage (getPage <| downcast parms))
+    this.Get ("/category/{slug}",                 fun parms -> this.CategorizedPosts (downcast parms))
+    this.Get ("/category/{slug}/page/{page:int}", fun parms -> this.CategorizedPosts (downcast parms))
+    this.Get ("/tag/{tag}",                       fun parms -> this.TaggedPosts (downcast parms))
+    this.Get ("/tag/{tag}/page/{page:int}",       fun parms -> this.TaggedPosts (downcast parms))
+    this.Get ("/feed",                            fun _     -> this.Feed ())
+    this.Get ("/posts/list",                      fun _     -> this.PostList 1)
+    this.Get ("/posts/list/page/{page:int}",      fun parms -> this.PostList (getPage <| downcast parms))
+    this.Get ("/post/{postId}/edit",              fun parms -> this.EditPost (downcast parms))
+    this.Post("/post/{postId}/edit",              fun parms -> this.SavePost (downcast parms))
 
   // ---- Display posts to users ----
 
@@ -87,7 +87,7 @@ type PostModule(data : IMyWebLogData, clock : IClock) as this =
                        | true -> false
                        | _ -> Option.isSome <| tryFindOlderPost data (List.head model.Posts).Post
     model.UrlPrefix <- "/posts"
-    model.PageTitle <- match pageNbr with 1 -> "" | _ -> sprintf "%s%i" Resources.PageHash pageNbr
+    model.PageTitle <- match pageNbr with 1 -> "" | _ -> sprintf "%s%i" (Strings.get "PageHash") pageNbr
     this.ThemedView "index" model
 
   /// Display either the newest posts or the configured home page
@@ -187,7 +187,7 @@ type PostModule(data : IMyWebLogData, clock : IClock) as this =
     model.HasNewer  <- pageNbr > 1
     model.HasOlder  <- List.length model.Posts > 24
     model.UrlPrefix <- "/posts/list"
-    model.PageTitle <- Resources.Posts
+    model.PageTitle <- Strings.get "Posts"
     upcast this.View.["admin/post/list", model]
 
   /// Edit a post
@@ -206,7 +206,7 @@ type PostModule(data : IMyWebLogData, clock : IClock) as this =
                                                                sprintf "%s%s"
                                                                        (String.replicate (snd cat) " &nbsp; &nbsp; ")
                                                                        (fst cat).Name)
-                   model.PageTitle  <- match post.Id with "new" -> Resources.AddNewPost | _ -> Resources.EditPost
+                   model.PageTitle  <- Strings.get <| match post.Id with "new" -> "AddNewPost" | _ -> "EditPost"
                    upcast this.View.["admin/post/edit"]
     | _ -> this.NotFound ()
 
@@ -248,9 +248,9 @@ type PostModule(data : IMyWebLogData, clock : IClock) as this =
                 { UserMessage.Empty with
                     Level   = Level.Info
                     Message = System.String.Format
-                                (Resources.MsgPostEditSuccess,
-                                 (match postId with "new" -> Resources.Added | _ -> Resources.Updated),
-                                 (match justPublished with true -> Resources.AndPublished | _ -> "")) }
+                                (Strings.get "MsgPostEditSuccess",
+                                 Strings.get (match postId with "new" -> "Added" | _ -> "Updated"),
+                                 (match justPublished with true -> Strings.get "AndPublished" | _ -> "")) }
                 |> model.AddMessage
                 this.Redirect (sprintf "/post/%s/edit" pId) model
     | _ -> this.NotFound ()

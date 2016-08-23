@@ -1,10 +1,14 @@
 ﻿module MyWebLog.App
 
+open Microsoft.AspNetCore.Builder
+open Microsoft.AspNetCore.Hosting
+open Microsoft.Extensions.Configuration
 open MyWebLog
 open MyWebLog.Data
 open MyWebLog.Data.RethinkDB
 open MyWebLog.Entities
 open MyWebLog.Logic.WebLog
+open MyWebLog.Resources
 open Nancy
 open Nancy.Authentication.Forms
 open Nancy.Bootstrapper
@@ -19,16 +23,14 @@ open Nancy.TinyIoc
 open Nancy.ViewEngines.SuperSimpleViewEngine
 open NodaTime
 open RethinkDb.Driver.Net
-open Suave
-open Suave.Owin
 open System
-open System.Configuration
 open System.IO
+open System.Reflection
 open System.Text.RegularExpressions
 
 /// Establish the configuration for this instance
 let cfg = try AppConfig.FromJson (System.IO.File.ReadAllText "config.json")
-          with ex -> raise <| ApplicationException(Resources.ErrBadAppConfig, ex)
+          with ex -> raise <| Exception (Strings.get "ErrBadAppConfig", ex)
 
 let data : IMyWebLogData = upcast RethinkMyWebLogData(cfg.DataConfig.Conn, cfg.DataConfig)
 
@@ -40,9 +42,7 @@ type TranslateTokenViewEngineMatcher() =
   static let regex = Regex("@Translate\.(?<TranslationKey>[a-zA-Z0-9-_]+);?", RegexOptions.Compiled)
   interface ISuperSimpleViewEngineMatcher with
     member this.Invoke (content, model, host) =
-      let translate (m : Match) =
-        let key = m.Groups.["TranslationKey"].Value
-        match MyWebLog.Resources.ResourceManager.GetString key with null -> key | xlat -> xlat
+      let translate (m : Match) = Strings.get m.Groups.["TranslationKey"].Value
       regex.Replace(content, translate)
 
 
@@ -120,7 +120,7 @@ type MyWebLogBootstrapper() =
 
 
 let version = 
-  let v = Reflection.Assembly.GetExecutingAssembly().GetName().Version
+  let v = typeof<AppConfig>.GetType().GetTypeInfo().Assembly.GetName().Version
   match v.Build with
   | 0 -> match v.Minor with 0 -> string v.Major | _ -> sprintf "%d.%d" v.Major v.Minor
   | _ -> sprintf "%d.%d.%d" v.Major v.Minor v.Build
@@ -135,13 +135,22 @@ type RequestEnvironment() =
         match tryFindWebLogByUrlBase data ctx.Request.Url.HostName with
         | Some webLog -> ctx.Items.[Keys.WebLog] <- webLog
         | None -> // TODO: redirect to domain set up page
-                  ApplicationException (sprintf "%s %s" ctx.Request.Url.HostName Resources.ErrNotConfigured)
+                  Exception (sprintf "%s %s" ctx.Request.Url.HostName (Strings.get "ErrNotConfigured"))
                   |> raise
         ctx.Items.[Keys.Version] <- version
         null
       pipelines.BeforeRequest.AddItemToStartOfPipeline establishEnv
 
       
-let app = OwinApp.ofMidFunc "/" (NancyMiddleware.UseNancy (NancyOptions()))
+type Startup() =
+  member this.Configure (app : IApplicationBuilder) =
+    app.UseOwin(fun x -> x.UseNancy() |> ignore) |> ignore
 
-let Run () = startWebServer defaultConfig app // webPart
+
+let Run () =
+  WebHostBuilder()
+    .UseContentRoot(System.IO.Directory.GetCurrentDirectory())
+    .UseKestrel()
+    .UseStartup<Startup>()
+    .Build()
+    .Run()

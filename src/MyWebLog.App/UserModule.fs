@@ -3,6 +3,7 @@
 open MyWebLog.Data
 open MyWebLog.Entities
 open MyWebLog.Logic.User
+open MyWebLog.Resources
 open Nancy
 open Nancy.Authentication.Forms
 open Nancy.Cryptography
@@ -22,9 +23,9 @@ type UserModule(data : IMyWebLogData, cfg : AppConfig) as this =
     |> Seq.fold (fun acc byt -> sprintf "%s%s" acc (byt.ToString "x2")) ""
   
   do
-    this.Get .["/logon" ] <- fun _     -> this.ShowLogOn ()
-    this.Post.["/logon" ] <- fun parms -> this.DoLogOn   (downcast parms)
-    this.Get .["/logoff"] <- fun _     -> this.LogOff ()
+    this.Get ("/logon",  fun _     -> this.ShowLogOn ())
+    this.Post("/logon",  fun parms -> this.DoLogOn   (downcast parms))
+    this.Get ("/logoff", fun _     -> this.LogOff ())
 
   /// Show the log on page
   member this.ShowLogOn () =
@@ -41,14 +42,14 @@ type UserModule(data : IMyWebLogData, cfg : AppConfig) as this =
     match tryUserLogOn data form.Email (pbkdf2 form.Password) with
     | Some user -> this.Session.[Keys.User] <- user
                    { UserMessage.Empty with Level   = Level.Info
-                                            Message = Resources.MsgLogOnSuccess }
+                                            Message = Strings.get "MsgLogOnSuccess" }
                    |> model.AddMessage
                    this.Redirect "" model |> ignore // Save the messages in the session before the Nancy redirect
                    // TODO: investigate if addMessage should update the session when it's called
                    upcast this.LoginAndRedirect (System.Guid.Parse user.Id,
                                                  fallbackRedirectUrl = defaultArg (Option.ofObj form.ReturnUrl) "/")
     | _ -> { UserMessage.Empty with Level   = Level.Error
-                                    Message = Resources.ErrBadLogOnAttempt }
+                                    Message = Strings.get "ErrBadLogOnAttempt" }
            |> model.AddMessage
            this.Redirect (sprintf "/user/logon?returnUrl=%s" form.ReturnUrl) model
 
@@ -59,7 +60,7 @@ type UserModule(data : IMyWebLogData, cfg : AppConfig) as this =
     this.Session.DeleteAll ()
     let model = MyWebLogModel(this.Context, this.WebLog)
     { UserMessage.Empty with Level   = Level.Info
-                             Message = Resources.MsgLogOffSuccess }
+                             Message = Strings.get "MsgLogOffSuccess" }
     |> model.AddMessage
     this.Redirect "" model |> ignore
     upcast this.LogoutAndRedirect "/"

@@ -1,9 +1,7 @@
 ﻿module MyWebLog.Data.RethinkDB.Category
 
-open FSharp.Interop.Dynamic
 open MyWebLog.Entities
 open RethinkDb.Driver.Ast
-open System.Dynamic
 
 let private r = RethinkDb.Driver.RethinkDB.R
 
@@ -35,27 +33,36 @@ let addCategory conn (cat : Category) =
     .Insert(cat)
     .RunResultAsync(conn) |> await |> ignore
 
+type CategoryUpdateRecord =
+  { Name : string
+    Slug : string
+    Description : string option
+    ParentId : string option
+  }
+
 /// Update a category
 let updateCategory conn (cat : Category) =
-  let upd8 = ExpandoObject()
-  upd8?Name        <- cat.Name
-  upd8?Slug        <- cat.Slug
-  upd8?Description <- cat.Description
-  upd8?ParentId    <- cat.ParentId
   (category cat.WebLogId cat.Id)
-    .Update(upd8)
+    .Update({ CategoryUpdateRecord.Name = cat.Name
+              Slug        = cat.Slug
+              Description = cat.Description
+              ParentId    = cat.ParentId })
     .RunResultAsync(conn) |> await |> ignore
 
+type CategoryChildrenUpdateRecord =
+  { Children : string list }
 /// Update a category's children
 let updateChildren conn webLogId parentId (children : string list) =
-  let upd8 = ExpandoObject()
-  upd8?Children <- children
   (category webLogId parentId)
-    .Update(upd8)
+    .Update({ CategoryChildrenUpdateRecord.Children = children })
     .RunResultAsync(conn) |> await |> ignore
 
+type CategoryParentUpdateRecord =
+  { ParentId : string option }
+type PostCategoriesUpdateRecord =
+  { CategoryIds : string list }
 /// Delete a category
-let deleteCategory conn cat =
+let deleteCategory conn (cat : Category) =
   // Remove the category from its parent
   match cat.ParentId with
   | Some parentId -> match tryFindCategory conn cat.WebLogId parentId with
@@ -65,8 +72,7 @@ let deleteCategory conn cat =
                      | _ -> ()
   | _ -> ()
   // Move this category's children to its parent
-  let newParent = ExpandoObject()
-  newParent?ParentId <- cat.ParentId
+  let newParent = { CategoryParentUpdateRecord.ParentId = cat.ParentId }
   cat.Children
   |> List.iter (fun childId -> (category cat.WebLogId childId)
                                  .Update(newParent)
@@ -78,9 +84,9 @@ let deleteCategory conn cat =
     .RunCursorAsync<Post>(conn)
   |> await
   |> Seq.toList
-  |> List.iter (fun post -> let newCats = ExpandoObject()
-                            newCats?CategoryIds <- post.CategoryIds
-                                                   |> List.filter (fun c -> c <> cat.Id)
+  |> List.iter (fun post -> let newCats = 
+                              { PostCategoriesUpdateRecord.CategoryIds = post.CategoryIds
+                                                                         |> List.filter (fun c -> c <> cat.Id) }
                             r.Table(Table.Post)
                               .Get(post.Id)
                               .Update(newCats)

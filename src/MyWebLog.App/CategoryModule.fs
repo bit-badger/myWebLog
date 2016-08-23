@@ -3,6 +3,7 @@
 open MyWebLog.Data
 open MyWebLog.Logic.Category
 open MyWebLog.Entities
+open MyWebLog.Resources
 open Nancy
 open Nancy.ModelBinding
 open Nancy.Security
@@ -13,13 +14,13 @@ type CategoryModule(data : IMyWebLogData) as this =
   inherit NancyModule()
 
   do
-    this.Get   .["/categories"          ] <- fun _     -> this.CategoryList   ()
-    this.Get   .["/category/{id}/edit"  ] <- fun parms -> this.EditCategory   (downcast parms)
-    this.Post  .["/category/{id}/edit"  ] <- fun parms -> this.SaveCategory   (downcast parms)
-    this.Delete.["/category/{id}/delete"] <- fun parms -> this.DeleteCategory (downcast parms)
+    this.Get   ("/categories",           fun _     -> this.CategoryList   ())
+    this.Get   ("/category/{id}/edit",   fun parms -> this.EditCategory   (downcast parms))
+    this.Post  ("/category/{id}/edit",   fun parms -> this.SaveCategory   (downcast parms))
+    this.Delete("/category/{id}/delete", fun parms -> this.DeleteCategory (downcast parms))
 
   /// Display a list of categories
-  member this.CategoryList () =
+  member this.CategoryList () : obj =
     this.RequiresAccessLevel AuthorizationLevel.Administrator
     let model = CategoryListModel(this.Context, this.WebLog,
                                   (findAllCategories data this.WebLog.Id
@@ -67,8 +68,8 @@ type CategoryModule(data : IMyWebLogData) as this =
                   { UserMessage.Empty with
                       Level   = Level.Info
                       Message = System.String.Format
-                                  (Resources.MsgCategoryEditSuccess,
-                                    (match catId with "new" -> Resources.Added | _ -> Resources.Updated)) }
+                                  (Strings.get "MsgCategoryEditSuccess",
+                                   Strings.get (match catId with "new" -> "Added" | _ -> "Updated")) }
                   |> model.AddMessage
                   this.Redirect (sprintf "/category/%s/edit" newCatId) model
     | _ -> this.NotFound ()
@@ -82,7 +83,7 @@ type CategoryModule(data : IMyWebLogData) as this =
     | Some cat -> deleteCategory data cat
                   let model = MyWebLogModel(this.Context, this.WebLog)
                   { UserMessage.Empty with Level   = Level.Info
-                                           Message = System.String.Format(Resources.MsgCategoryDeleted, cat.Name) }
+                                           Message = System.String.Format(Strings.get "MsgCategoryDeleted", cat.Name) }
                   |> model.AddMessage
                   this.Redirect "/categories" model
     | _ -> this.NotFound ()

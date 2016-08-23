@@ -1,9 +1,7 @@
 ﻿module MyWebLog.Data.RethinkDB.Page
 
-open FSharp.Interop.Dynamic
 open MyWebLog.Entities
 open RethinkDb.Driver.Ast
-open System.Dynamic
 
 let private r = RethinkDb.Driver.RethinkDB.R
 
@@ -11,13 +9,13 @@ let private r = RethinkDb.Driver.RethinkDB.R
 let tryFindPageById conn webLogId (pageId : string) includeRevs =
   let pg = r.Table(Table.Page)
              .Get(pageId)
-  match (match includeRevs with
-         | true -> pg.RunAtomAsync<Page>(conn)
-         | _ -> pg.Without("Revisions").RunAtomAsync<Page>(conn)
-         |> await |> box) with
-  | null -> None
-  | page -> let pg : Page = unbox page
-            match pg.WebLogId = webLogId with true -> Some pg | _ -> None
+  match includeRevs with true -> pg.RunAtomAsync<Page>(conn) | _ -> pg.Without("Revisions").RunAtomAsync<Page>(conn)
+  |> await
+  |> box
+  |> function
+     | null -> None
+     | page -> let pg : Page = unbox page
+               match pg.WebLogId = webLogId with true -> Some pg | _ -> None
 
 /// Find a page by its permalink
 let tryFindPageByPermalink conn (webLogId : string) (permalink : string) =
@@ -44,19 +42,24 @@ let addPage conn (page : Page) =
     .Insert(page)
     .RunResultAsync(conn) |> await |> ignore
 
+type PageUpdateRecord =
+  { Title : string
+    Permalink : string
+    PublishedOn : int64
+    UpdatedOn : int64
+    Text : string
+    Revisions : Revision list }
 /// Update a page
 let updatePage conn (page : Page) =
   match tryFindPageById conn page.WebLogId page.Id false with
-  | Some _ -> let upd8 = ExpandoObject()
-              upd8?Title       <- page.Title
-              upd8?Permalink   <- page.Permalink
-              upd8?PublishedOn <- page.PublishedOn
-              upd8?UpdatedOn   <- page.UpdatedOn
-              upd8?Text        <- page.Text
-              upd8?Revisions   <- page.Revisions
-              r.Table(Table.Page)
+  | Some _ -> r.Table(Table.Page)
                 .Get(page.Id)
-                .Update(upd8)
+                .Update({ PageUpdateRecord.Title = page.Title
+                          Permalink = page.Permalink
+                          PublishedOn = page.PublishedOn
+                          UpdatedOn = page.UpdatedOn
+                          Text = page.Text
+                          Revisions = page.Revisions })
                 .RunResultAsync(conn) |> await |> ignore
   | _ -> ()
     
