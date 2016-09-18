@@ -1,0 +1,10 @@
+{
+  "projects":[
+    "MyWebLog",
+    "MyWebLog.App",
+    "MyWebLog.Data.RethinkDB",
+    "MyWebLog.Entities",
+    "MyWebLog.Logic",
+    "MyWebLog.Resources"
+  ]
+}

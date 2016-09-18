@@ -28,14 +28,14 @@ type UserModule(data : IMyWebLogData, cfg : AppConfig) as this =
     this.Get ("/logoff", fun _     -> this.LogOff ())
 
   /// Show the log on page
-  member this.ShowLogOn () =
+  member this.ShowLogOn () : obj =
     let model = LogOnModel(this.Context, this.WebLog)
     let query = this.Request.Query :?> DynamicDictionary
     model.Form.ReturnUrl <- match query.ContainsKey "returnUrl" with true -> query.["returnUrl"].ToString () | _ -> ""
     upcast this.View.["admin/user/logon", model]
 
   /// Process a user log on
-  member this.DoLogOn (parameters : DynamicDictionary) =
+  member this.DoLogOn (parameters : DynamicDictionary) : obj =
     this.ValidateCsrfToken ()
     let form  = this.Bind<LogOnForm> ()
     let model = MyWebLogModel(this.Context, this.WebLog)
@@ -54,7 +54,7 @@ type UserModule(data : IMyWebLogData, cfg : AppConfig) as this =
            this.Redirect (sprintf "/user/logon?returnUrl=%s" form.ReturnUrl) model
 
   /// Log a user off
-  member this.LogOff () =
+  member this.LogOff () : obj =
     // FIXME: why are we getting the user here if we don't do anything with it?
     let user = this.Request.PersistableSession.GetOrDefault<User> (Keys.User, User.Empty)
     this.Session.DeleteAll ()

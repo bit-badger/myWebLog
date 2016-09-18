@@ -1,6 +1,5 @@
 ﻿namespace MyWebLog
 
-open FSharp.Markdown
 open MyWebLog.Data
 open MyWebLog.Entities
 open MyWebLog.Logic.Page
@@ -22,15 +21,15 @@ type PageModule(data : IMyWebLogData, clock : IClock) as this =
     this.Delete("/page/{id}/delete", fun parms -> this.DeletePage (downcast parms))
 
   /// List all pages
-  member this.PageList () =
+  member this.PageList () : obj =
     this.RequiresAccessLevel AuthorizationLevel.Administrator
     let model = PagesModel(this.Context, this.WebLog, (findAllPages data this.WebLog.Id
                                                        |> List.map (fun p -> PageForDisplay(this.WebLog, p))))
-    model.PageTitle <- Resources.Pages
+    model.PageTitle <- Strings.get "Pages"
     upcast this.View.["admin/page/list", model]
 
   /// Edit a page
-  member this.EditPage (parameters : DynamicDictionary) =
+  member this.EditPage (parameters : DynamicDictionary) : obj =
     this.RequiresAccessLevel AuthorizationLevel.Administrator
     let pageId = parameters.["id"].ToString ()
     match pageId with "new" -> Some Page.Empty | _ -> tryFindPage data this.WebLog.Id pageId
@@ -46,12 +45,12 @@ type PageModule(data : IMyWebLogData, clock : IClock) as this =
        | _ -> this.NotFound ()
 
   /// Save a page
-  member this.SavePage (parameters : DynamicDictionary) =
+  member this.SavePage (parameters : DynamicDictionary) : obj =
     this.ValidateCsrfToken ()
     this.RequiresAccessLevel AuthorizationLevel.Administrator
     let pageId = parameters.["id"].ToString ()
     let form   = this.Bind<EditPageForm> ()
-    let now    = clock.Now.Ticks
+    let now    = clock.GetCurrentInstant().ToUnixTimeTicks()
     match (match pageId with "new" -> Some Page.Empty | _ -> tryFindPage data this.WebLog.Id pageId) with
     | Some p -> let page = match pageId with "new" -> { p with WebLogId = this.WebLog.Id } | _ -> p
                 let pId = { p with
@@ -60,7 +59,7 @@ type PageModule(data : IMyWebLogData, clock : IClock) as this =
                               PublishedOn = match pageId with "new" -> now | _ -> page.PublishedOn
                               UpdatedOn   = now
                               Text        = match form.Source with
-                                            | RevisionSource.Markdown -> Markdown.TransformHtml form.Text
+                                            | RevisionSource.Markdown -> (* Markdown.TransformHtml *) form.Text
                                             | _ -> form.Text
                               Revisions   = { AsOf       = now
                                               SourceType = form.Source
@@ -77,7 +76,7 @@ type PageModule(data : IMyWebLogData, clock : IClock) as this =
     | _ -> this.NotFound ()
 
   /// Delete a page
-  member this.DeletePage (parameters : DynamicDictionary) =
+  member this.DeletePage (parameters : DynamicDictionary) : obj =
     this.ValidateCsrfToken ()
     this.RequiresAccessLevel AuthorizationLevel.Administrator
     let pageId = parameters.["id"].ToString ()

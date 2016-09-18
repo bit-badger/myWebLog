@@ -4,6 +4,8 @@ module MyWebLog.ModuleExtensions
 open MyWebLog.Entities
 open Nancy
 open Nancy.Security
+open System
+open System.Security.Claims
 
 /// Parent class for all myWebLog Nancy modules
 type NancyModule with
@@ -27,5 +29,6 @@ type NancyModule with
 
   /// Require a specific level of access for the current web log
   member this.RequiresAccessLevel level =
+    let findClaim = new Predicate<Claim>(fun claim -> claim.Type = ClaimTypes.Role && claim.Value = sprintf "%s|%s" this.WebLog.Id level)
     this.RequiresAuthentication()
-    this.RequiresClaims [| sprintf "%s|%s" this.WebLog.Id level |]
+    this.RequiresClaims [| findClaim |]

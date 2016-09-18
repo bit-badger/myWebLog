@@ -71,7 +71,7 @@ with
 module FormatDateTime =
   
   /// Convert ticks to a zoned date/time
-  let zonedTime timeZone ticks = Instant(ticks).InZone(DateTimeZoneProviders.Tzdb.[timeZone])
+  let zonedTime timeZone ticks = Instant.FromUnixTimeTicks(ticks).InZone(DateTimeZoneProviders.Tzdb.[timeZone])
 
   /// Display a long date
   let longDate timeZone ticks =

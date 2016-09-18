@@ -13,7 +13,7 @@ let private fallbackLocale = "en-US"
 let private getEmbedded locale =
   use rdr =
     new System.IO.StreamReader
-      (MyWebLog.Resources.AssemblyInfo.HorribleHack().Assembly.GetManifestResourceStream(sprintf "%s.json" locale))
+      (AssemblyInfo.HorribleHack().Assembly.GetManifestResourceStream(sprintf "MyWebLog.Resources.%s.json" locale))
   rdr.ReadToEnd()
 
 /// The dictionary of localized strings

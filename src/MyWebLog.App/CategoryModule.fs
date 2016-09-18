@@ -28,7 +28,7 @@ type CategoryModule(data : IMyWebLogData) as this =
     upcast this.View.["/admin/category/list", model]
   
   /// Edit a category
-  member this.EditCategory (parameters : DynamicDictionary) =
+  member this.EditCategory (parameters : DynamicDictionary) : obj =
     this.RequiresAccessLevel AuthorizationLevel.Administrator
     let catId = parameters.["id"].ToString ()
     match (match catId with
@@ -42,7 +42,7 @@ type CategoryModule(data : IMyWebLogData) as this =
     | _ -> this.NotFound ()
 
   /// Save a category
-  member this.SaveCategory (parameters : DynamicDictionary) =
+  member this.SaveCategory (parameters : DynamicDictionary) : obj =
     this.ValidateCsrfToken ()
     this.RequiresAccessLevel AuthorizationLevel.Administrator
     let catId  = parameters.["id"].ToString ()
@@ -75,7 +75,7 @@ type CategoryModule(data : IMyWebLogData) as this =
     | _ -> this.NotFound ()
 
   /// Delete a category
-  member this.DeleteCategory (parameters : DynamicDictionary) =
+  member this.DeleteCategory (parameters : DynamicDictionary) : obj =
     this.ValidateCsrfToken ()
     this.RequiresAccessLevel AuthorizationLevel.Administrator
     let catId = parameters.["id"].ToString ()

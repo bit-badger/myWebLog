@@ -13,7 +13,7 @@ open Nancy.Session.Persistable
 open NodaTime
 open RethinkDb.Driver.Net
 open System
-open System.ServiceModel.Syndication
+//open System.ServiceModel.Syndication
 
 /// Routes dealing with posts (including the home page, /tag, /category, RSS, and catch-all routes)
 type PostModule(data : IMyWebLogData, clock : IClock) as this =
@@ -28,7 +28,8 @@ type PostModule(data : IMyWebLogData, clock : IClock) as this =
 
   /// Generate an RSS/Atom feed of the latest posts
   let generateFeed format : obj =
-    let posts  = findFeedPosts data this.WebLog.Id 10
+    this.NotFound ()
+    (* let posts  = findFeedPosts data this.WebLog.Id 10
     let feed   =
       SyndicationFeed(
         this.WebLog.Name, defaultArg this.WebLog.Subtitle null,
@@ -55,7 +56,7 @@ type PostModule(data : IMyWebLogData, clock : IClock) as this =
     Xml.XmlWriter.Create(stream)
     |> match format with "atom" -> feed.SaveAsAtom10 | _ -> feed.SaveAsRss20
     stream.Position <- int64 0
-    upcast this.Response.FromStream(stream, sprintf "application/%s+xml" format)
+    upcast this.Response.FromStream(stream, sprintf "application/%s+xml" format) *)
 
   do
     this.Get ("/",                                fun _     -> this.HomePage ())
@@ -74,7 +75,7 @@ type PostModule(data : IMyWebLogData, clock : IClock) as this =
   // ---- Display posts to users ----
 
   /// Display a page of published posts
-  member this.PublishedPostsPage pageNbr =
+  member this.PublishedPostsPage pageNbr : obj =
     let model = PostsModel(this.Context, this.WebLog)
     model.PageNbr   <- pageNbr
     model.Posts     <- findPageOfPublishedPosts data this.WebLog.Id pageNbr 10 |> forDisplay
@@ -91,7 +92,7 @@ type PostModule(data : IMyWebLogData, clock : IClock) as this =
     this.ThemedView "index" model
 
   /// Display either the newest posts or the configured home page
-  member this.HomePage () =
+  member this.HomePage () : obj =
     match this.WebLog.DefaultPage with
     | "posts" -> this.PublishedPostsPage 1
     | pageId -> match tryFindPageWithoutRevisions data this.WebLog.Id pageId with
@@ -101,7 +102,7 @@ type PostModule(data : IMyWebLogData, clock : IClock) as this =
                 | _ -> this.NotFound ()
 
   /// Derive a post or page from the URL, or redirect from a prior URL to the current one
-  member this.CatchAll (parameters : DynamicDictionary) =
+  member this.CatchAll (parameters : DynamicDictionary) : obj =
     let url = parameters.["permalink"].ToString ()
     match tryFindPostByPermalink data this.WebLog.Id url with
     | Some post -> // Hopefully the most common result; the permalink is a permalink!
@@ -124,7 +125,7 @@ type PostModule(data : IMyWebLogData, clock : IClock) as this =
                   | _ -> this.NotFound ()
 
   /// Display categorized posts
-  member this.CategorizedPosts (parameters : DynamicDictionary) =
+  member this.CategorizedPosts (parameters : DynamicDictionary) : obj =
     let slug = parameters.["slug"].ToString ()
     match tryFindCategoryBySlug data this.WebLog.Id slug with
     | Some cat -> let pageNbr = getPage parameters
@@ -149,7 +150,7 @@ type PostModule(data : IMyWebLogData, clock : IClock) as this =
     | _ -> this.NotFound ()
 
   /// Display tagged posts
-  member this.TaggedPosts (parameters : DynamicDictionary) =
+  member this.TaggedPosts (parameters : DynamicDictionary) : obj =
     let tag     = parameters.["tag"].ToString ()
     let pageNbr = getPage parameters
     let model   = PostsModel(this.Context, this.WebLog)
@@ -167,7 +168,7 @@ type PostModule(data : IMyWebLogData, clock : IClock) as this =
     this.ThemedView "index" model
 
   /// Generate an RSS feed
-  member this.Feed () =
+  member this.Feed () : obj =
     let query = this.Request.Query :?> DynamicDictionary
     match query.ContainsKey "format" with
     | true -> match query.["format"].ToString () with
@@ -179,7 +180,7 @@ type PostModule(data : IMyWebLogData, clock : IClock) as this =
   // ---- Administer posts ----
 
   /// Display a page of posts in the admin area
-  member this.PostList pageNbr =
+  member this.PostList pageNbr : obj =
     this.RequiresAccessLevel AuthorizationLevel.Administrator
     let model = PostsModel(this.Context, this.WebLog)
     model.PageNbr   <- pageNbr
@@ -191,7 +192,7 @@ type PostModule(data : IMyWebLogData, clock : IClock) as this =
     upcast this.View.["admin/post/list", model]
 
   /// Edit a post
-  member this.EditPost (parameters : DynamicDictionary) =
+  member this.EditPost (parameters : DynamicDictionary) : obj =
     this.RequiresAccessLevel AuthorizationLevel.Administrator
     let postId = parameters.["postId"].ToString ()
     match (match postId with "new" -> Some Post.Empty | _ -> tryFindPost data this.WebLog.Id postId) with
@@ -211,12 +212,12 @@ type PostModule(data : IMyWebLogData, clock : IClock) as this =
     | _ -> this.NotFound ()
 
   /// Save a post
-  member this.SavePost (parameters : DynamicDictionary) =
+  member this.SavePost (parameters : DynamicDictionary) : obj =
     this.RequiresAccessLevel AuthorizationLevel.Administrator
     this.ValidateCsrfToken ()
     let postId = parameters.["postId"].ToString ()
     let form   = this.Bind<EditPostForm>()
-    let now    = clock.Now.Ticks
+    let now    = clock.GetCurrentInstant().ToUnixTimeTicks()
     match (match postId with "new" -> Some Post.Empty | _ -> tryFindPost data this.WebLog.Id postId) with
     | Some p -> let justPublished = p.PublishedOn = int64 0 && form.PublishNow
                 let post          = match postId with
@@ -234,7 +235,7 @@ type PostModule(data : IMyWebLogData, clock : IClock) as this =
                               PublishedOn = match justPublished with true -> now | _ -> int64 0
                               UpdatedOn   = now
                               Text        = match form.Source with
-                                            | RevisionSource.Markdown -> Markdown.TransformHtml form.Text
+                                            | RevisionSource.Markdown -> (* Markdown.TransformHtml *) form.Text
                                             | _ -> form.Text
                               CategoryIds = Array.toList form.Categories
                               Tags        = form.Tags.Split ','

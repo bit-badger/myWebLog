@@ -18,7 +18,7 @@ open Nancy.Owin
 open Nancy.Security
 open Nancy.Session.Persistable
 //open Nancy.Session.Relational
-open Nancy.Session.RethinkDb
+open Nancy.Session.RethinkDB
 open Nancy.TinyIoc
 open Nancy.ViewEngines.SuperSimpleViewEngine
 open NodaTime
@@ -26,16 +26,14 @@ open RethinkDb.Driver.Net
 open System
 open System.IO
 open System.Reflection
+open System.Security.Claims
 open System.Text.RegularExpressions
 
 /// Establish the configuration for this instance
 let cfg = try AppConfig.FromJson (System.IO.File.ReadAllText "config.json")
           with ex -> raise <| Exception (Strings.get "ErrBadAppConfig", ex)
 
-let data : IMyWebLogData = upcast RethinkMyWebLogData(cfg.DataConfig.Conn, cfg.DataConfig)
-
-do
-  data.SetUp ()
+let data = lazy (RethinkMyWebLogData(cfg.DataConfig.Conn, cfg.DataConfig) :> IMyWebLogData)
 
 /// Support RESX lookup via the @Translate SSVE alias
 type TranslateTokenViewEngineMatcher() =
@@ -48,9 +46,9 @@ type TranslateTokenViewEngineMatcher() =
 
 /// Handle forms authentication
 type MyWebLogUser(name, claims) =
-  interface IUserIdentity with
-    member this.UserName with get() = name
-    member this.Claims   with get() = claims
+  inherit ClaimsPrincipal()
+  member this.UserName with get() = name
+  member this.Claims   with get() = claims
  
 type MyWebLogUserMapper(container : TinyIoCContainer) =
   
@@ -85,12 +83,12 @@ type MyWebLogBootstrapper() =
     Directory.EnumerateDirectories (Path.Combine [| "views"; "themes" |])
     |> Seq.iter addContentDir
 
-  override this.ApplicationStartup (container, pipelines) =
-    base.ApplicationStartup (container, pipelines)
-    // Application configuration
+  override this.ConfigureApplicationContainer (container) =
+    base.ConfigureApplicationContainer container
     container.Register<AppConfig>(cfg)
     |> ignore
-    container.Register<IMyWebLogData>(data)
+    data.Force().SetUp ()
+    container.Register<IMyWebLogData>(data.Force ())
     |> ignore
     // NodaTime
     container.Register<IClock>(SystemClock.Instance)
@@ -99,12 +97,15 @@ type MyWebLogBootstrapper() =
     container.Register<seq<ISuperSimpleViewEngineMatcher>>(fun _ _ -> 
       Seq.singleton (TranslateTokenViewEngineMatcher() :> ISuperSimpleViewEngineMatcher))
     |> ignore
+  
+  override this.ApplicationStartup (container, pipelines) =
+    base.ApplicationStartup (container, pipelines)
     // Forms authentication configuration
     let auth =
       FormsAuthenticationConfiguration(
         CryptographyConfiguration =
           CryptographyConfiguration(
-            RijndaelEncryptionProvider(PassphraseKeyGenerator(cfg.AuthEncryptionPassphrase, cfg.AuthSalt)),
+            AesEncryptionProvider(PassphraseKeyGenerator(cfg.AuthEncryptionPassphrase, cfg.AuthSalt)),
             DefaultHmacProvider(PassphraseKeyGenerator(cfg.AuthHmacPassphrase, cfg.AuthSalt))),
         RedirectUrl = "~/user/logon",
         UserMapper  = container.Resolve<IUserMapper>())
@@ -112,11 +113,15 @@ type MyWebLogBootstrapper() =
     // CSRF
     Csrf.Enable pipelines
     // Sessions
-    let sessions = RethinkDbSessionConfiguration(cfg.DataConfig.Conn)
+    let sessions = RethinkDBSessionConfiguration(cfg.DataConfig.Conn)
     sessions.Database <- cfg.DataConfig.Database
     //let sessions = RelationalSessionConfiguration(ConfigurationManager.ConnectionStrings.["SessionStore"].ConnectionString)
     PersistableSessions.Enable (pipelines, sessions)
     ()
+
+  override this.Configure (environment) =
+    base.Configure environment
+    environment.Tracing(true, true)
 
 
 let version = 
@@ -132,7 +137,7 @@ type RequestEnvironment() =
     member this.Initialize (pipelines, context) =
       let establishEnv (ctx : NancyContext) =
         ctx.Items.[Keys.RequestStart] <- DateTime.Now.Ticks
-        match tryFindWebLogByUrlBase data ctx.Request.Url.HostName with
+        match tryFindWebLogByUrlBase (data.Force ()) ctx.Request.Url.HostName with
         | Some webLog -> ctx.Items.[Keys.WebLog] <- webLog
         | None -> // TODO: redirect to domain set up page
                   Exception (sprintf "%s %s" ctx.Request.Url.HostName (Strings.get "ErrNotConfigured"))
@@ -144,7 +149,9 @@ type RequestEnvironment() =
       
 type Startup() =
   member this.Configure (app : IApplicationBuilder) =
-    app.UseOwin(fun x -> x.UseNancy() |> ignore) |> ignore
+    let opt = NancyOptions()
+    opt.Bootstrapper <- new MyWebLogBootstrapper()
+    app.UseOwin(fun x -> x.UseNancy(opt) |> ignore) |> ignore
 
 
 let Run () =
