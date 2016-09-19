@@ -11,8 +11,8 @@ let private logStepDone  ()   = Console.Out.WriteLine (" done.")
 /// Ensure the myWebLog database exists
 let private checkDatabase (cfg : DataConfig) =
   logStep "|> Checking database"
-  let dbs = r.DbList().RunListAsync<string>(cfg.Conn) |> await
-  match dbs.Contains cfg.Database with
+  let dbs = r.DbList().RunResultAsync<string list>(cfg.Conn) |> await
+  match List.contains cfg.Database dbs with
   | true -> ()
   | _ -> logStepStart (sprintf "  %s database not found - creating" cfg.Database)
          r.DbCreate(cfg.Database).RunResultAsync(cfg.Conn) |> await |> ignore
@@ -21,14 +21,12 @@ let private checkDatabase (cfg : DataConfig) =
 /// Ensure all required tables exist
 let private checkTables cfg =
   logStep "|> Checking tables"
-  let tables = r.Db(cfg.Database).TableList().RunListAsync<string>(cfg.Conn) |> await
+  let tables = r.Db(cfg.Database).TableList().RunResultAsync<string list>(cfg.Conn) |> await
   [ Table.Category; Table.Comment; Table.Page; Table.Post; Table.User; Table.WebLog ]
-  |> List.map    (fun tbl -> match tables.Contains tbl with true -> None | _ -> Some (tbl, r.TableCreate tbl))
-  |> List.filter Option.isSome
-  |> List.map    Option.get
-  |> List.iter   (fun (tbl, create) -> logStepStart (sprintf "  Creating table %s" tbl)
-                                       create.RunResultAsync(cfg.Conn) |> await |> ignore
-                                       logStepDone ())
+  |> List.filter (fun tbl -> not (List.contains tbl tables))
+  |> List.iter   (fun tbl -> logStepStart (sprintf "  Creating table %s" tbl)
+                             (r.TableCreate tbl).RunResultAsync(cfg.Conn) |> await |> ignore
+                             logStepDone ())
 
 /// Shorthand to get the table
 let private tbl cfg table = r.Db(cfg.Database).Table(table)
@@ -42,15 +40,15 @@ let private createIndex cfg table (index : string * (ReqlExpr -> obj) option) =
    | None -> (tbl cfg table).IndexCreate(idxName))
     .RunResultAsync(cfg.Conn)
   |> await |> ignore
-  (tbl cfg table).IndexWait(idxName).RunAtomAsync(cfg.Conn) |> await |> ignore
+  (tbl cfg table).IndexWait(idxName).RunResultAsync(cfg.Conn) |> await |> ignore
   logStepDone ()
 
 /// Ensure that the given indexes exist, and create them if required
 let private ensureIndexes cfg (indexes : (string * (string * (ReqlExpr -> obj) option) list) list) =
   let ensureForTable (tblName, idxs) =
-    let idx = (tbl cfg tblName).IndexList().RunListAsync<string>(cfg.Conn) |> await
+    let idx = (tbl cfg tblName).IndexList().RunResultAsync<string list>(cfg.Conn) |> await
     idxs
-    |> List.iter (fun index -> match idx.Contains (fst index) with true -> () | _ -> createIndex cfg tblName index)
+    |> List.iter (fun index -> match List.contains (fst index) idx with true -> () | _ -> createIndex cfg tblName index)
   indexes
   |> List.iter ensureForTable
 

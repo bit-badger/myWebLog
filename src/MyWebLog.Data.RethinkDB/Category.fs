@@ -9,23 +9,23 @@ let private r = RethinkDb.Driver.RethinkDB.R
 let private category (webLogId : string) (catId : string) =
   r.Table(Table.Category)
     .Get(catId)
-    .Filter(fun c -> c.["WebLogId"].Eq(webLogId))
+    .Filter(ReqlFunction1(fun c -> upcast c.["WebLogId"].Eq(webLogId)))
 
 /// Get all categories for a web log
 let getAllCategories conn (webLogId : string) =
   r.Table(Table.Category)
     .GetAll(webLogId).OptArg("index", "WebLogId")
     .OrderBy("Name")
-    .RunListAsync<Category>(conn)
+    .RunResultAsync<Category list>(conn)
   |> await
-  |> Seq.toList
 
 /// Get a specific category by its Id
 let tryFindCategory conn webLogId catId : Category option =
-  match (category webLogId catId)
-          .RunAtomAsync<Category>(conn) |> await |> box with
-  | null -> None
-  | cat -> Some <| unbox cat
+  (category webLogId catId)
+    .RunResultAsync<Category>(conn)
+  |> await
+  |> box
+  |> function null -> None | cat -> Some <| unbox cat
 
 /// Add a category
 let addCategory conn (cat : Category) =
@@ -81,9 +81,8 @@ let deleteCategory conn (cat : Category) =
   r.Table(Table.Post)
     .GetAll(cat.WebLogId).OptArg("index", "WebLogId")
     .Filter(ReqlFunction1(fun p -> upcast p.["CategoryIds"].Contains(cat.Id)))
-    .RunCursorAsync<Post>(conn)
+    .RunResultAsync<Post list>(conn)
   |> await
-  |> Seq.toList
   |> List.iter (fun post -> let newCats = 
                               { PostCategoriesUpdateRecord.CategoryIds = post.CategoryIds
                                                                          |> List.filter (fun c -> c <> cat.Id) }
@@ -101,6 +100,6 @@ let deleteCategory conn (cat : Category) =
 let tryFindCategoryBySlug conn (webLogId : string) (slug : string) =
   r.Table(Table.Category)
     .GetAll(r.Array(webLogId, slug)).OptArg("index", "Slug")
-    .RunCursorAsync<Category>(conn)
+    .RunResultAsync<Category list>(conn)
   |> await
-  |> Seq.tryHead
+  |> List.tryHead

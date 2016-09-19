@@ -385,7 +385,7 @@ type EditPostForm() =
   member val PublishNow = true with get, set
 
   /// Fill the form with applicable values from a post
-  member this.ForPost post =
+  member this.ForPost (post : Post) =
     this.Title      <- post.Title
     this.Permalink  <- post.Permalink
     this.Tags       <- List.reduce (fun acc x -> sprintf "%s, %s" acc x) post.Tags

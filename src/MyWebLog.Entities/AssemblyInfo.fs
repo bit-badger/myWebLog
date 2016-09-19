@@ -1,4 +1,4 @@
-﻿namespace myWebLog.Data.AssemblyInfo
+﻿namespace MyWebLog.Entities.AssemblyInfo
 
 open System.Reflection
 open System.Runtime.CompilerServices

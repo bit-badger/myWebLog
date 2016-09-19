@@ -15,25 +15,24 @@ let private toPostList conn pageNbr nbrPerPage (filter : ReqlExpr) =
   filter
     .OrderBy(r.Desc("PublishedOn"))
     .Slice((pageNbr - 1) * nbrPerPage, pageNbr * nbrPerPage)
-    .RunListAsync<Post>(conn)
+    .RunResultAsync<Post list>(conn)
   |> await
-  |> Seq.toList
 
 /// Shorthand to get a newer or older post
-let private adjacentPost conn post (theFilter : ReqlExpr -> obj) (sort : obj) =
+let private adjacentPost conn (post : Post) (theFilter : ReqlExpr -> obj) (sort : obj) =
   (publishedPosts post.WebLogId)
     .Filter(theFilter)
     .OrderBy(sort)
     .Limit(1)
-    .RunListAsync<Post>(conn)
+    .RunResultAsync<Post list>(conn)
   |> await
-  |> Seq.tryHead
+  |> List.tryHead
 
 /// Find a newer post
-let private newerPost conn post theFilter = adjacentPost conn post theFilter <| r.Asc "publishedOn"
+let private newerPost conn post theFilter = adjacentPost conn post theFilter <| r.Asc "PublishedOn"
 
 /// Find an older post
-let private olderPost conn post theFilter = adjacentPost conn post theFilter <| r.Desc "publishedOn"
+let private olderPost conn post theFilter = adjacentPost conn post theFilter <| r.Desc "PublishedOn"
 
 /// Get a page of published posts
 let findPageOfPublishedPosts conn webLogId pageNbr nbrPerPage =
@@ -83,89 +82,94 @@ let findPageOfAllPosts conn (webLogId : string) pageNbr nbrPerPage =
     .GetAll(webLogId).OptArg("index", "WebLogId")
     .OrderBy(r.Desc("PublishedOn"))
     .Slice((pageNbr - 1) * nbrPerPage, pageNbr * nbrPerPage)
-    .RunListAsync<Post>(conn)
+    .RunResultAsync<Post list>(conn)
   |> await
-  |> Seq.toList
 
 /// Try to find a post by its Id and web log Id
 let tryFindPost conn webLogId postId : Post option =
-  match r.Table(Table.Post)
-          .Get(postId)
-          .Filter(ReqlFunction1(fun p -> upcast p.["WebLogId"].Eq(webLogId)))
-          .RunAtomAsync<Post>(conn)
-        |> box with
-  | null -> None
-  | post -> Some <| unbox post
+  r.Table(Table.Post)
+    .Get(postId)
+    .Filter(ReqlFunction1(fun p -> upcast p.["WebLogId"].Eq(webLogId)))
+    .RunResultAsync<Post>(conn)
+  |> await
+  |> box
+  |> function null -> None | post -> Some <| unbox post
 
 /// Try to find a post by its permalink
 let tryFindPostByPermalink conn webLogId permalink =
   r.Table(Table.Post)
     .GetAll(r.Array(webLogId, permalink)).OptArg("index", "Permalink")
-    .Filter(fun p -> p.["Status"].Eq(PostStatus.Published))
+    .Filter(ReqlFunction1(fun p -> upcast p.["Status"].Eq(PostStatus.Published)))
     .Without("Revisions")
-    .Merge(fun p -> r.HashMap("Categories", r.Table(Table.Category)
-                                              .GetAll(p.["CategoryIds"])
-                                              .Without("Children")
-                                              .OrderBy("Name")
-                                              .CoerceTo("array")))
-    .Merge(fun p -> r.HashMap("Comments", r.Table(Table.Comment)
-                                            .GetAll(p.["Id"]).OptArg("index", "PostId")
-                                            .OrderBy("PostedOn")
-                                            .CoerceTo("array")))
-    .RunCursorAsync<Post>(conn)
+    .Merge(ReqlFunction1(fun p ->
+      upcast r.HashMap("Categories", r.Table(Table.Category)
+                                      .GetAll(p.["CategoryIds"])
+                                      .Without("Children")
+                                      .OrderBy("Name")
+                                      .CoerceTo("array"))))
+    .Merge(ReqlFunction1(fun p ->
+      upcast r.HashMap("Comments", r.Table(Table.Comment)
+                                    .GetAll(p.["id"]).OptArg("index", "PostId")
+                                    .OrderBy("PostedOn")
+                                    .CoerceTo("array"))))
+    .RunResultAsync<Post list>(conn)
   |> await
-  |> Seq.tryHead
+  |> List.tryHead
 
 /// Try to find a post by its prior permalink
 let tryFindPostByPriorPermalink conn (webLogId : string) (permalink : string) =
   r.Table(Table.Post)
     .GetAll(webLogId).OptArg("index", "WebLogId")
-    .Filter(fun p -> p.["PriorPermalinks"].Contains(permalink).And(p.["Status"].Eq(PostStatus.Published)))
+    .Filter(ReqlFunction1(fun p ->
+      upcast p.["PriorPermalinks"].Contains(permalink).And(p.["Status"].Eq(PostStatus.Published))))
     .Without("Revisions")
-    .RunCursorAsync<Post>(conn)
+    .RunResultAsync<Post list>(conn)
   |> await
-  |> Seq.tryHead
+  |> List.tryHead
 
 /// Get a set of posts for RSS
 let findFeedPosts conn webLogId nbr : (Post * User option) list =
   (publishedPosts webLogId)
-    .Merge(fun post -> r.HashMap("Categories", r.Table(Table.Category)
-                                                  .GetAll(post.["CategoryIds"])
-                                                  .OrderBy("Name")
-                                                  .Pluck("Id", "Name")
-                                                  .CoerceTo("array")))
+    .Merge(ReqlFunction1(fun post ->
+      upcast r.HashMap("Categories", r.Table(Table.Category)
+                                      .GetAll(post.["CategoryIds"])
+                                      .OrderBy("Name")
+                                      .Pluck("id", "Name")
+                                      .CoerceTo("array"))))
   |> toPostList conn 1 nbr
-  |> List.map (fun post -> post, match r.Table(Table.User)
-                                         .Get(post.AuthorId)
-                                         .RunAtomAsync<User>(conn)
-                                       |> await
-                                       |> box with
-                                 | null -> None
-                                 | user -> Some <| unbox user)
+  |> List.map (fun post -> post, r.Table(Table.User)
+                                   .Get(post.AuthorId)
+                                   .RunAtomAsync<User>(conn)
+                                 |> await
+                                 |> box
+                                 |> function null -> None | user -> Some <| unbox user)
 
 /// Add a post
 let addPost conn post =
   r.Table(Table.Post)
     .Insert(post)
     .RunResultAsync(conn)
+  |> await
   |> ignore
 
 /// Update a post
-let updatePost conn post =
+let updatePost conn (post : Post) =
   r.Table(Table.Post)
     .Get(post.Id)
     .Replace( { post with Categories = []
                           Comments   = [] } )
     .RunResultAsync(conn)
+  |> await
   |> ignore
   
 /// Save a post
-let savePost conn post =
+let savePost conn (post : Post) =
   match post.Id with
   | "new" -> let newPost = { post with Id = string <| System.Guid.NewGuid() }
              r.Table(Table.Post)
                .Insert(newPost)
                .RunResultAsync(conn)
+             |> await
              |> ignore
              newPost.Id
   | _ -> r.Table(Table.Post)
@@ -173,5 +177,6 @@ let savePost conn post =
            .Replace( { post with Categories = []
                                  Comments   = [] } )
            .RunResultAsync(conn)
+         |> await
          |> ignore
          post.Id

@@ -51,7 +51,7 @@ let tryFindPostByPriorPermalink (data : IMyWebLogData) webLogId permalink = data
 let findFeedPosts (data : IMyWebLogData) webLogId nbrOfPosts = data.FeedPosts webLogId nbrOfPosts
 
 /// Save a post
-let savePost (data : IMyWebLogData) post =
+let savePost (data : IMyWebLogData) (post : Post) =
   match post.Id with
   | "new" -> let newPost = { post with Id = string <| System.Guid.NewGuid() }
              data.AddPost newPost

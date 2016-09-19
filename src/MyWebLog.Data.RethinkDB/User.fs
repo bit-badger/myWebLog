@@ -1,6 +1,7 @@
 ﻿module MyWebLog.Data.RethinkDB.User
 
 open MyWebLog.Entities
+open RethinkDb.Driver.Ast
 
 let private r = RethinkDb.Driver.RethinkDB.R
 
@@ -11,7 +12,7 @@ let private r = RethinkDb.Driver.RethinkDB.R
 let tryUserLogOn conn (email : string) (passwordHash : string) =
   r.Table(Table.User)
     .GetAll(email).OptArg("index", "UserName")
-    .Filter(fun u -> u.["PasswordHash"].Eq(passwordHash))
-    .RunCursorAsync<User>(conn)
+    .Filter(ReqlFunction1(fun u -> upcast u.["PasswordHash"].Eq(passwordHash)))
+    .RunResultAsync<User list>(conn)
   |> await
-  |> Seq.tryHead
+  |> List.tryHead

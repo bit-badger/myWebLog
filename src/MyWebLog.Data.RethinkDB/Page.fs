@@ -9,7 +9,7 @@ let private r = RethinkDb.Driver.RethinkDB.R
 let tryFindPageById conn webLogId (pageId : string) includeRevs =
   let pg = r.Table(Table.Page)
              .Get(pageId)
-  match includeRevs with true -> pg.RunAtomAsync<Page>(conn) | _ -> pg.Without("Revisions").RunAtomAsync<Page>(conn)
+  match includeRevs with true -> pg.RunResultAsync<Page>(conn) | _ -> pg.Without("Revisions").RunResultAsync<Page>(conn)
   |> await
   |> box
   |> function
@@ -22,9 +22,9 @@ let tryFindPageByPermalink conn (webLogId : string) (permalink : string) =
   r.Table(Table.Page)
     .GetAll(r.Array(webLogId, permalink)).OptArg("index", "Permalink")
     .Without("Revisions")
-    .RunCursorAsync<Page>(conn)
+    .RunResultAsync<Page list>(conn)
   |> await
-  |> Seq.tryHead
+  |> List.tryHead
 
 /// Get a list of all pages (excludes page text and revisions)
 let findAllPages conn (webLogId : string) =
@@ -32,9 +32,8 @@ let findAllPages conn (webLogId : string) =
     .GetAll(webLogId).OptArg("index", "WebLogId")
     .OrderBy("Title")
     .Without("Text", "Revisions")
-    .RunListAsync<Page>(conn)
+    .RunResultAsync<Page list>(conn)
   |> await
-  |> Seq.toList
 
 /// Add a page
 let addPage conn (page : Page) =
