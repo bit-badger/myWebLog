@@ -9,7 +9,7 @@ let private r = RethinkDb.Driver.RethinkDB.R
 let private category (webLogId : string) (catId : string) =
   r.Table(Table.Category)
     .Get(catId)
-    .Filter(ReqlFunction1(fun c -> upcast c.["WebLogId"].Eq(webLogId)))
+    .Filter(ReqlFunction1 (fun c -> upcast c.["WebLogId"].Eq webLogId))
 
 /// Get all categories for a web log
 let getAllCategories conn (webLogId : string) =
@@ -99,7 +99,7 @@ let deleteCategory conn (cat : Category) =
     let! posts =
       r.Table(Table.Post)
         .GetAll(cat.WebLogId).OptArg("index", "WebLogId")
-        .Filter(ReqlFunction1(fun p -> upcast p.["CategoryIds"].Contains(cat.Id)))
+        .Filter(ReqlFunction1 (fun p -> upcast p.["CategoryIds"].Contains cat.Id))
         .RunResultAsync<Post list> conn
       |> Async.AwaitTask
     posts
@@ -119,7 +119,7 @@ let deleteCategory conn (cat : Category) =
     do! r.Table(Table.Category)
           .Get(cat.Id)
           .Delete()
-          .RunResultAsync(conn)
+          .RunResultAsync conn
     }
   |> Async.RunSynchronously
 
@@ -127,7 +127,7 @@ let deleteCategory conn (cat : Category) =
 let tryFindCategoryBySlug conn (webLogId : string) (slug : string) =
   async {
     let! cat = r.Table(Table.Category)
-                .GetAll(r.Array(webLogId, slug)).OptArg("index", "Slug")
+                .GetAll(r.Array (webLogId, slug)).OptArg("index", "Slug")
                 .RunResultAsync<Category list> conn
     return cat |> List.tryHead
     }

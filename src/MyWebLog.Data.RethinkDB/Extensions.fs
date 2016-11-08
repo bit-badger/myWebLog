@@ -3,8 +3,6 @@ module MyWebLog.Data.RethinkDB.Extensions
 
 open System.Threading.Tasks
 
-let await task = task |> Async.AwaitTask |> Async.RunSynchronously
-
 // H/T: Suave
 type AsyncBuilder with
   /// An extension method that overloads the standard 'Bind' of the 'async' builder. The new overload awaits on

@@ -11,13 +11,14 @@ let tryFindWebLogByUrlBase conn (urlBase : string) =
     let! cursor = 
       r.Table(Table.WebLog)
         .GetAll(urlBase).OptArg("index", "UrlBase")
-        .Merge(ReqlFunction1(fun w ->
-          upcast r.HashMap("PageList", r.Table(Table.Page)
-                                        .GetAll(w.G("id")).OptArg("index", "WebLogId")
-                                        .Filter(ReqlFunction1(fun pg -> upcast pg.["ShowInPageList"].Eq(true)))
-                                        .OrderBy("Title")
-                                        .Pluck("Title", "Permalink")
-                                        .CoerceTo("array"))))
+        .Merge(ReqlFunction1 (fun w ->
+          upcast r.HashMap(
+            "PageList", r.Table(Table.Page)
+                          .GetAll(w.G("id")).OptArg("index", "WebLogId")
+                          .Filter(ReqlFunction1 (fun pg -> upcast pg.["ShowInPageList"].Eq true))
+                          .OrderBy("Title")
+                          .Pluck("Title", "Permalink")
+                          .CoerceTo("array"))))
         .RunCursorAsync<WebLog> conn
     return cursor |> Seq.tryHead
     }
@@ -27,9 +28,11 @@ let tryFindWebLogByUrlBase conn (urlBase : string) =
 let findDashboardCounts conn (webLogId : string) =
   async {
     return!
-      r.Expr(  r.HashMap("Pages",      r.Table(Table.Page    ).GetAll(webLogId).OptArg("index", "WebLogId").Count()))
-        .Merge(r.HashMap("Posts",      r.Table(Table.Post    ).GetAll(webLogId).OptArg("index", "WebLogId").Count()))
-        .Merge(r.HashMap("Categories", r.Table(Table.Category).GetAll(webLogId).OptArg("index", "WebLogId").Count()))
+      r.Expr(
+        r.HashMap(
+          "Pages",      r.Table(Table.Page    ).GetAll(webLogId).OptArg("index", "WebLogId").Count()).With(
+          "Posts",      r.Table(Table.Post    ).GetAll(webLogId).OptArg("index", "WebLogId").Count()).With(
+          "Categories", r.Table(Table.Category).GetAll(webLogId).OptArg("index", "WebLogId").Count()))
         .RunResultAsync<DashboardCounts> conn
     }
   |> Async.RunSynchronously
