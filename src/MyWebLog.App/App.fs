@@ -155,9 +155,10 @@ type Startup() =
 
 
 let Run () =
-  WebHostBuilder()
-    .UseContentRoot(System.IO.Directory.GetCurrentDirectory())
-    .UseKestrel()
-    .UseStartup<Startup>()
-    .Build()
-    .Run()
+  use host = 
+    WebHostBuilder()
+      .UseContentRoot(System.IO.Directory.GetCurrentDirectory())
+      .UseKestrel()
+      .UseStartup<Startup>()
+      .Build()
+  host.Run()

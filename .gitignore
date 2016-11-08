@@ -252,3 +252,8 @@ paket-files/
 # JetBrains Rider
 .idea/
 *.sln.iml
+
+# Personal themes used to test initial release
+src/MyWebLog/views/themes/daniel-j-summers
+src/MyWebLog/views/themes/daniels-weekly-devotions
+src/MyWebLog/views/themes/djs-consulting

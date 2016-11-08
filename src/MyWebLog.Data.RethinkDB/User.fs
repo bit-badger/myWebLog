@@ -10,9 +10,12 @@ let private r = RethinkDb.Driver.RethinkDB.R
 //       including it in an index does not get any performance gain, and would unnecessarily bloat the index. See
 //       http://rethinkdb.com/docs/secondary-indexes/java/ for more information.
 let tryUserLogOn conn (email : string) (passwordHash : string) =
-  r.Table(Table.User)
-    .GetAll(email).OptArg("index", "UserName")
-    .Filter(ReqlFunction1(fun u -> upcast u.["PasswordHash"].Eq(passwordHash)))
-    .RunResultAsync<User list>(conn)
-  |> await
-  |> List.tryHead
+  async {
+    let! user =
+      r.Table(Table.User)
+        .GetAll(email).OptArg("index", "UserName")
+        .Filter(ReqlFunction1(fun u -> upcast u.["PasswordHash"].Eq(passwordHash)))
+        .RunResultAsync<User list> conn
+    return user |> List.tryHead
+    }
+  |> Async.RunSynchronously

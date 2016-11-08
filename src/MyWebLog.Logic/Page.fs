@@ -19,7 +19,7 @@ let findAllPages (data : IMyWebLogData) webLogId = data.AllPages webLogId
 /// Save a page
 let savePage (data : IMyWebLogData) (page : Page) =
   match page.Id with
-  | "new" -> let newPg = { page with Id = string <| System.Guid.NewGuid() }
+  | "new" -> let newPg = { page with Id = string <| System.Guid.NewGuid () }
              data.AddPage newPg
              newPg.Id
   | _ -> data.UpdatePage page

@@ -13,7 +13,14 @@ open Nancy.Session.Persistable
 open NodaTime
 open RethinkDb.Driver.Net
 open System
-//open System.ServiceModel.Syndication
+open System.Xml.Linq
+
+type NewsItem =
+  { Title : string 
+    Link : string
+    ReleaseDate : DateTime 
+    Description : string
+  }
 
 /// Routes dealing with posts (including the home page, /tag, /category, RSS, and catch-all routes)
 type PostModule(data : IMyWebLogData, clock : IClock) as this =
@@ -28,8 +35,45 @@ type PostModule(data : IMyWebLogData, clock : IClock) as this =
 
   /// Generate an RSS/Atom feed of the latest posts
   let generateFeed format : obj =
-    this.NotFound ()
-    (* let posts  = findFeedPosts data this.WebLog.Id 10
+    let myChannelFeed channelTitle channelLink channelDescription (items : NewsItem list) =
+      let xn = XName.Get
+      let elem name (valu:string) = XElement(xn name, valu)
+      let elems =
+        items
+        |> List.sortBy (fun i -> i.ReleaseDate) 
+        |> List.map (fun i ->
+            XElement
+              (xn "item",
+               elem "title" (System.Net.WebUtility.HtmlEncode i.Title),
+               elem "link" i.Link,
+               elem "guid" i.Link,
+               elem "pubDate" (i.ReleaseDate.ToString "r"),
+               elem "description" (System.Net.WebUtility.HtmlEncode i.Description)
+            ))
+      XDocument(
+        XDeclaration("1.0", "utf-8", "yes"),
+        XElement
+          (xn "rss",
+           XAttribute(xn "version", "2.0"),
+           elem "title" channelTitle,
+           elem "link" channelLink,
+           elem "description" (defaultArg channelDescription ""),
+           elem "language" "en-us",
+           XElement(xn "channel", elems))
+        |> box)
+      |> box
+    let schemeAndUrl = sprintf "%s://%s" this.Request.Url.Scheme this.WebLog.UrlBase
+    findFeedPosts data this.WebLog.Id 10
+    |> List.map (fun (post, _) ->
+        { Title       = post.Title
+          Link        = sprintf "%s/%s" schemeAndUrl post.Permalink
+          ReleaseDate = Instant.FromUnixTimeTicks(post.PublishedOn).ToDateTimeOffset().DateTime
+          Description = post.Text
+          })
+    |> myChannelFeed this.WebLog.Name schemeAndUrl this.WebLog.Subtitle
+    // TODO: how to return this?
+
+    (* 
     let feed   =
       SyndicationFeed(
         this.WebLog.Name, defaultArg this.WebLog.Subtitle null,

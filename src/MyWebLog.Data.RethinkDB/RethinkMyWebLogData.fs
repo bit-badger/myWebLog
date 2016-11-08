@@ -6,42 +6,42 @@ open RethinkDb.Driver.Net
 /// RethinkDB implementation of myWebLog data persistence
 type RethinkMyWebLogData(conn : IConnection, cfg : DataConfig) =
   interface IMyWebLogData with
-    member this.SetUp = fun () -> SetUp.startUpCheck cfg
+    member __.SetUp = fun () -> SetUp.startUpCheck cfg
     
-    member this.AllCategories  = Category.getAllCategories         conn
-    member this.CategoryById   = Category.tryFindCategory          conn
-    member this.CategoryBySlug = Category.tryFindCategoryBySlug    conn
-    member this.AddCategory    = Category.addCategory              conn
-    member this.UpdateCategory = Category.updateCategory           conn
-    member this.UpdateChildren = Category.updateChildren           conn
-    member this.DeleteCategory = Category.deleteCategory           conn
+    member __.AllCategories  = Category.getAllCategories         conn
+    member __.CategoryById   = Category.tryFindCategory          conn
+    member __.CategoryBySlug = Category.tryFindCategoryBySlug    conn
+    member __.AddCategory    = Category.addCategory              conn
+    member __.UpdateCategory = Category.updateCategory           conn
+    member __.UpdateChildren = Category.updateChildren           conn
+    member __.DeleteCategory = Category.deleteCategory           conn
 
-    member this.PageById        = Page.tryFindPageById             conn
-    member this.PageByPermalink = Page.tryFindPageByPermalink      conn
-    member this.AllPages        = Page.findAllPages                conn
-    member this.AddPage         = Page.addPage                     conn
-    member this.UpdatePage      = Page.updatePage                  conn
-    member this.DeletePage      = Page.deletePage                  conn
+    member __.PageById        = Page.tryFindPageById             conn
+    member __.PageByPermalink = Page.tryFindPageByPermalink      conn
+    member __.AllPages        = Page.findAllPages                conn
+    member __.AddPage         = Page.addPage                     conn
+    member __.UpdatePage      = Page.updatePage                  conn
+    member __.DeletePage      = Page.deletePage                  conn
 
-    member this.PageOfPublishedPosts   = Post.findPageOfPublishedPosts    conn
-    member this.PageOfCategorizedPosts = Post.findPageOfCategorizedPosts  conn
-    member this.PageOfTaggedPosts      = Post.findPageOfTaggedPosts       conn
-    member this.NewerPost              = Post.tryFindNewerPost            conn
-    member this.NewerCategorizedPost   = Post.tryFindNewerCategorizedPost conn
-    member this.NewerTaggedPost        = Post.tryFindNewerTaggedPost      conn
-    member this.OlderPost              = Post.tryFindOlderPost            conn
-    member this.OlderCategorizedPost   = Post.tryFindOlderCategorizedPost conn
-    member this.OlderTaggedPost        = Post.tryFindOlderTaggedPost      conn
-    member this.PageOfAllPosts         = Post.findPageOfAllPosts          conn
-    member this.PostById               = Post.tryFindPost                 conn
-    member this.PostByPermalink        = Post.tryFindPostByPermalink      conn
-    member this.PostByPriorPermalink   = Post.tryFindPostByPriorPermalink conn
-    member this.FeedPosts              = Post.findFeedPosts               conn
-    member this.AddPost                = Post.addPost                     conn
-    member this.UpdatePost             = Post.updatePost                  conn
+    member __.PageOfPublishedPosts   = Post.findPageOfPublishedPosts    conn
+    member __.PageOfCategorizedPosts = Post.findPageOfCategorizedPosts  conn
+    member __.PageOfTaggedPosts      = Post.findPageOfTaggedPosts       conn
+    member __.NewerPost              = Post.tryFindNewerPost            conn
+    member __.NewerCategorizedPost   = Post.tryFindNewerCategorizedPost conn
+    member __.NewerTaggedPost        = Post.tryFindNewerTaggedPost      conn
+    member __.OlderPost              = Post.tryFindOlderPost            conn
+    member __.OlderCategorizedPost   = Post.tryFindOlderCategorizedPost conn
+    member __.OlderTaggedPost        = Post.tryFindOlderTaggedPost      conn
+    member __.PageOfAllPosts         = Post.findPageOfAllPosts          conn
+    member __.PostById               = Post.tryFindPost                 conn
+    member __.PostByPermalink        = Post.tryFindPostByPermalink      conn
+    member __.PostByPriorPermalink   = Post.tryFindPostByPriorPermalink conn
+    member __.FeedPosts              = Post.findFeedPosts               conn
+    member __.AddPost                = Post.addPost                     conn
+    member __.UpdatePost             = Post.updatePost                  conn
 
-    member this.LogOn = User.tryUserLogOn conn
+    member __.LogOn = User.tryUserLogOn conn
 
-    member this.WebLogByUrlBase = WebLog.tryFindWebLogByUrlBase conn
-    member this.DashboardCounts = WebLog.findDashboardCounts    conn
+    member __.WebLogByUrlBase = WebLog.tryFindWebLogByUrlBase conn
+    member __.DashboardCounts = WebLog.findDashboardCounts    conn
     
