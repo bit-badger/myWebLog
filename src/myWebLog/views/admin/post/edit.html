@@ -5,6 +5,9 @@
     @AntiForgeryToken
     <div class="row">
       <div class="col-sm-9">
+        <a href="/posts/list" class="btn btn-default">
+          <i class="fa fa-list-ul"></i> @Translate.BackToPostList
+        </a>
         <div class="form-group">
           <label class="control-label" for="Title">@Translate.Title</label>
           <input type="text" name="Title" id="Title" class="form-control" value="@Model.Form.Title" />
@@ -12,10 +15,10 @@
         <div class="form-group">
           <label class="control-label" for="Permalink">@Translate.Permalink</label>
           <input type="text" name="Permalink" id="Permalink" class="form-control" value="@Model.Form.Permalink" />
-          <!-- // FIXME: hard-coded "http" -->
-          <p class="form-hint"><em>@Translate.startingWith</em> http://@Model.WebLog.UrlBase/ </p>
+          <p class="form-hint"><em>@Translate.startingWith</em> //@Model.WebLog.UrlBase/ </p>
         </div>
         <!-- // TODO: Markdown / HTML choice -->
+        <input type="hidden" name="Source" value="html" />
         <div class="form-group">
           <textarea name="Text" id="Text" rows="15">@Model.Form.Text</textarea>
         </div>
@@ -49,7 +52,7 @@
           <div class="panel-body" style="max-height:350px;overflow:scroll;">
             @Each.Categories
               @Current.Indent
-              <input type="checkbox" id="Category-@Current.Id" name="Category" value="@Current.Id" @Current.CheckedAttr />
+              <input type="checkbox" id="Category-@Current.Id" name="Categories" value="@Current.Id" @Current.CheckedAttr />
               &nbsp;
               <label for="Category-@Current.Id" title="@Current.Description">@Current.Name</label>
               <br/>
@@ -62,7 +65,7 @@
           @EndIf
           @IfNot.IsPublished
             <div>
-              <input type="checkbox" name="PublishNow" id="PublishNow" value="true" checked="checked" />
+              <input type="checkbox" name="PublishNow" id="PublishNow" value="true" @Model.PublishNowCheckedAttr />
               &nbsp; <label for="PublishNow">@Translate.PublishThisPost</label>
             </div>
           @EndIf

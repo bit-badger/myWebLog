@@ -5,12 +5,6 @@ open RethinkDb.Driver.Ast
 
 let private r = RethinkDb.Driver.RethinkDB.R
 
-/// Shorthand to get a category by Id and filter by web log Id
-let private category (webLogId : string) (catId : string) =
-  r.Table(Table.Category)
-    .Get(catId)
-    .Filter(ReqlFunction1 (fun c -> upcast c.["WebLogId"].Eq webLogId))
-
 /// Get all categories for a web log
 let getAllCategories conn (webLogId : string) =
   async {
@@ -24,10 +18,16 @@ let getAllCategories conn (webLogId : string) =
 /// Get a specific category by its Id
 let tryFindCategory conn webLogId catId : Category option =
   async {
-    let! catt = (category webLogId catId).RunResultAsync<Category> conn
-    return catt
-    |> box
-    |> function null -> None | cat -> Some <| unbox cat
+    let! c =
+      r.Table(Table.Category)
+        .Get(catId)
+        .RunResultAsync<Category> conn
+    return 
+      match box c with
+      | null -> None
+      | catt ->
+          let cat : Category = unbox catt
+          match cat.WebLogId = webLogId with true -> Some cat | _ -> None
     }
   |> Async.RunSynchronously
 
@@ -48,53 +48,63 @@ type CategoryUpdateRecord =
   }
 /// Update a category
 let updateCategory conn (cat : Category) =
-  async {
-    do! (category cat.WebLogId cat.Id)
-          .Update({ CategoryUpdateRecord.Name = cat.Name
+  match tryFindCategory conn cat.WebLogId cat.Id with
+  | Some _ ->
+      async {
+          do! r.Table(Table.Category)
+                .Get(cat.Id)
+                .Update(
+                  { CategoryUpdateRecord.Name = cat.Name
                     Slug        = cat.Slug
                     Description = cat.Description
                     ParentId    = cat.ParentId
                     })
-          .RunResultAsync conn
-    }
-  |> Async.RunSynchronously
+                .RunResultAsync conn
+        }
+      |> Async.RunSynchronously
+  | _ -> ()
 
-type CategoryChildrenUpdateRecord =
-  { Children : string list }
 /// Update a category's children
 let updateChildren conn webLogId parentId (children : string list) =
-  async {
-    do! (category webLogId parentId)
-          .Update({ CategoryChildrenUpdateRecord.Children = children })
-          .RunResultAsync conn
-    }
-  |> Async.RunSynchronously
+  match tryFindCategory conn webLogId parentId with
+  | Some _ ->
+      async {
+        do! r.Table(Table.Category)
+              .Get(parentId)
+              .Update(dict [ "Children", children ])
+              .RunResultAsync conn
+        }
+      |> Async.RunSynchronously
+  | _ -> ()
 
-type CategoryParentUpdateRecord =
-  { ParentId : string option }
-type PostCategoriesUpdateRecord =
-  { CategoryIds : string list }
 /// Delete a category
 let deleteCategory conn (cat : Category) =
   async {
     // Remove the category from its parent
     match cat.ParentId with
-    | Some parentId -> match tryFindCategory conn cat.WebLogId parentId with
-                       | Some parent -> parent.Children
-                                        |> List.filter (fun childId -> childId <> cat.Id)
-                                        |> updateChildren conn cat.WebLogId parentId
-                       | _ -> ()
+    | Some parentId ->
+        match tryFindCategory conn cat.WebLogId parentId with
+        | Some parent -> parent.Children
+                         |> List.filter (fun childId -> childId <> cat.Id)
+                         |> updateChildren conn cat.WebLogId parentId
+        | _ -> ()
     | _ -> ()
     // Move this category's children to its parent
-    let newParent = { CategoryParentUpdateRecord.ParentId = cat.ParentId }
     cat.Children
     |> List.map  (fun childId ->
-        async {
-          do! (category cat.WebLogId childId)
-                .Update(newParent)
-                .RunResultAsync conn
-          })
-    |> List.iter Async.RunSynchronously
+        match tryFindCategory conn cat.WebLogId childId with
+        | Some _ ->
+            async {
+              do! r.Table(Table.Category)
+                    .Get(childId)
+                    .Update(dict [ "ParentId", cat.ParentId ])
+                    .RunResultAsync conn
+              }
+            |> Some
+        | _ -> None)
+    |> List.filter Option.isSome
+    |> List.map    Option.get
+    |> List.iter   Async.RunSynchronously
     // Remove the category from posts where it is assigned
     let! posts =
       r.Table(Table.Post)
@@ -105,13 +115,9 @@ let deleteCategory conn (cat : Category) =
     posts
     |> List.map (fun post ->
         async {
-          let newCats = 
-            { PostCategoriesUpdateRecord.CategoryIds = post.CategoryIds
-                                                       |> List.filter (fun c -> c <> cat.Id)
-            }
           do! r.Table(Table.Post)
                 .Get(post.Id)
-                .Update(newCats)
+                .Update(dict [ "CategoryIds", post.CategoryIds |> List.filter (fun c -> c <> cat.Id) ])
                 .RunResultAsync conn
           })
     |> List.iter Async.RunSynchronously

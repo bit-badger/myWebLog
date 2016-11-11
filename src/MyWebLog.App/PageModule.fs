@@ -53,22 +53,26 @@ type PageModule (data : IMyWebLogData, clock : IClock) as this =
     let pageId = parameters.["id"].ToString ()
     let form   = this.Bind<EditPageForm> ()
     let now    = clock.GetCurrentInstant().ToUnixTimeTicks ()
-    match pageId with "new" -> Some Page.Empty | _ -> tryFindPage data this.WebLog.Id pageId
+    match pageId with "new" -> Some Page.Empty | _ -> tryFindPage data this.WebLog.Id pageId 
     |> function
     | Some p ->
         let page = match pageId with "new" -> { p with WebLogId = this.WebLog.Id } | _ -> p
-        let pId = { p with
-                      Title       = form.Title
-                      Permalink   = form.Permalink
-                      PublishedOn = match pageId with "new" -> now | _ -> page.PublishedOn
-                      UpdatedOn   = now
-                      Text        = match form.Source with
-                                    | RevisionSource.Markdown -> (* Markdown.TransformHtml *) form.Text
-                                    | _ -> form.Text
-                      Revisions   = { AsOf       = now
-                                      SourceType = form.Source
-                                      Text       = form.Text } :: page.Revisions }
-                  |> savePage data
+        let pId =
+          { p with
+              Title          = form.Title
+              Permalink      = form.Permalink
+              PublishedOn    = match pageId with "new" -> now | _ -> page.PublishedOn
+              UpdatedOn      = now
+              ShowInPageList = form.ShowInPageList
+              Text           = match form.Source with
+                               | RevisionSource.Markdown -> (* Markdown.TransformHtml *) form.Text
+                               | _ -> form.Text
+              Revisions      = { AsOf       = now
+                                 SourceType = form.Source
+                                 Text       = form.Text
+                                 } :: page.Revisions
+            }
+          |> savePage data
         let model = MyWebLogModel (this.Context, this.WebLog)
         { UserMessage.Empty with
             Level   = Level.Info

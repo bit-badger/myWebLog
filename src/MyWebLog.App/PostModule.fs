@@ -269,7 +269,7 @@ type PostModule(data : IMyWebLogData, clock : IClock) as this =
     match postId with "new" -> Some Post.Empty | _ -> tryFindPost data this.WebLog.Id postId
     |> function
     | Some p ->
-        let justPublished = p.PublishedOn = int64 0 && form.PublishNow
+        let justPublished = p.PublishedOn = 0L && form.PublishNow
         let post = match postId with
                    | "new" -> { p with
                                   WebLogId = this.WebLog.Id
@@ -281,7 +281,7 @@ type PostModule(data : IMyWebLogData, clock : IClock) as this =
               Status      = match form.PublishNow with true -> PostStatus.Published | _ -> PostStatus.Draft
               Title       = form.Title
               Permalink   = form.Permalink
-              PublishedOn = match justPublished with true -> now | _ -> int64 0
+              PublishedOn = match justPublished with true -> now | _ -> post.PublishedOn
               UpdatedOn   = now
               Text        = match form.Source with
                             | RevisionSource.Markdown -> (* Markdown.TransformHtml *) form.Text
@@ -289,6 +289,7 @@ type PostModule(data : IMyWebLogData, clock : IClock) as this =
               CategoryIds = Array.toList form.Categories
               Tags        = form.Tags.Split ','
                             |> Seq.map (fun t -> t.Trim().ToLowerInvariant ())
+                            |> Seq.sort
                             |> Seq.toList
               Revisions   = { AsOf       = now
                               SourceType = form.Source

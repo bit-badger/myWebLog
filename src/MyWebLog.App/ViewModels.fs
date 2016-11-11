@@ -220,6 +220,8 @@ type CategoryEditModel (ctx, webLog, category) =
   inherit MyWebLogModel (ctx, webLog)
   /// The form with the category information
   member val Form = CategoryForm (category) with get, set
+  /// The category being edited
+  member val Category = category
   /// The categories
   member val Categories : IndentedCategory list = [] with get, set
 
@@ -336,9 +338,15 @@ type PostForDisplay (webLog : WebLog, post : Post) =
   /// The time zone for the web log to which this post belongs
   member this.TimeZone = webLog.TimeZone
   /// The date the post was published
-  member this.PublishedDate = FormatDateTime.longDate this.TimeZone this.Post.PublishedOn
+  member this.PublishedDate =
+    match this.Post.Status with
+    | PostStatus.Published -> FormatDateTime.longDate this.TimeZone this.Post.PublishedOn
+    | _ -> FormatDateTime.longDate this.TimeZone this.Post.UpdatedOn
   /// The time the post was published
-  member this.PublishedTime = FormatDateTime.time this.TimeZone this.Post.PublishedOn
+  member this.PublishedTime =
+    match this.Post.Status with
+    | PostStatus.Published -> FormatDateTime.time this.TimeZone this.Post.PublishedOn
+    | _ -> FormatDateTime.time this.TimeZone this.Post.UpdatedOn
   /// Tags
   member this.Tags =
     match List.length this.Post.Tags with
@@ -389,14 +397,17 @@ type EditPostForm () =
   /// The selected category Ids for the post
   member val Categories : string[] = [||] with get, set
   /// Whether the post should be published
-  member val PublishNow = true with get, set
+  member val PublishNow = false with get, set
 
   /// Fill the form with applicable values from a post
   member this.ForPost (post : Post) =
     this.Title      <- post.Title
     this.Permalink  <- post.Permalink
-    this.Tags       <- List.reduce (fun acc x -> sprintf "%s, %s" acc x) post.Tags
+    this.Tags       <- match List.isEmpty post.Tags with
+                       | true -> ""
+                       | _ -> List.reduce (fun acc x -> sprintf "%s, %s" acc x) post.Tags
     this.Categories <- List.toArray post.CategoryIds
+    this.PublishNow <- post.Status = PostStatus.Published || "new" = post.Id
     this
 
   /// Fill the form with applicable values from a revision
@@ -412,7 +423,7 @@ type DisplayCategory = {
   Name : string
   Description : string
   IsChecked : bool
-  } 
+  }
 with
   /// Create a display category
   static member Create (cat : Category, indent) isChecked =
@@ -442,6 +453,8 @@ type EditPostModel (ctx, webLog, post, revision) =
   member this.PublishedDate = this.DisplayLongDate this.Post.PublishedOn
   /// The published time
   member this.PublishedTime = this.DisplayTime this.Post.PublishedOn
+  /// The "checked" attribute for the Publish Now box
+  member this.PublishNowCheckedAttr = match this.Form.PublishNow with true -> "checked=\"checked\"" | _ -> "" 
 
 
 // ---- User models ----

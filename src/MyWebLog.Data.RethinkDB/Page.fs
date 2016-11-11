@@ -62,6 +62,7 @@ type PageUpdateRecord =
     Permalink : string
     PublishedOn : int64
     UpdatedOn : int64
+    ShowInPageList : bool
     Text : string
     Revisions : Revision list }
 /// Update a page
@@ -75,6 +76,7 @@ let updatePage conn (page : Page) =
                         Permalink = page.Permalink
                         PublishedOn = page.PublishedOn
                         UpdatedOn = page.UpdatedOn
+                        ShowInPageList = page.ShowInPageList
                         Text = page.Text
                         Revisions = page.Revisions })
               .RunResultAsync conn

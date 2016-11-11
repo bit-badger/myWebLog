@@ -85,10 +85,12 @@ let tryFindOlderTaggedPost conn (tag : string) post =
 let findPageOfAllPosts conn (webLogId : string) pageNbr nbrPerPage =
   // FIXME: sort unpublished posts by their last updated date
   async {
+  //  .orderBy(r.desc(r.branch(r.row("Status").eq("Published"), r.row("PublishedOn"), r.row("UpdatedOn"))))
     return!
       r.Table(Table.Post)
         .GetAll(webLogId).OptArg("index", "WebLogId")
-        .OrderBy(r.Desc "PublishedOn")
+        .OrderBy(r.Desc (ReqlFunction1 (fun p ->
+            upcast r.Branch (p.["Status"].Eq("Published"), p.["PublishedOn"], p.["UpdatedOn"]))))
         .Slice((pageNbr - 1) * nbrPerPage, pageNbr * nbrPerPage)
         .RunResultAsync<Post list> conn
     }

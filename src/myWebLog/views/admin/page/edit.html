@@ -5,6 +5,9 @@
     @AntiForgeryToken
     <div class="row">
       <div class="col-sm-9">
+        <a href="/pages" class="btn btn-default">
+          <i class="fa fa-list-ul"></i> @Translate.BackToPageList
+        </a>
         <div class="form-group">
           <label class="control-label" for="Title">@Translate.Title</label>
           <input type="text" name="Title" id="Title" class="form-control" value="@Model.Form.Title" />
@@ -12,10 +15,11 @@
         <div class="form-group">
           <label class="control-label" for="Permalink">@Translate.Permalink</label>
           <input type="text" name="Permalink" id="Permalink" class="form-control" value="@Model.Form.Permalink" />
-          <p class="form-hint"><em>@Translate.startingWith</em> http://@Model.WebLog.UrlBase/ </p>
+          <p class="form-hint"><em>@Translate.startingWith</em> //@Model.WebLog.UrlBase/</p>
         </div>
         <!-- // TODO: Markdown / HTML choice -->
-       <div class="form-group">
+        <input type="hidden" name="Source" value="html" />
+        <div class="form-group">
           <textarea name="Text" id="Text" rows="15" class="form-control">@Model.Form.Text</textarea>
         </div>
       </div>
@@ -34,7 +38,7 @@
               </div>
             @EndIf
             <div class="form-group">
-              <input type="checkbox" name="ShowInPageList" id="ShowInPageList" @Model.PageListChecked />
+              <input type="checkbox" name="ShowInPageList" id="ShowInPageList" value="true" @Model.PageListChecked />
               &nbsp; <label for="ShowInPageList">@Translate.ShowInPageList</label>
             </div>
           </div>
