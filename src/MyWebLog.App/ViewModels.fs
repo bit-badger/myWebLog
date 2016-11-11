@@ -86,15 +86,15 @@ module FormatDateTime =
   /// Display the time
   let time timeZone ticks =
     (zonedTime timeZone ticks
-     |> ZonedDateTimePattern.CreateWithCurrentCulture("h':'mmtt", DateTimeZoneProviders.Tzdb).Format).ToLower()
+     |> ZonedDateTimePattern.CreateWithCurrentCulture("h':'mmtt", DateTimeZoneProviders.Tzdb).Format).ToLower ()
   
 
 /// Parent view model for all myWebLog views
-type MyWebLogModel(ctx : NancyContext, webLog : WebLog) =
+type MyWebLogModel (ctx : NancyContext, webLog : WebLog) =
   
   /// Get the messages from the session
   let getMessages () =
-    let msg = ctx.Request.PersistableSession.GetOrDefault<UserMessage list>(Keys.Messages, [])
+    let msg = ctx.Request.PersistableSession.GetOrDefault<UserMessage list> (Keys.Messages, [])
     match List.length msg with
     | 0 -> ()
     | _ -> ctx.Request.Session.Delete Keys.Messages
@@ -107,7 +107,7 @@ type MyWebLogModel(ctx : NancyContext, webLog : WebLog) =
   /// User messages
   member val Messages = getMessages () with get, set
   /// The currently logged in user
-  member this.User = ctx.Request.PersistableSession.GetOrDefault<User>(Keys.User, User.Empty)
+  member this.User = ctx.Request.PersistableSession.GetOrDefault<User> (Keys.User, User.Empty)
   /// The title of the page
   member val PageTitle = "" with get, set
   /// The name and version of the application
@@ -128,9 +128,10 @@ type MyWebLogModel(ctx : NancyContext, webLog : WebLog) =
   /// The page title with the web log name appended
   member this.DisplayPageTitle =
     match this.PageTitle with
-    | "" -> match this.WebLog.Subtitle with
-            | Some st -> sprintf "%s | %s" this.WebLog.Name st
-            | None -> this.WebLog.Name
+    | "" ->
+        match this.WebLog.Subtitle with
+        | Some st -> sprintf "%s | %s" this.WebLog.Name st
+        | None -> this.WebLog.Name
     | pt -> sprintf "%s | %s" pt this.WebLog.Name
 
   /// An image with the version and load time in the tool tip
@@ -151,8 +152,8 @@ type MyWebLogModel(ctx : NancyContext, webLog : WebLog) =
 // ---- Admin models ----
 
 /// Admin Dashboard view model
-type DashboardModel(ctx, webLog, counts : DashboardCounts) =
-  inherit MyWebLogModel(ctx, webLog)
+type DashboardModel (ctx, webLog, counts : DashboardCounts) =
+  inherit MyWebLogModel (ctx, webLog)
   /// The number of posts for the current web log
   member val Posts = counts.Posts with get, set
   /// The number of pages for the current web log
@@ -190,15 +191,15 @@ with
 
 
 /// Model for the list of categories
-type CategoryListModel(ctx, webLog, categories) =
-  inherit MyWebLogModel(ctx, webLog)
+type CategoryListModel (ctx, webLog, categories) =
+  inherit MyWebLogModel (ctx, webLog)
   /// The categories
   member this.Categories : IndentedCategory list = categories
 
 
 /// Form for editing a category
-type CategoryForm(category : Category) =
-  new() = CategoryForm(Category.Empty)
+type CategoryForm (category : Category) =
+  new() = CategoryForm (Category.Empty)
   /// The name of the category
   member val Name = category.Name with get, set
   /// The slug of the category (used in category URLs)
@@ -209,10 +210,10 @@ type CategoryForm(category : Category) =
   member val ParentId = defaultArg category.ParentId "" with get, set
 
 /// Model for editing a category
-type CategoryEditModel(ctx, webLog, category) =
-  inherit MyWebLogModel(ctx, webLog)
+type CategoryEditModel (ctx, webLog, category) =
+  inherit MyWebLogModel (ctx, webLog)
   /// The form with the category information
-  member val Form = CategoryForm(category) with get, set
+  member val Form = CategoryForm (category) with get, set
   /// The categories
   member val Categories : IndentedCategory list = [] with get, set
 
@@ -220,14 +221,14 @@ type CategoryEditModel(ctx, webLog, category) =
 // ---- Page models ----
 
 /// Model for page display
-type PageModel(ctx, webLog, page) =
-  inherit MyWebLogModel(ctx, webLog)
+type PageModel (ctx, webLog, page) =
+  inherit MyWebLogModel (ctx, webLog)
   /// The page to be displayed
   member this.Page : Page = page
 
 
 /// Wrapper for a page with additional properties
-type PageForDisplay(webLog, page) =
+type PageForDisplay (webLog, page) =
   /// The page
   member this.Page : Page = page
   /// The time zone of the web log
@@ -239,8 +240,8 @@ type PageForDisplay(webLog, page) =
 
 
 /// Model for page list display
-type PagesModel(ctx, webLog, pages) =
-  inherit MyWebLogModel(ctx, webLog)
+type PagesModel (ctx, webLog, pages) =
+  inherit MyWebLogModel (ctx, webLog)
   /// The pages
   member this.Pages : PageForDisplay list = pages
 
@@ -273,8 +274,8 @@ type EditPageForm() =
 
 
 /// Model for the edit page page
-type EditPageModel(ctx, webLog, page, revision) =
-  inherit MyWebLogModel(ctx, webLog)
+type EditPageModel (ctx, webLog, page, revision) =
+  inherit MyWebLogModel (ctx, webLog)
   /// The page edit form
   member val Form = EditPageForm().ForPage(page).ForRevision(revision)
   /// The page itself
@@ -296,8 +297,8 @@ type EditPageModel(ctx, webLog, page, revision) =
 // ---- Post models ----
 
 /// Model for single post display
-type PostModel(ctx, webLog, post) =
-  inherit MyWebLogModel(ctx, webLog)
+type PostModel (ctx, webLog, post) =
+  inherit MyWebLogModel (ctx, webLog)
   /// The post being displayed
   member this.Post : Post = post
   /// The next newer post
@@ -321,7 +322,7 @@ type PostModel(ctx, webLog, post) =
 
 
 /// Wrapper for a post with additional properties
-type PostForDisplay(webLog : WebLog, post : Post) =
+type PostForDisplay (webLog : WebLog, post : Post) =
   /// Turn tags into a pipe-delimited string of tags
   let pipedTags tags = tags |> List.reduce (fun acc x -> sprintf "%s | %s" acc x)
   /// The actual post
@@ -342,8 +343,8 @@ type PostForDisplay(webLog : WebLog, post : Post) =
 
 
 /// Model for all page-of-posts pages
-type PostsModel(ctx, webLog) =
-  inherit MyWebLogModel(ctx, webLog)
+type PostsModel (ctx, webLog) =
+  inherit MyWebLogModel (ctx, webLog)
   /// The subtitle for the page
   member val Subtitle : string option = None with get, set
   /// The posts to display
@@ -368,7 +369,7 @@ type PostsModel(ctx, webLog) =
 
 
 /// Form for editing a post
-type EditPostForm() =
+type EditPostForm () =
   /// The title of the post
   member val Title = "" with get, set
   /// The permalink for the post
@@ -399,8 +400,8 @@ type EditPostForm() =
     this
 
 /// View model for the edit post page
-type EditPostModel(ctx, webLog, post, revision) =
-  inherit MyWebLogModel(ctx, webLog)
+type EditPostModel (ctx, webLog, post, revision) =
+  inherit MyWebLogModel (ctx, webLog)
 
   /// The form
   member val Form = EditPostForm().ForPost(post).ForRevision(revision) with get, set
@@ -419,7 +420,7 @@ type EditPostModel(ctx, webLog, post, revision) =
 // ---- User models ----
 
 /// Form for the log on page
-type LogOnForm() =
+type LogOnForm () =
   /// The URL to which the user will be directed upon successful log on
   member val ReturnUrl = "" with get, set
   /// The e-mail address
@@ -429,7 +430,7 @@ type LogOnForm() =
 
 
 /// Model to support the user log on page
-type LogOnModel(ctx, webLog) =
-  inherit MyWebLogModel(ctx, webLog)
+type LogOnModel (ctx, webLog) =
+  inherit MyWebLogModel (ctx, webLog)
   /// The log on form
-  member val Form = LogOnForm() with get, set
+  member val Form = LogOnForm () with get, set

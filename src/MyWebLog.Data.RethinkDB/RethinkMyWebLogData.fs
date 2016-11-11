@@ -40,7 +40,8 @@ type RethinkMyWebLogData(conn : IConnection, cfg : DataConfig) =
     member __.AddPost                = Post.addPost                     conn
     member __.UpdatePost             = Post.updatePost                  conn
 
-    member __.LogOn = User.tryUserLogOn conn
+    member __.LogOn           = User.tryUserLogOn conn
+    member __.SetUserPassword = User.setUserPassword conn
 
     member __.WebLogByUrlBase = WebLog.tryFindWebLogByUrlBase conn
     member __.DashboardCounts = WebLog.findDashboardCounts    conn

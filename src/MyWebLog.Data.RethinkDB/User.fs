@@ -14,8 +14,18 @@ let tryUserLogOn conn (email : string) (passwordHash : string) =
     let! user =
       r.Table(Table.User)
         .GetAll(email).OptArg("index", "UserName")
-        .Filter(ReqlFunction1(fun u -> upcast u.["PasswordHash"].Eq(passwordHash)))
+        .Filter(ReqlFunction1 (fun u -> upcast u.["PasswordHash"].Eq passwordHash))
         .RunResultAsync<User list> conn
     return user |> List.tryHead
+    }
+  |> Async.RunSynchronously
+
+/// Set a user's password
+let setUserPassword conn (email : string) (passwordHash : string) =
+  async {
+    do! r.Table(Table.User)
+          .GetAll(email).OptArg("index", "UserName")
+          .Update(dict [ "PasswordHash", passwordHash ])
+          .RunResultAsync conn
     }
   |> Async.RunSynchronously

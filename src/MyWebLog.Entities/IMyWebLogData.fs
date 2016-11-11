@@ -105,6 +105,9 @@ type IMyWebLogData =
   /// Attempt to log on a user
   abstract LogOn : (string -> string -> User option)
 
+  /// Set a user's password (e-mail, password hash)
+  abstract SetUserPassword : (string -> string -> unit)
+
   // --- WebLog ---
 
   /// Get a web log by its URL base

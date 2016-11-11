@@ -33,11 +33,11 @@ open System.Text.RegularExpressions
 let cfg = try AppConfig.FromJson (System.IO.File.ReadAllText "config.json")
           with ex -> raise <| Exception (Strings.get "ErrBadAppConfig", ex)
 
-let data = lazy (RethinkMyWebLogData(cfg.DataConfig.Conn, cfg.DataConfig) :> IMyWebLogData)
+let data = lazy (RethinkMyWebLogData (cfg.DataConfig.Conn, cfg.DataConfig) :> IMyWebLogData)
 
 /// Support RESX lookup via the @Translate SSVE alias
 type TranslateTokenViewEngineMatcher() =
-  static let regex = Regex("@Translate\.(?<TranslationKey>[a-zA-Z0-9-_]+);?", RegexOptions.Compiled)
+  static let regex = Regex ("@Translate\.(?<TranslationKey>[a-zA-Z0-9-_]+);?", RegexOptions.Compiled)
   interface ISuperSimpleViewEngineMatcher with
     member this.Invoke (content, model, host) =
       let translate (m : Match) = Strings.get m.Groups.["TranslationKey"].Value
@@ -45,17 +45,24 @@ type TranslateTokenViewEngineMatcher() =
 
 
 /// Handle forms authentication
-type MyWebLogUser(name, claims) =
-  inherit ClaimsPrincipal()
-  member this.UserName with get() = name
-  member this.Claims   with get() = claims
+type MyWebLogUser (claims : Claim seq) =
+  inherit ClaimsPrincipal (ClaimsIdentity (claims, "forms"))
+
+  new (user : User) =
+    // TODO: refactor the User.Claims property to produce this, and just pass it as the constructor
+    let claims =
+      seq {
+        yield Claim (ClaimTypes.Name, user.PreferredName)
+        for claim in user.Claims -> Claim (ClaimTypes.Role, claim)
+      }
+    MyWebLogUser claims
  
-type MyWebLogUserMapper(container : TinyIoCContainer) =
+type MyWebLogUserMapper (container : TinyIoCContainer) =
   
   interface IUserMapper with
     member this.GetUserFromIdentifier (identifier, context) =
-      match context.Request.PersistableSession.GetOrDefault(Keys.User, User.Empty) with
-      | user when user.Id = string identifier -> upcast MyWebLogUser(user.PreferredName, user.Claims)
+      match context.Request.PersistableSession.GetOrDefault (Keys.User, User.Empty) with
+      | user when user.Id = string identifier -> upcast MyWebLogUser user
       | _ -> null
 
 
@@ -71,49 +78,47 @@ type MyWebLogBootstrapper() =
 
   override this.ConfigureConventions (conventions) =
     base.ConfigureConventions conventions
-    // Make theme content available at [theme-name]/
-    let addContentDir dir =
-      let contentDir = Path.Combine [| dir; "content" |]
-      match Directory.Exists contentDir with
-      | true -> conventions.StaticContentsConventions.Add
-                  (StaticContentConventionBuilder.AddDirectory ((Path.GetFileName dir), contentDir))
-      | _ -> ()
     conventions.StaticContentsConventions.Add
-      (StaticContentConventionBuilder.AddDirectory("admin/content", "views/admin/content"))
+      (StaticContentConventionBuilder.AddDirectory ("admin/content", "views/admin/content"))
+    // Make theme content available at [theme-name]/
     Directory.EnumerateDirectories (Path.Combine [| "views"; "themes" |])
-    |> Seq.iter addContentDir
+    |> Seq.map    (fun themeDir -> themeDir, Path.Combine [| themeDir; "content" |])
+    |> Seq.filter (fun (_, contentDir) -> Directory.Exists contentDir)
+    |> Seq.iter   (fun (themeDir, contentDir) ->
+        conventions.StaticContentsConventions.Add
+          (StaticContentConventionBuilder.AddDirectory ((Path.GetFileName themeDir), contentDir)))
 
   override this.ConfigureApplicationContainer (container) =
     base.ConfigureApplicationContainer container
-    container.Register<AppConfig>(cfg)
+    container.Register<AppConfig> cfg
     |> ignore
     data.Force().SetUp ()
-    container.Register<IMyWebLogData>(data.Force ())
+    container.Register<IMyWebLogData> (data.Force ())
     |> ignore
     // NodaTime
-    container.Register<IClock>(SystemClock.Instance)
+    container.Register<IClock> SystemClock.Instance
     |> ignore
     // I18N in SSVE
-    container.Register<seq<ISuperSimpleViewEngineMatcher>>(fun _ _ -> 
-      Seq.singleton (TranslateTokenViewEngineMatcher() :> ISuperSimpleViewEngineMatcher))
+    container.Register<ISuperSimpleViewEngineMatcher seq> (fun _ _ -> 
+      Seq.singleton (TranslateTokenViewEngineMatcher () :> ISuperSimpleViewEngineMatcher))
     |> ignore
   
   override this.ApplicationStartup (container, pipelines) =
     base.ApplicationStartup (container, pipelines)
     // Forms authentication configuration
     let auth =
-      FormsAuthenticationConfiguration(
+      FormsAuthenticationConfiguration (
         CryptographyConfiguration =
-          CryptographyConfiguration(
-            AesEncryptionProvider(PassphraseKeyGenerator(cfg.AuthEncryptionPassphrase, cfg.AuthSalt)),
-            DefaultHmacProvider(PassphraseKeyGenerator(cfg.AuthHmacPassphrase, cfg.AuthSalt))),
+          CryptographyConfiguration ( 
+            AesEncryptionProvider (PassphraseKeyGenerator (cfg.AuthEncryptionPassphrase, cfg.AuthSalt)),
+            DefaultHmacProvider (PassphraseKeyGenerator (cfg.AuthHmacPassphrase, cfg.AuthSalt))),
         RedirectUrl = "~/user/logon",
-        UserMapper  = container.Resolve<IUserMapper>())
+        UserMapper  = container.Resolve<IUserMapper> ())
     FormsAuthentication.Enable (pipelines, auth)
     // CSRF
     Csrf.Enable pipelines
     // Sessions
-    let sessions = RethinkDBSessionConfiguration(cfg.DataConfig.Conn)
+    let sessions = RethinkDBSessionConfiguration cfg.DataConfig.Conn
     sessions.Database <- cfg.DataConfig.Database
     //let sessions = RelationalSessionConfiguration(ConfigurationManager.ConnectionStrings.["SessionStore"].ConnectionString)
     PersistableSessions.Enable (pipelines, sessions)
@@ -121,7 +126,7 @@ type MyWebLogBootstrapper() =
 
   override this.Configure (environment) =
     base.Configure environment
-    environment.Tracing(true, true)
+    environment.Tracing (true, true)
 
 
 let version = 
@@ -149,16 +154,16 @@ type RequestEnvironment() =
       
 type Startup() =
   member this.Configure (app : IApplicationBuilder) =
-    let opt = NancyOptions()
-    opt.Bootstrapper <- new MyWebLogBootstrapper()
-    app.UseOwin(fun x -> x.UseNancy(opt) |> ignore) |> ignore
+    let opt = NancyOptions ()
+    opt.Bootstrapper <- new MyWebLogBootstrapper ()
+    app.UseOwin (fun x -> x.UseNancy opt |> ignore) |> ignore
 
 
 let Run () =
   use host = 
     WebHostBuilder()
-      .UseContentRoot(System.IO.Directory.GetCurrentDirectory())
+      .UseContentRoot(System.IO.Directory.GetCurrentDirectory ())
       .UseKestrel()
       .UseStartup<Startup>()
-      .Build()
-  host.Run()
+      .Build ()
+  host.Run ()

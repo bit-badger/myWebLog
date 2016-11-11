@@ -25,10 +25,12 @@ type NancyModule with
     match List.length model.Messages with
     | 0 -> ()
     | _ -> this.Session.[Keys.Messages] <- model.Messages
-    upcast this.Response.AsRedirect(url).WithStatusCode HttpStatusCode.TemporaryRedirect
+    // Temp (307) redirects don't reset the HTTP method; this allows POST-process-REDIRECT workflow
+    upcast this.Response.AsRedirect(url).WithStatusCode HttpStatusCode.MovedPermanently
 
   /// Require a specific level of access for the current web log
   member this.RequiresAccessLevel level =
-    let findClaim = new Predicate<Claim>(fun claim -> claim.Type = ClaimTypes.Role && claim.Value = sprintf "%s|%s" this.WebLog.Id level)
-    this.RequiresAuthentication()
+    let findClaim = Predicate<Claim> (fun claim ->
+        claim.Type = ClaimTypes.Role && claim.Value = sprintf "%s|%s" this.WebLog.Id level)
+    this.RequiresAuthentication ()
     this.RequiresClaims [| findClaim |]
