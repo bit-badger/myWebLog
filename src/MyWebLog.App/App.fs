@@ -130,7 +130,7 @@ type MyWebLogBootstrapper() =
 
 
 let version = 
-  let v = typeof<AppConfig>.GetType().GetTypeInfo().Assembly.GetName().Version
+  let v = typeof<AppConfig>.GetTypeInfo().Assembly.GetName().Version
   match v.Build with
   | 0 -> match v.Minor with 0 -> string v.Major | _ -> sprintf "%d.%d" v.Major v.Minor
   | _ -> sprintf "%d.%d.%d" v.Major v.Minor v.Build

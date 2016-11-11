@@ -12,7 +12,7 @@
         <div class="form-group">
           <label class="control-label" for="Permalink">@Translate.Permalink</label>
           <input type="text" name="Permalink" id="Permalink" class="form-control" value="@Model.Form.Permalink" />
-          <p class="form-hint"><em>@Translate.startingWith</em> http://@Model.webLog.urlBase/ </p>
+          <p class="form-hint"><em>@Translate.startingWith</em> http://@Model.WebLog.UrlBase/ </p>
         </div>
         <!-- // TODO: Markdown / HTML choice -->
        <div class="form-group">
@@ -48,7 +48,7 @@
 @EndSection
 
 @Section['Scripts']
-  <script type="text/javascript" src="/content/scripts/tinymce-init.js"></script>
+  <script type="text/javascript" src="/admin/content/tinymce-init.js"></script>
   <script type="text/javascript">
     /* <![CDATA[ */
     $(document).ready(function () { $("#Title").focus() })

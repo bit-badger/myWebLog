@@ -103,18 +103,18 @@ type PostModule(data : IMyWebLogData, clock : IClock) as this =
     upcast this.Response.FromStream(stream, sprintf "application/%s+xml" format) *)
 
   do
-    this.Get  ("/",                                fun _     -> this.HomePage ())
-    this.Get  ("/{permalink*}",                    fun parms -> this.CatchAll (downcast parms))
-    this.Get  ("/posts/page/{page:int}",           fun parms -> this.PublishedPostsPage (getPage <| downcast parms))
-    this.Get  ("/category/{slug}",                 fun parms -> this.CategorizedPosts (downcast parms))
-    this.Get  ("/category/{slug}/page/{page:int}", fun parms -> this.CategorizedPosts (downcast parms))
-    this.Get  ("/tag/{tag}",                       fun parms -> this.TaggedPosts (downcast parms))
-    this.Get  ("/tag/{tag}/page/{page:int}",       fun parms -> this.TaggedPosts (downcast parms))
-    this.Get  ("/feed",                            fun _     -> this.Feed ())
-    this.Get  ("/posts/list",                      fun _     -> this.PostList 1)
-    this.Get  ("/posts/list/page/{page:int}",      fun parms -> this.PostList (getPage <| downcast parms))
-    this.Get  ("/post/{postId}/edit",              fun parms -> this.EditPost (downcast parms))
-    this.Post ("/post/{postId}/edit",              fun parms -> this.SavePost (downcast parms))
+    this.Get  ("/",                                fun _ -> this.HomePage ())
+    this.Get  ("/{permalink*}",                    fun p -> this.CatchAll (downcast p))
+    this.Get  ("/posts/page/{page:int}",           fun p -> this.PublishedPostsPage (getPage <| downcast p))
+    this.Get  ("/category/{slug}",                 fun p -> this.CategorizedPosts (downcast p))
+    this.Get  ("/category/{slug}/page/{page:int}", fun p -> this.CategorizedPosts (downcast p))
+    this.Get  ("/tag/{tag}",                       fun p -> this.TaggedPosts (downcast p))
+    this.Get  ("/tag/{tag}/page/{page:int}",       fun p -> this.TaggedPosts (downcast p))
+    this.Get  ("/feed",                            fun _ -> this.Feed ())
+    this.Get  ("/posts/list",                      fun _ -> this.PostList 1)
+    this.Get  ("/posts/list/page/{page:int}",      fun p -> this.PostList (getPage <| downcast p))
+    this.Get  ("/post/{postId}/edit",              fun p -> this.EditPost (downcast p))
+    this.Post ("/post/{postId}/edit",              fun p -> this.SavePost (downcast p))
 
   // ---- Display posts to users ----
 
@@ -253,11 +253,10 @@ type PostModule(data : IMyWebLogData, clock : IClock) as this =
                   | None   -> Revision.Empty
         let model = EditPostModel (this.Context, this.WebLog, post, rev)
         model.Categories <- findAllCategories data this.WebLog.Id
-                            |> List.map (fun cat -> string (fst cat).Id,
-                                                    sprintf "%s%s" (String.replicate (snd cat) " &nbsp; &nbsp; ")
-                                                            (fst cat).Name)
+                            |> List.map (fun cat ->
+                                DisplayCategory.Create cat (post.CategoryIds |> List.contains (fst cat).Id)) 
         model.PageTitle  <- Strings.get <| match post.Id with "new" -> "AddNewPost" | _ -> "EditPost"
-        upcast this.View.["admin/post/edit"]
+        upcast this.View.["admin/post/edit", model]
     | _ -> this.NotFound ()
 
   /// Save a post

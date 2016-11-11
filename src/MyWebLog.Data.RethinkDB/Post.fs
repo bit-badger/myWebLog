@@ -100,9 +100,13 @@ let tryFindPost conn webLogId postId : Post option =
     let! p =
       r.Table(Table.Post)
         .Get(postId)
-        .Filter(ReqlFunction1 (fun p -> upcast p.["WebLogId"].Eq webLogId))
         .RunAtomAsync<Post> conn
-    return match box p with null -> None | post -> Some <| unbox post
+    return
+      match box p with
+      | null -> None
+      | pst ->
+          let post : Post = unbox pst
+          match post.WebLogId = webLogId with true -> Some post | _ -> None
     }
   |> Async.RunSynchronously
 

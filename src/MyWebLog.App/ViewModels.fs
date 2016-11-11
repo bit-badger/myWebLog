@@ -9,7 +9,7 @@ open Newtonsoft.Json
 open NodaTime
 open NodaTime.Text
 open System
-
+open System.Net
 
 /// Levels for a user message
 [<RequireQualifiedAccess>]
@@ -90,7 +90,7 @@ module FormatDateTime =
   
 
 /// Parent view model for all myWebLog views
-type MyWebLogModel (ctx : NancyContext, webLog : WebLog) =
+type MyWebLogModel (ctx : NancyContext, webLog : WebLog) as this =
   
   /// Get the messages from the session
   let getMessages () =
@@ -99,6 +99,20 @@ type MyWebLogModel (ctx : NancyContext, webLog : WebLog) =
     | 0 -> ()
     | _ -> ctx.Request.Session.Delete Keys.Messages
     msg
+
+  /// Generate a footer logo with the given scheme
+  let footerLogo scheme =
+    seq {
+      yield sprintf "<img src=\"/content/logo-%s.png\" alt=\"myWebLog\" title=\"" scheme
+      yield sprintf "%s %s &bull; " (Strings.get "PoweredBy") this.Generator
+      yield Strings.get "LoadedIn"
+      yield " "
+      yield TimeSpan(System.DateTime.Now.Ticks - this.RequestStart).TotalSeconds.ToString "f3"
+      yield " "
+      yield (Strings.get "Seconds").ToLower ()
+      yield "\" height=\"30\" />"
+      }
+    |> Seq.reduce (+)
 
   /// The web log for this request
   member this.WebLog = webLog
@@ -134,19 +148,11 @@ type MyWebLogModel (ctx : NancyContext, webLog : WebLog) =
         | None -> this.WebLog.Name
     | pt -> sprintf "%s | %s" pt this.WebLog.Name
 
-  /// An image with the version and load time in the tool tip
-  member this.FooterLogo =
-    seq {
-      yield "<img src=\"/default/footer-logo.png\" alt=\"myWebLog\" title=\""
-      yield sprintf "%s %s &bull; " (Strings.get "PoweredBy") this.Generator
-      yield Strings.get "LoadedIn"
-      yield " "
-      yield TimeSpan(System.DateTime.Now.Ticks - this.RequestStart).TotalSeconds.ToString "f3"
-      yield " "
-      yield (Strings.get "Seconds").ToLower ()
-      yield "\" />"
-      }
-    |> Seq.reduce (+)
+  /// An image with the version and load time in the tool tip (using light text)
+  member this.FooterLogoLight = footerLogo "light"
+ 
+  /// An image with the version and load time in the tool tip (using dark text)
+  member this.FooterLogoDark = footerLogo "dark"
  
 
 // ---- Admin models ----
@@ -399,6 +405,27 @@ type EditPostForm () =
     this.Text   <- rev.Text
     this
 
+/// Category information for display
+type DisplayCategory = {
+  Id : string
+  Indent : string
+  Name : string
+  Description : string
+  IsChecked : bool
+  } 
+with
+  /// Create a display category
+  static member Create (cat : Category, indent) isChecked =
+    { Id          = cat.Id
+      Indent      = String.replicate indent " &nbsp; &nbsp; "
+      Name        = WebUtility.HtmlEncode cat.Name
+      IsChecked   = isChecked
+      Description = WebUtility.HtmlEncode (match cat.Description with Some d -> d | _ -> cat.Name)
+    }
+  /// The "checked" attribute for this category
+  member this.CheckedAttr
+    with get() = match this.IsChecked with true -> "checked=\"checked\"" | _ -> ""
+
 /// View model for the edit post page
 type EditPostModel (ctx, webLog, post, revision) =
   inherit MyWebLogModel (ctx, webLog)
@@ -408,7 +435,7 @@ type EditPostModel (ctx, webLog, post, revision) =
   /// The post being edited
   member val Post = post with get, set
   /// The categories to which the post may be assigned
-  member val Categories : (string * string) list = [] with get, set
+  member val Categories : DisplayCategory list = [] with get, set
   /// Whether the post is currently published
   member this.IsPublished = PostStatus.Published = this.Post.Status
   /// The published date

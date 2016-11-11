@@ -13,7 +13,7 @@
           <label class="control-label" for="Permalink">@Translate.Permalink</label>
           <input type="text" name="Permalink" id="Permalink" class="form-control" value="@Model.Form.Permalink" />
           <!-- // FIXME: hard-coded "http" -->
-          <p class="form-hint"><em>@Translate.startingWith</em> http://@Model.webLog.urlBase/ </p>
+          <p class="form-hint"><em>@Translate.startingWith</em> http://@Model.WebLog.UrlBase/ </p>
         </div>
         <!-- // TODO: Markdown / HTML choice -->
         <div class="form-group">
@@ -47,19 +47,11 @@
             <h4 class="panel-title">@Translate.Categories</h4>
           </div>
           <div class="panel-body" style="max-height:350px;overflow:scroll;">
-            <!-- // TODO: how to check the ones that are already selected? -->
             @Each.Categories
-              <!-- - var tab = 0
-              while tab < item.indent
-                | &nbsp; &nbsp;
-                - tab++
-              - var attributes = {}
-              if -1 < currentCategories.indexOf(item.category.id)
-                - attributes.checked = 'checked' -->
-              <input type="checkbox" id="Category-@Current.Item1" name="Category", value="@Current.Item1" />
+              @Current.Indent
+              <input type="checkbox" id="Category-@Current.Id" name="Category" value="@Current.Id" @Current.CheckedAttr />
               &nbsp;
-              <!-- // FIXME: the title should be the category description -->
-              <label for="Category-@Current.Item1" title="@Current.Item2">@Current.Item2</label>
+              <label for="Category-@Current.Id" title="@Current.Description">@Current.Name</label>
               <br/>
             @EndEach
           </div>
@@ -86,7 +78,7 @@
 @EndSection
 
 @Section['Scripts']
-  <script type="text/javascript" src="/content/scripts/tinymce-init.js"></script>
+  <script type="text/javascript" src="/admin/content/tinymce-init.js"></script>
   <script type="text/javascript">
     /** <![CDATA[ */
     $(document).ready(function () { $("#Title").focus() })
