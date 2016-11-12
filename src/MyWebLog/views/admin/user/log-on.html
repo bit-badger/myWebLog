@@ -1,7 +1,7 @@
 ﻿@Master['admin/admin-layout']
 
 @Section['Content']
-  <form action="/user/logon" method="post">
+  <form action="/user/log-on" method="post">
     @AntiForgeryToken
     <input type="hidden" name="ReturnUrl" value="@Model.Form.ReturnUrl" />
     <div class="row">

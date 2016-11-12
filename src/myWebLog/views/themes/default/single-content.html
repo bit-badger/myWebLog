@@ -6,7 +6,8 @@
     <div class="col-xs-12">
       <h4>
         <i class="fa fa-calendar" title="@Translate.Date"></i> @Model.PublishedDate &nbsp;
-        <i class="fa fa-clock-o" title="@Translate.Time"></i> @Model.PublishedTime &nbsp; &nbsp; &nbsp;
+        <i class="fa fa-clock-o" title="@Translate.Time"></i> @Model.PublishedTime &nbsp;
+        <i class="fa fa-comments-o" title="@Translate.Comments"></i> @Model.CommentCount &nbsp; &nbsp; &nbsp;
         @Each.Post.Categories
           <span style="white-space:nowrap;">
             <i class="fa fa-folder-open-o" title="@Translate.Category"></i>
@@ -37,20 +38,13 @@
 <div class="row">
   <div class="col-xs-12"><hr /></div>
 </div>
-<!-- // TODO: format comments -->
-<!-- .row
-  .col-xs-12
-    each comment in post.comments
-      if 'Approved' == comment.status
-        h4
-          if comment.url
-            a(href=comment.url)= comment.name
-          else
-            = comment.name
-          | &nbsp; &nbsp;
-          small
-            =moment(comment.postedDate).format('MMMM Do, YYYY / h:mma')
-        != comment.text -->
+<div class="row">
+  <div class="col-xs-12">
+    @Each.Comments
+      @Partial['themes/default/comment', @Current]
+    @EndEach
+  </div>
+</div>
 <div class="row">
   <div class="col-xs-12"><hr /></div>
 </div>

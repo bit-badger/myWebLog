@@ -6,9 +6,18 @@ open RethinkDb.Driver.Ast
 let private r = RethinkDb.Driver.RethinkDB.R
 
 /// Shorthand to select all published posts for a web log
-let private publishedPosts (webLogId : string)=
+let private publishedPosts (webLogId : string) =
   r.Table(Table.Post)
     .GetAll(r.Array (webLogId, PostStatus.Published)).OptArg("index", "WebLogAndStatus")
+    .Without("Revisions")
+    // This allows us to count comments without retrieving them all
+    .Merge(ReqlFunction1 (fun p ->
+          upcast r.HashMap(
+            "Comments", r.Table(Table.Comment)
+                          .GetAll(p.["id"]).OptArg("index", "PostId")
+                          .Pluck("id")
+                          .CoerceTo("array"))))
+
 
 /// Shorthand to sort posts by published date, slice for the given page, and return a list
 let private toPostList conn pageNbr nbrPerPage (filter : ReqlExpr) =

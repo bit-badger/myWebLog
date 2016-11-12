@@ -112,7 +112,7 @@ type MyWebLogBootstrapper() =
           CryptographyConfiguration ( 
             AesEncryptionProvider (PassphraseKeyGenerator (cfg.AuthEncryptionPassphrase, cfg.AuthSalt)),
             DefaultHmacProvider (PassphraseKeyGenerator (cfg.AuthHmacPassphrase, cfg.AuthSalt))),
-        RedirectUrl = "~/user/logon",
+        RedirectUrl = "~/user/log-on",
         UserMapper  = container.Resolve<IUserMapper> ())
     FormsAuthentication.Enable (pipelines, auth)
     // CSRF
@@ -163,6 +163,7 @@ let Run () =
   use host = 
     WebHostBuilder()
       .UseContentRoot(System.IO.Directory.GetCurrentDirectory ())
+      .UseUrls("http://localhost:5001")
       .UseKestrel()
       .UseStartup<Startup>()
       .Build ()

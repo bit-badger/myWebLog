@@ -176,7 +176,7 @@ type IndentedCategory =
     Selected : bool }
 with
   /// Create an indented category
-  static member Create (cat : Category * int) (isSelected : string -> bool) =
+  static member Create cat isSelected =
     { Category = fst cat
       Indent   = snd cat
       Selected = isSelected (fst cat).Id }
@@ -304,6 +304,17 @@ type EditPageModel (ctx, webLog, page, revision) =
 
 // ---- Post models ----
 
+/// Formatter for comment information
+type CommentForDisplay (comment : Comment, tz) =
+  /// The comment on which this model is based
+  member this.Comment = comment
+  /// The commentor (linked with a URL if there is one)
+  member this.Commentor =
+    match comment.Url with Some url -> sprintf "<a href=\"%s\">%s</a>" url comment.Name | _ -> comment.Name
+  /// The date/time this comment was posted
+  member this.CommentedOn = 
+    sprintf "%s / %s" (FormatDateTime.longDate tz comment.PostedOn) (FormatDateTime.time tz comment.PostedOn)
+
 /// Model for single post display
 type PostModel (ctx, webLog, post) =
   inherit MyWebLogModel (ctx, webLog)
@@ -317,8 +328,19 @@ type PostModel (ctx, webLog, post) =
   member this.PublishedDate = this.DisplayLongDate this.Post.PublishedOn
   /// The time the post was published
   member this.PublishedTime = this.DisplayTime this.Post.PublishedOn
+  /// The number of comments
+  member this.CommentCount =
+      match post.Comments |> List.length with
+      | 0 -> Strings.get "NoComments"
+      | 1 -> Strings.get "OneComment"
+      | x -> String.Format (Strings.get "XComments", x)
+  /// The comments for display
+  member this.Comments = post.Comments
+                         |> List.filter (fun c -> c.Status = CommentStatus.Approved)
+                         |> List.map    (fun c -> CommentForDisplay (c, webLog.TimeZone))
+
   /// Does the post have tags?
-  member this.HasTags = not (List.isEmpty post.Tags)
+  member this.HasTags = not <| List.isEmpty post.Tags
   /// Get the tags sorted
   member this.Tags = post.Tags
                      |> List.sort
@@ -347,6 +369,12 @@ type PostForDisplay (webLog : WebLog, post : Post) =
     match this.Post.Status with
     | PostStatus.Published -> FormatDateTime.time this.TimeZone this.Post.PublishedOn
     | _ -> FormatDateTime.time this.TimeZone this.Post.UpdatedOn
+  /// The number of comments
+  member this.CommentCount =
+      match post.Comments |> List.length with
+      | 0 -> Strings.get "NoComments"
+      | 1 -> Strings.get "OneComment"
+      | x -> String.Format (Strings.get "XComments", x)
   /// Tags
   member this.Tags =
     match List.length this.Post.Tags with

@@ -22,10 +22,10 @@
         <ul class="nav navbar-nav navbar-right">
           @If.IsAuthenticated
             <li><a href="/admin">@Translate.Dashboard</a></li>
-            <li><a href="/user/logoff">@Translate.LogOff</a></li>
+            <li><a href="/user/log-off">@Translate.LogOff</a></li>
           @EndIf
           @IfNot.IsAuthenticated
-            <li><a href="/user/logon">@Translate.LogOn</a></li>
+            <li><a href="/user/log-on">@Translate.LogOn</a></li>
           @EndIf
         </ul>
       </div>

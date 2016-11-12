@@ -23,16 +23,17 @@ type UserModule (data : IMyWebLogData, cfg : AppConfig) as this =
     |> Seq.fold (fun acc byt -> sprintf "%s%s" acc (byt.ToString "x2")) ""
   
   do
-    this.Get  ("/logon",  fun _ -> this.ShowLogOn ())
-    this.Post ("/logon",  fun p -> this.DoLogOn   (downcast p))
-    this.Get  ("/logoff", fun _ -> this.LogOff ())
+    this.Get  ("/log-on",  fun _ -> this.ShowLogOn ())
+    this.Post ("/log-on",  fun p -> this.DoLogOn   (downcast p))
+    this.Get  ("/log-off", fun _ -> this.LogOff ())
 
   /// Show the log on page
   member this.ShowLogOn () : obj =
     let model = LogOnModel (this.Context, this.WebLog)
     let query = this.Request.Query :?> DynamicDictionary
     model.Form.ReturnUrl <- match query.ContainsKey "returnUrl" with true -> query.["returnUrl"].ToString () | _ -> ""
-    upcast this.View.["admin/user/logon", model]
+    model.PageTitle      <- Strings.get "LogOn"
+    upcast this.View.["admin/user/log-on", model]
 
   /// Process a user log on
   member this.DoLogOn (parameters : DynamicDictionary) : obj =
@@ -52,12 +53,10 @@ type UserModule (data : IMyWebLogData, cfg : AppConfig) as this =
             Level   = Level.Error
             Message = Strings.get "ErrBadLogOnAttempt" }
         |> model.AddMessage
-        this.Redirect (sprintf "/user/logon?returnUrl=%s" form.ReturnUrl) model
+        this.Redirect (sprintf "/user/log-on?returnUrl=%s" form.ReturnUrl) model
 
   /// Log a user off
   member this.LogOff () : obj =
-    // FIXME: why are we getting the user here if we don't do anything with it?
-    let user = this.Request.PersistableSession.GetOrDefault<User> (Keys.User, User.Empty)
     this.Session.DeleteAll ()
     let model = MyWebLogModel (this.Context, this.WebLog)
     model.AddMessage { UserMessage.Empty with Message = Strings.get "MsgLogOffSuccess" }

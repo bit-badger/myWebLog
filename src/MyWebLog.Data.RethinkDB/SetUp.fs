@@ -45,7 +45,6 @@ let private createIndex cfg table (index : string * (ReqlExpr -> obj) option) =
          | Some f -> (tbl cfg table).IndexCreate(idxName, f)
          | None -> (tbl cfg table).IndexCreate(idxName))
            .RunResultAsync cfg.Conn
-    do! (tbl cfg table).IndexWait(idxName).RunResultAsync cfg.Conn
     logStepDone ()
     }
 
