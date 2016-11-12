@@ -23,12 +23,14 @@ type NewsItem =
   }
 
 /// Routes dealing with posts (including the home page, /tag, /category, RSS, and catch-all routes)
-type PostModule(data : IMyWebLogData, clock : IClock) as this =
+type PostModule (data : IMyWebLogData, clock : IClock) as this =
   inherit NancyModule ()
 
   /// Get the page number from the dictionary
   let getPage (parameters : DynamicDictionary) =
-    match parameters.ContainsKey "page" with true -> System.Int32.Parse (parameters.["page"].ToString ()) | _ -> 1
+    match parameters.ContainsKey "page" with
+    | true -> match System.Int32.TryParse (parameters.["page"].ToString ()) with true, pg -> pg | _ -> 1
+    | _ -> 1
 
   /// Convert a list of posts to a list of posts for display
   let forDisplay posts = posts |> List.map (fun post -> PostForDisplay (this.WebLog, post))
@@ -37,23 +39,23 @@ type PostModule(data : IMyWebLogData, clock : IClock) as this =
   let generateFeed format : obj =
     let myChannelFeed channelTitle channelLink channelDescription (items : NewsItem list) =
       let xn = XName.Get
-      let elem name (valu:string) = XElement (xn name, valu)
+      let elem name (valu : string) = XElement (xn name, valu)
       let elems =
         items
         |> List.sortBy (fun i -> i.ReleaseDate) 
         |> List.map (fun i ->
-            XElement
-              (xn "item",
+            XElement (
+               xn "item",
                elem "title" (System.Net.WebUtility.HtmlEncode i.Title),
                elem "link" i.Link,
                elem "guid" i.Link,
                elem "pubDate" (i.ReleaseDate.ToString "r"),
                elem "description" (System.Net.WebUtility.HtmlEncode i.Description)
             ))
-      XDocument(
-        XDeclaration("1.0", "utf-8", "yes"),
-        XElement
-          (xn "rss",
+      XDocument (
+        XDeclaration ("1.0", "utf-8", "yes"),
+        XElement (
+           xn "rss",
            XAttribute (xn "version", "2.0"),
            elem "title" channelTitle,
            elem "link" channelLink,
@@ -61,16 +63,21 @@ type PostModule(data : IMyWebLogData, clock : IClock) as this =
            elem "language" "en-us",
            XElement (xn "channel", elems))
         |> box)
-      |> box
     let schemeAndUrl = sprintf "%s://%s" this.Request.Url.Scheme this.WebLog.UrlBase
-    findFeedPosts data this.WebLog.Id 10
-    |> List.map (fun (post, _) ->
-        { Title       = post.Title
-          Link        = sprintf "%s/%s" schemeAndUrl post.Permalink
-          ReleaseDate = Instant.FromUnixTimeTicks(post.PublishedOn).ToDateTimeOffset().DateTime
-          Description = post.Text
-          })
-    |> myChannelFeed this.WebLog.Name schemeAndUrl this.WebLog.Subtitle
+    let feed =
+      findFeedPosts data this.WebLog.Id 10
+      |> List.map (fun (post, _) ->
+          { Title       = post.Title
+            Link        = sprintf "%s/%s" schemeAndUrl post.Permalink
+            ReleaseDate = Instant.FromUnixTimeTicks(post.PublishedOn).ToDateTimeOffset().DateTime
+            Description = post.Text
+            })
+      |> myChannelFeed this.WebLog.Name schemeAndUrl this.WebLog.Subtitle
+    let stream = new IO.MemoryStream ()
+    Xml.XmlWriter.Create stream |> feed.Save
+    //|> match format with "atom" -> feed.SaveAsAtom10 | _ -> feed.SaveAsRss20
+    stream.Position <- 0L
+    upcast this.Response.FromStream (stream, sprintf "application/%s+xml" format)
     // TODO: how to return this?
 
     (* 
@@ -246,11 +253,12 @@ type PostModule(data : IMyWebLogData, clock : IClock) as this =
     match postId with "new" -> Some Post.Empty | _ -> tryFindPost data this.WebLog.Id postId
     |> function
     | Some post ->
-        let rev = match post.Revisions
-                        |> List.sortByDescending (fun r -> r.AsOf)
-                        |> List.tryHead with
-                  | Some r -> r
-                  | None   -> Revision.Empty
+        let rev =
+          match post.Revisions
+                |> List.sortByDescending (fun r -> r.AsOf)
+                |> List.tryHead with
+          | Some r -> r
+          | None   -> Revision.Empty
         let model = EditPostModel (this.Context, this.WebLog, post, rev)
         model.Categories <- findAllCategories data this.WebLog.Id
                             |> List.map (fun cat ->
@@ -270,12 +278,14 @@ type PostModule(data : IMyWebLogData, clock : IClock) as this =
     |> function
     | Some p ->
         let justPublished = p.PublishedOn = 0L && form.PublishNow
-        let post = match postId with
-                   | "new" -> { p with
-                                  WebLogId = this.WebLog.Id
-                                  AuthorId = (this.Request.PersistableSession.GetOrDefault<User>
-                                                (Keys.User, User.Empty)).Id }
-                   | _ -> p
+        let post =
+          match postId with
+          | "new" ->
+              { p with
+                  WebLogId = this.WebLog.Id
+                  AuthorId = this.Request.PersistableSession.GetOrDefault<User>(Keys.User, User.Empty).Id
+                }
+          | _ -> p
         let pId =
           { post with
               Status      = match form.PublishNow with true -> PostStatus.Published | _ -> PostStatus.Draft
@@ -296,12 +306,12 @@ type PostModule(data : IMyWebLogData, clock : IClock) as this =
                               Text       = form.Text } :: post.Revisions }
           |> savePost data
         let model = MyWebLogModel(this.Context, this.WebLog)
-        { UserMessage.Empty with
-            Level   = Level.Info
-            Message = System.String.Format
-                        (Strings.get "MsgPostEditSuccess",
-                          Strings.get (match postId with "new" -> "Added" | _ -> "Updated"),
-                          (match justPublished with true -> Strings.get "AndPublished" | _ -> "")) }
-        |> model.AddMessage
+        model.AddMessage
+          { UserMessage.Empty with
+              Message = System.String.Format
+                          (Strings.get "MsgPostEditSuccess",
+                            Strings.get (match postId with "new" -> "Added" | _ -> "Updated"),
+                            (match justPublished with true -> Strings.get "AndPublished" | _ -> ""))
+            }
         this.Redirect (sprintf "/post/%s/edit" pId) model
     | _ -> this.NotFound ()

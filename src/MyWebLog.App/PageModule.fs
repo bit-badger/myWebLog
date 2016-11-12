@@ -15,17 +15,17 @@ type PageModule (data : IMyWebLogData, clock : IClock) as this =
   inherit NancyModule ()
 
   do
-    this.Get    ("/pages",            fun _     -> this.PageList   ())
-    this.Get    ("/page/{id}/edit",   fun parms -> this.EditPage   (downcast parms))
-    this.Post   ("/page/{id}/edit",   fun parms -> this.SavePage   (downcast parms))
-    this.Delete ("/page/{id}/delete", fun parms -> this.DeletePage (downcast parms))
+    this.Get    ("/pages",            fun _ -> this.PageList   ())
+    this.Get    ("/page/{id}/edit",   fun p -> this.EditPage   (downcast p))
+    this.Post   ("/page/{id}/edit",   fun p -> this.SavePage   (downcast p))
+    this.Delete ("/page/{id}/delete", fun p -> this.DeletePage (downcast p))
 
   /// List all pages
   member this.PageList () : obj =
     this.RequiresAccessLevel AuthorizationLevel.Administrator
     let model =
-      PagesModel(this.Context, this.WebLog, findAllPages data this.WebLog.Id
-                                            |> List.map (fun p -> PageForDisplay (this.WebLog, p)))
+      PagesModel (this.Context, this.WebLog, findAllPages data this.WebLog.Id
+                                             |> List.map (fun p -> PageForDisplay (this.WebLog, p)))
     model.PageTitle <- Strings.get "Pages"
     upcast this.View.["admin/page/list", model]
 
@@ -74,12 +74,12 @@ type PageModule (data : IMyWebLogData, clock : IClock) as this =
             }
           |> savePage data
         let model = MyWebLogModel (this.Context, this.WebLog)
-        { UserMessage.Empty with
-            Level   = Level.Info
-            Message = System.String.Format
-                        (Strings.get "MsgPageEditSuccess",
-                          Strings.get (match pageId with "new" -> "Added" | _ -> "Updated")) }
-        |> model.AddMessage
+        model.AddMessage
+          { UserMessage.Empty with
+              Message = System.String.Format
+                          (Strings.get "MsgPageEditSuccess",
+                            Strings.get (match pageId with "new" -> "Added" | _ -> "Updated"))
+            }
         this.Redirect (sprintf "/page/%s/edit" pId) model
     | _ -> this.NotFound ()
 
@@ -92,9 +92,6 @@ type PageModule (data : IMyWebLogData, clock : IClock) as this =
     | Some page ->
         deletePage data page.WebLogId page.Id
         let model = MyWebLogModel (this.Context, this.WebLog)
-        { UserMessage.Empty with
-            Level   = Level.Info
-            Message = Strings.get "MsgPageDeleted" }
-        |> model.AddMessage
+        model.AddMessage { UserMessage.Empty with Message = Strings.get "MsgPageDeleted" }
         this.Redirect "/pages" model
     | _ -> this.NotFound ()
