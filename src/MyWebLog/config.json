@@ -12,6 +12,6 @@
   "hmac-passphrase": "42dzKb93X8YUkK8ms8JldjtkEvCKnPQGWCkO2yFaZ7lkNwECGCX00xzrx5ZSElO",
   "data": {
     "database": "myWebLog",
-    "hostname": "severus-server"
+    "hostname": "localhost"
   }
 }
