@@ -1,8 +1,5 @@
 ﻿module MyWebLog.App
 
-open Microsoft.AspNetCore.Builder
-open Microsoft.AspNetCore.Hosting
-open Microsoft.Extensions.Configuration
 open MyWebLog
 open MyWebLog.Data
 open MyWebLog.Data.RethinkDB
@@ -23,6 +20,8 @@ open Nancy.TinyIoc
 open Nancy.ViewEngines.SuperSimpleViewEngine
 open NodaTime
 open RethinkDb.Driver.Net
+open Suave
+open Suave.Owin
 open System
 open System.IO
 open System.Reflection
@@ -151,20 +150,6 @@ type RequestEnvironment() =
         null
       pipelines.BeforeRequest.AddItemToStartOfPipeline establishEnv
 
-      
-type Startup() =
-  member this.Configure (app : IApplicationBuilder) =
-    let opt = NancyOptions ()
-    opt.Bootstrapper <- new MyWebLogBootstrapper ()
-    app.UseOwin (fun x -> x.UseNancy opt |> ignore) |> ignore
-
-
 let Run () =
-  use host = 
-    WebHostBuilder()
-      .UseContentRoot(System.IO.Directory.GetCurrentDirectory ())
-      .UseUrls("http://localhost:5001")
-      .UseKestrel()
-      .UseStartup<Startup>()
-      .Build ()
-  host.Run ()
+  OwinApp.ofMidFunc "/" (NancyMiddleware.UseNancy (NancyOptions (Bootstrapper = new MyWebLogBootstrapper ())))
+  |> startWebServer defaultConfig

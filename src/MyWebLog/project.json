@@ -2,7 +2,7 @@
   "buildOptions": {
     "emitEntryPoint": true,
     "copyToOutput": {
-      "include": [ "views", "content" ]
+      "include": [ "views", "content", "config.json" ]
     }
   },
   "dependencies": {
