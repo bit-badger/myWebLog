@@ -1,7 +1,9 @@
-﻿module MyWebLog.Resources.Strings
+module MyWebLog.Resources.Strings
 
+open MyWebLog
 open Newtonsoft.Json
 open System.Collections.Generic
+open System.Reflection
 
 /// The locales we'll try to load
 let private supportedLocales = [ "en-US" ]
@@ -13,7 +15,7 @@ let private fallbackLocale = "en-US"
 let private getEmbedded locale =
   use rdr =
     new System.IO.StreamReader
-      (AssemblyInfo.HorribleHack().Assembly.GetManifestResourceStream(sprintf "MyWebLog.Resources.%s.json" locale))
+      (typeof<AppConfig>.GetTypeInfo().Assembly.GetManifestResourceStream(sprintf "MyWebLog.App.%s.json" locale))
   rdr.ReadToEnd()
 
 /// The dictionary of localized strings

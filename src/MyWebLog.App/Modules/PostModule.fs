@@ -42,7 +42,7 @@ type PostModule (data : IMyWebLogData, clock : IClock) as this =
       let elem name (valu : string) = XElement (xn name, valu)
       let elems =
         items
-        |> List.sortBy (fun i -> i.ReleaseDate) 
+        |> List.sortByDescending (fun i -> i.ReleaseDate) 
         |> List.map (fun i ->
             XElement (
                xn "item",
