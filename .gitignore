@@ -257,3 +257,5 @@ paket-files/
 src/MyWebLog/views/themes/daniel-j-summers
 src/MyWebLog/views/themes/daniels-weekly-devotions
 src/MyWebLog/views/themes/djs-consulting
+
+.ionide
