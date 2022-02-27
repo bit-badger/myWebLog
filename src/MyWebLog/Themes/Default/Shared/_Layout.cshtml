@@ -1,0 +1,14 @@
+﻿@inject IHttpContextAccessor ctxAcc
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+  <meta name="viewport" content="width=device-width">
+  <title>@ViewBag.Title &laquo; @WebLogCache.Get(ctxAcc.HttpContext!).Name</title>
+</head>
+<body>
+  <div>
+    @RenderBody()
+  </div>
+</body>
+</html>

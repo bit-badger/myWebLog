@@ -21,9 +21,14 @@ public class WebLogDetails
     public string DefaultPage { get; set; } = "";
 
     /// <summary>
+    /// The number of posts to display on pages of posts
+    /// </summary>
+    public byte PostsPerPage { get; set; } = 10;
+
+    /// <summary>
     /// The path of the theme (within /views/themes)
     /// </summary>
-    public string ThemePath { get; set; } = "";
+    public string ThemePath { get; set; } = "Default";
 
     /// <summary>
     /// The URL base

@@ -8,6 +8,14 @@ namespace MyWebLog.Data;
 public sealed class WebLogDbContext : DbContext
 {
     /// <summary>
+    /// Create a new ID (short GUID)
+    /// </summary>
+    /// <returns>A new short GUID</returns>
+    /// <remarks>https://www.madskristensen.net/blog/A-shorter-and-URL-friendly-GUID</remarks>
+    public static string NewId() =>
+        Convert.ToBase64String(Guid.NewGuid().ToByteArray()).Replace('/', '_').Replace('+', '-')[..22];
+
+    /// <summary>
     /// The categories for the web log
     /// </summary>
     public DbSet<Category> Categories { get; set; } = default!;
@@ -52,6 +60,10 @@ public sealed class WebLogDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        // Make tables use singular names
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+            entityType.SetTableName(entityType.DisplayName().Split(' ')[0]);
 
         // Tag and WebLogDetails use Name as its ID
         modelBuilder.Entity<Tag>().HasKey(t => t.Name);

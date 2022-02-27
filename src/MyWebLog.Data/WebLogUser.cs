@@ -46,6 +46,11 @@ public class WebLogUser
     public string? Url { get; set; } = null;
 
     /// <summary>
+    /// The user's authorization level
+    /// </summary>
+    public AuthorizationLevel AuthorizationLevel { get; set; } = AuthorizationLevel.User;
+
+    /// <summary>
     /// Pages written by this author
     /// </summary>
     public ICollection<Page> Pages { get; set; } = default!;

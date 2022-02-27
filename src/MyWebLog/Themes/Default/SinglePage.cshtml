@@ -1,0 +1,9 @@
+﻿@model Page
+@{
+    Layout = "_Layout";
+    ViewBag.Title = Model.Title;
+}
+<h2>@Model.Title</h2>
+<article>
+    @Html.Raw(Model.Text)
+</article>
