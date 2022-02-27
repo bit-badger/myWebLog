@@ -57,6 +57,12 @@ public sealed class WebLogDbContext : DbContext
     public WebLogDbContext(DbContextOptions<WebLogDbContext> options) : base(options) { }
 
     /// <inheritdoc />
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        optionsBuilder.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
+    }
+
+    /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

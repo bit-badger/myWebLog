@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MyWebLog;
 using MyWebLog.Features;
@@ -12,20 +13,23 @@ if (args.Length > 0 && args[0] == "init")
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddMvc(opts => opts.Conventions.Add(new FeatureControllerModelConvention()))
-    .AddRazorOptions(opts =>
-    {
-        opts.ViewLocationFormats.Clear();
-        opts.ViewLocationFormats.Add("/Themes/{3}/{0}.cshtml");
-        opts.ViewLocationFormats.Add("/Themes/{3}/Shared/{0}.cshtml");
-        opts.ViewLocationFormats.Add("/Themes/Default/{0}.cshtml");
-        opts.ViewLocationFormats.Add("/Themes/Default/Shared/{0}.cshtml");
-        opts.ViewLocationFormats.Add("/Features/{2}/{1}/{0}.cshtml");
-        opts.ViewLocationFormats.Add("/Features/{2}/{0}.cshtml");
-        opts.ViewLocationFormats.Add("/Features/Shared/{0}.cshtml");
-        opts.ViewLocationExpanders.Add(new FeatureViewLocationExpander());
-        opts.ViewLocationExpanders.Add(new ThemeViewLocationExpander());
-    });
+builder.Services.AddMvc(opts =>
+{
+    opts.Conventions.Add(new FeatureControllerModelConvention());
+    opts.Filters.Add(new AutoValidateAntiforgeryTokenAttribute());
+}).AddRazorOptions(opts =>
+{
+    opts.ViewLocationFormats.Clear();
+    opts.ViewLocationFormats.Add("/Themes/{3}/{0}.cshtml");
+    opts.ViewLocationFormats.Add("/Themes/{3}/Shared/{0}.cshtml");
+    opts.ViewLocationFormats.Add("/Themes/Default/{0}.cshtml");
+    opts.ViewLocationFormats.Add("/Themes/Default/Shared/{0}.cshtml");
+    opts.ViewLocationFormats.Add("/Features/{2}/{1}/{0}.cshtml");
+    opts.ViewLocationFormats.Add("/Features/{2}/{0}.cshtml");
+    opts.ViewLocationFormats.Add("/Features/Shared/{0}.cshtml");
+    opts.ViewLocationExpanders.Add(new FeatureViewLocationExpander());
+    opts.ViewLocationExpanders.Add(new ThemeViewLocationExpander());
+});
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(opts =>
     {

@@ -73,17 +73,18 @@ public class WebLogMiddleware
     {
         var host = WebLogCache.HostToDb(context);
 
-        if (WebLogCache.Exists(host)) return;
-
-        var db = context.RequestServices.GetRequiredService<WebLogDbContext>();
-        var details = await db.WebLogDetails.FindByHost(context.Request.Host.ToUriComponent());
-        if (details == null)
+        if (!WebLogCache.Exists(host))
         {
-            context.Response.StatusCode = 404;
-            return;
+            var db = context.RequestServices.GetRequiredService<WebLogDbContext>();
+            var details = await db.WebLogDetails.FindByHost(context.Request.Host.ToUriComponent());
+            if (details == null)
+            {
+                context.Response.StatusCode = 404;
+                return;
+            }
+
+            WebLogCache.Set(host, details);
         }
-        
-        WebLogCache.Set(host, details);
 
         await _next.Invoke(context);
     }
