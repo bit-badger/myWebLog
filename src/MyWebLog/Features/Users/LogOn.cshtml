@@ -3,7 +3,8 @@
     Layout = "_AdminLayout";
     ViewBag.Title = @Resources.LogOn;
 }
-<article>
+<h2 class="p-3 ">@Resources.LogOnTo @Model.WebLog.Name</h2>
+<article class="pb-3">
   <form asp-action="DoLogOn" asp-controller="User" method="post">
     <div class="container">
       <div class="row pb-3">

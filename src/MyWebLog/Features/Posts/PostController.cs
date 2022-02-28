@@ -33,7 +33,6 @@ public class PostController : MyWebLogController
     [HttpGet("~/{*permalink}")]
     public async Task<IActionResult> CatchAll(string permalink)
     {
-        Console.Write($"Got permalink |{permalink}|");
         var post = await Db.Posts.FindByPermalink(permalink);
         if (post != null)
         {
@@ -48,8 +47,9 @@ public class PostController : MyWebLogController
 
         // TOOD: search prior permalinks for posts and pages
 
-        await Task.CompletedTask;
-        throw new NotImplementedException();
+        // We tried, we really tried...
+        Console.Write($"Returning 404 for permalink |{permalink}|");
+        return NotFound();
     }
 
     [HttpGet("all")]

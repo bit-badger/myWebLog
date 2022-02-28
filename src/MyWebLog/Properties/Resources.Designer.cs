@@ -70,6 +70,15 @@ namespace MyWebLog.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to All.
+        /// </summary>
+        public static string All {
+            get {
+                return ResourceManager.GetString("All", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Categories.
         /// </summary>
         public static string Categories {
@@ -88,11 +97,38 @@ namespace MyWebLog.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Default Page.
+        /// </summary>
+        public static string DefaultPage {
+            get {
+                return ResourceManager.GetString("DefaultPage", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Drafts.
+        /// </summary>
+        public static string Drafts {
+            get {
+                return ResourceManager.GetString("Drafts", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to E-mail Address.
         /// </summary>
         public static string EmailAddress {
             get {
                 return ResourceManager.GetString("EmailAddress", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to First Page of Posts.
+        /// </summary>
+        public static string FirstPageOfPosts {
+            get {
+                return ResourceManager.GetString("FirstPageOfPosts", resourceCulture);
             }
         }
         
@@ -111,6 +147,24 @@ namespace MyWebLog.Properties {
         public static string LogOn {
             get {
                 return ResourceManager.GetString("LogOn", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Log On to.
+        /// </summary>
+        public static string LogOnTo {
+            get {
+                return ResourceManager.GetString("LogOnTo", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Name.
+        /// </summary>
+        public static string Name {
+            get {
+                return ResourceManager.GetString("Name", resourceCulture);
             }
         }
         
@@ -142,6 +196,51 @@ namespace MyWebLog.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Posts per Page.
+        /// </summary>
+        public static string PostsPerPage {
+            get {
+                return ResourceManager.GetString("PostsPerPage", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Published.
+        /// </summary>
+        public static string Published {
+            get {
+                return ResourceManager.GetString("Published", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Save Changes.
+        /// </summary>
+        public static string SaveChanges {
+            get {
+                return ResourceManager.GetString("SaveChanges", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Shown in Page List.
+        /// </summary>
+        public static string ShownInPageList {
+            get {
+                return ResourceManager.GetString("ShownInPageList", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Subtitle.
+        /// </summary>
+        public static string Subtitle {
+            get {
+                return ResourceManager.GetString("Subtitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to There are {0} categories.
         /// </summary>
         public static string ThereAreXCategories {
@@ -165,6 +264,24 @@ namespace MyWebLog.Properties {
         public static string ThereAreXPublishedPostsAndYDrafts {
             get {
                 return ResourceManager.GetString("ThereAreXPublishedPostsAndYDrafts", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Time Zone.
+        /// </summary>
+        public static string TimeZone {
+            get {
+                return ResourceManager.GetString("TimeZone", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Top Level.
+        /// </summary>
+        public static string TopLevel {
+            get {
+                return ResourceManager.GetString("TopLevel", resourceCulture);
             }
         }
     }

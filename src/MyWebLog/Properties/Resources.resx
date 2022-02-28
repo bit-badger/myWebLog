@@ -120,20 +120,38 @@
   <data name="Admin" xml:space="preserve">
     <value>Admin</value>
   </data>
+  <data name="All" xml:space="preserve">
+    <value>All</value>
+  </data>
   <data name="Categories" xml:space="preserve">
     <value>Categories</value>
   </data>
   <data name="Dashboard" xml:space="preserve">
     <value>Dashboard</value>
   </data>
+  <data name="DefaultPage" xml:space="preserve">
+    <value>Default Page</value>
+  </data>
+  <data name="Drafts" xml:space="preserve">
+    <value>Drafts</value>
+  </data>
   <data name="EmailAddress" xml:space="preserve">
     <value>E-mail Address</value>
+  </data>
+  <data name="FirstPageOfPosts" xml:space="preserve">
+    <value>First Page of Posts</value>
   </data>
   <data name="LogOff" xml:space="preserve">
     <value>Log Off</value>
   </data>
   <data name="LogOn" xml:space="preserve">
     <value>Log On</value>
+  </data>
+  <data name="LogOnTo" xml:space="preserve">
+    <value>Log On to</value>
+  </data>
+  <data name="Name" xml:space="preserve">
+    <value>Name</value>
   </data>
   <data name="Pages" xml:space="preserve">
     <value>Pages</value>
@@ -144,6 +162,21 @@
   <data name="Posts" xml:space="preserve">
     <value>Posts</value>
   </data>
+  <data name="PostsPerPage" xml:space="preserve">
+    <value>Posts per Page</value>
+  </data>
+  <data name="Published" xml:space="preserve">
+    <value>Published</value>
+  </data>
+  <data name="SaveChanges" xml:space="preserve">
+    <value>Save Changes</value>
+  </data>
+  <data name="ShownInPageList" xml:space="preserve">
+    <value>Shown in Page List</value>
+  </data>
+  <data name="Subtitle" xml:space="preserve">
+    <value>Subtitle</value>
+  </data>
   <data name="ThereAreXCategories" xml:space="preserve">
     <value>There are {0} categories</value>
   </data>
@@ -152,5 +185,11 @@
   </data>
   <data name="ThereAreXPublishedPostsAndYDrafts" xml:space="preserve">
     <value>There are {0} published posts and {1} drafts</value>
+  </data>
+  <data name="TimeZone" xml:space="preserve">
+    <value>Time Zone</value>
+  </data>
+  <data name="TopLevel" xml:space="preserve">
+    <value>Top Level</value>
   </data>
 </root>

@@ -21,9 +21,19 @@ public class DashboardModel : MyWebLogModel
     public int Pages { get; set; } = 0;
 
     /// <summary>
+    /// The number of pages in the page list
+    /// </summary>
+    public int ListedPages { get; set; } = 0;
+
+    /// <summary>
     /// The number of categories
     /// </summary>
     public int Categories { get; set; } = 0;
+
+    /// <summary>
+    /// The top-level categories
+    /// </summary>
+    public int TopLevelCategories { get; set; } = 0;
 
     /// <inheritdoc />
     public DashboardModel(WebLogDetails webLog) : base(webLog) { }
