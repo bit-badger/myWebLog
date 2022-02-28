@@ -70,6 +70,15 @@ namespace MyWebLog.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Categories.
+        /// </summary>
+        public static string Categories {
+            get {
+                return ResourceManager.GetString("Categories", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Dashboard.
         /// </summary>
         public static string Dashboard {
@@ -106,11 +115,56 @@ namespace MyWebLog.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Pages.
+        /// </summary>
+        public static string Pages {
+            get {
+                return ResourceManager.GetString("Pages", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Password.
         /// </summary>
         public static string Password {
             get {
                 return ResourceManager.GetString("Password", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Posts.
+        /// </summary>
+        public static string Posts {
+            get {
+                return ResourceManager.GetString("Posts", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to There are {0} categories.
+        /// </summary>
+        public static string ThereAreXCategories {
+            get {
+                return ResourceManager.GetString("ThereAreXCategories", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to There are {0} pages.
+        /// </summary>
+        public static string ThereAreXPages {
+            get {
+                return ResourceManager.GetString("ThereAreXPages", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to There are {0} published posts and {1} drafts.
+        /// </summary>
+        public static string ThereAreXPublishedPostsAndYDrafts {
+            get {
+                return ResourceManager.GetString("ThereAreXPublishedPostsAndYDrafts", resourceCulture);
             }
         }
     }

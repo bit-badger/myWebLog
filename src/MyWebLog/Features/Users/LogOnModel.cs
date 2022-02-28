@@ -5,7 +5,7 @@ namespace MyWebLog.Features.Users;
 /// <summary>
 /// The model to use to allow a user to log on
 /// </summary>
-public class LogOnModel
+public class LogOnModel : MyWebLogModel
 {
     /// <summary>
     /// The user's e-mail address
@@ -21,4 +21,10 @@ public class LogOnModel
     [Required(AllowEmptyStrings = false)]
     [Display(ResourceType = typeof(Resources), Name = "Password")]
     public string Password { get; set; } = "";
+
+    [Obsolete("Only used for model binding; use the WebLogDetails constructor")]
+    public LogOnModel() : base(new()) { }
+
+    /// <inheritdoc />
+    public LogOnModel(WebLogDetails webLog) : base(webLog) { }
 }

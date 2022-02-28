@@ -1,5 +1,35 @@
-﻿@{
+﻿@model DashboardModel
+@{
     Layout = "_AdminLayout";
     ViewBag.Title = Resources.Dashboard;
 }
-<p>You're logged on!</p>
+<article class="container">
+  <div class="row">
+    <section class="col col-sm-4">
+      <h3>@Resources.Posts</h3>
+      <p>@string.Format(Resources.ThereAreXPublishedPostsAndYDrafts, Model.Posts, Model.Drafts)</p>
+      <p>
+        <a asp-action="All" asp-controller="Post" class="btn btn-secondary me-2">View All</a>
+        <a asp-action="Edit" asp-controller="Post" asp-route-id="new" class="btn btn-primary">Write a New Post</a>
+      </p>
+    </section>
+    <section class="col col-sm-4">
+      <h3>@Resources.Pages</h3>
+      <p>@string.Format(Resources.ThereAreXPages, Model.Pages)</p>
+      <p>
+        <a asp-action="All" asp-controller="Page" class="btn btn-secondary me-2">View All</a>
+        <a asp-action="Edit" asp-controller="Page" asp-route-id="new" class="btn btn-primary">Create a New Page</a>
+      </p>
+    </section>
+    <section class="col col-sm-4">
+      <h3>@Resources.Categories</h3>
+      <p>@string.Format(Resources.ThereAreXCategories, Model.Categories)</p>
+      <p>
+        <a asp-action="All" asp-controller="Category" class="btn btn-secondary me-2">View All</a>
+        <a asp-action="Edit" asp-controller="Category" asp-route-id="new" class="btn btn-secondary">
+          Add a New Category
+        </a>
+      </p>
+    </section>
+  </div>
+</article>

@@ -120,6 +120,9 @@
   <data name="Admin" xml:space="preserve">
     <value>Admin</value>
   </data>
+  <data name="Categories" xml:space="preserve">
+    <value>Categories</value>
+  </data>
   <data name="Dashboard" xml:space="preserve">
     <value>Dashboard</value>
   </data>
@@ -132,7 +135,22 @@
   <data name="LogOn" xml:space="preserve">
     <value>Log On</value>
   </data>
+  <data name="Pages" xml:space="preserve">
+    <value>Pages</value>
+  </data>
   <data name="Password" xml:space="preserve">
     <value>Password</value>
+  </data>
+  <data name="Posts" xml:space="preserve">
+    <value>Posts</value>
+  </data>
+  <data name="ThereAreXCategories" xml:space="preserve">
+    <value>There are {0} categories</value>
+  </data>
+  <data name="ThereAreXPages" xml:space="preserve">
+    <value>There are {0} pages</value>
+  </data>
+  <data name="ThereAreXPublishedPostsAndYDrafts" xml:space="preserve">
+    <value>There are {0} published posts and {1} drafts</value>
   </data>
 </root>

@@ -10,10 +10,15 @@ public abstract class MyWebLogController : Controller
     protected WebLogDbContext Db { get; init; }
 
     /// <summary>
+    /// The details for the current web log
+    /// </summary>
+    protected WebLogDetails WebLog => WebLogCache.Get(HttpContext);
+
+    /// <summary>
     /// Constructor
     /// </summary>
     /// <param name="db">The data context to use to fulfil this request</param>
-    protected MyWebLogController(WebLogDbContext db)
+    protected MyWebLogController(WebLogDbContext db) : base()
     {
         Db = db;
     }

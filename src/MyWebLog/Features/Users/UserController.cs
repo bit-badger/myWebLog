@@ -33,7 +33,7 @@ public class UserController : MyWebLogController
 
     [HttpGet("log-on")]
     public IActionResult LogOn() =>
-        View(new LogOnModel());
+        View(new LogOnModel(WebLog));
 
     [HttpPost("log-on")]
     public async Task<IActionResult> DoLogOn(LogOnModel model)

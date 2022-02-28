@@ -1,9 +1,10 @@
-﻿@model Page
+﻿@using MyWebLog.Features.Pages
+@model SinglePageModel
 @{
     Layout = "_Layout";
-    ViewBag.Title = Model.Title;
+    ViewBag.Title = Model.Page.Title;
 }
-<h2>@Model.Title</h2>
+<h2>@Model.Page.Title</h2>
 <article>
-    @Html.Raw(Model.Text)
+    @Html.Raw(Model.Page.Text)
 </article>

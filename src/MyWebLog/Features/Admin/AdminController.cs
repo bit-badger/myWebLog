@@ -12,8 +12,12 @@ public class AdminController : MyWebLogController
     public AdminController(WebLogDbContext db) : base(db) { }
 
     [HttpGet("")]
-    public IActionResult Index()
-    {
-        return View();
-    }
+    public async Task<IActionResult> Index() =>
+        View(new DashboardModel(WebLog)
+        {
+            Posts = await Db.Posts.CountByStatus(PostStatus.Published),
+            Drafts = await Db.Posts.CountByStatus(PostStatus.Draft),
+            Pages = await Db.Pages.CountAll(),
+            Categories = await Db.Categories.CountAll()
+        });
 }
