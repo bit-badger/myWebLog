@@ -1,0 +1,56 @@
+﻿@model EditPageModel
+@{
+    Layout = "_AdminLayout";
+    ViewBag.Title = Model.IsNew ? Resources.AddANewPage : Resources.EditPage;
+}
+<article>
+  <h2 class="pb-3">@ViewBag.Title</h2>
+  <form asp-action="Save" asp-route-id="@Model.PageId" method="post">
+    <input type="hidden" asp-for="PageId">
+    <div class="container">
+      <div class="row mb-3">
+        <div class="col">
+          <div class="form-floating">
+            <input type="text" asp-for="Title" class="form-control" autofocus>
+            <label asp-for="Title"></label>
+            <span asp-validation-for="Title"></span>
+          </div>
+        </div>
+      </div>
+      <div class="row mb-3">
+        <div class="col-9">
+          <div class="form-floating">
+            <input type="text" asp-for="Permalink" class="form-control">
+            <label asp-for="Permalink"></label>
+            <span asp-validation-for="Permalink"></span>
+          </div>
+        </div>
+        <div class="col-3 align-self-center">
+          <div class="form-check form-switch">
+            <input type="checkbox" asp-for="IsShownInPageList" class="form-check-input">
+            <label asp-for="IsShownInPageList" class="form-check-label"></label>
+          </div>
+        </div>
+      </div>
+      <div class="row mb-2">
+        <div class="col">
+          <label asp-for="Text"></label> &nbsp; &nbsp;
+          <input type="radio" asp-for="Source" id="source_html" class="btn-check" value="@RevisionSource.Html">
+          <label class="btn btn-sm btn-outline-secondary" for="source_html">HTML</label>
+          <input type="radio" asp-for="Source" id="source_md" class="btn-check" value="@RevisionSource.Markdown">
+          <label class="btn btn-sm btn-outline-secondary" for="source_md">Markdown</label>
+        </div>
+      </div>
+      <div class="row mb-3">
+        <div class="col">
+          <textarea asp-for="Text" class="form-control" rows="10"></textarea>
+        </div>
+      </div>
+      <div class="row mb-3">
+        <div class="col">
+          <button type="submit" class="btn btn-primary">@Resources.SaveChanges</button>
+        </div>
+      </div>
+    </div>
+  </form>
+</article>

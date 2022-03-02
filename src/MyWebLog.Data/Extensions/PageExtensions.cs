@@ -34,10 +34,34 @@ public static class PageExtensions
         await db.SingleOrDefaultAsync(p => p.Id == id).ConfigureAwait(false);
 
     /// <summary>
+    /// Retrieve a page by its ID, including its revisions (non-tracked)
+    /// </summary>
+    /// <param name="id">The ID of the page to retrieve</param>
+    /// <returns>The requested page (or null if it is not found)</returns>
+    public static async Task<Page?> FindByIdWithRevisions(this DbSet<Page> db, string id) =>
+        await db.Include(p => p.Revisions).SingleOrDefaultAsync(p => p.Id == id).ConfigureAwait(false);
+
+    /// <summary>
     /// Retrieve a page by its permalink (non-tracked)
     /// </summary>
     /// <param name="permalink">The permalink</param>
     /// <returns>The requested page (or null if it is not found)</returns>
     public static async Task<Page?> FindByPermalink(this DbSet<Page> db, string permalink) =>
         await db.SingleOrDefaultAsync(p => p.Permalink == permalink).ConfigureAwait(false);
+
+    /// <summary>
+    /// Retrieve a page of pages (non-tracked)
+    /// </summary>
+    /// <param name="pageNbr">The page number to retrieve</param>
+    /// <returns>The pages</returns>
+    public static async Task<List<Page>> FindPageOfPages(this DbSet<Page> db, int pageNbr) =>
+        await db.Skip((pageNbr - 1) * 50).Take(25).ToListAsync().ConfigureAwait(false);
+    
+    /// <summary>
+    /// Retrieve a page by its ID (tracked)
+    /// </summary>
+    /// <param name="id">The ID of the page to retrieve</param>
+    /// <returns>The requested page (or null if it is not found)</returns>
+    public static async Task<Page?> GetById(this DbSet<Page> db, string id) =>
+        await db.AsTracking().Include(p => p.Revisions).SingleOrDefaultAsync(p => p.Id == id).ConfigureAwait(false);
 }

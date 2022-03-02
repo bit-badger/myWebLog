@@ -61,6 +61,33 @@ namespace MyWebLog.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Actions.
+        /// </summary>
+        public static string Actions {
+            get {
+                return ResourceManager.GetString("Actions", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Add a New Category.
+        /// </summary>
+        public static string AddANewCategory {
+            get {
+                return ResourceManager.GetString("AddANewCategory", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Add a New Page.
+        /// </summary>
+        public static string AddANewPage {
+            get {
+                return ResourceManager.GetString("AddANewPage", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Admin.
         /// </summary>
         public static string Admin {
@@ -88,11 +115,29 @@ namespace MyWebLog.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Create a New Page.
+        /// </summary>
+        public static string CreateANewPage {
+            get {
+                return ResourceManager.GetString("CreateANewPage", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Dashboard.
         /// </summary>
         public static string Dashboard {
             get {
                 return ResourceManager.GetString("Dashboard", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to MMMM d, yyyy.
+        /// </summary>
+        public static string DateFormatString {
+            get {
+                return ResourceManager.GetString("DateFormatString", resourceCulture);
             }
         }
         
@@ -115,6 +160,24 @@ namespace MyWebLog.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Edit.
+        /// </summary>
+        public static string Edit {
+            get {
+                return ResourceManager.GetString("Edit", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Edit Page.
+        /// </summary>
+        public static string EditPage {
+            get {
+                return ResourceManager.GetString("EditPage", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to E-mail Address.
         /// </summary>
         public static string EmailAddress {
@@ -129,6 +192,24 @@ namespace MyWebLog.Properties {
         public static string FirstPageOfPosts {
             get {
                 return ResourceManager.GetString("FirstPageOfPosts", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to In List?.
+        /// </summary>
+        public static string InListQuestion {
+            get {
+                return ResourceManager.GetString("InListQuestion", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Last Updated.
+        /// </summary>
+        public static string LastUpdated {
+            get {
+                return ResourceManager.GetString("LastUpdated", resourceCulture);
             }
         }
         
@@ -160,11 +241,29 @@ namespace MyWebLog.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Modify Settings.
+        /// </summary>
+        public static string ModifySettings {
+            get {
+                return ResourceManager.GetString("ModifySettings", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Name.
         /// </summary>
         public static string Name {
             get {
                 return ResourceManager.GetString("Name", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to No.
+        /// </summary>
+        public static string No {
+            get {
+                return ResourceManager.GetString("No", resourceCulture);
             }
         }
         
@@ -178,11 +277,29 @@ namespace MyWebLog.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Page Text.
+        /// </summary>
+        public static string PageText {
+            get {
+                return ResourceManager.GetString("PageText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Password.
         /// </summary>
         public static string Password {
             get {
                 return ResourceManager.GetString("Password", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Permalink.
+        /// </summary>
+        public static string Permalink {
+            get {
+                return ResourceManager.GetString("Permalink", resourceCulture);
             }
         }
         
@@ -219,6 +336,15 @@ namespace MyWebLog.Properties {
         public static string SaveChanges {
             get {
                 return ResourceManager.GetString("SaveChanges", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Show in Page List.
+        /// </summary>
+        public static string ShowInPageList {
+            get {
+                return ResourceManager.GetString("ShowInPageList", resourceCulture);
             }
         }
         
@@ -277,11 +403,56 @@ namespace MyWebLog.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Title.
+        /// </summary>
+        public static string Title {
+            get {
+                return ResourceManager.GetString("Title", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Top Level.
         /// </summary>
         public static string TopLevel {
             get {
                 return ResourceManager.GetString("TopLevel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to View All.
+        /// </summary>
+        public static string ViewAll {
+            get {
+                return ResourceManager.GetString("ViewAll", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Web Log Settings.
+        /// </summary>
+        public static string WebLogSettings {
+            get {
+                return ResourceManager.GetString("WebLogSettings", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Write a New Post.
+        /// </summary>
+        public static string WriteANewPost {
+            get {
+                return ResourceManager.GetString("WriteANewPost", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Yes.
+        /// </summary>
+        public static string Yes {
+            get {
+                return ResourceManager.GetString("Yes", resourceCulture);
             }
         }
     }

@@ -13,8 +13,10 @@
             @Resources.Published <span class="badge rounded-pill bg-secondary">@Model.Posts</span>
             &nbsp; @Resources.Drafts <span class="badge rounded-pill bg-secondary">@Model.Drafts</span>
           </h6>
-          <a asp-action="All" asp-controller="Post" class="btn btn-secondary me-2">View All</a>
-          <a asp-action="Edit" asp-controller="Post" asp-route-id="new" class="btn btn-primary">Write a New Post</a>
+          <a asp-action="All" asp-controller="Post" class="btn btn-secondary me-2">@Resources.ViewAll</a>
+          <a asp-action="Edit" asp-controller="Post" asp-route-id="new" class="btn btn-primary">
+            @Resources.WriteANewPost
+          </a>
         </div>
       </div>
     </section>
@@ -26,8 +28,10 @@
             @Resources.All <span class="badge rounded-pill bg-secondary">@Model.Pages</span>
             &nbsp; @Resources.ShownInPageList <span class="badge rounded-pill bg-secondary">@Model.ListedPages</span>
           </h6>
-          <a asp-action="All" asp-controller="Page" class="btn btn-secondary me-2">View All</a>
-          <a asp-action="Edit" asp-controller="Page" asp-route-id="new" class="btn btn-primary">Create a New Page</a>
+          <a asp-action="All" asp-controller="Page" class="btn btn-secondary me-2">@Resources.ViewAll</a>
+          <a asp-action="Edit" asp-controller="Page" asp-route-id="new" class="btn btn-primary">
+            @Resources.CreateANewPage
+          </a>
         </div>
       </div>
     </section>
@@ -41,9 +45,9 @@
             @Resources.All <span class="badge rounded-pill bg-secondary">@Model.Categories</span>
             &nbsp; @Resources.TopLevel <span class="badge rounded-pill bg-secondary">@Model.TopLevelCategories</span>
           </h6>
-          <a asp-action="All" asp-controller="Category" class="btn btn-secondary me-2">View All</a>
+          <a asp-action="All" asp-controller="Category" class="btn btn-secondary me-2">@Resources.ViewAll</a>
           <a asp-action="Edit" asp-controller="Category" asp-route-id="new" class="btn btn-secondary">
-            Add a New Category
+            @Resources.AddANewCategory
           </a>
         </div>
       </div>
@@ -51,7 +55,7 @@
   </div>
   <div class="row pb-3">
     <div class="col text-end">
-      <a asp-action="Settings" class="btn btn-secondary">Modify Settings</a>
+      <a asp-action="Settings" class="btn btn-secondary">@Resources.ModifySettings</a>
     </div>
   </div>
 </article>

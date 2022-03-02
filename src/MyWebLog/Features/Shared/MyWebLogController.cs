@@ -1,7 +1,11 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace MyWebLog.Features.Shared;
 
+/// <summary>
+/// Base class for myWebLog controllers
+/// </summary>
 public abstract class MyWebLogController : Controller
 {
     /// <summary>
@@ -13,6 +17,11 @@ public abstract class MyWebLogController : Controller
     /// The details for the current web log
     /// </summary>
     protected WebLogDetails WebLog => WebLogCache.Get(HttpContext);
+
+    /// <summary>
+    /// The ID of the currently authenticated user
+    /// </summary>
+    protected string UserId => User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value ?? "";
 
     /// <summary>
     /// Constructor
