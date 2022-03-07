@@ -34,6 +34,8 @@ public abstract class MyWebLogController : Controller
 
     protected ViewResult ThemedView(string template, object model)
     {
+        // TODO: get actual version
+        ViewBag.Version = "2";
         return View(template, model);
     }
 }

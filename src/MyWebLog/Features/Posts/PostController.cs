@@ -21,7 +21,7 @@ public class PostController : MyWebLogController
         if (WebLog.DefaultPage == "posts") return await PageOfPosts(1);
         
         var page = await Db.Pages.FindById(WebLog.DefaultPage);
-        return page is null ? NotFound() : ThemedView("SinglePage", new SinglePageModel(page, WebLog));
+        return page is null ? NotFound() : ThemedView(page.Template ?? "SinglePage", new SinglePageModel(page, WebLog));
     }
 
     [HttpGet("~/page/{pageNbr:int}")]
@@ -42,7 +42,7 @@ public class PostController : MyWebLogController
         var page = await Db.Pages.FindByPermalink(permalink);
         if (page != null)
         {
-            return ThemedView("SinglePage", new SinglePageModel(page, WebLog));
+            return ThemedView(page.Template ?? "SinglePage", new SinglePageModel(page, WebLog));
         }
 
         // TOOD: search prior permalinks for posts and pages

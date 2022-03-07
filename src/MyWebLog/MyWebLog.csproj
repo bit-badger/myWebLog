@@ -7,6 +7,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Content Remove="Themes\BitBadger\solutions.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Themes\BitBadger\solutions.json" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Folder Include="wwwroot\img\" />
   </ItemGroup>
 

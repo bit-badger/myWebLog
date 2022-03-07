@@ -121,6 +121,9 @@ namespace MyWebLog.Data.Migrations
                     b.Property<bool>("ShowInPageList")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("Template")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Text")
                         .IsRequired()
                         .HasColumnType("TEXT");

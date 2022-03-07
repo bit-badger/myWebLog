@@ -1,0 +1,13 @@
+﻿@using MyWebLog.Features.Pages
+@model SinglePageModel
+@{
+    Layout = "_Layout";
+    ViewBag.Title = Model.Page.Title;
+}
+<div class="@(Model.IsHome ? "home" : null)">
+  <article class="content auto">
+    @if (!Model.IsHome) { <h2>@Model.Page.Title</h2> }
+    @Html.Raw(Model.Page.Text)
+  </article>
+  @if (Model.IsHome) { @await Html.PartialAsync("_AppSidebar") }
+</div>

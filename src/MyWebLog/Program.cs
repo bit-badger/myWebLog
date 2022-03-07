@@ -43,7 +43,7 @@ builder.Services.AddDbContext<WebLogDbContext>(o =>
 {
     // TODO: can get from DI?
     var db = WebLogCache.HostToDb(new HttpContextAccessor().HttpContext!);
-    // "Data Source=Db/empty.db"
+     // "empty";
     o.UseSqlite($"Data Source=Db/{db}.db");
 });
 

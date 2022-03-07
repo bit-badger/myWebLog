@@ -87,6 +87,7 @@ namespace MyWebLog.Data.Migrations
                     PublishedOn = table.Column<DateTime>(type: "TEXT", nullable: false),
                     UpdatedOn = table.Column<DateTime>(type: "TEXT", nullable: false),
                     ShowInPageList = table.Column<bool>(type: "INTEGER", nullable: false),
+                    Template = table.Column<string>(type: "TEXT", nullable: true),
                     Text = table.Column<string>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>

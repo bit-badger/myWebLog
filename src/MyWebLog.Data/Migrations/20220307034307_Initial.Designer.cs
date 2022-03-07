@@ -11,7 +11,7 @@ using MyWebLog.Data;
 namespace MyWebLog.Data.Migrations
 {
     [DbContext(typeof(WebLogDbContext))]
-    [Migration("20220227160816_Initial")]
+    [Migration("20220307034307_Initial")]
     partial class Initial
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -122,6 +122,9 @@ namespace MyWebLog.Data.Migrations
 
                     b.Property<bool>("ShowInPageList")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("Template")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Text")
                         .IsRequired()

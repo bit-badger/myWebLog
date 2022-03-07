@@ -55,7 +55,7 @@ public static class PageExtensions
     /// <param name="pageNbr">The page number to retrieve</param>
     /// <returns>The pages</returns>
     public static async Task<List<Page>> FindPageOfPages(this DbSet<Page> db, int pageNbr) =>
-        await db.Skip((pageNbr - 1) * 50).Take(25).ToListAsync().ConfigureAwait(false);
+        await db.OrderBy(p => p.Title).Skip((pageNbr - 1) * 25).Take(25).ToListAsync().ConfigureAwait(false);
     
     /// <summary>
     /// Retrieve a page by its ID (tracked)

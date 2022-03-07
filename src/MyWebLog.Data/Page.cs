@@ -46,6 +46,11 @@ public class Page
     public bool ShowInPageList { get; set; } = false;
 
     /// <summary>
+    /// The template to use when rendering this page
+    /// </summary>
+    public string? Template { get; set; } = null;
+
+    /// <summary>
     /// The current text of the page
     /// </summary>
     public string Text { get; set; } = "";

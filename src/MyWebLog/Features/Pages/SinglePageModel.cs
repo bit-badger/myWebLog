@@ -11,6 +11,11 @@ public class SinglePageModel : MyWebLogModel
     public Page Page { get; init; }
 
     /// <summary>
+    /// Is this the home page?
+    /// </summary>
+    public bool IsHome => Page.Id == WebLog.DefaultPage;
+
+    /// <summary>
     /// Constructor
     /// </summary>
     /// <param name="page">The page to be rendered</param>
