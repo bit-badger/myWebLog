@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using MyWebLog;
 using MyWebLog.Features;
 using MyWebLog.Features.Users;
+using System.Reflection;
 
 if (args.Length > 0 && args[0] == "init")
 {
@@ -46,6 +47,10 @@ builder.Services.AddDbContext<WebLogDbContext>(o =>
      // "empty";
     o.UseSqlite($"Data Source=Db/{db}.db");
 });
+
+// Load themes
+Array.ForEach(Directory.GetFiles(Directory.GetCurrentDirectory(), "MyWebLog.Themes.*.dll"),
+    it => { Assembly.LoadFile(it); });
 
 var app = builder.Build();
 

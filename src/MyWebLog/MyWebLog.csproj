@@ -7,14 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Remove="Themes\BitBadger\solutions.json" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <EmbeddedResource Include="Themes\BitBadger\solutions.json" />
-  </ItemGroup>
-
-  <ItemGroup>
     <Folder Include="wwwroot\img\" />
   </ItemGroup>
 
@@ -27,7 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\MyWebLog.Data\MyWebLog.Data.csproj" />
+    <ProjectReference Include="..\MyWebLog.DataCS\MyWebLog.DataCS.csproj" />
   </ItemGroup>
 
   <ItemGroup>

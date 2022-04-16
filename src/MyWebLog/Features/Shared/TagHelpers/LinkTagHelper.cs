@@ -43,11 +43,11 @@ public class LinkTagHelper : Microsoft.AspNetCore.Mvc.TagHelpers.LinkTagHelper
         switch (context.AllAttributes["rel"]?.Value.ToString())
         {
             case "stylesheet":
-                output.Attributes.SetAttribute("href", $"~/css/{Theme}/{Style}.css");
+                output.Attributes.SetAttribute("href", $"~/{Theme}/css/{Style}.css");
                 break;
             case "icon":
                 output.Attributes.SetAttribute("type", "image/x-icon");
-                output.Attributes.SetAttribute("href", $"~/img/{Theme}/favicon.ico");
+                output.Attributes.SetAttribute("href", $"~/{Theme}/img/favicon.ico");
                 break;
         }
         ProcessUrlAttribute("href", output);

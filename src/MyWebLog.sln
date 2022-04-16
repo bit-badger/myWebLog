@@ -3,9 +3,17 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.1.32210.238
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MyWebLog.Data", "MyWebLog.Data\MyWebLog.Data.csproj", "{0177C744-F913-4352-A0EC-478B4B0388C3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MyWebLog", "MyWebLog\MyWebLog.csproj", "{3139DA09-C999-465A-BC98-02FEC3BD7E88}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyWebLog", "MyWebLog\MyWebLog.csproj", "{3139DA09-C999-465A-BC98-02FEC3BD7E88}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MyWebLog.Themes.BitBadger", "MyWebLog.Themes.BitBadger\MyWebLog.Themes.BitBadger.csproj", "{729F7AB3-2300-4390-B972-71D32FBBBF50}"
+EndProject
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "MyWebLog.FS", "MyWebLog.FS\MyWebLog.FS.fsproj", "{4D62F235-73BA-42A6-8AA1-29D0D046E115}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "MyWebLog.Domain", "MyWebLog.Domain\MyWebLog.Domain.fsproj", "{8CA99122-888A-4524-8C1B-685F0A4B7B4B}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MyWebLog.DataCS", "MyWebLog.DataCS\MyWebLog.DataCS.csproj", "{C9129BED-E4AE-41BB-BDB2-5418B7F924CC}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "MyWebLog.Data", "MyWebLog.Data\MyWebLog.Data.fsproj", "{D284584D-2CB2-40C8-B605-6D0FD84D9D3D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -13,14 +21,30 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{0177C744-F913-4352-A0EC-478B4B0388C3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{0177C744-F913-4352-A0EC-478B4B0388C3}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{0177C744-F913-4352-A0EC-478B4B0388C3}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{0177C744-F913-4352-A0EC-478B4B0388C3}.Release|Any CPU.Build.0 = Release|Any CPU
 		{3139DA09-C999-465A-BC98-02FEC3BD7E88}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{3139DA09-C999-465A-BC98-02FEC3BD7E88}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3139DA09-C999-465A-BC98-02FEC3BD7E88}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3139DA09-C999-465A-BC98-02FEC3BD7E88}.Release|Any CPU.Build.0 = Release|Any CPU
+		{729F7AB3-2300-4390-B972-71D32FBBBF50}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{729F7AB3-2300-4390-B972-71D32FBBBF50}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{729F7AB3-2300-4390-B972-71D32FBBBF50}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{729F7AB3-2300-4390-B972-71D32FBBBF50}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4D62F235-73BA-42A6-8AA1-29D0D046E115}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4D62F235-73BA-42A6-8AA1-29D0D046E115}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4D62F235-73BA-42A6-8AA1-29D0D046E115}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4D62F235-73BA-42A6-8AA1-29D0D046E115}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8CA99122-888A-4524-8C1B-685F0A4B7B4B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8CA99122-888A-4524-8C1B-685F0A4B7B4B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8CA99122-888A-4524-8C1B-685F0A4B7B4B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8CA99122-888A-4524-8C1B-685F0A4B7B4B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C9129BED-E4AE-41BB-BDB2-5418B7F924CC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C9129BED-E4AE-41BB-BDB2-5418B7F924CC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C9129BED-E4AE-41BB-BDB2-5418B7F924CC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C9129BED-E4AE-41BB-BDB2-5418B7F924CC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D284584D-2CB2-40C8-B605-6D0FD84D9D3D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D284584D-2CB2-40C8-B605-6D0FD84D9D3D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D284584D-2CB2-40C8-B605-6D0FD84D9D3D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D284584D-2CB2-40C8-B605-6D0FD84D9D3D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

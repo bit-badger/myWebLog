@@ -1,0 +1,61 @@
+﻿@model DashboardModel
+@{
+    Layout = "_AdminLayout";
+    ViewBag.Title = Resources.Dashboard;
+}
+<article class="container pt-3">
+  <div class="row">
+    <section class="col-lg-5 offset-lg-1 col-xl-4 offset-xl-2 pb-3">
+      <div class="card">
+        <header class="card-header text-white bg-primary">@Resources.Posts</header>
+        <div class="card-body">
+          <h6 class="card-subtitle text-muted pb-3">
+            @Resources.Published <span class="badge rounded-pill bg-secondary">@Model.Posts</span>
+            &nbsp; @Resources.Drafts <span class="badge rounded-pill bg-secondary">@Model.Drafts</span>
+          </h6>
+          <a asp-action="All" asp-controller="Post" class="btn btn-secondary me-2">@Resources.ViewAll</a>
+          <a asp-action="Edit" asp-controller="Post" asp-route-id="new" class="btn btn-primary">
+            @Resources.WriteANewPost
+          </a>
+        </div>
+      </div>
+    </section>
+    <section class="col-lg-5 col-xl-4 pb-3">
+      <div class="card">
+        <header class="card-header text-white bg-primary">@Resources.Pages</header>
+        <div class="card-body">
+          <h6 class="card-subtitle text-muted pb-3">
+            @Resources.All <span class="badge rounded-pill bg-secondary">@Model.Pages</span>
+            &nbsp; @Resources.ShownInPageList <span class="badge rounded-pill bg-secondary">@Model.ListedPages</span>
+          </h6>
+          <a asp-action="All" asp-controller="Page" class="btn btn-secondary me-2">@Resources.ViewAll</a>
+          <a asp-action="Edit" asp-controller="Page" asp-route-id="new" class="btn btn-primary">
+            @Resources.CreateANewPage
+          </a>
+        </div>
+      </div>
+    </section>
+  </div>
+  <div class="row">
+    <section class="col-lg-5 offset-lg-1 col-xl-4 offset-xl-2 pb-3">
+      <div class="card">
+        <header class="card-header text-white bg-secondary">@Resources.Categories</header>
+        <div class="card-body">
+          <h6 class="card-subtitle text-muted pb-3">
+            @Resources.All <span class="badge rounded-pill bg-secondary">@Model.Categories</span>
+            &nbsp; @Resources.TopLevel <span class="badge rounded-pill bg-secondary">@Model.TopLevelCategories</span>
+          </h6>
+          <a asp-action="All" asp-controller="Category" class="btn btn-secondary me-2">@Resources.ViewAll</a>
+          <a asp-action="Edit" asp-controller="Category" asp-route-id="new" class="btn btn-secondary">
+            @Resources.AddANewCategory
+          </a>
+        </div>
+      </div>
+    </section>
+  </div>
+  <div class="row pb-3">
+    <div class="col text-end">
+      <a asp-action="Settings" class="btn btn-secondary">@Resources.ModifySettings</a>
+    </div>
+  </div>
+</article>

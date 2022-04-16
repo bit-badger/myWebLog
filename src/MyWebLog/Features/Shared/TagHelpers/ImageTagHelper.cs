@@ -31,7 +31,7 @@ public class ImageTagHelper : Microsoft.AspNetCore.Mvc.TagHelpers.ImageTagHelper
             return;
         }
 
-        output.Attributes.SetAttribute("src", $"~/img/{Theme}/{context.AllAttributes["src"]?.Value}");
+        output.Attributes.SetAttribute("src", $"~/{Theme}/img/{context.AllAttributes["src"]?.Value}");
         ProcessUrlAttribute("src", output);
     }
 }
