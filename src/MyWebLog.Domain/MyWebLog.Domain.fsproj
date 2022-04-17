@@ -8,6 +8,7 @@
   <ItemGroup>
     <Compile Include="SupportTypes.fs" />
     <Compile Include="DataTypes.fs" />
+    <Compile Include="ViewModels.fs" />
   </ItemGroup>
 
 </Project>

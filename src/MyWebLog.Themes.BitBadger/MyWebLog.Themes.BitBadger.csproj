@@ -20,13 +20,6 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
-  <ItemGroup>
-	<ProjectReference Include="..\MyWebLog\MyWebLog.csproj">
-	  <Private>false</Private>
-	  <ExcludeAssets>runtime</ExcludeAssets>
-	</ProjectReference>
-  </ItemGroup>
-
 
 
 </Project>

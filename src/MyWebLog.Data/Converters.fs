@@ -60,13 +60,14 @@ open Microsoft.FSharpLu.Json
 /// All converters to use for data conversion
 let all () : JsonConverter seq =
     seq {
-        CategoryIdConverter       ()
-        CommentIdConverter        ()
-        PermalinkConverter        ()
-        PageIdConverter           ()
-        PostIdConverter           ()
-        WebLogIdConverter         ()
-        WebLogUserIdConverter     ()
+        // Our converters
+        CategoryIdConverter   ()
+        CommentIdConverter    ()
+        PermalinkConverter    ()
+        PageIdConverter       ()
+        PostIdConverter       ()
+        WebLogIdConverter     ()
+        WebLogUserIdConverter ()
         // Handles DUs with no associated data, as well as option fields
         CompactUnionJsonConverter ()
     }

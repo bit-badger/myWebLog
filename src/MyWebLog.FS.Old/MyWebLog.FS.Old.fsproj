@@ -5,6 +5,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <Compile Include="Handlers.fs" />
         <Compile Include="WebLogCache.fs" />
         <Compile Include="Features\Shared\SharedTypes.fs" />
         <Compile Include="Features\Admin\AdminTypes.fs" />

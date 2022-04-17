@@ -248,7 +248,7 @@ module WebLog =
           subtitle     = None
           defaultPage  = ""
           postsPerPage = 10
-          themePath    = "Default"
+          themePath    = "default"
           urlBase      = ""
           timeZone     = ""
         }

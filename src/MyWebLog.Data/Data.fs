@@ -43,11 +43,19 @@ module Helpers =
         fun conn -> task {
             match! f conn with Some it when (prop it) = webLogId -> return Some it | _ -> return None
         }
+    
+    /// Get the first item from a list, or None if the list is empty
+    let tryFirst<'T> (f : IConnection -> Task<'T list>) =
+        fun conn -> task {
+            let! results = f conn
+            return results |> List.tryHead
+        }
 
     
 open RethinkDb.Driver.FSharp
 open Microsoft.Extensions.Logging
 
+/// Start up checks to ensure the database, tables, and indexes exist
 module Startup =
     
     /// Ensure field indexes exist, as well as special indexes for selected tables
@@ -151,6 +159,16 @@ module Category =
 /// Functions to manipulate pages
 module Page =
     
+    /// Add a new page
+    let add (page : Page) =
+        rethink {
+            withTable Table.Page
+            insert page
+            write
+            withRetryDefault
+            ignoreResult
+        }
+
     /// Count all pages for a web log
     let countAll (webLogId : WebLogId) =
         rethink<int> {
@@ -195,14 +213,15 @@ module Page =
 
     /// Find a page by its permalink
     let findByPermalink (permalink : Permalink) (webLogId : WebLogId) =
-        rethink<Page> {
+        rethink<Page list> {
             withTable Table.Page
             getAll [ r.Array (webLogId, permalink) ] (nameof permalink)
             without [ "priorPermalinks", "revisions" ]
             limit 1
-            resultOption
+            result
             withRetryDefault
         }
+        |> tryFirst
 
     /// Find a page by its ID (including permalinks and revisions)
     let findByFullId (pageId : PageId) webLogId =
@@ -243,14 +262,15 @@ module Post =
 
     /// Find a post by its permalink
     let findByPermalink (permalink : Permalink) (webLogId : WebLogId) =
-        rethink<Post> {
+        rethink<Post list> {
             withTable Table.Post
             getAll [ r.Array(permalink, webLogId) ] (nameof permalink)
             without [ "priorPermalinks", "revisions" ]
             limit 1
-            resultOption
+            result
             withRetryDefault
         }
+        |> tryFirst
 
     /// Find posts to be displayed on a page
     let findPageOfPublishedPosts (webLogId : WebLogId) pageNbr postsPerPage =
@@ -270,15 +290,26 @@ module Post =
 /// Functions to manipulate web logs
 module WebLog =
     
+    /// Add a web log
+    let add (webLog : WebLog) =
+        rethink {
+            withTable Table.WebLog
+            insert webLog
+            write
+            withRetryOnce
+            ignoreResult
+        }
+    
     /// Retrieve web log details by the URL base
     let findByHost (url : string) =
-        rethink<WebLog> {
+        rethink<WebLog list> {
             withTable Table.WebLog
             getAll [ url ] "urlBase"
             limit 1
-            resultOption
+            result
             withRetryDefault
         }
+        |> tryFirst
 
     /// Update web log settings
     let updateSettings (webLog : WebLog) =
@@ -296,3 +327,18 @@ module WebLog =
             withRetryDefault
             ignoreResult
         }
+
+
+/// Functions to manipulate web log users
+module WebLogUser =
+    
+    /// Add a web log user
+    let add (user : WebLogUser) =
+        rethink {
+            withTable Table.WebLogUser
+            insert user
+            write
+            withRetryDefault
+            ignoreResult
+        }
+        

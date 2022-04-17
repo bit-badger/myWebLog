@@ -20,7 +20,6 @@ type AdminController () =
         let! posts   = Data.Post.countByStatus Published |> getCount
         let! drafts  = Data.Post.countByStatus Draft     |> getCount
         let! pages   = Data.Page.countAll                |> getCount
-        let! pages   = Data.Page.countAll                |> getCount
         let! listed  = Data.Page.countListed             |> getCount
         let! cats    = Data.Category.countAll            |> getCount
         let! topCats = Data.Category.countTopLevel       |> getCount
