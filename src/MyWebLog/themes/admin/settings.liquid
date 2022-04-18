@@ -1,0 +1,55 @@
+﻿<article class="pt-3">
+  <form action="/admin/settings" method="post">
+    <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
+    <div class="container">
+      <div class="row">
+        <div class="col-12 col-md-6 col-xl-4 offset-xl-2 pb-3">
+          <div class="form-floating">
+            <input type="text" name="name" id="name" class="form-control" value="{{ model.name }}" required autofocus>
+            <label for="name">Name</label>
+          </div>
+        </div>
+        <div class="col-12 col-md-6 col-xl-4 pb-3">
+          <div class="form-floating">
+            <input type="text" name="subtitle" id="subtitle" class="form-control" value="{{ model.subtitle }}">
+            <label for="subtitle">Subtitle</label>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-12 col-md-4 col-xl-2 offset-xl-2 pb-3">
+          <div class="form-floating">
+            <input type="number" name="postsPerPage" id="postsPerPage" class="form-control" min="0" max="50" required
+                   value="{{ model.posts_per_page }}">
+            <label for="postsPerPage">Posts per Page</label>
+          </div>
+        </div>
+        <div class="col-12 col-md-4 col-xl-3 pb-3">
+          <div class="form-floating">
+            <input type="text" name="timeZone" id="timeZone" class="form-control" required
+                   value="{{ model.time_zone }}">
+            <label for="timeZone">Time Zone</label>
+          </div>
+        </div>
+        <div class="col-12 col-md-4 col-xl-3 pb-3">
+          <div class="form-floating">
+            <select name="defaultPage" id="defaultPage" class="form-control" required>
+              {% for pg in pages -%}
+                <option value="{{ pg[0] }}"
+                        {%- if pg[0] == model.default_page  %} selected="selected"{% endif %}>
+                  {{ pg[1] }}
+                </option>
+              {%- endfor %}
+            </select>
+            <label for="defaultPage">Default Page</label>
+          </div>
+        </div>
+      </div>
+      <div class="row pb-3">
+        <div class="col text-center">
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+      </div>
+    </div>
+  </form>
+</article>

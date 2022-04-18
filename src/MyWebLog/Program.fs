@@ -1,13 +1,7 @@
-﻿open Giraffe.EndpointRouting
-open Microsoft.AspNetCore.Authentication.Cookies
-open Microsoft.AspNetCore.Builder
+﻿open System.Collections.Generic
 open Microsoft.AspNetCore.Http
-open Microsoft.Extensions.Configuration
-open Microsoft.Extensions.Hosting
 open Microsoft.Extensions.DependencyInjection
-open Microsoft.Extensions.Logging
 open MyWebLog
-open RethinkDb.Driver.FSharp
 open RethinkDb.Driver.Net
 open System
 
@@ -103,8 +97,17 @@ let initDb args sp = task {
         return! System.Threading.Tasks.Task.CompletedTask
 }
 
+
 open DotLiquid
+open Giraffe
+open Giraffe.EndpointRouting
+open Microsoft.AspNetCore.Antiforgery
+open Microsoft.AspNetCore.Authentication.Cookies
+open Microsoft.AspNetCore.Builder
+open Microsoft.Extensions.Configuration
+open Microsoft.Extensions.Logging
 open MyWebLog.ViewModels
+open RethinkDb.Driver.FSharp
 
 [<EntryPoint>]
 let main args =
@@ -118,7 +121,9 @@ let main args =
                 opts.SlidingExpiration <- true
                 opts.AccessDeniedPath  <- "/forbidden")
     let _ = builder.Services.AddLogging ()
-    let _ = builder.Services.AddAuthorization()
+    let _ = builder.Services.AddAuthorization ()
+    let _ = builder.Services.AddAntiforgery ()
+    let _ = builder.Services.AddGiraffe ()
     
     // Configure RethinkDB's connection
     JsonConverters.all () |> Seq.iter Converter.Serializer.Converters.Add 
@@ -139,6 +144,11 @@ let main args =
     Template.RegisterSafeType (typeof<Page>, all)
     Template.RegisterSafeType (typeof<WebLog>, all)
     Template.RegisterSafeType (typeof<DashboardModel>, all)
+    Template.RegisterSafeType (typeof<SettingsModel>, all)
+    
+    Template.RegisterSafeType (typeof<AntiforgeryTokenSet>, all)
+    Template.RegisterSafeType (typeof<Option<_>>, all) // doesn't quite get the job done....
+    Template.RegisterSafeType (typeof<KeyValuePair>, all)
 
     let app = builder.Build ()
     

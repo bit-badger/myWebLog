@@ -1,13 +1,5 @@
 ﻿namespace MyWebLog.ViewModels
 
-open MyWebLog
-
-/// Base model class for myWebLog views
-type MyWebLogModel (webLog : WebLog) =
-
-    /// The details for the web log
-    member val WebLog = webLog with get
-
 
 /// The model to use to allow a user to log on
 [<CLIMutable>]
@@ -18,18 +10,6 @@ type LogOnModel =
         /// The user's password
         password : string
     }
-
-
-/// The model used to render a single page
-type SinglePageModel =
-    {   /// The page to be rendered
-        page : Page
-        
-        /// The web log to which the page belongs
-        webLog : WebLog
-    }
-    /// Is this the home page?
-    member this.isHome with get () = PageId.toString this.page.id = this.webLog.defaultPage
 
 
 /// The model used to display the admin dashboard
@@ -51,4 +31,24 @@ type DashboardModel =
 
         /// The top-level categories
         topLevelCategories : int
+    }
+
+
+/// View model for editing web log settings
+[<CLIMutable>]
+type SettingsModel =
+    {   /// The name of the web log
+        name : string
+
+        /// The subtitle of the web log
+        subtitle : string
+
+        /// The default page
+        defaultPage : string
+
+        /// How many posts should appear on index pages
+        postsPerPage : int
+
+        /// The time zone in which dates/times should be displayed
+        timeZone : string
     }

@@ -1,6 +1,7 @@
 ﻿[<RequireQualifiedAccess>]
 module MyWebLog.Handlers
 
+open System.Collections.Generic
 open DotLiquid
 open Giraffe
 open Microsoft.AspNetCore.Http
@@ -40,6 +41,7 @@ module Error =
 [<AutoOpen>]
 module private Helpers =
     
+    open Microsoft.AspNetCore.Antiforgery
     open Microsoft.Extensions.DependencyInjection
     open System.Collections.Concurrent
     open System.IO
@@ -97,38 +99,162 @@ module private Helpers =
     let webLogId ctx = (WebLogCache.getByCtx ctx).id
     
     let conn (ctx : HttpContext) = ctx.RequestServices.GetRequiredService<IConnection> ()
+    
+    let private antiForgery (ctx : HttpContext) = ctx.RequestServices.GetRequiredService<IAntiforgery> ()
+    
+    /// Get the cross-site request forgery token set
+    let csrfToken (ctx : HttpContext) =
+        (antiForgery ctx).GetAndStoreTokens ctx
+    
+    /// Validate the cross-site request forgery token in the current request
+    let validateCsrf : HttpHandler = fun next ctx -> task {
+        match! (antiForgery ctx).IsRequestValidAsync ctx with
+        | true -> return! next ctx
+        | false -> return! RequestErrors.BAD_REQUEST "CSRF token invalid" next ctx
+    }
+    
+    /// Require a user to be logged on
+    let requireUser = requiresAuthentication Error.notAuthorized
 
 
+/// Handlers to manipulate admin functions
 module Admin =
     
     // GET /admin/
-    let dashboard : HttpHandler =
-        requiresAuthentication Error.notFound
-        >=> fun next ctx -> task {
-            let webLogId' = webLogId ctx
-            let conn' = conn ctx
-            let getCount (f : WebLogId -> IConnection -> Task<int>) = f webLogId' conn'
-            let! posts   = Data.Post.countByStatus Published |> getCount
-            let! drafts  = Data.Post.countByStatus Draft     |> getCount
-            let! pages   = Data.Page.countAll                |> getCount
-            let! listed  = Data.Page.countListed             |> getCount
-            let! cats    = Data.Category.countAll            |> getCount
-            let! topCats = Data.Category.countTopLevel       |> getCount
-            return!
-                Hash.FromAnonymousObject
-                    {| page_title = "Dashboard"
-                       model =
-                           { posts              = posts
-                             drafts             = drafts
-                             pages              = pages
-                             listedPages        = listed
-                             categories         = cats
-                             topLevelCategories = topCats
-                           }
-                    |}
-                |> viewForTheme "admin" "dashboard" None next ctx
-        }
+    let dashboard : HttpHandler = requireUser >=> fun next ctx -> task {
+        let webLogId' = webLogId ctx
+        let conn' = conn ctx
+        let getCount (f : WebLogId -> IConnection -> Task<int>) = f webLogId' conn'
+        let! posts   = Data.Post.countByStatus Published |> getCount
+        let! drafts  = Data.Post.countByStatus Draft     |> getCount
+        let! pages   = Data.Page.countAll                |> getCount
+        let! listed  = Data.Page.countListed             |> getCount
+        let! cats    = Data.Category.countAll            |> getCount
+        let! topCats = Data.Category.countTopLevel       |> getCount
+        return!
+            Hash.FromAnonymousObject
+                {| page_title = "Dashboard"
+                   model =
+                       { posts              = posts
+                         drafts             = drafts
+                         pages              = pages
+                         listedPages        = listed
+                         categories         = cats
+                         topLevelCategories = topCats
+                       }
+                |}
+            |> viewForTheme "admin" "dashboard" None next ctx
+    }
+    
+    // GET /admin/settings
+    let settings : HttpHandler = requireUser >=> fun next ctx -> task {
+        let webLog = WebLogCache.getByCtx ctx
+        let! allPages = Data.Page.findAll webLog.id (conn ctx)
+        return!
+            Hash.FromAnonymousObject
+                {|  csrf  = csrfToken ctx
+                    model =
+                        { name         = webLog.name
+                          subtitle     = defaultArg webLog.subtitle ""
+                          defaultPage  = webLog.defaultPage
+                          postsPerPage = webLog.postsPerPage
+                          timeZone     = webLog.timeZone
+                        }
+                    pages =
+                        seq {
+                            KeyValuePair.Create ("posts", "- First Page of Posts -")
+                            yield! allPages
+                                   |> List.map (fun p -> KeyValuePair.Create (PageId.toString p.id, p.title))
+                        }
+                        |> Array.ofSeq
+                    web_log    = webLog
+                    page_title = "Web Log Settings"
+                |}
+            |> viewForTheme "admin" "settings" None next ctx
+    }
+    
+    // POST /admin/settings
+    let saveSettings : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
+        let  conn' = conn ctx
+        let! model = ctx.BindFormAsync<SettingsModel> ()
+        match! Data.WebLog.findByHost (WebLogCache.getByCtx ctx).urlBase conn' with
+        | Some webLog ->
+            let updated =
+                { webLog with
+                    name         = model.name
+                    subtitle     = match model.subtitle with "" -> None | it -> Some it
+                    defaultPage  = model.defaultPage
+                    postsPerPage = model.postsPerPage
+                    timeZone     = model.timeZone
+                }
+            do! Data.WebLog.updateSettings updated conn'
 
+            // Update cache
+            WebLogCache.set updated.urlBase updated
+        
+            // TODO: confirmation message
+
+            return! redirectTo false "/admin/" next ctx
+        | None -> return! Error.notFound next ctx
+    }
+
+
+/// Handlers to manipulate posts
+module Post =
+    
+    // GET /page/{pageNbr}
+    let pageOfPosts (pageNbr : int) : HttpHandler = fun next ctx -> task {
+        let webLog = WebLogCache.getByCtx ctx
+        let! posts = Data.Post.findPageOfPublishedPosts webLog.id pageNbr webLog.postsPerPage (conn ctx)
+        let hash = Hash.FromAnonymousObject {| posts = posts |}
+        let title =
+            match pageNbr, webLog.defaultPage with
+            | 1, "posts" -> None
+            | _, "posts" -> Some $"Page {pageNbr}"
+            | _, _ -> Some $"Page {pageNbr} &#xab; Posts"
+        match title with Some ttl -> hash.Add ("page_title", ttl) | None -> ()
+        return! themedView "index" None next ctx hash
+    }
+
+    // GET /
+    let home : HttpHandler = fun next ctx -> task {
+        let webLog = WebLogCache.getByCtx ctx
+        match webLog.defaultPage with
+        | "posts" -> return! pageOfPosts 1 next ctx
+        | pageId ->
+            match! Data.Page.findById (PageId pageId) webLog.id (conn ctx) with
+            | Some page ->
+                return!
+                    Hash.FromAnonymousObject {| page = page; page_title = page.title |}
+                    |> themedView "single-page" page.template next ctx
+            | None -> return! Error.notFound next ctx
+    }
+    
+    // GET *
+    let catchAll (link : string) : HttpHandler = fun next ctx -> task {
+        let webLog    = WebLogCache.getByCtx ctx
+        let conn'     = conn ctx
+        let permalink = Permalink link
+        match! Data.Post.findByPermalink permalink webLog.id conn' with
+        | Some post -> return! Error.notFound next ctx
+            // TODO: return via single-post action
+        | None ->
+            match! Data.Page.findByPermalink permalink webLog.id conn' with
+            | Some page ->
+                return!
+                    Hash.FromAnonymousObject {| page = page; page_title = page.title |}
+                    |> themedView "single-page" page.template next ctx
+            | None ->
+
+                // TOOD: search prior permalinks for posts and pages
+
+                // We tried, we really tried...
+                Console.Write($"Returning 404 for permalink |{permalink}|");
+                return! Error.notFound next ctx
+    }
+
+
+/// Handlers to manipulate users
 module User =
     
     open Microsoft.AspNetCore.Authentication;
@@ -146,12 +272,12 @@ module User =
     // GET /user/log-on
     let logOn : HttpHandler = fun next ctx -> task {
         return!
-            Hash.FromAnonymousObject {| page_title = "Log On" |}
+            Hash.FromAnonymousObject {| page_title = "Log On"; csrf = (csrfToken ctx) |}
             |> viewForTheme "admin" "log-on" None next ctx
     }
     
     // POST /user/log-on
-    let doLogOn : HttpHandler = fun next ctx -> task {
+    let doLogOn : HttpHandler = validateCsrf >=> fun next ctx -> task {
         let! model = ctx.BindFormAsync<LogOnModel> ()
         match! Data.WebLogUser.findByEmail model.emailAddress (webLogId ctx) (conn ctx) with 
         | Some user when user.passwordHash = hashedPassword model.password user.userName user.salt ->
@@ -181,47 +307,27 @@ module User =
 
         return! redirectTo false "/" next ctx
     }
-
-
-module CatchAll =
     
-    // GET /
-    let home : HttpHandler = fun next ctx -> task {
-        let webLog = WebLogCache.getByCtx ctx
-        match webLog.defaultPage with
-        | "posts" ->
-            // TODO: page of posts
-            return! Error.notFound next ctx
-        | pageId ->
-            match! Data.Page.findById (PageId pageId) webLog.id (conn ctx) with
-            | Some page ->
-                return!
-                    Hash.FromAnonymousObject {| page = page; page_title = page.title |}
-                    |> themedView "single-page" page.template next ctx
-            | None -> return! Error.notFound next ctx
-    }
-    
-    let catchAll : HttpHandler = fun next ctx -> task {
-        let webLog = WebLogCache.getByCtx ctx
-        let pageId = PageId webLog.defaultPage
-        match! Data.Page.findById pageId webLog.id (conn ctx) with
-        | Some page ->
-            return!
-                Hash.FromAnonymousObject {| page = page; page_title = page.title |}
-                |> themedView "single-page" page.template next ctx
-        | None -> return! Error.notFound next ctx
-    }
 
 open Giraffe.EndpointRouting
 
 /// The endpoints defined in the above handlers
 let endpoints = [
     GET [
-        route "/" CatchAll.home
+        route "/" Post.home
     ]
     subRoute "/admin" [
         GET [
-            route "/" Admin.dashboard
+            route "/"         Admin.dashboard
+            route "/settings" Admin.settings
+        ]
+        POST [
+            route "/settings" Admin.saveSettings
+        ]
+    ]
+    subRoute "/page" [
+        GET [
+            routef "/%d" Post.pageOfPosts
         ]
     ]
     subRoute "/user" [
