@@ -1,4 +1,4 @@
-﻿<h2 class="p-3 ">Log On to {{ web_log.name }}</h2>
+﻿<h2 class="py-3">Log On to {{ web_log.name }}</h2>
 <article class="pb-3">
   <form action="/user/log-on" method="post">
     <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">

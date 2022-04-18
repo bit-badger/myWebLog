@@ -1,4 +1,5 @@
-﻿<article class="container pt-3">
+﻿<h2 class="py-3">{{ web_log.name }} &bull; Dashboard</h2>
+<article class="container">
   <div class="row">
     <section class="col-lg-5 offset-lg-1 col-xl-4 offset-xl-2 pb-3">
       <div class="card">
@@ -21,7 +22,7 @@
             All <span class="badge rounded-pill bg-secondary">{{ model.pages }}</span>
             &nbsp; Shown in Page List <span class="badge rounded-pill bg-secondary">{{ model.listed_pages }}</span>
           </h6>
-          <a href="/pages/list" class="btn btn-secondary me-2">View All</a>
+          <a href="/pages" class="btn btn-secondary me-2">View All</a>
           <a href="/page/new/edit" class="btn btn-primary">Create a New Page</a>
         </div>
       </div>

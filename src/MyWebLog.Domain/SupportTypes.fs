@@ -61,6 +61,14 @@ type RevisionSource =
     /// HTML
     | Html
 
+/// Functions to support revision sources
+module RevisionSource =
+    
+    /// Convert a revision source to a string representation
+    let toString = function Markdown -> "Markdown" | Html -> "HTML"
+    
+    /// Convert a string to a revision source
+    let ofString = function "Markdown" -> Markdown | "HTML" -> Html | x -> invalidArg "string" x
 
 /// A revision of a page or post
 [<CLIMutable; NoComparison; NoEquality>]

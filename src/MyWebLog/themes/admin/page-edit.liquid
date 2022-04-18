@@ -1,0 +1,55 @@
+<h2 class="py-3">{{ page_title }}</h2>
+<article>
+  <form action="/page/save" method="post">
+    <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
+    <input type="hidden" name="pageId" value="{{ model.page_id }}">
+    <div class="container">
+      <div class="row mb-3">
+        <div class="col">
+          <div class="form-floating">
+            <input type="text" name="title" id="title" class="form-control" autofocus required
+                   value="{{ model.title }}">
+            <label for="title">Title</label>
+          </div>
+        </div>
+      </div>
+      <div class="row mb-3">
+        <div class="col-9">
+          <div class="form-floating">
+            <input type="text" name="permalink" id="permalink" class="form-control" required
+                   value="{{ model.permalink }}">
+            <label for="permalink">Permalink</label>
+          </div>
+        </div>
+        <div class="col-3 align-self-center">
+          <div class="form-check form-switch">
+            <input type="checkbox" name="isShownInPageList" id="showList" class="form-check-input" value="true"
+                   {%- if model.is_shown_in_page_list %} checked="checked"{% endif %}>
+            <label for="showList" class="form-check-label">Show in Page List</label>
+          </div>
+        </div>
+      </div>
+      <div class="row mb-2">
+        <div class="col">
+          <label for="text">Text</label> &nbsp; &nbsp;
+          <input type="radio" name="source" id="source_html" class="btn-check" value="HTML"
+                 {%- if model.source == "HTML" %} checked="checked"{% endif %}>
+          <label class="btn btn-sm btn-outline-secondary" for="source_html">HTML</label>
+          <input type="radio" name="source" id="source_md" class="btn-check" value="Markdown"
+                 {%- if model.source == "Markdown" %} checked="checked"{% endif %}>
+          <label class="btn btn-sm btn-outline-secondary" for="source_md">Markdown</label>
+        </div>
+      </div>
+      <div class="row mb-3">
+        <div class="col">
+          <textarea name="Text" id="text" class="form-control" rows="10">{{ model.text }}</textarea>
+        </div>
+      </div>
+      <div class="row mb-3">
+        <div class="col">
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+      </div>
+    </div>
+  </form>
+</article>

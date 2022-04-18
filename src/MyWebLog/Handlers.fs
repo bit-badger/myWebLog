@@ -1,7 +1,6 @@
 ﻿[<RequireQualifiedAccess>]
 module MyWebLog.Handlers
 
-open System.Collections.Generic
 open DotLiquid
 open Giraffe
 open Microsoft.AspNetCore.Http
@@ -26,12 +25,11 @@ module Error =
         >=> text ex.Message *)
 
     /// Handle unauthorized actions, redirecting to log on for GETs, otherwise returning a 401 Not Authorized response
-    let notAuthorized : HttpHandler =
-        fun next ctx ->
-            (next, ctx)
-            ||> match ctx.Request.Method with
-                | "GET" -> redirectTo false $"/user/log-on?returnUrl={WebUtility.UrlEncode ctx.Request.Path}"
-                | _ -> setStatusCode 401 >=> fun _ _ -> Task.FromResult<HttpContext option> None
+    let notAuthorized : HttpHandler = fun next ctx ->
+        (next, ctx)
+        ||> match ctx.Request.Method with
+            | "GET" -> redirectTo false $"/user/log-on?returnUrl={WebUtility.UrlEncode ctx.Request.Path}"
+            | _ -> setStatusCode 401 >=> fun _ _ -> Task.FromResult<HttpContext option> None
 
     /// Handle 404s from the API, sending known URL paths to the Vue app so that they can be handled there
     let notFound : HttpHandler =
@@ -41,42 +39,27 @@ module Error =
 [<AutoOpen>]
 module private Helpers =
     
+    open Markdig
     open Microsoft.AspNetCore.Antiforgery
     open Microsoft.Extensions.DependencyInjection
-    open System.Collections.Concurrent
-    open System.IO
-    
-    /// Cache for parsed templates
-    module private TemplateCache =
-        
-        /// Cache of parsed templates
-        let private views = ConcurrentDictionary<string, Template> ()
-        
-        /// Get a template for the given web log
-        let get (theme : string) (templateName : string) = task {
-            let templatePath = $"themes/{theme}/{templateName}"
-            match views.ContainsKey templatePath with
-            | true -> ()
-            | false ->
-                let! file = File.ReadAllTextAsync $"{templatePath}.liquid"
-                views[templatePath] <- Template.Parse (file, SyntaxCompatibility.DotLiquid22)
-            return views[templatePath]
-        }
-    
+    open System.Security.Claims
+
     /// Either get the web log from the hash, or get it from the cache and add it to the hash
-    let deriveWebLogFromHash (hash : Hash) ctx =
+    let private deriveWebLogFromHash (hash : Hash) ctx =
         match hash.ContainsKey "web_log" with
         | true -> hash["web_log"] :?> WebLog
         | false ->
-            let wl = WebLogCache.getByCtx ctx
+            let wl = WebLogCache.get ctx
             hash.Add ("web_log", wl)
             wl
     
     /// Render a view for the specified theme, using the specified template, layout, and hash
-    let viewForTheme theme template layout next ctx = fun (hash : Hash) -> task {
+    let viewForTheme theme template next ctx = fun (hash : Hash) -> task {
         // Don't need the web log, but this adds it to the hash if the function is called directly
         let _ = deriveWebLogFromHash hash ctx
-        hash.Add ("logged_on", ctx.User.Identity.IsAuthenticated)
+        hash.Add ("logged_on",    ctx.User.Identity.IsAuthenticated)
+        hash.Add ("page_list",    PageListCache.get ctx)
+        hash.Add ("current_page", ctx.Request.Path.Value.Substring 1)
         
         // NOTE: DotLiquid does not support {% render %} or {% include %} in its templates, so we will do a two-pass
         //       render; the net effect is a "layout" capability similar to Razor or Pug
@@ -86,20 +69,26 @@ module private Helpers =
         hash.Add ("content", contentTemplate.Render hash)
         
         // ...then render that content with its layout
-        let! layoutTemplate = TemplateCache.get theme (defaultArg layout "layout")
+        let! layoutTemplate = TemplateCache.get theme "layout"
         return! htmlString (layoutTemplate.Render hash) next ctx
     }
     
     /// Return a view for the web log's default theme
-    let themedView template layout next ctx = fun (hash : Hash) -> task {
-        return! viewForTheme (deriveWebLogFromHash hash ctx).themePath template layout next ctx hash
+    let themedView template next ctx = fun (hash : Hash) -> task {
+        return! viewForTheme (deriveWebLogFromHash hash ctx).themePath template next ctx hash
     }
     
-    /// The web log ID for the current request
-    let webLogId ctx = (WebLogCache.getByCtx ctx).id
+    /// Get the web log ID for the current request
+    let webLogId ctx = (WebLogCache.get ctx).id
     
+    /// Get the user ID for the current request
+    let userId (ctx : HttpContext) =
+        WebLogUserId (ctx.User.Claims |> Seq.find (fun c -> c.Type = ClaimTypes.NameIdentifier)).Value
+        
+    /// Get the RethinkDB connection
     let conn (ctx : HttpContext) = ctx.RequestServices.GetRequiredService<IConnection> ()
     
+    /// Get the Anti-CSRF service
     let private antiForgery (ctx : HttpContext) = ctx.RequestServices.GetRequiredService<IAntiforgery> ()
     
     /// Get the cross-site request forgery token set
@@ -115,16 +104,26 @@ module private Helpers =
     
     /// Require a user to be logged on
     let requireUser = requiresAuthentication Error.notAuthorized
+    
+    /// Pipeline with most extensions enabled
+    let mdPipeline =
+        MarkdownPipelineBuilder().UseSmartyPants().UseAdvancedExtensions().Build ()
+    
+    /// Get the HTML representation of the text of a revision
+    let revisionToHtml (rev : Revision) =
+        match rev.sourceType with Html -> rev.text | Markdown -> Markdown.ToHtml (rev.text, mdPipeline)
 
+
+open System.Collections.Generic
 
 /// Handlers to manipulate admin functions
 module Admin =
     
-    // GET /admin/
+    // GET /admin
     let dashboard : HttpHandler = requireUser >=> fun next ctx -> task {
-        let webLogId' = webLogId ctx
-        let conn' = conn ctx
-        let getCount (f : WebLogId -> IConnection -> Task<int>) = f webLogId' conn'
+        let webLogId = webLogId ctx
+        let conn     = conn ctx
+        let getCount (f : WebLogId -> IConnection -> Task<int>) = f webLogId conn
         let! posts   = Data.Post.countByStatus Published |> getCount
         let! drafts  = Data.Post.countByStatus Draft     |> getCount
         let! pages   = Data.Page.countAll                |> getCount
@@ -143,12 +142,12 @@ module Admin =
                          topLevelCategories = topCats
                        }
                 |}
-            |> viewForTheme "admin" "dashboard" None next ctx
+            |> viewForTheme "admin" "dashboard" next ctx
     }
     
     // GET /admin/settings
     let settings : HttpHandler = requireUser >=> fun next ctx -> task {
-        let webLog = WebLogCache.getByCtx ctx
+        let  webLog   = WebLogCache.get ctx
         let! allPages = Data.Page.findAll webLog.id (conn ctx)
         return!
             Hash.FromAnonymousObject
@@ -170,14 +169,14 @@ module Admin =
                     web_log    = webLog
                     page_title = "Web Log Settings"
                 |}
-            |> viewForTheme "admin" "settings" None next ctx
+            |> viewForTheme "admin" "settings" next ctx
     }
     
     // POST /admin/settings
     let saveSettings : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
-        let  conn' = conn ctx
+        let  conn  = conn ctx
         let! model = ctx.BindFormAsync<SettingsModel> ()
-        match! Data.WebLog.findByHost (WebLogCache.getByCtx ctx).urlBase conn' with
+        match! Data.WebLog.findById (WebLogCache.get ctx).id conn with
         | Some webLog ->
             let updated =
                 { webLog with
@@ -187,14 +186,102 @@ module Admin =
                     postsPerPage = model.postsPerPage
                     timeZone     = model.timeZone
                 }
-            do! Data.WebLog.updateSettings updated conn'
+            do! Data.WebLog.updateSettings updated conn
 
             // Update cache
-            WebLogCache.set updated.urlBase updated
+            WebLogCache.set ctx updated
         
             // TODO: confirmation message
 
-            return! redirectTo false "/admin/" next ctx
+            return! redirectTo false "/admin" next ctx
+        | None -> return! Error.notFound next ctx
+    }
+
+
+/// Handlers to manipulate pages
+module Page =
+    
+    // GET /pages
+    // GET /pages/page/{pageNbr}
+    let all pageNbr : HttpHandler = requireUser >=> fun next ctx -> task {
+        let  webLog = WebLogCache.get ctx
+        let! pages  = Data.Page.findPageOfPages webLog.id pageNbr (conn ctx)
+        return!
+            Hash.FromAnonymousObject
+                {| pages      = pages |> List.map (DisplayPage.fromPage webLog)
+                   page_title = "Pages"
+                |}
+            |> viewForTheme "admin" "page-list" next ctx
+    }
+
+    // GET /page/{id}/edit
+    let edit pgId : HttpHandler = requireUser >=> fun next ctx -> task {
+        let! hash = task {
+            match pgId with
+            | "new" ->
+                return
+                    Hash.FromAnonymousObject {|
+                        csrf       = csrfToken ctx
+                        model      = EditPageModel.fromPage { Page.empty with id = PageId "new" }
+                        page_title = "Add a New Page"
+                    |} |> Some
+            | _ ->
+                match! Data.Page.findByFullId (PageId pgId) (webLogId ctx) (conn ctx) with
+                | Some page ->
+                    return
+                        Hash.FromAnonymousObject {|
+                            csrf       = csrfToken ctx
+                            model      = EditPageModel.fromPage page
+                            page_title = "Edit Page"
+                        |} |> Some
+                | None -> return None
+        }
+        match hash with
+        | Some h -> return! viewForTheme "admin" "page-edit" next ctx h
+        | None -> return! Error.notFound next ctx
+    }
+
+    // POST /page/{id}/edit
+    let save : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
+        let! model    = ctx.BindFormAsync<EditPageModel> ()
+        let  webLogId = webLogId ctx
+        let  conn     = conn ctx
+        let  now      = DateTime.UtcNow
+        let! pg       = task {
+            match model.pageId with
+            | "new" ->
+                return Some
+                    { Page.empty with
+                        id             = PageId.create ()
+                        webLogId       = webLogId
+                        authorId       = userId ctx
+                        publishedOn    = now
+                    }
+            | pgId -> return! Data.Page.findByFullId (PageId pgId) webLogId conn
+        }
+        match pg with
+        | Some page ->
+            let updateList = page.showInPageList <> model.isShownInPageList
+            let revision   = { asOf = now; sourceType = RevisionSource.ofString model.source; text = model.text }
+            // Detect a permalink change, and add the prior one to the prior list
+            let page =
+                match Permalink.toString page.permalink with
+                | "" -> page
+                | link when link = model.permalink -> page
+                | _ -> { page with priorPermalinks = page.permalink :: page.priorPermalinks }
+            let page =
+                { page with
+                    title          = model.title
+                    permalink      = Permalink model.permalink
+                    updatedOn      = now
+                    showInPageList = model.isShownInPageList
+                    text           = revisionToHtml revision
+                    revisions      = revision :: page.revisions
+                }
+            do! (match model.pageId with "new" -> Data.Page.add | _ -> Data.Page.update) page conn
+            if updateList then do! PageListCache.update ctx
+            // TODO: confirmation
+            return! redirectTo false $"/page/{PageId.toString page.id}/edit" next ctx
         | None -> return! Error.notFound next ctx
     }
 
@@ -204,21 +291,21 @@ module Post =
     
     // GET /page/{pageNbr}
     let pageOfPosts (pageNbr : int) : HttpHandler = fun next ctx -> task {
-        let webLog = WebLogCache.getByCtx ctx
-        let! posts = Data.Post.findPageOfPublishedPosts webLog.id pageNbr webLog.postsPerPage (conn ctx)
-        let hash = Hash.FromAnonymousObject {| posts = posts |}
-        let title =
+        let  webLog = WebLogCache.get ctx
+        let! posts  = Data.Post.findPageOfPublishedPosts webLog.id pageNbr webLog.postsPerPage (conn ctx)
+        let  hash   = Hash.FromAnonymousObject {| posts = posts |}
+        let  title  =
             match pageNbr, webLog.defaultPage with
             | 1, "posts" -> None
             | _, "posts" -> Some $"Page {pageNbr}"
             | _, _ -> Some $"Page {pageNbr} &#xab; Posts"
         match title with Some ttl -> hash.Add ("page_title", ttl) | None -> ()
-        return! themedView "index" None next ctx hash
+        return! themedView "index" next ctx hash
     }
 
     // GET /
     let home : HttpHandler = fun next ctx -> task {
-        let webLog = WebLogCache.getByCtx ctx
+        let webLog = WebLogCache.get ctx
         match webLog.defaultPage with
         | "posts" -> return! pageOfPosts 1 next ctx
         | pageId ->
@@ -226,31 +313,38 @@ module Post =
             | Some page ->
                 return!
                     Hash.FromAnonymousObject {| page = page; page_title = page.title |}
-                    |> themedView "single-page" page.template next ctx
+                    |> themedView (defaultArg page.template "single-page") next ctx
             | None -> return! Error.notFound next ctx
     }
     
-    // GET *
-    let catchAll (link : string) : HttpHandler = fun next ctx -> task {
-        let webLog    = WebLogCache.getByCtx ctx
-        let conn'     = conn ctx
-        let permalink = Permalink link
-        match! Data.Post.findByPermalink permalink webLog.id conn' with
-        | Some post -> return! Error.notFound next ctx
+    // GET {**link}
+    let catchAll : HttpHandler = fun next ctx -> task {
+        let webLog    = WebLogCache.get ctx
+        let conn      = conn ctx
+        let permalink = (string >> Permalink) ctx.Request.RouteValues["link"]
+        // Current post
+        match! Data.Post.findByPermalink permalink webLog.id conn with
+        | Some _ -> return! Error.notFound next ctx
             // TODO: return via single-post action
         | None ->
-            match! Data.Page.findByPermalink permalink webLog.id conn' with
+            // Current page
+            match! Data.Page.findByPermalink permalink webLog.id conn with
             | Some page ->
                 return!
                     Hash.FromAnonymousObject {| page = page; page_title = page.title |}
-                    |> themedView "single-page" page.template next ctx
+                    |> themedView (defaultArg page.template "single-page") next ctx
             | None ->
-
-                // TOOD: search prior permalinks for posts and pages
-
-                // We tried, we really tried...
-                Console.Write($"Returning 404 for permalink |{permalink}|");
-                return! Error.notFound next ctx
+                // Prior post
+                match! Data.Post.findCurrentPermalink permalink webLog.id conn with
+                | Some link -> return! redirectTo true $"/{Permalink.toString link}" next ctx
+                | None ->
+                    // Prior page
+                    match! Data.Page.findCurrentPermalink permalink webLog.id conn with
+                    | Some link -> return! redirectTo true $"/{Permalink.toString link}" next ctx
+                    | None ->
+                        // We tried, we really did...
+                        Console.Write($"Returning 404 for permalink |{permalink}|");
+                        return! Error.notFound next ctx
     }
 
 
@@ -265,15 +359,15 @@ module User =
     
     /// Hash a password for a given user
     let hashedPassword (plainText : string) (email : string) (salt : Guid) =
-        let allSalt = Array.concat [ salt.ToByteArray(); (Encoding.UTF8.GetBytes email) ] 
-        use alg = new Rfc2898DeriveBytes (plainText, allSalt, 2_048)
-        Convert.ToBase64String(alg.GetBytes(64))
+        let allSalt = Array.concat [ salt.ToByteArray (); Encoding.UTF8.GetBytes email ] 
+        use alg     = new Rfc2898DeriveBytes (plainText, allSalt, 2_048)
+        Convert.ToBase64String (alg.GetBytes 64)
     
     // GET /user/log-on
     let logOn : HttpHandler = fun next ctx -> task {
         return!
             Hash.FromAnonymousObject {| page_title = "Log On"; csrf = (csrfToken ctx) |}
-            |> viewForTheme "admin" "log-on" None next ctx
+            |> viewForTheme "admin" "log-on" next ctx
     }
     
     // POST /user/log-on
@@ -283,9 +377,9 @@ module User =
         | Some user when user.passwordHash = hashedPassword model.password user.userName user.salt ->
             let claims = seq {
                 Claim (ClaimTypes.NameIdentifier, WebLogUserId.toString user.id)
-                Claim (ClaimTypes.Name, $"{user.firstName} {user.lastName}")
-                Claim (ClaimTypes.GivenName, user.preferredName)
-                Claim (ClaimTypes.Role, user.authorizationLevel.ToString ())
+                Claim (ClaimTypes.Name,           $"{user.firstName} {user.lastName}")
+                Claim (ClaimTypes.GivenName,      user.preferredName)
+                Claim (ClaimTypes.Role,           user.authorizationLevel.ToString ())
             }
             let identity = ClaimsIdentity (claims, CookieAuthenticationDefaults.AuthenticationScheme)
 
@@ -294,7 +388,7 @@ module User =
 
             // TODO: confirmation message
 
-            return! redirectTo false "/admin/" next ctx
+            return! redirectTo false "/admin" next ctx
         | _ ->
             // TODO: make error, not 404
             return! Error.notFound next ctx
@@ -318,7 +412,7 @@ let endpoints = [
     ]
     subRoute "/admin" [
         GET [
-            route "/"         Admin.dashboard
+            route ""          Admin.dashboard
             route "/settings" Admin.settings
         ]
         POST [
@@ -327,7 +421,13 @@ let endpoints = [
     ]
     subRoute "/page" [
         GET [
-            routef "/%d" Post.pageOfPosts
+            routef "/%d"       Post.pageOfPosts
+            routef "/%s/edit"  Page.edit
+            route  "s"         (Page.all 1)
+            routef "s/page/%d" Page.all
+        ]
+        POST [
+            route "/save" Page.save
         ]
     ]
     subRoute "/user" [
@@ -339,4 +439,5 @@ let endpoints = [
             route "/log-on" User.doLogOn
         ]
     ]
+    route "{**link}" Post.catchAll
 ]

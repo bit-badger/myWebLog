@@ -9,17 +9,55 @@ open System
 type WebLogMiddleware (next : RequestDelegate) =
 
     member this.InvokeAsync (ctx : HttpContext) = task {
-        let host = ctx.Request.Host.ToUriComponent ()
-        match WebLogCache.exists host with
+        match WebLogCache.exists ctx with
         | true -> return! next.Invoke ctx
         | false ->
             let conn = ctx.RequestServices.GetRequiredService<IConnection> ()
-            match! Data.WebLog.findByHost host conn with
+            match! Data.WebLog.findByHost (Cache.makeKey ctx) conn with
             | Some webLog ->
-                WebLogCache.set host webLog
+                WebLogCache.set ctx webLog
+                do! PageListCache.update ctx
                 return! next.Invoke ctx
             | None -> ctx.Response.StatusCode <- 404
     }
+
+
+/// DotLiquid filters
+module DotLiquidBespoke =
+    
+    open DotLiquid
+    open System.IO
+
+    /// A filter to generate nav links, highlighting the active link (exact match)
+    type NavLinkFilter () =
+        static member NavLink (ctx : Context, url : string, text : string) =
+            seq {
+                "<li class=\"nav-item\"><a class=\"nav-link"
+                if url = string ctx.Environments[0].["current_page"] then " active"
+                "\" href=\"/"
+                url
+                "\">"
+                text
+                "</a></li>"
+            }
+            |> Seq.fold (+) ""
+    
+    /// Create links for a user to log on or off, and a dashboard link if they are logged off
+    type UserLinksTag () =
+        inherit Tag ()
+        
+        override this.Render (context : Context, result : TextWriter) =
+            seq {
+                """<ul class="navbar-nav flex-grow-1 justify-content-end">"""
+                match Convert.ToBoolean context.Environments[0].["logged_on"] with
+                | true ->
+                    """<li class="nav-item"><a class="nav-link" href="/admin">Dashboard</a></li>"""
+                    """<li class="nav-item"><a class="nav-link" href="/user/log-off">Log Off</a></li>"""
+                | false ->
+                    """<li class="nav-item"><a class="nav-link" href="/user/log-on">Log On</a></li>"""
+                "</ul>"
+            }
+            |> Seq.iter result.WriteLine
 
 
 /// Initialize a new database
@@ -140,14 +178,20 @@ let main args =
     let _ = builder.Services.AddSingleton<IConnection> conn
     
     // Set up DotLiquid
+    Template.RegisterFilter typeof<DotLiquidBespoke.NavLinkFilter>
+    Template.RegisterTag<DotLiquidBespoke.UserLinksTag> "user_links"
+    
     let all = [| "*" |]
     Template.RegisterSafeType (typeof<Page>, all)
     Template.RegisterSafeType (typeof<WebLog>, all)
+    
     Template.RegisterSafeType (typeof<DashboardModel>, all)
+    Template.RegisterSafeType (typeof<DisplayPage>, all)
     Template.RegisterSafeType (typeof<SettingsModel>, all)
+    Template.RegisterSafeType (typeof<EditPageModel>, all)
     
     Template.RegisterSafeType (typeof<AntiforgeryTokenSet>, all)
-    Template.RegisterSafeType (typeof<Option<_>>, all) // doesn't quite get the job done....
+    Template.RegisterSafeType (typeof<string option>, all)
     Template.RegisterSafeType (typeof<KeyValuePair>, all)
 
     let app = builder.Build ()
@@ -160,7 +204,7 @@ let main args =
         let _ = app.UseAuthentication ()
         let _ = app.UseStaticFiles ()
         let _ = app.UseRouting ()
-        let _ = app.UseEndpoints (fun endpoints -> endpoints.MapGiraffeEndpoints Handlers.endpoints)
+        let _ = app.UseGiraffe Handlers.endpoints
 
         app.Run()
 

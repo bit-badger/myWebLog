@@ -2,7 +2,7 @@
 
 open System
 
-/// A category under which a post may be identfied
+/// A category under which a post may be identified
 [<CLIMutable; NoComparison; NoEquality>]
 type Category =
     {   /// The ID of the category
@@ -120,7 +120,7 @@ type Page =
         text : string
 
         /// Permalinks at which this page may have been previously served (useful for migrated content)
-        priorPermalinks : string list
+        priorPermalinks : Permalink list
 
         /// Revisions of this page
         revisions : Revision list

@@ -20,21 +20,21 @@
           </button>
           <div class="collapse navbar-collapse" id="navbarText">
             {% if web_log.subtitle -%}
-              <span class="navbar-text">{{ web_log.subtitle | escape }}</span>
+              <span class="navbar-text">{{ web_log.subtitle.value | escape }}</span>
             {%- endif %}
-            <ul class="navbar-nav flex-grow-1 justify-content-end">
-              {% if logged_on %}
-                <li class="nav-item"><a class="nav-link" href="/admin/">Dashboard</a></li>
-                <li class="nav-item"><a class="nav-link" href="/user/log-off">Log Off</a></li>
-              {% else %}
-                <li class="nav-item"><a class="nav-link" href="/user/log-on">Log On</a></li>
-              {% endif %}
-            </ul>
+            {% if page_list -%}
+              <ul class="navbar-nav">
+                {% for pg in page_list -%}
+                  {{ pg.permalink | nav_link: pg.title }}
+                {%- endfor %}
+              </ul>
+            {%- endif %}
+            {% user_links %}
           </div>
         </div>
       </nav>
     </header>
-    <main>
+    <main class="mx-3">
       {{ content }}  
     </main>
     <footer>

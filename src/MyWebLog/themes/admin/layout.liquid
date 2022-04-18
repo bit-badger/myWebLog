@@ -17,20 +17,26 @@
           <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarText">
-          <span class="navbar-text">{{ page_title }}</span>
+          {% if logged_on -%}
+            <ul class="navbar-nav">
+              {{ "admin" | nav_link: "Dashboard" }}
+              {{ "pages" | nav_link: "Pages" }}
+              {{ "posts" | nav_link: "Posts" }}
+              {{ "categories" | nav_link: "Categories" }}
+            </ul>
+          {%- endif %}
           <ul class="navbar-nav flex-grow-1 justify-content-end">
             {% if logged_on -%}
-              <li class="nav-item"><a class="nav-link" href="/admin/">Dashboard</a></li>
-              <li class="nav-item"><a class="nav-link" href="/user/log-off">Log Off</a></li>
+              {{ "user/log-off" | nav_link: "Log Off" }}
             {%- else -%}
-              <li class="nav-item"><a class="nav-link" href="/user/log-on">Log On</a></li>
+              {{ "user/log-on" | nav_link: "Log On" }}
             {%- endif %}
           </ul>
         </div>
       </div>
     </nav>
   </header>
-  <main>
+  <main class="mx-3">
     {{ content }}
   </main>
   <footer>

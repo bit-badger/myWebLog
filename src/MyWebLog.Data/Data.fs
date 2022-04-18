@@ -83,6 +83,20 @@ module Startup =
                         withRetryOnce conn
                     }
                 ()
+            // Prior permalinks are searched when a post or page permalink do not match the current URL
+            match indexes |> List.contains "priorPermalinks" with
+            | true -> ()
+            | false ->
+                log.LogInformation($"Creating index {table}.priorPermalinks...")
+                let! _ =
+                    rethink {
+                        withTable table
+                        indexCreate "priorPermalinks"
+                        indexOption Multi
+                        write
+                        withRetryOnce conn
+                    }
+                ()
         | false -> ()
         // Users log on with e-mail
         match Table.WebLogUser = table with
@@ -190,17 +204,27 @@ module Page =
             withRetryDefault
         }
 
-    /// Retrieve all pages for a web log
+    /// Retrieve all pages for a web log (excludes text, prior permalinks, and revisions)
     let findAll (webLogId : WebLogId) =
         rethink<Page list> {
             withTable Table.Page
             getAll [ webLogId ] (nameof webLogId)
-            without [ "priorPermalinks", "revisions" ]
+            without [ "text", "priorPermalinks", "revisions" ]
             result
             withRetryDefault
         }
 
-    /// Find a page by its ID
+    /// Find a page by its ID (including prior permalinks and revisions)
+    let findByFullId (pageId : PageId) webLogId =
+        rethink<Page> {
+            withTable Table.Page
+            get pageId
+            resultOption
+            withRetryDefault
+        }
+        |> verifyWebLog webLogId (fun it -> it.webLogId)
+
+    /// Find a page by its ID (excludes prior permalinks and revisions)
     let findById (pageId : PageId) webLogId =
         rethink<Page> {
             withTable Table.Page
@@ -222,16 +246,31 @@ module Page =
             withRetryDefault
         }
         |> tryFirst
-
-    /// Find a page by its ID (including permalinks and revisions)
-    let findByFullId (pageId : PageId) webLogId =
-        rethink<Page> {
+    
+    /// Find the current permalink for a page by a prior permalink
+    let findCurrentPermalink (permalink : Permalink) (webLogId : WebLogId) =
+        rethink<Permalink list> {
             withTable Table.Page
-            get pageId
-            resultOption
+            getAll [ permalink ] "priorPermalinks"
+            filter [ "webLogId", webLogId :> obj ]
+            pluck [ "permalink" ]
+            limit 1
+            result
             withRetryDefault
         }
-        |> verifyWebLog webLogId (fun it -> it.webLogId)
+        |> tryFirst
+
+    /// Find all pages in the page list for the given web log
+    let findListed (webLogId : WebLogId) =
+        rethink<Page list> {
+            withTable Table.Page
+            getAll [ webLogId ] (nameof webLogId)
+            filter [ "showInPageList", true :> obj ]
+            without [ "text", "priorPermalinks", "revisions" ]
+            orderBy "title"
+            result
+            withRetryDefault
+        }
 
     /// Find a list of pages (displayed in admin area)
     let findPageOfPages (webLogId : WebLogId) pageNbr =
@@ -244,6 +283,25 @@ module Page =
             limit 25
             result
             withRetryDefault
+        }
+    
+    /// Update a page
+    let update (page : Page) =
+        rethink {
+            withTable Table.Page
+            get page.id
+            update [
+                "title",           page.title
+                "permalink",       page.permalink
+                "updatedOn",       page.updatedOn
+                "showInPageList",  page.showInPageList
+                "text",            page.text
+                "priorPermalinks", page.priorPermalinks
+                "revisions",       page.revisions
+                ]
+            write
+            withRetryDefault
+            ignoreResult
         }
 
 /// Functions to manipulate posts
@@ -266,6 +324,19 @@ module Post =
             withTable Table.Post
             getAll [ r.Array(permalink, webLogId) ] (nameof permalink)
             without [ "priorPermalinks", "revisions" ]
+            limit 1
+            result
+            withRetryDefault
+        }
+        |> tryFirst
+
+    /// Find the current permalink for a post by a prior permalink
+    let findCurrentPermalink (permalink : Permalink) (webLogId : WebLogId) =
+        rethink<Permalink list> {
+            withTable Table.Post
+            getAll [ permalink ] "priorPermalinks"
+            filter [ "webLogId", webLogId :> obj ]
+            pluck [ "permalink" ]
             limit 1
             result
             withRetryDefault
@@ -300,7 +371,7 @@ module WebLog =
             ignoreResult
         }
     
-    /// Retrieve web log details by the URL base
+    /// Retrieve a web log by the URL base
     let findByHost (url : string) =
         rethink<WebLog list> {
             withTable Table.WebLog
@@ -311,6 +382,15 @@ module WebLog =
         }
         |> tryFirst
 
+    /// Retrieve a web log by its ID
+    let findById (webLogId : WebLogId) =
+        rethink<WebLog> {
+            withTable Table.WebLog
+            get webLogId
+            resultOption
+            withRetryDefault
+        }
+    
     /// Update web log settings
     let updateSettings (webLog : WebLog) =
         rethink {

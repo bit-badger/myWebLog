@@ -1,0 +1,27 @@
+<h2 class="py-3">{{ page_title }}</h2>
+<article class="container">
+  <a href="/page/new/edit" class="btn btn-primary btn-sm my-3">Create a New Page</a>
+  <table class="table table-sm table-striped table-hover">
+    <thead>
+      <tr>
+        <th scope="col">Actions</th>
+        <th scope="col">Title</th>
+        <th scope="col">In List?</th>
+        <th scope="col">Last Updated</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for pg in pages -%}
+        <tr>
+          <td><a href="/page/{{ pg.id }}/edit">Edit</a></td>
+          <td>
+            {{ pg.title }}
+            {%- if pg.is_default %} &nbsp; <span class="badge bg-success">HOME PAGE</span>{% endif -%}
+          </td>
+          <td>{% if pg.show_in_page_list %} Yes {% else %} No {% endif %}</td>
+          <td>{{ pg.updated_on | date: "MMMM d, yyyy" }}</td>
+        </tr>
+      {%- endfor %}
+    </tbody>
+  </table>
+</article>
