@@ -30,3 +30,25 @@ type SinglePageModel =
     }
     /// Is this the home page?
     member this.isHome with get () = PageId.toString this.page.id = this.webLog.defaultPage
+
+
+/// The model used to display the admin dashboard
+type DashboardModel =
+    {   /// The number of published posts
+        posts : int
+
+        /// The number of post drafts
+        drafts : int
+
+        /// The number of pages
+        pages : int
+
+        /// The number of pages in the page list
+        listedPages : int
+
+        /// The number of categories
+        categories : int
+
+        /// The top-level categories
+        topLevelCategories : int
+    }

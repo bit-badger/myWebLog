@@ -1,14 +1,4 @@
-﻿<!DOCTYPE html>
-<html lang="en">
-  {{ render "_html-head", title: title, web_log_name: web_log.name }}
-  <body>
-    {{ render "_page-head", web_log: web_log }}
-    <main>
-      <h2>{{ page.title }}</h2>
-      <article>
-        {{ page.text }}
-      </article>
-    </main>
-    {{ render "_page-foot" }}
-  </body>
-</html>
+﻿<h2>{{ page.title }}</h2>
+<article>
+  {{ page.text }}
+</article>

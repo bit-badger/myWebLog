@@ -94,7 +94,7 @@ module Startup =
                 let! _ =
                     rethink {
                         withTable table
-                        indexCreate "logOn" (fun row -> r.Array(row.G "webLogId", row.G "email"))
+                        indexCreate "logOn" (fun row -> r.Array(row.G "webLogId", row.G "userName"))
                         write
                         withRetryOnce conn
                     }
@@ -341,4 +341,15 @@ module WebLogUser =
             withRetryDefault
             ignoreResult
         }
+    
+    /// Find a user by their e-mail address
+    let findByEmail (email : string) (webLogId : WebLogId) =
+        rethink<WebLogUser list> {
+            withTable Table.WebLogUser
+            getAll [ r.Array (webLogId, email) ] "logOn"
+            limit 1
+            result
+            withRetryDefault
+        }
+        |> tryFirst
         

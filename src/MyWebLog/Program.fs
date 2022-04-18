@@ -103,6 +103,8 @@ let initDb args sp = task {
         return! System.Threading.Tasks.Task.CompletedTask
 }
 
+open DotLiquid
+open MyWebLog.ViewModels
 
 [<EntryPoint>]
 let main args =
@@ -131,6 +133,12 @@ let main args =
             return conn
         } |> Async.AwaitTask |> Async.RunSynchronously
     let _ = builder.Services.AddSingleton<IConnection> conn
+    
+    // Set up DotLiquid
+    let all = [| "*" |]
+    Template.RegisterSafeType (typeof<Page>, all)
+    Template.RegisterSafeType (typeof<WebLog>, all)
+    Template.RegisterSafeType (typeof<DashboardModel>, all)
 
     let app = builder.Build ()
     
