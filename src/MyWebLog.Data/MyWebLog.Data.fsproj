@@ -6,7 +6,6 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\..\..\RethinkDb.Driver.FSharp\src\RethinkDb.Driver.FSharp\RethinkDb.Driver.FSharp.fsproj" />
 		<ProjectReference Include="..\MyWebLog.Domain\MyWebLog.Domain.fsproj" />
 	</ItemGroup>
 
@@ -15,6 +14,7 @@
 		<PackageReference Include="Microsoft.FSharpLu.Json" Version="0.11.7" />
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
 		<PackageReference Include="RethinkDb.Driver" Version="2.3.150" />
+		<PackageReference Include="RethinkDb.Driver.FSharp" Version="0.8.0-alpha-0003" />
 	</ItemGroup>
 	
 	<ItemGroup>

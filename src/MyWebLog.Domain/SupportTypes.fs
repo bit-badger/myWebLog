@@ -1,6 +1,7 @@
 ﻿namespace MyWebLog
 
 open System
+open Markdig
 
 /// Support functions for domain definition
 [<AutoOpen>]
@@ -54,21 +55,38 @@ type CommentStatus =
     | Spam
 
 
-/// The source format for a revision
-type RevisionSource =
+/// Types of markup text
+type MarkupText =
     /// Markdown text
-    | Markdown
-    /// HTML
-    | Html
+    | Markdown of string
+    /// HTML text
+    | Html of string
 
-/// Functions to support revision sources
-module RevisionSource =
+/// Functions to support markup text
+module MarkupText =
     
-    /// Convert a revision source to a string representation
-    let toString = function Markdown -> "Markdown" | Html -> "HTML"
+    /// Pipeline with most extensions enabled
+    let private _pipeline = MarkdownPipelineBuilder().UseSmartyPants().UseAdvancedExtensions().Build ()
+
+    /// Get the source type for the markup text
+    let sourceType = function Markdown _ -> "Markdown" | Html _ -> "HTML"
     
-    /// Convert a string to a revision source
-    let ofString = function "Markdown" -> Markdown | "HTML" -> Html | x -> invalidArg "string" x
+    /// Get the raw text, regardless of type
+    let text = function Markdown text -> text | Html text -> text
+    
+    /// Get the string representation of the markup text
+    let toString it = $"{sourceType it}: {text it}"
+    
+    /// Get the HTML representation of the markup text
+    let toHtml = function Markdown text -> Markdown.ToHtml (text, _pipeline) | Html text -> text
+    
+    /// Parse a string into a MarkupText instance
+    let parse (it : string) =
+        match it with
+        | text when text.StartsWith "Markdown: " -> Markdown (text.Substring 10)
+        | text when text.StartsWith "HTML: " -> Html (text.Substring 6)
+        | text -> invalidOp $"Cannot derive type of text ({text})"
+
 
 /// A revision of a page or post
 [<CLIMutable; NoComparison; NoEquality>]
@@ -76,11 +94,8 @@ type Revision =
     {   /// When this revision was saved
         asOf : DateTime
 
-        /// The source language (Markdown or HTML)
-        sourceType : RevisionSource
-
         /// The text of the revision
-        text : string
+        text : MarkupText
     }
 
 /// Functions to support revisions
@@ -88,9 +103,8 @@ module Revision =
     
     /// An empty revision
     let empty =
-        { asOf       = DateTime.UtcNow
-          sourceType = Html
-          text       = ""
+        { asOf = DateTime.UtcNow
+          text = Html ""
         }
 
 

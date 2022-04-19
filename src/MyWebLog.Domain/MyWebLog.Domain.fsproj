@@ -11,4 +11,8 @@
     <Compile Include="ViewModels.fs" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Markdig" Version="0.28.1" />
+  </ItemGroup>
+
 </Project>

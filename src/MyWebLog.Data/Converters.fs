@@ -20,6 +20,13 @@ type CommentIdConverter () =
     override _.ReadJson (reader : JsonReader, _ : Type, _ : CommentId, _ : bool, _ : JsonSerializer) =
         (string >> CommentId) reader.Value
 
+type MarkupTextConverter () =
+    inherit JsonConverter<MarkupText> ()
+    override _.WriteJson (writer : JsonWriter, value : MarkupText, _ : JsonSerializer) =
+        writer.WriteValue (MarkupText.toString value)
+    override _.ReadJson (reader : JsonReader, _ : Type, _ : MarkupText, _ : bool, _ : JsonSerializer) =
+        (string >> MarkupText.parse) reader.Value
+        
 type PermalinkConverter () =
     inherit JsonConverter<Permalink> ()
     override _.WriteJson (writer : JsonWriter, value : Permalink, _ : JsonSerializer) =
@@ -63,6 +70,7 @@ let all () : JsonConverter seq =
         // Our converters
         CategoryIdConverter   ()
         CommentIdConverter    ()
+        MarkupTextConverter   ()
         PermalinkConverter    ()
         PageIdConverter       ()
         PostIdConverter       ()

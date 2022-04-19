@@ -37,6 +37,20 @@
     </nav>
   </header>
   <main class="mx-3">
+    {% if messages %}
+      <div class="messages mt-2">
+        {% for msg in messages %}
+          <div role="alert" class="alert alert-{{ msg.level }} alert-dismissible fade show">
+            {{ msg.message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            {% if msg.detail %}
+              <hr>
+              <p>{{ msg.detail.value }}</p>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
     {{ content }}
   </main>
   <footer>

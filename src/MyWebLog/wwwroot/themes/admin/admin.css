@@ -3,3 +3,7 @@
   border-top: solid 1px black;
   color: white;
 }
+.messages {
+  max-width: 60rem;
+  margin: auto;
+}

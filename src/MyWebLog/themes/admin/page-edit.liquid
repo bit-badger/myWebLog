@@ -1,27 +1,33 @@
-<h2 class="py-3">{{ page_title }}</h2>
+<h2 class="my-3">{{ page_title }}</h2>
 <article>
   <form action="/page/save" method="post">
     <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
     <input type="hidden" name="pageId" value="{{ model.page_id }}">
     <div class="container">
       <div class="row mb-3">
-        <div class="col">
-          <div class="form-floating">
+        <div class="col-9">
+          <div class="form-floating pb-3">
             <input type="text" name="title" id="title" class="form-control" autofocus required
                    value="{{ model.title }}">
             <label for="title">Title</label>
           </div>
-        </div>
-      </div>
-      <div class="row mb-3">
-        <div class="col-9">
           <div class="form-floating">
             <input type="text" name="permalink" id="permalink" class="form-control" required
                    value="{{ model.permalink }}">
             <label for="permalink">Permalink</label>
           </div>
         </div>
-        <div class="col-3 align-self-center">
+        <div class="col-3">
+          <div class="form-floating pb-3">
+            <select name="template" id="template" class="form-control">
+              {% for tmpl in templates -%}
+                <option value="{{ tmpl[0] }}"{% if model.template == tmpl %} selected="selected"{% endif %}>
+                  {{ tmpl[1] }}
+                </option>
+              {%- endfor %}
+            </select>
+            <label for="template">Page Template</label>
+          </div>
           <div class="form-check form-switch">
             <input type="checkbox" name="isShownInPageList" id="showList" class="form-check-input" value="true"
                    {%- if model.is_shown_in_page_list %} checked="checked"{% endif %}>

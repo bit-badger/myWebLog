@@ -60,80 +60,82 @@ module DotLiquidBespoke =
             |> Seq.iter result.WriteLine
 
 
-/// Initialize a new database
-let initDbValidated (args : string[]) (sp : IServiceProvider) = task {
+/// Create the default information for a new web log
+module NewWebLog =
     
-    let conn = sp.GetRequiredService<IConnection> ()
-    
-    let timeZone =
-        let local = TimeZoneInfo.Local.Id
-        match TimeZoneInfo.Local.HasIanaId with
-        | true -> local
-        | false ->
-            match TimeZoneInfo.TryConvertWindowsIdToIanaId local with
-            | true, ianaId -> ianaId
-            | false, _ -> raise <| TimeZoneNotFoundException $"Cannot find IANA timezone for {local}"
-    
-    // Create the web log
-    let webLogId   = WebLogId.create ()
-    let userId     = WebLogUserId.create ()
-    let homePageId = PageId.create ()
-    
-    do! Data.WebLog.add
-            { WebLog.empty with
-                id          = webLogId
-                name        = args[2]
-                urlBase     = args[1]
-                defaultPage = PageId.toString homePageId
-                timeZone    = timeZone
-            } conn
-    
-    // Create the admin user
-    let salt = Guid.NewGuid ()
-    
-    do! Data.WebLogUser.add 
-            { WebLogUser.empty with
-                id                 = userId
-                webLogId           = webLogId
-                userName           = args[3]
-                firstName          = "Admin"
-                lastName           = "User"
-                preferredName      = "Admin"
-                passwordHash       = Handlers.User.hashedPassword args[4] args[3] salt
-                salt               = salt
-                authorizationLevel = Administrator
-            } conn
+    /// Create the web log information
+    let private createWebLog (args : string[]) (sp : IServiceProvider) = task {
+        
+        let conn = sp.GetRequiredService<IConnection> ()
+        
+        let timeZone =
+            let local = TimeZoneInfo.Local.Id
+            match TimeZoneInfo.Local.HasIanaId with
+            | true -> local
+            | false ->
+                match TimeZoneInfo.TryConvertWindowsIdToIanaId local with
+                | true, ianaId -> ianaId
+                | false, _ -> raise <| TimeZoneNotFoundException $"Cannot find IANA timezone for {local}"
+        
+        // Create the web log
+        let webLogId   = WebLogId.create ()
+        let userId     = WebLogUserId.create ()
+        let homePageId = PageId.create ()
+        
+        do! Data.WebLog.add
+                { WebLog.empty with
+                    id          = webLogId
+                    name        = args[2]
+                    urlBase     = args[1]
+                    defaultPage = PageId.toString homePageId
+                    timeZone    = timeZone
+                } conn
+        
+        // Create the admin user
+        let salt = Guid.NewGuid ()
+        
+        do! Data.WebLogUser.add 
+                { WebLogUser.empty with
+                    id                 = userId
+                    webLogId           = webLogId
+                    userName           = args[3]
+                    firstName          = "Admin"
+                    lastName           = "User"
+                    preferredName      = "Admin"
+                    passwordHash       = Handlers.User.hashedPassword args[4] args[3] salt
+                    salt               = salt
+                    authorizationLevel = Administrator
+                } conn
 
-    // Create the default home page
-    do! Data.Page.add
-            { Page.empty with
-                id          = homePageId
-                webLogId    = webLogId
-                authorId    = userId
-                title       = "Welcome to myWebLog!"
-                permalink   = Permalink "welcome-to-myweblog.html"
-                publishedOn = DateTime.UtcNow
-                updatedOn   = DateTime.UtcNow
-                text        = "<p>This is your default home page.</p>"
-                revisions   = [
-                    { asOf       = DateTime.UtcNow
-                      sourceType = Html
-                      text       = "<p>This is your default home page.</p>"
-                    }
-                ]
-            } conn
+        // Create the default home page
+        do! Data.Page.add
+                { Page.empty with
+                    id          = homePageId
+                    webLogId    = webLogId
+                    authorId    = userId
+                    title       = "Welcome to myWebLog!"
+                    permalink   = Permalink "welcome-to-myweblog.html"
+                    publishedOn = DateTime.UtcNow
+                    updatedOn   = DateTime.UtcNow
+                    text        = "<p>This is your default home page.</p>"
+                    revisions   = [
+                        { asOf = DateTime.UtcNow
+                          text = Html "<p>This is your default home page.</p>"
+                        }
+                    ]
+                } conn
 
-    Console.WriteLine($"Successfully initialized database for {args[2]} with URL base {args[1]}");
-}
+        Console.WriteLine($"Successfully initialized database for {args[2]} with URL base {args[1]}");
+    }
 
-/// Initialize a new database
-let initDb args sp = task {
-    match args |> Array.length with
-    | 5 -> return! initDbValidated args sp
-    | _ ->
-        Console.WriteLine "Usage: MyWebLog init [url] [name] [admin-email] [admin-pw]"
-        return! System.Threading.Tasks.Task.CompletedTask
-}
+    /// Create a new web log
+    let create args sp = task {
+        match args |> Array.length with
+        | 5 -> return! createWebLog args sp
+        | _ ->
+            Console.WriteLine "Usage: MyWebLog init [url] [name] [admin-email] [admin-pw]"
+            return! System.Threading.Tasks.Task.CompletedTask
+    }
 
 
 open DotLiquid
@@ -145,6 +147,7 @@ open Microsoft.AspNetCore.Builder
 open Microsoft.Extensions.Configuration
 open Microsoft.Extensions.Logging
 open MyWebLog.ViewModels
+open RethinkDB.DistributedCache
 open RethinkDb.Driver.FSharp
 
 [<EntryPoint>]
@@ -177,6 +180,14 @@ let main args =
         } |> Async.AwaitTask |> Async.RunSynchronously
     let _ = builder.Services.AddSingleton<IConnection> conn
     
+    let _ = builder.Services.AddDistributedRethinkDBCache (fun opts ->
+        opts.Database <- rethinkCfg.Database
+        opts.Connection <- conn)
+    let _ = builder.Services.AddSession(fun opts ->
+        opts.IdleTimeout        <- TimeSpan.FromMinutes 30
+        opts.Cookie.HttpOnly    <- true
+        opts.Cookie.IsEssential <- true)
+    
     // Set up DotLiquid
     Template.RegisterFilter typeof<DotLiquidBespoke.NavLinkFilter>
     Template.RegisterTag<DotLiquidBespoke.UserLinksTag> "user_links"
@@ -189,6 +200,7 @@ let main args =
     Template.RegisterSafeType (typeof<DisplayPage>, all)
     Template.RegisterSafeType (typeof<SettingsModel>, all)
     Template.RegisterSafeType (typeof<EditPageModel>, all)
+    Template.RegisterSafeType (typeof<UserMessage>, all)
     
     Template.RegisterSafeType (typeof<AntiforgeryTokenSet>, all)
     Template.RegisterSafeType (typeof<string option>, all)
@@ -197,13 +209,14 @@ let main args =
     let app = builder.Build ()
     
     match args |> Array.tryHead with
-    | Some it when it = "init" -> initDb args app.Services |> Async.AwaitTask |> Async.RunSynchronously
+    | Some it when it = "init" -> NewWebLog.create args app.Services |> Async.AwaitTask |> Async.RunSynchronously
     | _ ->
         let _ = app.UseCookiePolicy (CookiePolicyOptions (MinimumSameSitePolicy = SameSiteMode.Strict))
         let _ = app.UseMiddleware<WebLogMiddleware> ()
         let _ = app.UseAuthentication ()
         let _ = app.UseStaticFiles ()
         let _ = app.UseRouting ()
+        let _ = app.UseSession ()
         let _ = app.UseGiraffe Handlers.endpoints
 
         app.Run()

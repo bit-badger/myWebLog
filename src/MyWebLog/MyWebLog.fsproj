@@ -16,7 +16,7 @@
   <ItemGroup>
     <PackageReference Include="DotLiquid" Version="2.2.610" />
     <PackageReference Include="Giraffe" Version="6.0.0" />
-    <PackageReference Include="Markdig" Version="0.28.1" />
+    <PackageReference Include="RethinkDB.DistributedCache" Version="0.9.0-alpha02" />
   </ItemGroup>
 
   <ItemGroup>

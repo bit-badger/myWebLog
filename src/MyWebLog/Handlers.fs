@@ -36,13 +36,48 @@ module Error =
         setStatusCode 404 >=> text "Not found"
 
 
+open System.Text.Json
+
+/// Session extensions to get and set objects
+type ISession with
+    
+    /// Set an item in the session
+    member this.Set<'T> (key, item : 'T) =
+        this.SetString (key, JsonSerializer.Serialize item)
+    
+    /// Get an item from the session
+    member this.Get<'T> key =
+        match this.GetString key with
+        | null -> None
+        | item -> Some (JsonSerializer.Deserialize<'T> item)
+
+    
+open System.Collections.Generic
+
 [<AutoOpen>]
 module private Helpers =
     
-    open Markdig
     open Microsoft.AspNetCore.Antiforgery
     open Microsoft.Extensions.DependencyInjection
     open System.Security.Claims
+    open System.IO
+
+    /// Add a message to the user's session
+    let addMessage (ctx : HttpContext) message = task {
+        do! ctx.Session.LoadAsync ()
+        let msg = match ctx.Session.Get<UserMessage list> "messages" with Some it -> it | None -> []
+        ctx.Session.Set ("messages", message :: msg)
+    }
+    
+    /// Get any messages from the user's session, removing them in the process
+    let messages (ctx : HttpContext) = task {
+        do! ctx.Session.LoadAsync ()
+        match ctx.Session.Get<UserMessage list> "messages" with
+        | Some msg ->
+            ctx.Session.Remove "messages"
+            return msg |> (List.rev >> Array.ofList)
+        | None -> return [||]
+    }
 
     /// Either get the web log from the hash, or get it from the cache and add it to the hash
     let private deriveWebLogFromHash (hash : Hash) ctx =
@@ -57,9 +92,11 @@ module private Helpers =
     let viewForTheme theme template next ctx = fun (hash : Hash) -> task {
         // Don't need the web log, but this adds it to the hash if the function is called directly
         let _ = deriveWebLogFromHash hash ctx
+        let! messages = messages ctx
         hash.Add ("logged_on",    ctx.User.Identity.IsAuthenticated)
         hash.Add ("page_list",    PageListCache.get ctx)
         hash.Add ("current_page", ctx.Request.Path.Value.Substring 1)
+        hash.Add ("messages",     messages)
         
         // NOTE: DotLiquid does not support {% render %} or {% include %} in its templates, so we will do a two-pass
         //       render; the net effect is a "layout" capability similar to Razor or Pug
@@ -105,16 +142,20 @@ module private Helpers =
     /// Require a user to be logged on
     let requireUser = requiresAuthentication Error.notAuthorized
     
-    /// Pipeline with most extensions enabled
-    let mdPipeline =
-        MarkdownPipelineBuilder().UseSmartyPants().UseAdvancedExtensions().Build ()
+    /// Get the templates available for the current web log's theme (in a key/value pair list)
+    let templatesForTheme ctx (typ : string) =
+        seq {
+            KeyValuePair.Create ("", $"- Default (single-{typ}) -")
+            yield!
+                Directory.EnumerateFiles $"themes/{(WebLogCache.get ctx).themePath}/"
+                |> Seq.filter (fun it -> it.EndsWith $"{typ}.liquid")
+                |> Seq.map (fun it ->
+                    let parts    = it.Split Path.DirectorySeparatorChar
+                    let template = parts[parts.Length - 1].Replace (".liquid", "")
+                    KeyValuePair.Create (template, template))
+        }
+        |> Array.ofSeq
     
-    /// Get the HTML representation of the text of a revision
-    let revisionToHtml (rev : Revision) =
-        match rev.sourceType with Html -> rev.text | Markdown -> Markdown.ToHtml (rev.text, mdPipeline)
-
-
-open System.Collections.Generic
 
 /// Handlers to manipulate admin functions
 module Admin =
@@ -191,8 +232,7 @@ module Admin =
             // Update cache
             WebLogCache.set ctx updated
         
-            // TODO: confirmation message
-
+            do! addMessage ctx { UserMessage.success with message = "Web log settings saved successfully" }
             return! redirectTo false "/admin" next ctx
         | None -> return! Error.notFound next ctx
     }
@@ -216,28 +256,24 @@ module Page =
 
     // GET /page/{id}/edit
     let edit pgId : HttpHandler = requireUser >=> fun next ctx -> task {
-        let! hash = task {
+        let! result = task {
             match pgId with
-            | "new" ->
-                return
-                    Hash.FromAnonymousObject {|
-                        csrf       = csrfToken ctx
-                        model      = EditPageModel.fromPage { Page.empty with id = PageId "new" }
-                        page_title = "Add a New Page"
-                    |} |> Some
+            | "new" -> return Some ("Add a New Page", { Page.empty with id = PageId "new" })
             | _ ->
                 match! Data.Page.findByFullId (PageId pgId) (webLogId ctx) (conn ctx) with
-                | Some page ->
-                    return
-                        Hash.FromAnonymousObject {|
-                            csrf       = csrfToken ctx
-                            model      = EditPageModel.fromPage page
-                            page_title = "Edit Page"
-                        |} |> Some
+                | Some page -> return Some ("Edit Page", page)
                 | None -> return None
         }
-        match hash with
-        | Some h -> return! viewForTheme "admin" "page-edit" next ctx h
+        match result with
+        | Some (title, page) ->
+            return!
+                Hash.FromAnonymousObject {|
+                    csrf       = csrfToken ctx
+                    model      = EditPageModel.fromPage page
+                    page_title = title
+                    templates  = templatesForTheme ctx "page"
+                |}
+                |> viewForTheme "admin" "page-edit" next ctx
         | None -> return! Error.notFound next ctx
     }
 
@@ -262,7 +298,7 @@ module Page =
         match pg with
         | Some page ->
             let updateList = page.showInPageList <> model.isShownInPageList
-            let revision   = { asOf = now; sourceType = RevisionSource.ofString model.source; text = model.text }
+            let revision   = { asOf = now; text = MarkupText.parse $"{model.source}: {model.text}" }
             // Detect a permalink change, and add the prior one to the prior list
             let page =
                 match Permalink.toString page.permalink with
@@ -275,12 +311,13 @@ module Page =
                     permalink      = Permalink model.permalink
                     updatedOn      = now
                     showInPageList = model.isShownInPageList
-                    text           = revisionToHtml revision
+                    template       = match model.template with "" -> None | tmpl -> Some tmpl
+                    text           = MarkupText.toHtml revision.text
                     revisions      = revision :: page.revisions
                 }
             do! (match model.pageId with "new" -> Data.Page.add | _ -> Data.Page.update) page conn
             if updateList then do! PageListCache.update ctx
-            // TODO: confirmation
+            do! addMessage ctx { UserMessage.success with message = "Page saved successfully" }
             return! redirectTo false $"/page/{PageId.toString page.id}/edit" next ctx
         | None -> return! Error.notFound next ctx
     }
@@ -372,8 +409,9 @@ module User =
     
     // POST /user/log-on
     let doLogOn : HttpHandler = validateCsrf >=> fun next ctx -> task {
-        let! model = ctx.BindFormAsync<LogOnModel> ()
-        match! Data.WebLogUser.findByEmail model.emailAddress (webLogId ctx) (conn ctx) with 
+        let! model  = ctx.BindFormAsync<LogOnModel> ()
+        let  webLog = WebLogCache.get ctx
+        match! Data.WebLogUser.findByEmail model.emailAddress webLog.id (conn ctx) with 
         | Some user when user.passwordHash = hashedPassword model.password user.userName user.salt ->
             let claims = seq {
                 Claim (ClaimTypes.NameIdentifier, WebLogUserId.toString user.id)
@@ -385,20 +423,21 @@ module User =
 
             do! ctx.SignInAsync (identity.AuthenticationType, ClaimsPrincipal identity,
                 AuthenticationProperties (IssuedUtc = DateTimeOffset.UtcNow))
-
-            // TODO: confirmation message
-
+            do! addMessage ctx
+                    { UserMessage.success with
+                        message = "Logged on successfully"
+                        detail = Some $"Welcome to {webLog.name}!"
+                    }
             return! redirectTo false "/admin" next ctx
         | _ ->
-            // TODO: make error, not 404
-            return! Error.notFound next ctx
+            do! addMessage ctx { UserMessage.error with message = "Log on attempt unsuccessful" }
+            return! logOn next ctx
     }
 
+    // GET /user/log-off
     let logOff : HttpHandler = fun next ctx -> task {
         do! ctx.SignOutAsync CookieAuthenticationDefaults.AuthenticationScheme
-
-        // TODO: confirmation message
-
+        do! addMessage ctx { UserMessage.info with message = "Log off successful" }
         return! redirectTo false "/" next ctx
     }
     

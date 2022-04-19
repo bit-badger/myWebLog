@@ -40,13 +40,13 @@ module Helpers =
 
     /// Verify that the web log ID matches before returning an item
     let verifyWebLog<'T> webLogId (prop : 'T -> WebLogId) (f : IConnection -> Task<'T option>) =
-        fun conn -> task {
+        fun conn -> backgroundTask {
             match! f conn with Some it when (prop it) = webLogId -> return Some it | _ -> return None
         }
     
     /// Get the first item from a list, or None if the list is empty
     let tryFirst<'T> (f : IConnection -> Task<'T list>) =
-        fun conn -> task {
+        fun conn -> backgroundTask {
             let! results = f conn
             return results |> List.tryHead
         }
@@ -59,82 +59,52 @@ open Microsoft.Extensions.Logging
 module Startup =
     
     /// Ensure field indexes exist, as well as special indexes for selected tables
-    let private ensureIndexes (log : ILogger) conn table fields = task {
+    let private ensureIndexes (log : ILogger) conn table fields = backgroundTask {
         let! indexes = rethink<string list> { withTable table; indexList; result; withRetryOnce conn }
         for field in fields do
-            match indexes |> List.contains field with
-            | true -> ()
-            | false ->
+            if not (indexes |> List.contains field) then
                 log.LogInformation($"Creating index {table}.{field}...")
-                let! _ = rethink { withTable table; indexCreate field; write; withRetryOnce conn }
-                ()
+                do! rethink { withTable table; indexCreate field; write; withRetryOnce; ignoreResult conn }
         // Post and page need index by web log ID and permalink
-        match [ Table.Page; Table.Post ] |> List.contains table with
-        | true ->
-            match indexes |> List.contains "permalink" with
-            | true -> ()
-            | false ->
+        if [ Table.Page; Table.Post ] |> List.contains table then
+            if not (indexes |> List.contains "permalink") then
                 log.LogInformation($"Creating index {table}.permalink...")
-                let! _ =
-                    rethink {
-                        withTable table
-                        indexCreate "permalink" (fun row -> r.Array(row.G "webLogId", row.G "permalink"))
-                        write
-                        withRetryOnce conn
-                    }
-                ()
+                do! rethink {
+                    withTable table
+                    indexCreate "permalink" (fun row -> r.Array(row.G "webLogId", row.G "permalink") :> obj)
+                    write; withRetryOnce; ignoreResult conn
+                }
             // Prior permalinks are searched when a post or page permalink do not match the current URL
-            match indexes |> List.contains "priorPermalinks" with
-            | true -> ()
-            | false ->
+            if not (indexes |> List.contains "priorPermalinks") then
                 log.LogInformation($"Creating index {table}.priorPermalinks...")
-                let! _ =
-                    rethink {
-                        withTable table
-                        indexCreate "priorPermalinks"
-                        indexOption Multi
-                        write
-                        withRetryOnce conn
-                    }
-                ()
-        | false -> ()
+                do! rethink {
+                    withTable table
+                    indexCreate "priorPermalinks" [ Multi ]
+                    write; withRetryOnce; ignoreResult conn
+                }
         // Users log on with e-mail
-        match Table.WebLogUser = table with
-        | true ->
-            match indexes |> List.contains "logOn" with
-            | true -> ()
-            | false ->
-                log.LogInformation($"Creating index {table}.logOn...")
-                let! _ =
-                    rethink {
-                        withTable table
-                        indexCreate "logOn" (fun row -> r.Array(row.G "webLogId", row.G "userName"))
-                        write
-                        withRetryOnce conn
-                    }
-                ()
-        | false -> ()
+        if Table.WebLogUser = table && not (indexes |> List.contains "logOn") then
+            log.LogInformation($"Creating index {table}.logOn...")
+            do! rethink {
+                withTable table
+                indexCreate "logOn" (fun row -> r.Array(row.G "webLogId", row.G "userName") :> obj)
+                write; withRetryOnce; ignoreResult conn
+            }
     }
 
     /// Ensure all necessary tables and indexes exist
     let ensureDb (config : DataConfig) (log : ILogger) conn = task {
         
         let! dbs = rethink<string list> { dbList; result; withRetryOnce conn }
-        match dbs |> List.contains config.Database with
-        | true -> ()
-        | false ->
+        if not (dbs |> List.contains config.Database) then
             log.LogInformation($"Creating database {config.Database}...")
-            let! _ = rethink { dbCreate config.Database; write; withRetryOnce conn }
-            ()
+            do! rethink { dbCreate config.Database; write; withRetryOnce; ignoreResult conn }
         
         let! tables = rethink<string list> { tableList; result; withRetryOnce conn }
         for tbl in Table.all do
-            match tables |> List.contains tbl with
-            | true -> ()
-            | false ->
+            if not (tables |> List.contains tbl) then
                 log.LogInformation($"Creating table {tbl}...")
-                let! _ = rethink { tableCreate tbl; write; withRetryOnce conn }
-                ()
+                do! rethink { tableCreate tbl; write; withRetryOnce; ignoreResult conn }
 
         let makeIdx = ensureIndexes log conn
         do! makeIdx Table.Category   [ "webLogId" ]
@@ -154,8 +124,7 @@ module Category =
             withTable Table.Category
             getAll [ webLogId ] (nameof webLogId)
             count
-            result
-            withRetryDefault
+            result; withRetryDefault
         }
 
     /// Count top-level categories for a web log
@@ -165,8 +134,7 @@ module Category =
             getAll [ webLogId ] (nameof webLogId)
             filter "parentId" None
             count
-            result
-            withRetryDefault
+            result; withRetryDefault
         }
 
 
@@ -178,9 +146,7 @@ module Page =
         rethink {
             withTable Table.Page
             insert page
-            write
-            withRetryDefault
-            ignoreResult
+            write; withRetryDefault; ignoreResult
         }
 
     /// Count all pages for a web log
@@ -189,8 +155,7 @@ module Page =
             withTable Table.Page
             getAll [ webLogId ] (nameof webLogId)
             count
-            result
-            withRetryDefault
+            result; withRetryDefault
         }
 
     /// Count listed pages for a web log
@@ -200,8 +165,7 @@ module Page =
             getAll [ webLogId ] (nameof webLogId)
             filter "showInPageList" true
             count
-            result
-            withRetryDefault
+            result; withRetryDefault
         }
 
     /// Retrieve all pages for a web log (excludes text, prior permalinks, and revisions)
@@ -210,8 +174,7 @@ module Page =
             withTable Table.Page
             getAll [ webLogId ] (nameof webLogId)
             without [ "text", "priorPermalinks", "revisions" ]
-            result
-            withRetryDefault
+            result; withRetryDefault
         }
 
     /// Find a page by its ID (including prior permalinks and revisions)
@@ -219,8 +182,7 @@ module Page =
         rethink<Page> {
             withTable Table.Page
             get pageId
-            resultOption
-            withRetryDefault
+            resultOption; withRetryDefault
         }
         |> verifyWebLog webLogId (fun it -> it.webLogId)
 
@@ -230,8 +192,7 @@ module Page =
             withTable Table.Page
             get pageId
             without [ "priorPermalinks", "revisions" ]
-            resultOption
-            withRetryDefault
+            resultOption; withRetryDefault
         }
         |> verifyWebLog webLogId (fun it -> it.webLogId)
 
@@ -242,8 +203,7 @@ module Page =
             getAll [ r.Array (webLogId, permalink) ] (nameof permalink)
             without [ "priorPermalinks", "revisions" ]
             limit 1
-            result
-            withRetryDefault
+            result; withRetryDefault
         }
         |> tryFirst
     
@@ -255,8 +215,7 @@ module Page =
             filter [ "webLogId", webLogId :> obj ]
             pluck [ "permalink" ]
             limit 1
-            result
-            withRetryDefault
+            result; withRetryDefault
         }
         |> tryFirst
 
@@ -268,8 +227,7 @@ module Page =
             filter [ "showInPageList", true :> obj ]
             without [ "text", "priorPermalinks", "revisions" ]
             orderBy "title"
-            result
-            withRetryDefault
+            result; withRetryDefault
         }
 
     /// Find a list of pages (displayed in admin area)
@@ -281,8 +239,7 @@ module Page =
             orderBy "title"
             skip ((pageNbr - 1) * 25)
             limit 25
-            result
-            withRetryDefault
+            result; withRetryDefault
         }
     
     /// Update a page
@@ -299,9 +256,7 @@ module Page =
                 "priorPermalinks", page.priorPermalinks
                 "revisions",       page.revisions
                 ]
-            write
-            withRetryDefault
-            ignoreResult
+            write; withRetryDefault; ignoreResult
         }
 
 /// Functions to manipulate posts
@@ -314,8 +269,7 @@ module Post =
             getAll [ webLogId ] (nameof webLogId)
             filter "status" status
             count
-            result
-            withRetryDefault
+            result; withRetryDefault
         }
 
     /// Find a post by its permalink
@@ -325,8 +279,7 @@ module Post =
             getAll [ r.Array(permalink, webLogId) ] (nameof permalink)
             without [ "priorPermalinks", "revisions" ]
             limit 1
-            result
-            withRetryDefault
+            result; withRetryDefault
         }
         |> tryFirst
 
@@ -338,8 +291,7 @@ module Post =
             filter [ "webLogId", webLogId :> obj ]
             pluck [ "permalink" ]
             limit 1
-            result
-            withRetryDefault
+            result; withRetryDefault
         }
         |> tryFirst
 
@@ -353,8 +305,7 @@ module Post =
             orderBy "publishedOn"
             skip ((pageNbr - 1) * postsPerPage)
             limit postsPerPage
-            result
-            withRetryDefault
+            result; withRetryDefault
         }
 
 
@@ -366,9 +317,7 @@ module WebLog =
         rethink {
             withTable Table.WebLog
             insert webLog
-            write
-            withRetryOnce
-            ignoreResult
+            write; withRetryOnce; ignoreResult
         }
     
     /// Retrieve a web log by the URL base
@@ -377,8 +326,7 @@ module WebLog =
             withTable Table.WebLog
             getAll [ url ] "urlBase"
             limit 1
-            result
-            withRetryDefault
+            result; withRetryDefault
         }
         |> tryFirst
 
@@ -387,8 +335,7 @@ module WebLog =
         rethink<WebLog> {
             withTable Table.WebLog
             get webLogId
-            resultOption
-            withRetryDefault
+            resultOption; withRetryDefault
         }
     
     /// Update web log settings
@@ -403,9 +350,7 @@ module WebLog =
                 "postsPerPage", webLog.postsPerPage
                 "timeZone",     webLog.timeZone
                 ]
-            write
-            withRetryDefault
-            ignoreResult
+            write; withRetryDefault; ignoreResult
         }
 
 
@@ -417,9 +362,7 @@ module WebLogUser =
         rethink {
             withTable Table.WebLogUser
             insert user
-            write
-            withRetryDefault
-            ignoreResult
+            write; withRetryDefault; ignoreResult
         }
     
     /// Find a user by their e-mail address
@@ -428,8 +371,7 @@ module WebLogUser =
             withTable Table.WebLogUser
             getAll [ r.Array (webLogId, email) ] "logOn"
             limit 1
-            result
-            withRetryDefault
+            result; withRetryDefault
         }
         |> tryFirst
         
