@@ -98,6 +98,8 @@ module private Helpers =
         hash.Add ("current_page", ctx.Request.Path.Value.Substring 1)
         hash.Add ("messages",     messages)
         
+        do! ctx.Session.CommitAsync ()
+        
         // NOTE: DotLiquid does not support {% render %} or {% include %} in its templates, so we will do a two-pass
         //       render; the net effect is a "layout" capability similar to Razor or Pug
         
@@ -107,12 +109,19 @@ module private Helpers =
         
         // ...then render that content with its layout
         let! layoutTemplate = TemplateCache.get theme "layout"
+        
         return! htmlString (layoutTemplate.Render hash) next ctx
     }
     
     /// Return a view for the web log's default theme
     let themedView template next ctx = fun (hash : Hash) -> task {
         return! viewForTheme (deriveWebLogFromHash hash ctx).themePath template next ctx hash
+    }
+    
+    /// Redirect after doing some action; commits session and issues a temporary redirect
+    let redirectToGet url : HttpHandler = fun next ctx -> task {
+        do! ctx.Session.CommitAsync ()
+        return! redirectTo false url next ctx
     }
     
     /// Get the web log ID for the current request
@@ -233,7 +242,7 @@ module Admin =
             WebLogCache.set ctx updated
         
             do! addMessage ctx { UserMessage.success with message = "Web log settings saved successfully" }
-            return! redirectTo false "/admin" next ctx
+            return! redirectToGet "/admin" next ctx
         | None -> return! Error.notFound next ctx
     }
 
@@ -318,7 +327,7 @@ module Page =
             do! (match model.pageId with "new" -> Data.Page.add | _ -> Data.Page.update) page conn
             if updateList then do! PageListCache.update ctx
             do! addMessage ctx { UserMessage.success with message = "Page saved successfully" }
-            return! redirectTo false $"/page/{PageId.toString page.id}/edit" next ctx
+            return! redirectToGet $"/page/{PageId.toString page.id}/edit" next ctx
         | None -> return! Error.notFound next ctx
     }
 
@@ -428,7 +437,7 @@ module User =
                         message = "Logged on successfully"
                         detail = Some $"Welcome to {webLog.name}!"
                     }
-            return! redirectTo false "/admin" next ctx
+            return! redirectToGet "/admin" next ctx
         | _ ->
             do! addMessage ctx { UserMessage.error with message = "Log on attempt unsuccessful" }
             return! logOn next ctx
@@ -438,7 +447,7 @@ module User =
     let logOff : HttpHandler = fun next ctx -> task {
         do! ctx.SignOutAsync CookieAuthenticationDefaults.AuthenticationScheme
         do! addMessage ctx { UserMessage.info with message = "Log off successful" }
-        return! redirectTo false "/" next ctx
+        return! redirectToGet "/" next ctx
     }
     
 

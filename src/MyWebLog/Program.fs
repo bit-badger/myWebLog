@@ -164,7 +164,6 @@ let main args =
     let _ = builder.Services.AddLogging ()
     let _ = builder.Services.AddAuthorization ()
     let _ = builder.Services.AddAntiforgery ()
-    let _ = builder.Services.AddGiraffe ()
     
     // Configure RethinkDB's connection
     JsonConverters.all () |> Seq.iter Converter.Serializer.Converters.Add 
@@ -180,13 +179,16 @@ let main args =
         } |> Async.AwaitTask |> Async.RunSynchronously
     let _ = builder.Services.AddSingleton<IConnection> conn
     
-    let _ = builder.Services.AddDistributedRethinkDBCache (fun opts ->
-        opts.Database <- rethinkCfg.Database
-        opts.Connection <- conn)
+//    let _ = builder.Services.AddDistributedRethinkDBCache (fun opts ->
+//        opts.Connection <- conn)
+    let _ = builder.Services.AddDistributedMemoryCache ()
     let _ = builder.Services.AddSession(fun opts ->
         opts.IdleTimeout        <- TimeSpan.FromMinutes 30
         opts.Cookie.HttpOnly    <- true
         opts.Cookie.IsEssential <- true)
+    
+    // this needs to be after the session... maybe?
+    let _ = builder.Services.AddGiraffe ()
     
     // Set up DotLiquid
     Template.RegisterFilter typeof<DotLiquidBespoke.NavLinkFilter>

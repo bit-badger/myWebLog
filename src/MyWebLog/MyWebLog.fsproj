@@ -16,7 +16,7 @@
   <ItemGroup>
     <PackageReference Include="DotLiquid" Version="2.2.610" />
     <PackageReference Include="Giraffe" Version="6.0.0" />
-    <PackageReference Include="RethinkDB.DistributedCache" Version="0.9.0-alpha02" />
+    <PackageReference Include="RethinkDB.DistributedCache" Version="0.9.0-alpha03" />
   </ItemGroup>
 
   <ItemGroup>
