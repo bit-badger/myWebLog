@@ -62,16 +62,31 @@ module private Helpers =
     open System.Security.Claims
     open System.IO
 
+    /// The HTTP item key for loading the session
+    let private sessionLoadedKey = "session-loaded"
+    
+    /// Load the session if it has not been loaded already; ensures async access but not excessive loading
+    let private loadSession (ctx : HttpContext) = task {
+        if not (ctx.Items.ContainsKey sessionLoadedKey) then
+            do! ctx.Session.LoadAsync ()
+            ctx.Items.Add (sessionLoadedKey, "yes")
+    }
+    
+    /// Ensure that the session is committed
+    let private commitSession (ctx : HttpContext) = task {
+        if ctx.Items.ContainsKey sessionLoadedKey then do! ctx.Session.CommitAsync ()
+    }
+    
     /// Add a message to the user's session
     let addMessage (ctx : HttpContext) message = task {
-        do! ctx.Session.LoadAsync ()
+        do! loadSession ctx
         let msg = match ctx.Session.Get<UserMessage list> "messages" with Some it -> it | None -> []
         ctx.Session.Set ("messages", message :: msg)
     }
     
     /// Get any messages from the user's session, removing them in the process
     let messages (ctx : HttpContext) = task {
-        do! ctx.Session.LoadAsync ()
+        do! loadSession ctx
         match ctx.Session.Get<UserMessage list> "messages" with
         | Some msg ->
             ctx.Session.Remove "messages"
@@ -98,7 +113,7 @@ module private Helpers =
         hash.Add ("current_page", ctx.Request.Path.Value.Substring 1)
         hash.Add ("messages",     messages)
         
-        do! ctx.Session.CommitAsync ()
+        do! commitSession ctx
         
         // NOTE: DotLiquid does not support {% render %} or {% include %} in its templates, so we will do a two-pass
         //       render; the net effect is a "layout" capability similar to Razor or Pug
@@ -120,7 +135,7 @@ module private Helpers =
     
     /// Redirect after doing some action; commits session and issues a temporary redirect
     let redirectToGet url : HttpHandler = fun next ctx -> task {
-        do! ctx.Session.CommitAsync ()
+        do! commitSession ctx
         return! redirectTo false url next ctx
     }
     

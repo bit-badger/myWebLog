@@ -173,7 +173,7 @@ module Page =
         rethink<Page list> {
             withTable Table.Page
             getAll [ webLogId ] (nameof webLogId)
-            without [ "text", "priorPermalinks", "revisions" ]
+            without [ "text"; "priorPermalinks"; "revisions" ]
             result; withRetryDefault
         }
 
@@ -182,7 +182,7 @@ module Page =
         rethink<Page> {
             withTable Table.Page
             get pageId
-            resultOption; withRetryDefault
+            resultOption; withRetryOptionDefault
         }
         |> verifyWebLog webLogId (fun it -> it.webLogId)
 
@@ -191,8 +191,8 @@ module Page =
         rethink<Page> {
             withTable Table.Page
             get pageId
-            without [ "priorPermalinks", "revisions" ]
-            resultOption; withRetryDefault
+            without [ "priorPermalinks"; "revisions" ]
+            resultOption; withRetryOptionDefault
         }
         |> verifyWebLog webLogId (fun it -> it.webLogId)
 
@@ -201,7 +201,7 @@ module Page =
         rethink<Page list> {
             withTable Table.Page
             getAll [ r.Array (webLogId, permalink) ] (nameof permalink)
-            without [ "priorPermalinks", "revisions" ]
+            without [ "priorPermalinks"; "revisions" ]
             limit 1
             result; withRetryDefault
         }
@@ -212,7 +212,7 @@ module Page =
         rethink<Permalink list> {
             withTable Table.Page
             getAll [ permalink ] "priorPermalinks"
-            filter [ "webLogId", webLogId :> obj ]
+            filter "webLogId" webLogId
             pluck [ "permalink" ]
             limit 1
             result; withRetryDefault
@@ -225,7 +225,7 @@ module Page =
             withTable Table.Page
             getAll [ webLogId ] (nameof webLogId)
             filter [ "showInPageList", true :> obj ]
-            without [ "text", "priorPermalinks", "revisions" ]
+            without [ "text"; "priorPermalinks"; "revisions" ]
             orderBy "title"
             result; withRetryDefault
         }
@@ -235,7 +235,7 @@ module Page =
         rethink<Page list> {
             withTable Table.Page
             getAll [ webLogId ] (nameof webLogId)
-            without [ "priorPermalinks", "revisions" ]
+            without [ "priorPermalinks"; "revisions" ]
             orderBy "title"
             skip ((pageNbr - 1) * 25)
             limit 25
@@ -248,7 +248,7 @@ module Page =
             withTable Table.Page
             get page.id
             update [
-                "title",           page.title
+                "title",           page.title :> obj
                 "permalink",       page.permalink
                 "updatedOn",       page.updatedOn
                 "showInPageList",  page.showInPageList
@@ -277,7 +277,7 @@ module Post =
         rethink<Post list> {
             withTable Table.Post
             getAll [ r.Array(permalink, webLogId) ] (nameof permalink)
-            without [ "priorPermalinks", "revisions" ]
+            without [ "priorPermalinks"; "revisions" ]
             limit 1
             result; withRetryDefault
         }
@@ -288,7 +288,7 @@ module Post =
         rethink<Permalink list> {
             withTable Table.Post
             getAll [ permalink ] "priorPermalinks"
-            filter [ "webLogId", webLogId :> obj ]
+            filter "webLogId" webLogId
             pluck [ "permalink" ]
             limit 1
             result; withRetryDefault
@@ -301,7 +301,7 @@ module Post =
             withTable Table.Post
             getAll [ webLogId ] (nameof webLogId)
             filter "status" Published
-            without [ "priorPermalinks", "revisions" ]
+            without [ "priorPermalinks"; "revisions" ]
             orderBy "publishedOn"
             skip ((pageNbr - 1) * postsPerPage)
             limit postsPerPage
@@ -335,7 +335,7 @@ module WebLog =
         rethink<WebLog> {
             withTable Table.WebLog
             get webLogId
-            resultOption; withRetryDefault
+            resultOption; withRetryOptionDefault
         }
     
     /// Update web log settings
@@ -344,7 +344,7 @@ module WebLog =
             withTable Table.WebLog
             get webLog.id
             update [ 
-                "name",         webLog.name
+                "name",         webLog.name :> obj
                 "subtitle",     webLog.subtitle
                 "defaultPage",  webLog.defaultPage
                 "postsPerPage", webLog.postsPerPage

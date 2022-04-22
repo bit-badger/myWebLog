@@ -179,9 +179,9 @@ let main args =
         } |> Async.AwaitTask |> Async.RunSynchronously
     let _ = builder.Services.AddSingleton<IConnection> conn
     
-//    let _ = builder.Services.AddDistributedRethinkDBCache (fun opts ->
-//        opts.Connection <- conn)
-    let _ = builder.Services.AddDistributedMemoryCache ()
+    let _ = builder.Services.AddDistributedRethinkDBCache (fun opts ->
+        opts.TableName  <- "Session"
+        opts.Connection <- conn)
     let _ = builder.Services.AddSession(fun opts ->
         opts.IdleTimeout        <- TimeSpan.FromMinutes 30
         opts.Cookie.HttpOnly    <- true

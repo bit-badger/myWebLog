@@ -18,9 +18,9 @@
             <small>
               <a href="/{% unless pg.is_default %}{{ pg.permalink }}{% endunless %}" target="_blank">View Page</a>
               <span class="text-muted"> &bull; </span>
-              <a href="/page/{{ pg.id }}/edit">Edit Page</a>
+              <a href="/page/{{ pg.id }}/edit">Edit</a>
               <span class="text-muted"> &bull; </span>
-              <a href="#" class="text-danger">Delete Page</a>
+              <a href="#" class="text-danger">Delete</a>
             </small>
           </td>
           <td>{{ pg.updated_on | date: "MMMM d, yyyy" }}</td>
