@@ -118,6 +118,16 @@ module Startup =
 /// Functions to manipulate categories
 module Category =
     
+    open MyWebLog.ViewModels
+    
+    /// Add a category
+    let add (cat : Category) =
+        rethink {
+            withTable Table.Category
+            insert cat
+            write; withRetryDefault; ignoreResult
+        }
+    
     /// Count all categories for a web log
     let countAll (webLogId : WebLogId) =
         rethink<int> {
@@ -135,6 +145,86 @@ module Category =
             filter "parentId" None
             count
             result; withRetryDefault
+        }
+    
+    /// Create a category hierarchy from the given list of categories
+    let rec private orderByHierarchy (cats : Category list) parentId slugBase parentNames = seq {
+        for cat in cats |> List.filter (fun c -> c.parentId = parentId) do
+            let fullSlug = (match slugBase with Some it -> $"{it}/" | None -> "") + cat.slug
+            { id          = CategoryId.toString cat.id
+              slug        = fullSlug
+              name        = cat.name
+              description = cat.description
+              parentNames = Array.ofList parentNames
+            }
+            yield! orderByHierarchy cats (Some cat.id) (Some fullSlug) ([ cat.name ] |> List.append parentNames)
+    }
+    
+    /// Find all categories for a web log, sorted alphabetically, arranged in groups, in view model format
+    let findAllForView (webLogId : WebLogId) conn = backgroundTask {
+        let! cats = rethink<Category list> {
+            withTable Table.Category
+            getAll [ webLogId ] (nameof webLogId)
+            orderBy "name"
+            result; withRetryDefault conn
+        }
+        return orderByHierarchy cats None None [] |> Array.ofSeq
+    }
+    
+    /// Find a category by its ID
+    let findById (catId : CategoryId) webLogId =
+        rethink<Category> {
+            withTable Table.Category
+            get catId
+            resultOption; withRetryOptionDefault
+        }
+        |> verifyWebLog webLogId (fun c -> c.webLogId)
+    
+    /// Delete a category, also removing it from any posts to which it is assigned
+    let delete catId webLogId conn = backgroundTask {
+        match! findById catId webLogId conn with
+        | Some _ ->
+            // Delete the category off all posts where it is assigned
+            do! rethink {
+                withTable Table.Post
+                getAll [ webLogId ] (nameof webLogId)
+                filter (fun row -> row.G("categoryIds").Contains catId :> obj)
+                update (fun row -> r.HashMap("categoryIds", r.Array(row.G("categoryIds")).Remove catId) :> obj)
+                write; withRetryDefault; ignoreResult conn 
+            }
+            // Delete the category itself
+            do! rethink {
+                withTable Table.Category
+                get catId
+                delete
+                write; withRetryDefault; ignoreResult conn
+            }
+            return true
+        | None -> return false
+    }
+    
+    /// Get a category ID -> name dictionary for the given category IDs
+    let findNames (catIds : CategoryId list) (webLogId : WebLogId) conn = backgroundTask {
+        let! cats = rethink<Category list> {
+            withTable Table.Category
+            getAll (catIds |> List.map (fun it -> it :> obj))
+            filter "webLogId" webLogId
+            result; withRetryDefault conn
+        }
+        return cats |> List.map (fun c -> CategoryId.toString c.id, c.name) |> dict
+    }
+    
+    /// Update a category
+    let update (cat : Category) =
+        rethink {
+            withTable Table.Category
+            get cat.id
+            update [ "name",        cat.name :> obj
+                     "slug",        cat.slug
+                     "description", cat.description
+                     "parentId",    cat.parentId
+                   ]
+            write; withRetryDefault; ignoreResult
         }
 
 
@@ -295,6 +385,18 @@ module Post =
         }
         |> tryFirst
 
+    /// Find posts to be displayed on an admin page
+    let findPageOfPosts (webLogId : WebLogId) pageNbr postsPerPage =
+        rethink<Post list> {
+            withTable Table.Post
+            getAll [ webLogId ] (nameof webLogId)
+            without [ "priorPermalinks"; "revisions" ]
+            orderByFuncDescending (fun row -> row.G("publishedOn").Default_("updatedOn") :> obj)
+            skip ((pageNbr - 1) * postsPerPage)
+            limit (postsPerPage + 1)
+            result; withRetryDefault
+        }
+
     /// Find posts to be displayed on a page
     let findPageOfPublishedPosts (webLogId : WebLogId) pageNbr postsPerPage =
         rethink<Post list> {
@@ -302,9 +404,9 @@ module Post =
             getAll [ webLogId ] (nameof webLogId)
             filter "status" Published
             without [ "priorPermalinks"; "revisions" ]
-            orderBy "publishedOn"
+            orderByDescending "publishedOn"
             skip ((pageNbr - 1) * postsPerPage)
-            limit postsPerPage
+            limit (postsPerPage + 1)
             result; withRetryDefault
         }
 
@@ -374,4 +476,14 @@ module WebLogUser =
             result; withRetryDefault
         }
         |> tryFirst
-        
+    
+    /// Get a user ID -> name dictionary for the given user IDs
+    let findNames (userIds : WebLogUserId list) (webLogId : WebLogId) conn = backgroundTask {
+        let! users = rethink<WebLogUser list> {
+            withTable Table.WebLogUser
+            getAll (userIds |> List.map (fun it -> it :> obj))
+            filter "webLogId" webLogId
+            result; withRetryDefault conn
+        }
+        return users |> List.map (fun u -> WebLogUserId.toString u.id, WebLogUser.displayName u) |> dict
+    }

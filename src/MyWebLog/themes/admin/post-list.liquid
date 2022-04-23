@@ -1,0 +1,41 @@
+<h2 class="my-3">{{ page_title }}</h2>
+<article class="container">
+  <a href="/post/new/edit" class="btn btn-primary btn-sm mb-3">Write a New Post</a>
+  <table class="table table-sm table-hover">
+    <thead>
+      <tr>
+        <th scope="col">Date</th>
+        <th scope="col">Title</th>
+        <th scope="col">Author</th>
+        <th scope="col">Status</th>
+        <th scope="col">Tags</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for post in model.posts -%}
+        <tr>
+          <td>
+            {% if post.published_on.has_value -%}
+              {{ post.published_on | date: "MMMM d, yyyy" }}
+            {%- else -%}
+              {{ post.updated_on | date: "MMMM d, yyyy" }}
+            {%- endif %}
+          </td>
+          <td>
+            {{ post.title }}<br>
+            <small>
+              <a href="/{{ post.permalink }}" target="_blank">View Post</a>
+              <span class="text-muted"> &bull; </span>
+              <a href="/post/{{ post.id }}/edit">Edit</a>
+              <span class="text-muted"> &bull; </span>
+              <a href="#" class="text-danger">Delete</a>
+            </small>
+          </td>
+          <td>{{ model.authors[post.author_id] }}</td>
+          <td>{{ post.status }}</td>
+          <td>{{ tags[post.id] }}</td>
+        </tr>
+      {%- endfor %}
+    </tbody>
+  </table>
+</article>

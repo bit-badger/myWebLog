@@ -307,3 +307,10 @@ module WebLogUser =
           url                = None
           authorizationLevel = User
         }
+    
+    /// Get the user's displayed name
+    let displayName user =
+        let name =
+            seq { match user.preferredName with "" -> user.firstName | n -> n; " "; user.lastName }
+            |> Seq.reduce (+)
+        name.Trim ()

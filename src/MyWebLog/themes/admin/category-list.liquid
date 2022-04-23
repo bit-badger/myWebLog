@@ -1,0 +1,39 @@
+﻿<h2 class="my-3">{{ page_title }}</h2>
+<article class="container">
+  <a href="/category/new/edit" class="btn btn-primary btn-sm mb-3">Add a New Category</a>
+  <table class="table table-sm table-hover">
+    <thead>
+      <tr>
+        <th scope="col">Actions</th>
+        <th scope="col">Category</th>
+        <th scope="col">Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for cat in categories -%}
+        <tr>
+          <td class="action-button-column">
+            <a class="btn btn-secondary btn-sm" href="/category/{{ cat.id }}/edit">Edit</a>
+            <a class="btn btn-danger btn-sm" href="/category/{{ cat.id }}/delete"
+               onclick="return Admin.deleteCategory('{{ cat.id }}', '{{ cat.name }}')">
+              Delete
+            </a>
+          </td>
+          <td>
+            {%- if cat.parent_names %}
+              <small class="text-muted">{% for name in cat.parent_names %}{{ name }} &rang; {% endfor %}</small>
+            {% endif -%}
+            {{ cat.name }} &nbsp;
+            <small><a href="/posts/category/{{ cat.slug }}" target="_blank">View Posts</a></small>
+          </td>
+          <td>
+            {%- if cat.description %}{{ cat.description.value }}{% else %}<em class="text-muted">none</em>{% endif -%}
+          </td>
+        </tr>
+      {%- endfor %}
+    </tbody>
+  </table>
+  <form method="post" id="deleteForm">
+    <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
+  </form>
+</article>

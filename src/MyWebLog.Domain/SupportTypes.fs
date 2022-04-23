@@ -144,6 +144,12 @@ type PostStatus =
     /// The post is publicly viewable
     | Published
 
+/// Functions to support post statuses
+module PostStatus =
+    
+    /// Convert a post status to a string
+    let toString = function Draft -> "Draft" | Published -> "Published"
+
 
 /// An identifier for a post
 type PostId = PostId of string

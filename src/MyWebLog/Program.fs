@@ -199,9 +199,13 @@ let main args =
     Template.RegisterSafeType (typeof<WebLog>, all)
     
     Template.RegisterSafeType (typeof<DashboardModel>, all)
+    Template.RegisterSafeType (typeof<DisplayCategory>, all)
     Template.RegisterSafeType (typeof<DisplayPage>, all)
-    Template.RegisterSafeType (typeof<SettingsModel>, all)
+    Template.RegisterSafeType (typeof<EditCategoryModel>, all)
     Template.RegisterSafeType (typeof<EditPageModel>, all)
+    Template.RegisterSafeType (typeof<PostDisplay>, all)
+    Template.RegisterSafeType (typeof<PostListItem>, all)
+    Template.RegisterSafeType (typeof<SettingsModel>, all)
     Template.RegisterSafeType (typeof<UserMessage>, all)
     
     Template.RegisterSafeType (typeof<AntiforgeryTokenSet>, all)

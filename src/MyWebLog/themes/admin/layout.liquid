@@ -8,60 +8,61 @@
     <link rel="stylesheet" href="/themes/admin/admin.css">
   </head>
   <body>
-  <header>
-    <nav class="navbar navbar-dark bg-dark navbar-expand-md justify-content-start px-2">
-      <div class="container-fluid">
-        <a class="navbar-brand" href="/">{{ web_log.name }}</a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarText"
-                aria-controls="navbarText" aria-expanded="false" aria-label="Toggle navigation">
-          <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse" id="navbarText">
-          {% if logged_on -%}
-            <ul class="navbar-nav">
-              {{ "admin" | nav_link: "Dashboard" }}
-              {{ "pages" | nav_link: "Pages" }}
-              {{ "posts" | nav_link: "Posts" }}
-              {{ "categories" | nav_link: "Categories" }}
-            </ul>
-          {%- endif %}
-          <ul class="navbar-nav flex-grow-1 justify-content-end">
+    <header>
+      <nav class="navbar navbar-dark bg-dark navbar-expand-md justify-content-start px-2">
+        <div class="container-fluid">
+          <a class="navbar-brand" href="/">{{ web_log.name }}</a>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarText"
+                  aria-controls="navbarText" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+          </button>
+          <div class="collapse navbar-collapse" id="navbarText">
             {% if logged_on -%}
-              {{ "user/log-off" | nav_link: "Log Off" }}
-            {%- else -%}
-              {{ "user/log-on" | nav_link: "Log On" }}
+              <ul class="navbar-nav">
+                {{ "admin" | nav_link: "Dashboard" }}
+                {{ "pages" | nav_link: "Pages" }}
+                {{ "posts" | nav_link: "Posts" }}
+                {{ "categories" | nav_link: "Categories" }}
+              </ul>
             {%- endif %}
-          </ul>
+            <ul class="navbar-nav flex-grow-1 justify-content-end">
+              {% if logged_on -%}
+                {{ "user/log-off" | nav_link: "Log Off" }}
+              {%- else -%}
+                {{ "user/log-on" | nav_link: "Log On" }}
+              {%- endif %}
+            </ul>
+          </div>
+        </div>
+      </nav>
+    </header>
+    <main class="mx-3">
+      {% if messages %}
+        <div class="messages mt-2">
+          {% for msg in messages %}
+            <div role="alert" class="alert alert-{{ msg.level }} alert-dismissible fade show">
+              {{ msg.message }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              {% if msg.detail %}
+                <hr>
+                {{ msg.detail.value }}
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+      {{ content }}
+    </main>
+    <footer>
+      <div class="container-fluid">
+        <div class="row">
+          <div class="col-xs-12 text-end"><img src="/img/logo-light.png" alt="myWebLog"></div>
         </div>
       </div>
-    </nav>
-  </header>
-  <main class="mx-3">
-    {% if messages %}
-      <div class="messages mt-2">
-        {% for msg in messages %}
-          <div role="alert" class="alert alert-{{ msg.level }} alert-dismissible fade show">
-            {{ msg.message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            {% if msg.detail %}
-              <hr>
-              {{ msg.detail.value }}
-            {% endif %}
-          </div>
-        {% endfor %}
-      </div>
-    {% endif %}
-    {{ content }}
-  </main>
-  <footer>
-    <div class="container-fluid">
-      <div class="row">
-        <div class="col-xs-12 text-end"><img src="/img/logo-light.png" alt="myWebLog"></div>
-      </div>
-    </div>
-  </footer>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"
-          integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM"
-          crossorigin="anonymous"></script>
+    </footer>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"
+            integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM"
+            crossorigin="anonymous"></script>
+    <script src="/themes/admin/admin.js"></script>
   </body>
 </html>

@@ -1,0 +1,56 @@
+﻿<h2 class="my-3">{{ page_title }}</h2>
+<article>
+  <form action="/category/save" method="post">
+    <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
+    <input type="hidden" name="categoryId" value="{{ model.category_id }}">
+    <div class="container">
+      <div class="row mb-3">
+        <div class="col-6 col-lg-4 pb-3">
+          <div class="form-floating">
+            <input type="text" name="name" id="name" class="form-control" placeholder="Name" autofocus required
+                   value="{{ model.name }}">
+            <label for="name">Name</label>
+          </div>
+        </div>
+        <div class="col-6 col-lg-4 pb-3">
+          <div class="form-floating">
+            <input type="text" name="slug" id="slug" class="form-control" placeholder="Slug" required
+                   value="{{ model.slug }}">
+            <label for="slug">Slug</label>
+          </div>
+        </div>
+        <div class="col-12 col-lg-4 pb-3">
+          <div class="form-floating">
+            <select name="parentId" id="parentId" class="form-control">
+              <option value=""{% if model.parent_id == "" %} selected="selected"{% endif %}>
+                &ndash; None &ndash;
+              </option>
+              {% for cat in categories -%}
+                {%- unless cat.id == model.category_id %}
+                  <option value="{{ cat.id }}"{% if model.parent_id == cat.id %} selected="selected"{% endif %}>
+                    {% for it in cat.parent_names %} &nbsp; &raquo; {% endfor %}{{ cat.name }}
+                  </option>
+                {% endunless -%}
+              {%- endfor %}
+            </select>
+            <label for="parentId">Parent Category</label>
+          </div>
+        </div>
+      </div>
+      <div class="row mb-3">
+        <div class="col">
+          <div class="form-floating">
+            <input name="description" id="description" class="form-control"
+                   placeholder="A short description of this category" value="{{ model.description }}">
+            <label for="description">Description</label>
+          </div>
+        </div>
+      </div>
+      <div class="row mb-3">
+        <div class="col">
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+      </div>
+    </div>
+  </form>
+</article>

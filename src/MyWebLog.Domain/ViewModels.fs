@@ -1,7 +1,28 @@
 ﻿namespace MyWebLog.ViewModels
 
-open MyWebLog
 open System
+open System.Collections.Generic
+open MyWebLog
+
+/// Details about a category, used to display category lists
+[<NoComparison; NoEquality>]
+type DisplayCategory =
+    {   /// The ID of the category
+        id : string
+        
+        /// The slug for the category
+        slug : string
+        
+        /// The name of the category
+        name : string
+        
+        /// A description of the category
+        description : string option
+        
+        /// The parent category names for this (sub)category
+        parentNames : string[]
+    }
+
 
 /// Details about a page used to display page lists
 [<NoComparison; NoEquality>]
@@ -40,17 +61,6 @@ type DisplayPage =
         }
 
 
-/// The model to use to allow a user to log on
-[<CLIMutable; NoComparison; NoEquality>]
-type LogOnModel =
-    {   /// The user's e-mail address
-        emailAddress : string
-    
-        /// The user's password
-        password : string
-    }
-
-
 /// The model used to display the admin dashboard
 [<NoComparison; NoEquality>]
 type DashboardModel =
@@ -72,6 +82,35 @@ type DashboardModel =
         /// The top-level categories
         topLevelCategories : int
     }
+
+
+/// View model for editing categories
+[<CLIMutable; NoComparison; NoEquality>]
+type EditCategoryModel =
+    {   /// The ID of the category being edited
+        categoryId : string
+        
+        /// The name of the category
+        name : string
+        
+        /// The category's URL slug
+        slug : string
+        
+        /// A description of the category (optional)
+        description : string
+        
+        /// The ID of the category for which this is a subcategory (optional)
+        parentId : string
+    }
+    
+    /// Create an edit model from an existing category 
+    static member fromCategory (cat : Category) =
+        { categoryId  = CategoryId.toString cat.id
+          name        = cat.name
+          slug        = cat.slug
+          description = defaultArg cat.description ""
+          parentId    = cat.parentId |> Option.map CategoryId.toString |> Option.defaultValue ""
+        }
 
 
 /// View model to edit a page
@@ -112,6 +151,85 @@ type EditPageModel =
           source            = MarkupText.sourceType latest.text
           text              = MarkupText.text       latest.text
         }
+
+
+/// The model to use to allow a user to log on
+[<CLIMutable; NoComparison; NoEquality>]
+type LogOnModel =
+    {   /// The user's e-mail address
+        emailAddress : string
+    
+        /// The user's password
+        password : string
+    }
+
+
+/// View model for posts in a list
+[<NoComparison; NoEquality>]
+type PostListItem =
+    {   /// The ID of the post
+        id : string
+        
+        /// The ID of the user who authored the post
+        authorId : string
+        
+        /// The status of the post
+        status : string
+        
+        /// The title of the post
+        title : string
+        
+        /// The permalink for the post
+        permalink : string
+        
+        /// When this post was published
+        publishedOn : Nullable<DateTime>
+        
+        /// When this post was last updated
+        updatedOn : DateTime
+        
+        /// The text of the post
+        text : string
+        
+        /// The IDs of the categories for this post
+        categoryIds : string[]
+        
+        /// Tags for the post
+        tags : string[]
+    }
+
+    /// Create a post list item from a post
+    static member fromPost (post : Post) =
+        { id          = PostId.toString post.id
+          authorId    = WebLogUserId.toString post.authorId
+          status      = PostStatus.toString   post.status
+          title       = post.title
+          permalink   = Permalink.toString post.permalink
+          publishedOn = Option.toNullable post.publishedOn
+          updatedOn   = post.updatedOn
+          text        = post.text
+          categoryIds = post.categoryIds |> List.map CategoryId.toString |> Array.ofList
+          tags        = Array.ofList post.tags
+        }
+
+
+/// View model for displaying posts
+type PostDisplay =
+    {   /// The posts to be displayed
+        posts : PostListItem[]
+        
+        /// Category ID -> name lookup
+        categories : IDictionary<string, string>
+        
+        /// Author ID -> name lookup
+        authors : IDictionary<string, string>
+        
+        /// Whether there are newer posts than the ones in this model
+        hasNewer : bool
+        
+        /// Whether there are older posts than the ones in this model
+        hasOlder : bool
+    }
 
 
 /// View model for editing web log settings

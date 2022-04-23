@@ -262,6 +262,77 @@ module Admin =
     }
 
 
+/// Handlers to manipulate categories
+module Category =
+    
+    // GET /categories
+    let all : HttpHandler = requireUser >=> fun next ctx -> task {
+        let! cats = Data.Category.findAllForView (webLogId ctx) (conn ctx)
+        return!
+            Hash.FromAnonymousObject {| categories = cats; page_title = "Categories"; csrf = csrfToken ctx |}
+            |> viewForTheme "admin" "category-list" next ctx
+    }
+    
+    // GET /category/{id}/edit
+    let edit catId : HttpHandler = requireUser >=> fun next ctx -> task {
+        let  webLogId = webLogId ctx
+        let  conn     = conn     ctx
+        let! result   = task {
+            match catId with
+            | "new" -> return Some ("Add a New Category", { Category.empty with id = CategoryId "new" })
+            | _ ->
+                match! Data.Category.findById (CategoryId catId) webLogId conn with
+                | Some cat -> return Some ("Edit Category", cat)
+                | None -> return None
+        }
+        let! allCats = Data.Category.findAllForView webLogId conn
+        match result with
+        | Some (title, cat) ->
+            return!
+                Hash.FromAnonymousObject {|
+                    csrf       = csrfToken ctx
+                    model      = EditCategoryModel.fromCategory cat
+                    page_title = title
+                    categories = allCats
+                |}
+                |> viewForTheme "admin" "category-edit" next ctx
+        | None -> return! Error.notFound next ctx
+    }
+    
+    // POST /category/save
+    let save : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
+        let! model    = ctx.BindFormAsync<EditCategoryModel> ()
+        let  webLogId = webLogId ctx
+        let  conn     = conn     ctx
+        let! category = task {
+            match model.categoryId with
+            | "new" -> return Some { Category.empty with id = CategoryId.create (); webLogId = webLogId }
+            | catId -> return! Data.Category.findById (CategoryId catId) webLogId conn
+        }
+        match category with
+        | Some cat ->
+            let cat =
+                { cat with
+                    name        = model.name
+                    slug        = model.slug
+                    description = match model.description with "" -> None | it -> Some it
+                    parentId    = match model.parentId    with "" -> None | it -> Some (CategoryId it)
+                }
+            do! (match model.categoryId with "new" -> Data.Category.add | _ -> Data.Category.update) cat conn
+            do! addMessage ctx { UserMessage.success with message = "Category saved successfully" }
+            return! redirectToGet $"/category/{CategoryId.toString cat.id}/edit" next ctx
+        | None -> return! Error.notFound next ctx
+    }
+    
+    // POST /category/{id}/delete
+    let delete catId : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
+        match! Data.Category.delete (CategoryId catId) (webLogId ctx) (conn ctx) with
+        | true -> do! addMessage ctx { UserMessage.success with message = "Category deleted successfully" }
+        | false -> do! addMessage ctx { UserMessage.error with message = "Category not found; cannot delete" }
+        return! redirectToGet "/categories" next ctx
+    }
+
+    
 /// Handlers to manipulate pages
 module Page =
     
@@ -301,7 +372,7 @@ module Page =
         | None -> return! Error.notFound next ctx
     }
 
-    // POST /page/{id}/edit
+    // POST /page/save
     let save : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
         let! model    = ctx.BindFormAsync<EditPageModel> ()
         let  webLogId = webLogId ctx
@@ -408,6 +479,44 @@ module Post =
                         return! Error.notFound next ctx
     }
 
+    // GET /posts
+    // GET /posts/page/{pageNbr}
+    let all pageNbr : HttpHandler = requireUser >=> fun next ctx -> task {
+        let  webLog  = WebLogCache.get ctx
+        let  conn    = conn ctx
+        let! posts   = Data.Post.findPageOfPosts webLog.id pageNbr 25 conn
+        let! authors =
+            Data.WebLogUser.findNames (posts |> List.map (fun p -> p.authorId) |> List.distinct) webLog.id conn
+        let! cats =
+            Data.Category.findNames (posts |> List.map (fun c -> c.categoryIds) |> List.concat |> List.distinct)
+                webLog.id conn
+        let tags = posts
+                   |> List.map (fun p -> PostId.toString p.id, p.tags |> List.fold (fun t tag -> $"{t}, {tag}") "")
+                   |> dict
+        let model =
+            { posts      = posts |> Seq.ofList |> Seq.truncate 25 |> Seq.map PostListItem.fromPost |> Array.ofSeq
+              authors    = authors
+              categories = cats
+              hasNewer   = pageNbr <> 1
+              hasOlder   = posts |> List.length > webLog.postsPerPage
+            }
+        return!
+            Hash.FromAnonymousObject {| model = model; tags = tags; page_title = "Posts" |}
+            |> viewForTheme "admin" "post-list" next ctx
+    }
+    
+    // GET /post/{id}/edit
+    let edit _ : HttpHandler = requireUser >=> fun next ctx -> task {
+        // TODO: write handler
+        return! Error.notFound next ctx
+    }
+    
+    // POST /post/{id}/edit
+    let save : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
+        // TODO: write handler
+        return! Error.notFound next ctx
+    }
+
 
 /// Handlers to manipulate users
 module User =
@@ -482,6 +591,16 @@ let endpoints = [
             route "/settings" Admin.saveSettings
         ]
     ]
+    subRoute "/categor" [
+        GET [
+            route  "ies"       Category.all
+            routef "y/%s/edit" Category.edit
+        ]
+        POST [
+            route  "y/save"      Category.save
+            routef "y/%s/delete" Category.delete
+        ]
+    ]
     subRoute "/page" [
         GET [
             routef "/%d"       Post.pageOfPosts
@@ -491,6 +610,16 @@ let endpoints = [
         ]
         POST [
             route "/save" Page.save
+        ]
+    ]
+    subRoute "/post" [
+        GET [
+            routef "/%s/edit"  Post.edit
+            route  "s"         (Post.all 1)
+            routef "s/page/%d" Post.all
+        ]
+        POST [
+            route "/save" Post.save
         ]
     ]
     subRoute "/user" [

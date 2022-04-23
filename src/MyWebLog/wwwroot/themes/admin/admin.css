@@ -7,3 +7,7 @@
   max-width: 60rem;
   margin: auto;
 }
+.action-button-column {
+  width: 1rem;
+  white-space: nowrap;
+}
