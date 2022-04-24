@@ -11,3 +11,12 @@
   width: 1rem;
   white-space: nowrap;
 }
+fieldset {
+  border: solid 1px lightgray;
+  border-radius: .5rem;
+  padding: 0 1rem 1rem;
+}
+legend {
+  float: unset;
+  width: unset;
+}

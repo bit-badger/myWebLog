@@ -194,23 +194,16 @@ let main args =
     Template.RegisterFilter typeof<DotLiquidBespoke.NavLinkFilter>
     Template.RegisterTag<DotLiquidBespoke.UserLinksTag> "user_links"
     
-    let all = [| "*" |]
-    Template.RegisterSafeType (typeof<Page>, all)
-    Template.RegisterSafeType (typeof<WebLog>, all)
-    
-    Template.RegisterSafeType (typeof<DashboardModel>, all)
-    Template.RegisterSafeType (typeof<DisplayCategory>, all)
-    Template.RegisterSafeType (typeof<DisplayPage>, all)
-    Template.RegisterSafeType (typeof<EditCategoryModel>, all)
-    Template.RegisterSafeType (typeof<EditPageModel>, all)
-    Template.RegisterSafeType (typeof<PostDisplay>, all)
-    Template.RegisterSafeType (typeof<PostListItem>, all)
-    Template.RegisterSafeType (typeof<SettingsModel>, all)
-    Template.RegisterSafeType (typeof<UserMessage>, all)
-    
-    Template.RegisterSafeType (typeof<AntiforgeryTokenSet>, all)
-    Template.RegisterSafeType (typeof<string option>, all)
-    Template.RegisterSafeType (typeof<KeyValuePair>, all)
+    [   // Domain types
+        typeof<Page>; typeof<WebLog>
+        // View models
+        typeof<DashboardModel>; typeof<DisplayCategory>; typeof<DisplayPage>; typeof<EditCategoryModel>
+        typeof<EditPageModel>;  typeof<EditPostModel>;   typeof<PostDisplay>; typeof<PostListItem>
+        typeof<SettingsModel>;  typeof<UserMessage>
+        // Framework types
+        typeof<AntiforgeryTokenSet>; typeof<string option>; typeof<KeyValuePair>
+    ]
+    |> List.iter (fun it -> Template.RegisterSafeType (it, [| "*" |]))
 
     let app = builder.Build ()
     

@@ -246,7 +246,7 @@ module Admin =
             let updated =
                 { webLog with
                     name         = model.name
-                    subtitle     = match model.subtitle with "" -> None | it -> Some it
+                    subtitle     = if model.subtitle = "" then None else Some model.subtitle
                     defaultPage  = model.defaultPage
                     postsPerPage = model.postsPerPage
                     timeZone     = model.timeZone
@@ -315,8 +315,8 @@ module Category =
                 { cat with
                     name        = model.name
                     slug        = model.slug
-                    description = match model.description with "" -> None | it -> Some it
-                    parentId    = match model.parentId    with "" -> None | it -> Some (CategoryId it)
+                    description = if model.description = "" then None else Some model.description
+                    parentId    = if model.parentId    = "" then None else Some (CategoryId model.parentId)
                 }
             do! (match model.categoryId with "new" -> Data.Category.add | _ -> Data.Category.update) cat conn
             do! addMessage ctx { UserMessage.success with message = "Category saved successfully" }
@@ -383,10 +383,10 @@ module Page =
             | "new" ->
                 return Some
                     { Page.empty with
-                        id             = PageId.create ()
-                        webLogId       = webLogId
-                        authorId       = userId ctx
-                        publishedOn    = now
+                        id          = PageId.create ()
+                        webLogId    = webLogId
+                        authorId    = userId ctx
+                        publishedOn = now
                     }
             | pgId -> return! Data.Page.findByFullId (PageId pgId) webLogId conn
         }
@@ -421,16 +421,41 @@ module Page =
 /// Handlers to manipulate posts
 module Post =
     
+    /// Convert a list of posts into items ready to be displayed
+    let private preparePostList (webLog : WebLog) (posts : Post list) pageNbr perPage conn = task {
+        let! authors =
+            Data.WebLogUser.findNames (posts |> List.map (fun p -> p.authorId) |> List.distinct) webLog.id conn
+        let! cats =
+            Data.Category.findNames (posts |> List.map (fun c -> c.categoryIds) |> List.concat |> List.distinct)
+                webLog.id conn
+        let postItems =
+            posts
+            |> Seq.ofList
+            |> Seq.truncate perPage
+            |> Seq.map PostListItem.fromPost
+            |> Seq.map (fun pi -> { pi with authorName = authors[pi.authorId] })
+            |> Array.ofSeq
+        let model =
+            { posts      = postItems
+              categories = cats
+              subtitle   = None
+              hasNewer   = pageNbr <> 1
+              hasOlder   = posts |> List.length > perPage
+            }
+        return Hash.FromAnonymousObject {| model = model |}
+    }
+    
     // GET /page/{pageNbr}
     let pageOfPosts (pageNbr : int) : HttpHandler = fun next ctx -> task {
         let  webLog = WebLogCache.get ctx
-        let! posts  = Data.Post.findPageOfPublishedPosts webLog.id pageNbr webLog.postsPerPage (conn ctx)
-        let  hash   = Hash.FromAnonymousObject {| posts = posts |}
+        let  conn   = conn ctx
+        let! posts  = Data.Post.findPageOfPublishedPosts webLog.id pageNbr webLog.postsPerPage conn
+        let! hash   = preparePostList webLog posts pageNbr webLog.postsPerPage conn
         let  title  =
             match pageNbr, webLog.defaultPage with
             | 1, "posts" -> None
             | _, "posts" -> Some $"Page {pageNbr}"
-            | _, _ -> Some $"Page {pageNbr} &#xab; Posts"
+            | _, _ -> Some $"Page {pageNbr} &laquo; Posts"
         match title with Some ttl -> hash.Add ("page_title", ttl) | None -> ()
         return! themedView "index" next ctx hash
     }
@@ -482,39 +507,86 @@ module Post =
     // GET /posts
     // GET /posts/page/{pageNbr}
     let all pageNbr : HttpHandler = requireUser >=> fun next ctx -> task {
-        let  webLog  = WebLogCache.get ctx
-        let  conn    = conn ctx
-        let! posts   = Data.Post.findPageOfPosts webLog.id pageNbr 25 conn
-        let! authors =
-            Data.WebLogUser.findNames (posts |> List.map (fun p -> p.authorId) |> List.distinct) webLog.id conn
-        let! cats =
-            Data.Category.findNames (posts |> List.map (fun c -> c.categoryIds) |> List.concat |> List.distinct)
-                webLog.id conn
-        let tags = posts
-                   |> List.map (fun p -> PostId.toString p.id, p.tags |> List.fold (fun t tag -> $"{t}, {tag}") "")
-                   |> dict
-        let model =
-            { posts      = posts |> Seq.ofList |> Seq.truncate 25 |> Seq.map PostListItem.fromPost |> Array.ofSeq
-              authors    = authors
-              categories = cats
-              hasNewer   = pageNbr <> 1
-              hasOlder   = posts |> List.length > webLog.postsPerPage
-            }
-        return!
-            Hash.FromAnonymousObject {| model = model; tags = tags; page_title = "Posts" |}
-            |> viewForTheme "admin" "post-list" next ctx
+        let  webLog = WebLogCache.get ctx
+        let  conn   = conn ctx
+        let! posts  = Data.Post.findPageOfPosts webLog.id pageNbr 25 conn
+        let! hash   = preparePostList webLog posts pageNbr 25 conn
+        hash.Add ("page_title", "Posts")
+        return! viewForTheme "admin" "post-list" next ctx hash
     }
     
     // GET /post/{id}/edit
-    let edit _ : HttpHandler = requireUser >=> fun next ctx -> task {
-        // TODO: write handler
-        return! Error.notFound next ctx
+    let edit postId : HttpHandler = requireUser >=> fun next ctx -> task {
+        let  webLogId = webLogId ctx
+        let  conn     = conn     ctx
+        let! result   = task {
+            match postId with
+            | "new" -> return Some ("Write a New Post", { Post.empty with id = PostId "new" })
+            | _ ->
+                match! Data.Post.findByFullId (PostId postId) webLogId conn with
+                | Some post -> return Some ("Edit Post", post)
+                | None -> return None
+        }
+        match result with
+        | Some (title, post) ->
+            let! cats = Data.Category.findAllForView webLogId conn
+            return!
+                Hash.FromAnonymousObject {|
+                    csrf       = csrfToken ctx
+                    model      = EditPostModel.fromPost post
+                    page_title = title
+                    categories = cats
+                |}
+                |> viewForTheme "admin" "post-edit" next ctx
+        | None -> return! Error.notFound next ctx
     }
     
-    // POST /post/{id}/edit
+    // POST /post/save
     let save : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
-        // TODO: write handler
-        return! Error.notFound next ctx
+        let! model    = ctx.BindFormAsync<EditPostModel> ()
+        let  webLogId = webLogId ctx
+        let  conn     = conn     ctx
+        let  now      = DateTime.UtcNow
+        let! pst      = task {
+            match model.postId with
+            | "new" ->
+                return Some
+                    { Post.empty with
+                        id        = PostId.create ()
+                        webLogId  = webLogId
+                        authorId  = userId ctx
+                    }
+            | postId -> return! Data.Post.findByFullId (PostId postId) webLogId conn
+        }
+        match pst with
+        | Some post ->
+            let revision = { asOf = now; text = MarkupText.parse $"{model.source}: {model.text}" }
+            // Detect a permalink change, and add the prior one to the prior list
+            let page =
+                match Permalink.toString post.permalink with
+                | "" -> post
+                | link when link = model.permalink -> post
+                | _ -> { post with priorPermalinks = post.permalink :: post.priorPermalinks }
+            let post =
+                { post with
+                    title       = model.title
+                    permalink   = Permalink model.permalink
+                    publishedOn = if model.doPublish then Some now else post.publishedOn
+                    updatedOn   = now
+                    text        = MarkupText.toHtml revision.text
+                    tags        = model.tags.Split ","
+                                  |> Seq.ofArray
+                                  |> Seq.map (fun it -> it.Trim().ToLower ())
+                                  |> Seq.sort
+                                  |> List.ofSeq
+                    categoryIds = model.categoryIds |> Array.map CategoryId |> List.ofArray
+                    status      = if model.doPublish then Published else post.status
+                    revisions   = revision :: page.revisions
+                }
+            do! (match model.postId with "new" -> Data.Post.add | _ -> Data.Post.update) post conn
+            do! addMessage ctx { UserMessage.success with message = "Post saved successfully" }
+            return! redirectToGet $"/post/{PostId.toString post.id}/edit" next ctx
+        | None -> return! Error.notFound next ctx
     }
 
 

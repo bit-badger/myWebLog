@@ -352,6 +352,14 @@ module Page =
 /// Functions to manipulate posts
 module Post =
     
+    /// Add a post
+    let add (post : Post) =
+        rethink {
+            withTable Table.Post
+            insert post
+            write; withRetryDefault; ignoreResult
+        }
+    
     /// Count posts for a web log by their status
     let countByStatus (status : PostStatus) (webLogId : WebLogId) =
         rethink<int> {
@@ -372,6 +380,15 @@ module Post =
             result; withRetryDefault
         }
         |> tryFirst
+    
+    /// Find a post by its ID, including all revisions and prior permalinks
+    let findByFullId (postId : PostId) webLogId =
+        rethink<Post> {
+            withTable Table.Post
+            get postId
+            resultOption; withRetryOptionDefault
+        }
+        |> verifyWebLog webLogId (fun p -> p.webLogId)
 
     /// Find the current permalink for a post by a prior permalink
     let findCurrentPermalink (permalink : Permalink) (webLogId : WebLogId) =
@@ -408,6 +425,15 @@ module Post =
             skip ((pageNbr - 1) * postsPerPage)
             limit (postsPerPage + 1)
             result; withRetryDefault
+        }
+    
+    /// Update a post (all fields are updated)
+    let update (post : Post) =
+        rethink {
+            withTable Table.Post
+            get post.id
+            replace post
+            write; withRetryDefault; ignoreResult
         }
 
 

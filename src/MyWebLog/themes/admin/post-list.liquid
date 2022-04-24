@@ -31,9 +31,9 @@
               <a href="#" class="text-danger">Delete</a>
             </small>
           </td>
-          <td>{{ model.authors[post.author_id] }}</td>
+          <td>{{ post.author_name }}</td>
           <td>{{ post.status }}</td>
-          <td>{{ tags[post.id] }}</td>
+          <td>{{ post.tags | join: ", " }}</td>
         </tr>
       {%- endfor %}
     </tbody>

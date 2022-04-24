@@ -1,0 +1,23 @@
+﻿{% if model.subtitle %}
+  <h2>{{ model.subtitle.value }}</h2>
+{% endif %}
+<section class="container" aria-label="The posts for the page">
+  {% for post in model.posts %}
+    <div class="row">
+      <div class="col">
+        <article>
+          <h1>
+            <a href="/{{ post.permalink }}" title="Permanent link to &quot;{{ post.title | escape }}&quot;">
+              {{ post.title }}
+            </a>
+          </h1>
+          <p>
+            Published on {{ post.published_on | date: "MMMM d, yyyy" }}
+            at {{ post.published_on | date: "h:mmtt" | downcase }}
+          </p>
+          {{ post.text }}
+        </article>
+      </div>
+    </div>
+  {% endfor %}
+</section>

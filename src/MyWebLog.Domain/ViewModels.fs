@@ -153,6 +153,54 @@ type EditPageModel =
         }
 
 
+/// View model to edit a post
+[<CLIMutable; NoComparison; NoEquality>]
+type EditPostModel =
+    {   /// The ID of the post being edited
+        postId : string
+
+        /// The title of the post
+        title : string
+
+        /// The permalink for the post
+        permalink : string
+
+        /// The source format for the text
+        source : string
+
+        /// The text of the post
+        text : string
+        
+        /// The tags for the post
+        tags : string
+        
+        /// The category IDs for the post
+        categoryIds : string[]
+        
+        /// The post status
+        status : string
+        
+        /// Whether this post should be published
+        doPublish : bool
+    }
+    /// Create an edit model from an existing past
+    static member fromPost (post : Post) =
+        let latest =
+            match post.revisions |> List.sortByDescending (fun r -> r.asOf) |> List.tryHead with
+            | Some rev -> rev
+            | None -> Revision.empty
+        { postId            = PostId.toString post.id
+          title             = post.title
+          permalink         = Permalink.toString post.permalink
+          source            = MarkupText.sourceType latest.text
+          text              = MarkupText.text       latest.text
+          tags              = String.Join (", ", post.tags)
+          categoryIds       = post.categoryIds |> List.map CategoryId.toString |> Array.ofList
+          status            = PostStatus.toString post.status
+          doPublish         = false
+        }
+
+
 /// The model to use to allow a user to log on
 [<CLIMutable; NoComparison; NoEquality>]
 type LogOnModel =
@@ -172,6 +220,9 @@ type PostListItem =
         
         /// The ID of the user who authored the post
         authorId : string
+        
+        /// The name of the user who authored the post
+        authorName : string
         
         /// The status of the post
         status : string
@@ -202,6 +253,7 @@ type PostListItem =
     static member fromPost (post : Post) =
         { id          = PostId.toString post.id
           authorId    = WebLogUserId.toString post.authorId
+          authorName  = ""
           status      = PostStatus.toString   post.status
           title       = post.title
           permalink   = Permalink.toString post.permalink
@@ -221,8 +273,8 @@ type PostDisplay =
         /// Category ID -> name lookup
         categories : IDictionary<string, string>
         
-        /// Author ID -> name lookup
-        authors : IDictionary<string, string>
+        /// A subtitle for the page
+        subtitle : string option
         
         /// Whether there are newer posts than the ones in this model
         hasNewer : bool

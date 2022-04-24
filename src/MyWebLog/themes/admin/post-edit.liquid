@@ -1,0 +1,67 @@
+﻿<h2 class="my-3">{{ page_title }}</h2>
+<article>
+  <form action="/post/save" method="post">
+    <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
+    <input type="hidden" name="postId" value="{{ model.post_id }}">
+    <div class="container">
+      <div class="row mb-3">
+        <div class="col-12 col-lg-9">
+          <div class="form-floating pb-3">
+            <input type="text" name="title" id="title" class="form-control" placeholder="Title" autofocus required
+                   value="{{ model.title }}">
+            <label for="title">Title</label>
+          </div>
+          <div class="form-floating pb-3">
+            <input type="text" name="permalink" id="permalink" class="form-control" placeholder="Permalink" required
+                   value="{{ model.permalink }}">
+            <label for="permalink">Permalink</label>
+          </div>
+          <div class="mb-2">
+            <label for="text">Text</label> &nbsp; &nbsp;
+            <input type="radio" name="source" id="source_html" class="btn-check" value="HTML"
+            {%- if model.source == "HTML" %} checked="checked"{% endif %}>
+            <label class="btn btn-sm btn-outline-secondary" for="source_html">HTML</label>
+            <input type="radio" name="source" id="source_md" class="btn-check" value="Markdown"
+            {%- if model.source == "Markdown" %} checked="checked"{% endif %}>
+            <label class="btn btn-sm btn-outline-secondary" for="source_md">Markdown</label>
+          </div>
+          <div class="pb-3">
+            <textarea name="text" id="text" class="form-control" rows="10">{{ model.text }}</textarea>
+          </div>
+          <div class="form-floating pb-3">
+            <input type="text" name="tags" id="tags" class="form-control" placeholder="Tags" required
+                   value="{{ model.tags }}">
+            <label for="tags">Tags</label>
+            <div class="form-text">comma-delimited</div>
+          </div>
+        </div>
+        <div class="col-12 col-lg-3">
+          <fieldset>
+            <legend>Categories</legend>
+            {% for cat in categories %}
+              <div class="form-check">
+                <input type="checkbox" name="categoryIds" id="categoryId_{{ cat.id }}" class="form-check-input"
+                       value="{{ cat.id }}" {% if model.category_ids contains cat.id %} checked="checked"{% endif %}>
+                <label for="categoryId_{{ cat.id }}" class="form-check-label"
+                       {%- if cat.description %} title="{{ cat.description.value | escape }}"{% endif %}>
+                  {%- for it in cat.parent_names %}&nbsp; &rang; &nbsp;{% endfor %}{{ cat.name }}
+                </label>
+              </div>
+            {% endfor %}
+          </fieldset>
+        </div>
+      </div>
+      <div class="row mb-3">
+        <div class="col">
+          {% if model.status == "Draft" %}
+            <div class="form-check pb-2">
+              <input type="checkbox" name="doPublish" id="doPublish" class="form-check-input" value="true">
+              <label for="doPublish" class="form-check-label">Publish This Post</label>
+            </div>
+          {% endif %}
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+      </div>
+    </div>
+  </form>
+</article>
