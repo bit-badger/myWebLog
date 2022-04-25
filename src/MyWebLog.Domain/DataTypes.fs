@@ -1,6 +1,7 @@
 ﻿namespace MyWebLog
 
 open System
+open MyWebLog
 
 /// A category under which a post may be identified
 [<CLIMutable; NoComparison; NoEquality>]
@@ -119,6 +120,9 @@ type Page =
         /// The current text of the page
         text : string
 
+        /// Metadata for this page
+        metadata : MetaItem list
+        
         /// Permalinks at which this page may have been previously served (useful for migrated content)
         priorPermalinks : Permalink list
 
@@ -141,6 +145,7 @@ module Page =
           showInPageList  = false
           template        = None
           text            = ""
+          metadata        = []
           priorPermalinks = []
           revisions       = []
         }
@@ -182,6 +187,9 @@ type Post =
         /// The tags for the post
         tags : string list
 
+        /// Metadata for the post
+        metadata : MetaItem list
+        
         /// Permalinks at which this post may have been previously served (useful for migrated content)
         priorPermalinks : Permalink list
 
@@ -205,6 +213,7 @@ module Post =
           text            = ""
           categoryIds     = []
           tags            = []
+          metadata        = []
           priorPermalinks = []
           revisions       = []
         }

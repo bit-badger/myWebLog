@@ -342,8 +342,10 @@ module Page =
                 "permalink",       page.permalink
                 "updatedOn",       page.updatedOn
                 "showInPageList",  page.showInPageList
+                "template",        page.template
                 "text",            page.text
                 "priorPermalinks", page.priorPermalinks
+                "metadata",        page.metadata
                 "revisions",       page.revisions
                 ]
             write; withRetryDefault; ignoreResult

@@ -98,7 +98,14 @@ type MetaItem =
         value : string
     }
 
+/// Functions to support metadata items
+module MetaItem =
 
+    /// An empty metadata item
+    let empty =
+        { name = ""; value = "" }
+
+        
 /// A revision of a page or post
 [<CLIMutable; NoComparison; NoEquality>]
 type Revision =

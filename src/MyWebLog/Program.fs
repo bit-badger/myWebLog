@@ -25,8 +25,8 @@ type WebLogMiddleware (next : RequestDelegate) =
 /// DotLiquid filters
 module DotLiquidBespoke =
     
-    open DotLiquid
     open System.IO
+    open DotLiquid
 
     /// A filter to generate nav links, highlighting the active link (exact match)
     type NavLinkFilter () =
@@ -166,7 +166,7 @@ let main args =
         builder.Services
             .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
             .AddCookie(fun opts ->
-                opts.ExpireTimeSpan    <- TimeSpan.FromMinutes 20.
+                opts.ExpireTimeSpan    <- TimeSpan.FromMinutes 60.
                 opts.SlidingExpiration <- true
                 opts.AccessDeniedPath  <- "/forbidden")
     let _ = builder.Services.AddLogging ()

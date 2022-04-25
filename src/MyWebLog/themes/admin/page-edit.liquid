@@ -56,6 +56,50 @@
           <button type="submit" class="btn btn-primary">Save Changes</button>
         </div>
       </div>
+      <div class="row mb-3">
+        <div class="col">
+          <fieldset>
+            <legend>
+              Metadata
+              <button type="button" class="btn btn-sm btn-secondary" data-bs-toggle="collapse"
+                      data-bs-target="#metaItemContainer">
+                show
+              </button>
+            </legend>
+            <div id="metaItemContainer" class="collapse">
+              <div id="metaItems" class="container">
+                {%- for meta in metadata %}
+                  <div id="meta_{{ meta[0] }}" class="row mb-3">
+                    <div class="col-1 text-center align-self-center">
+                      <button type="button" class="btn btn-sm btn-danger" onclick="Admin.removeMetaItem({{ meta[0] }})">
+                        &minus;
+                      </button>
+                    </div>
+                    <div class="col-3">
+                      <div class="form-floating">
+                        <input type="text" name="metaNames" id="metaNames_{{ meta[0] }}" class="form-control"
+                               placeholder="Name" value="{{ meta[1] }}">
+                        <label for="metaNames_{{ meta[0] }}">Name</label>
+                      </div>
+                    </div>
+                    <div class="col-8">
+                      <div class="form-floating">
+                        <input type="text" name="metaValues" id="metaValues_{{ meta[0] }}" class="form-control"
+                               placeholder="Value" value="{{ meta[2] }}">
+                        <label for="metaValues_{{ meta[0] }}">Value</label>
+                      </div>
+                    </div>
+                  </div>
+                {% endfor -%}
+              </div>
+              <button type="button" class="btn btn-sm btn-secondary" onclick="Admin.addMetaItem()">Add an Item</button>
+              <script>
+                document.addEventListener("DOMContentLoaded", () => Admin.setNextMetaIndex({{ metadata | size }}))
+              </script>
+            </div>
+          </fieldset>
+        </div>
+      </div>
     </div>
   </form>
 </article>

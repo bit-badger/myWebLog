@@ -361,10 +361,13 @@ module Page =
         }
         match result with
         | Some (title, page) ->
+            let model = EditPageModel.fromPage page
             return!
                 Hash.FromAnonymousObject {|
                     csrf       = csrfToken ctx
-                    model      = EditPageModel.fromPage page
+                    model      = model
+                    metadata   = Array.zip model.metaNames model.metaValues
+                                 |> Array.mapi (fun idx (name, value) -> [| string idx; name; value |])
                     page_title = title
                     templates  = templatesForTheme ctx "page"
                 |}
@@ -408,6 +411,10 @@ module Page =
                     showInPageList = model.isShownInPageList
                     template       = match model.template with "" -> None | tmpl -> Some tmpl
                     text           = MarkupText.toHtml revision.text
+                    metadata       = Seq.zip model.metaNames model.metaValues
+                                     |> Seq.filter (fun it -> fst it > "")
+                                     |> Seq.map (fun it -> { name = fst it; value = snd it })
+                                     |> List.ofSeq
                     revisions      = revision :: page.revisions
                 }
             do! (match model.pageId with "new" -> Data.Page.add | _ -> Data.Page.update) page conn

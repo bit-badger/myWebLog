@@ -1,7 +1,6 @@
 ﻿namespace MyWebLog.ViewModels
 
 open System
-open System.Collections.Generic
 open MyWebLog
 
 /// Details about a category, used to display category lists
@@ -136,13 +135,21 @@ type EditPageModel =
 
         /// The text of the page
         text : string
+        
+        /// Names of metadata items
+        metaNames : string[]
+        
+        /// Values of metadata items
+        metaValues : string[]
     }
+    
     /// Create an edit model from an existing page
     static member fromPage (page : Page) =
         let latest =
             match page.revisions |> List.sortByDescending (fun r -> r.asOf) |> List.tryHead with
             | Some rev -> rev
             | None -> Revision.empty
+        let page = if page.metadata |> List.isEmpty then { page with metadata = [ MetaItem.empty ] } else page
         { pageId            = PageId.toString page.id
           title             = page.title
           permalink         = Permalink.toString page.permalink
@@ -150,6 +157,8 @@ type EditPageModel =
           isShownInPageList = page.showInPageList
           source            = MarkupText.sourceType latest.text
           text              = MarkupText.text       latest.text
+          metaNames         = page.metadata |> List.map (fun m -> m.name)  |> Array.ofList
+          metaValues        = page.metadata |> List.map (fun m -> m.value) |> Array.ofList
         }
 
 
@@ -182,6 +191,12 @@ type EditPostModel =
         
         /// Whether this post should be published
         doPublish : bool
+        
+        /// Names of metadata items
+        metaNames : string[]
+        
+        /// Values of metadata items
+        metaValues : string[]
     }
     /// Create an edit model from an existing past
     static member fromPost (post : Post) =
@@ -189,15 +204,18 @@ type EditPostModel =
             match post.revisions |> List.sortByDescending (fun r -> r.asOf) |> List.tryHead with
             | Some rev -> rev
             | None -> Revision.empty
-        { postId            = PostId.toString post.id
-          title             = post.title
-          permalink         = Permalink.toString post.permalink
-          source            = MarkupText.sourceType latest.text
-          text              = MarkupText.text       latest.text
-          tags              = String.Join (", ", post.tags)
-          categoryIds       = post.categoryIds |> List.map CategoryId.toString |> Array.ofList
-          status            = PostStatus.toString post.status
-          doPublish         = false
+        let post = if post.metadata |> List.isEmpty then { post with metadata = [ MetaItem.empty ] } else post
+        { postId      = PostId.toString post.id
+          title       = post.title
+          permalink   = Permalink.toString post.permalink
+          source      = MarkupText.sourceType latest.text
+          text        = MarkupText.text       latest.text
+          tags        = String.Join (", ", post.tags)
+          categoryIds = post.categoryIds |> List.map CategoryId.toString |> Array.ofList
+          status      = PostStatus.toString post.status
+          doPublish   = false
+          metaNames   = post.metadata |> List.map (fun m -> m.name)  |> Array.ofList
+          metaValues  = post.metadata |> List.map (fun m -> m.value) |> Array.ofList
         }
 
 
@@ -251,6 +269,9 @@ type PostListItem =
         
         /// Tags for the post
         tags : string list
+        
+        /// Metadata for the post
+        meta : MetaItem list
     }
 
     /// Create a post list item from a post
@@ -265,6 +286,7 @@ type PostListItem =
           text        = post.text
           categoryIds = post.categoryIds |> List.map CategoryId.toString
           tags        = post.tags
+          meta        = post.metadata
         }
 
 
