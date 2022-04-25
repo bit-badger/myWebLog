@@ -2,6 +2,9 @@
 <article class="py-3">
   <form action="/user/log-on" method="post">
     <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
+    {% if model.return_to %}
+      <input type="hidden" name="returnTo" value="{{ model.return_to.value }}">
+    {% endif %}
     <div class="container">
       <div class="row pb-3">
         <div class="col col-md-6 col-lg-4 offset-lg-2">

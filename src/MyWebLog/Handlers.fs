@@ -424,19 +424,25 @@ module Post =
     /// Convert a list of posts into items ready to be displayed
     let private preparePostList (webLog : WebLog) (posts : Post list) pageNbr perPage conn = task {
         let! authors =
-            Data.WebLogUser.findNames (posts |> List.map (fun p -> p.authorId) |> List.distinct) webLog.id conn
+            posts
+            |> List.map (fun p -> p.authorId)
+            |> List.distinct
+            |> Data.WebLogUser.findNames webLog.id conn
         let! cats =
-            Data.Category.findNames (posts |> List.map (fun c -> c.categoryIds) |> List.concat |> List.distinct)
-                webLog.id conn
+            posts
+            |> List.map (fun c -> c.categoryIds)
+            |> List.concat
+            |> List.distinct
+            |> Data.Category.findNames webLog.id conn
         let postItems =
             posts
             |> Seq.ofList
             |> Seq.truncate perPage
             |> Seq.map PostListItem.fromPost
-            |> Seq.map (fun pi -> { pi with authorName = authors[pi.authorId] })
             |> Array.ofSeq
         let model =
             { posts      = postItems
+              authors    = authors
               categories = cats
               subtitle   = None
               hasNewer   = pageNbr <> 1
@@ -606,9 +612,20 @@ module User =
         Convert.ToBase64String (alg.GetBytes 64)
     
     // GET /user/log-on
-    let logOn : HttpHandler = fun next ctx -> task {
+    let logOn returnUrl : HttpHandler = fun next ctx -> task {
+        let returnTo =
+            match returnUrl with
+            | Some _ -> returnUrl
+            | None ->
+                match ctx.Request.Query.ContainsKey "returnUrl" with
+                | true -> Some ctx.Request.Query["returnUrl"].[0]
+                | false -> None
         return!
-            Hash.FromAnonymousObject {| page_title = "Log On"; csrf = (csrfToken ctx) |}
+            Hash.FromAnonymousObject {|
+                model      = { LogOnModel.empty with returnTo = returnTo }
+                page_title = "Log On"
+                csrf       = csrfToken ctx
+            |}
             |> viewForTheme "admin" "log-on" next ctx
     }
     
@@ -629,14 +646,11 @@ module User =
             do! ctx.SignInAsync (identity.AuthenticationType, ClaimsPrincipal identity,
                 AuthenticationProperties (IssuedUtc = DateTimeOffset.UtcNow))
             do! addMessage ctx
-                    { UserMessage.success with
-                        message = "Logged on successfully"
-                        detail = Some $"Welcome to {webLog.name}!"
-                    }
-            return! redirectToGet "/admin" next ctx
+                    { UserMessage.success with message = $"Logged on successfully | Welcome to {webLog.name}!" }
+            return! redirectToGet (match model.returnTo with Some url -> url | None -> "/admin") next ctx
         | _ ->
             do! addMessage ctx { UserMessage.error with message = "Log on attempt unsuccessful" }
-            return! logOn next ctx
+            return! logOn model.returnTo next ctx
     }
 
     // GET /user/log-off
@@ -696,7 +710,7 @@ let endpoints = [
     ]
     subRoute "/user" [
         GET [
-            route "/log-on"  User.logOn
+            route "/log-on"  (User.logOn None)
             route "/log-off" User.logOff
         ]
         POST [

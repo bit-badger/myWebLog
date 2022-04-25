@@ -14,8 +14,28 @@
           <p>
             Published on {{ post.published_on | date: "MMMM d, yyyy" }}
             at {{ post.published_on | date: "h:mmtt" | downcase }}
+            by {{ model.authors | value: post.author_id }}
           </p>
           {{ post.text }}
+          {%- assign category_count = post.category_ids | size -%}
+          {%- assign tag_count = post.tags | size -%}
+          {% if category_count > 0 or tag_count > 0 %}
+            <footer>
+              <p>
+                {%- if category_count > 0 -%}
+                  {%- for cat in post.category_ids -%}
+                    {%- assign cat_names = model.categories | value: cat | split: "," | concat: cat_names -%}
+                  {%- endfor -%}
+                  Categorized under: {{ cat_names | reverse | join: ", " }}<br>
+                  {%- assign cat_names = "" -%}
+                {% endif -%}
+                {%- if tag_count > 0 %}
+                  Tagged: {{ post.tags | join: ", " }}
+                {% endif -%}
+              </p>
+            </footer>
+          {% endif %}
+          <hr>
         </article>
       </div>
     </div>

@@ -204,14 +204,14 @@ module Category =
     }
     
     /// Get a category ID -> name dictionary for the given category IDs
-    let findNames (catIds : CategoryId list) (webLogId : WebLogId) conn = backgroundTask {
+    let findNames (webLogId : WebLogId) conn (catIds : CategoryId list) = backgroundTask {
         let! cats = rethink<Category list> {
             withTable Table.Category
             getAll (catIds |> List.map (fun it -> it :> obj))
             filter "webLogId" webLogId
             result; withRetryDefault conn
         }
-        return cats |> List.map (fun c -> CategoryId.toString c.id, c.name) |> dict
+        return cats |> List.map (fun c -> { name = CategoryId.toString c.id; value = c.name})
     }
     
     /// Update a category
@@ -504,12 +504,12 @@ module WebLogUser =
         |> tryFirst
     
     /// Get a user ID -> name dictionary for the given user IDs
-    let findNames (userIds : WebLogUserId list) (webLogId : WebLogId) conn = backgroundTask {
+    let findNames (webLogId : WebLogId) conn (userIds : WebLogUserId list) = backgroundTask {
         let! users = rethink<WebLogUser list> {
             withTable Table.WebLogUser
             getAll (userIds |> List.map (fun it -> it :> obj))
             filter "webLogId" webLogId
             result; withRetryDefault conn
         }
-        return users |> List.map (fun u -> WebLogUserId.toString u.id, WebLogUser.displayName u) |> dict
+        return users |> List.map (fun u -> { name = WebLogUserId.toString u.id; value = WebLogUser.displayName u })
     }

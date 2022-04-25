@@ -88,6 +88,17 @@ module MarkupText =
         | text -> invalidOp $"Cannot derive type of text ({text})"
 
 
+/// An item of metadata
+[<CLIMutable; NoComparison; NoEquality>]
+type MetaItem =
+    {   /// The name of the metadata value
+        name : string
+        
+        /// The metadata value
+        value : string
+    }
+
+
 /// A revision of a page or post
 [<CLIMutable; NoComparison; NoEquality>]
 type Revision =

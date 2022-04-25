@@ -209,7 +209,14 @@ type LogOnModel =
     
         /// The user's password
         password : string
+        
+        /// Where the user should be redirected once they have logged on
+        returnTo : string option
     }
+    
+    /// An empty log on model
+    static member empty =
+        { emailAddress = ""; password = ""; returnTo = None }
 
 
 /// View model for posts in a list
@@ -220,9 +227,6 @@ type PostListItem =
         
         /// The ID of the user who authored the post
         authorId : string
-        
-        /// The name of the user who authored the post
-        authorName : string
         
         /// The status of the post
         status : string
@@ -243,25 +247,24 @@ type PostListItem =
         text : string
         
         /// The IDs of the categories for this post
-        categoryIds : string[]
+        categoryIds : string list
         
         /// Tags for the post
-        tags : string[]
+        tags : string list
     }
 
     /// Create a post list item from a post
     static member fromPost (post : Post) =
         { id          = PostId.toString post.id
           authorId    = WebLogUserId.toString post.authorId
-          authorName  = ""
           status      = PostStatus.toString   post.status
           title       = post.title
           permalink   = Permalink.toString post.permalink
           publishedOn = Option.toNullable post.publishedOn
           updatedOn   = post.updatedOn
           text        = post.text
-          categoryIds = post.categoryIds |> List.map CategoryId.toString |> Array.ofList
-          tags        = Array.ofList post.tags
+          categoryIds = post.categoryIds |> List.map CategoryId.toString
+          tags        = post.tags
         }
 
 
@@ -270,8 +273,11 @@ type PostDisplay =
     {   /// The posts to be displayed
         posts : PostListItem[]
         
+        /// Author ID -> name lookup
+        authors : MetaItem list
+        
         /// Category ID -> name lookup
-        categories : IDictionary<string, string>
+        categories : MetaItem list
         
         /// A subtitle for the page
         subtitle : string option

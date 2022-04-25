@@ -58,6 +58,14 @@ module DotLiquidBespoke =
                 "</ul>"
             }
             |> Seq.iter result.WriteLine
+    
+    /// A filter to retrieve the value of a meta item from a list
+    //    (shorter than `{% assign item = list | where: "name", [name] | first %}{{ item.value }}`)
+    type ValueFilter () =
+        static member Value (_ : Context, items : MetaItem list, name : string) =
+            match items |> List.tryFind (fun it -> it.name = name) with
+            | Some item -> item.value
+            | None -> $"-- {name} not found --"
 
 
 /// Create the default information for a new web log
@@ -192,16 +200,18 @@ let main args =
     
     // Set up DotLiquid
     Template.RegisterFilter typeof<DotLiquidBespoke.NavLinkFilter>
+    Template.RegisterFilter typeof<DotLiquidBespoke.ValueFilter>
     Template.RegisterTag<DotLiquidBespoke.UserLinksTag> "user_links"
     
     [   // Domain types
-        typeof<Page>; typeof<WebLog>
+        typeof<MetaItem>; typeof<Page>; typeof<WebLog>
         // View models
         typeof<DashboardModel>; typeof<DisplayCategory>; typeof<DisplayPage>; typeof<EditCategoryModel>
-        typeof<EditPageModel>;  typeof<EditPostModel>;   typeof<PostDisplay>; typeof<PostListItem>
-        typeof<SettingsModel>;  typeof<UserMessage>
+        typeof<EditPageModel>;  typeof<EditPostModel>;   typeof<LogOnModel>;  typeof<PostDisplay>
+        typeof<PostListItem>;   typeof<SettingsModel>;   typeof<UserMessage>
         // Framework types
-        typeof<AntiforgeryTokenSet>; typeof<string option>; typeof<KeyValuePair>
+        typeof<AntiforgeryTokenSet>; typeof<KeyValuePair>; typeof<MetaItem list>; typeof<string list>
+        typeof<string option>
     ]
     |> List.iter (fun it -> Template.RegisterSafeType (it, [| "*" |]))
 
