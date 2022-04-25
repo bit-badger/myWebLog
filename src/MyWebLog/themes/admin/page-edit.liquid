@@ -21,7 +21,7 @@
           <div class="form-floating pb-3">
             <select name="template" id="template" class="form-control">
               {% for tmpl in templates -%}
-                <option value="{{ tmpl[0] }}"{% if model.template == tmpl %} selected="selected"{% endif %}>
+                <option value="{{ tmpl[0] }}"{% if model.template == tmpl[0] %} selected="selected"{% endif %}>
                   {{ tmpl[1] }}
                 </option>
               {%- endfor %}

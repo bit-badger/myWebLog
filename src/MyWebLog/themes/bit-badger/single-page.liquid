@@ -2,4 +2,7 @@
   <h1>{{ page.title }}</h1>
   {{ page.text }}
   <p><br><a href="/" title="Home">&laquo; Home</a></p>
+  {% if logged_on -%}
+    <p><small><a href="/page/{{ page.id }}/edit">Edit This Page</a></small></p>
+  {% endif %}
 </article>

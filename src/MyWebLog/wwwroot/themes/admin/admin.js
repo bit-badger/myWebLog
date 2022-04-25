@@ -77,6 +77,7 @@
     newRow.appendChild(valueCol)
     
     document.getElementById("metaItems").appendChild(newRow)
+    document.getElementById(nameField.id).focus()
     this.nextMetaIndex++
   },
   

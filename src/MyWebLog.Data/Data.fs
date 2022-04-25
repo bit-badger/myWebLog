@@ -326,7 +326,7 @@ module Page =
             withTable Table.Page
             getAll [ webLogId ] (nameof webLogId)
             without [ "priorPermalinks"; "revisions" ]
-            orderBy "title"
+            orderByFunc (fun row -> row.G("title").Downcase ())
             skip ((pageNbr - 1) * 25)
             limit 25
             result; withRetryDefault

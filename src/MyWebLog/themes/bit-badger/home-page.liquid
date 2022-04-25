@@ -1,6 +1,9 @@
 <div class="home">
   <article class="content auto">
     {{ page.text }}
+    {% if logged_on -%}
+      <p><small><a href="/page/{{ page.id }}/edit">Edit This Page</a></small></p>
+    {% endif %}
   </article>
   <aside class="app-sidebar">
     <div>
@@ -9,7 +12,7 @@
         <p class="app-sidebar-name">
           <strong>PrayerTracker</strong><br>
           <a href="/solutions/prayer-tracker" title="About PrayerTracker &bull; Bit Badger Solutions">About</a> •
-          <a href="https://prayer.bitbadger.solutions" title="PrayerTracker" target="_blank">Visit</a>
+          <a href="https://prayer.bitbadger.solutions" title="PrayerTracker" target="_blank" rel="noopener">Visit</a>
         </p>
         <p class="app-sidebar-description">
           A prayer request tracking website (Free for any church or Sunday School class!)
@@ -19,14 +22,14 @@
         <p class="app-sidebar-name">
           <strong>myPrayerJournal</strong><br>
           <a href="/solutions/my-prayer-journal" title="About myPrayerJournal &bull; Bit Badger Solutions">About</a> •
-          <a href="https://prayerjournal.me" title="myPrayerJournal" target="_blank">Visit</a>
+          <a href="https://prayerjournal.me" title="myPrayerJournal" target="_blank" rel="noopener">Visit</a>
         </p>
         <p class="app-sidebar-description">Minimalist personal prayer journal</p>
       </div>
       <div>
         <p class="app-sidebar-name">
           <strong>Linux Resources</strong><br>
-          <a href="https://blog.bitbadger.solutions/linux/" title="Linux Resources" target="_blank">Visit</a>
+          <a href="https://blog.bitbadger.solutions/linux/" title="Linux Resources" target="_blank" rel="noopener">Visit</a>
         </p>
         <p class="app-sidebar-description">Handy information for Linux folks</p>
       </div>
@@ -37,7 +40,7 @@
         <p class="app-sidebar-name">
           <strong>Futility Closet</strong><br>
           <a href="/solutions/futility-closet" title="About Futility Closet &bull; Bit Badger Solutions">About</a> •
-          <a href="https://www.futilitycloset.com" title="Futility Closet" target="_blank">Visit</a>
+          <a href="https://www.futilitycloset.com" title="Futility Closet" target="_blank" rel="noopener">Visit</a>
         </p>
         <p class="app-sidebar-description">An idler’s miscellany of compendious amusements</p>
       </div>
@@ -45,7 +48,7 @@
         <p class="app-sidebar-name">
           <strong>Mindy Mackenzie</strong><br>
           <a href="/solutions/mindy-mackenzie" title="About Mindy Mackenzie &bull; Bit Badger Solutions">About</a> •
-          <a href="https://mindymackenzie.com" title="Mindy Mackenzie" target="_blank">Visit</a>
+          <a href="https://mindymackenzie.com" title="Mindy Mackenzie" target="_blank" rel="noopener">Visit</a>
         </p>
         <p class="app-sidebar-description"><em>WSJ</em>-best-selling author of <em>The Courage Solution</em></p>
       </div>
@@ -53,7 +56,7 @@
         <p class="app-sidebar-name">
           <strong>Riehl World News</strong><br>
           <a href="/solutions/riehl-world-news" title="About Riehl World News &bull; Bit Badger Solutions">About</a> •
-          <a href="http://riehlworldview.com" title="Riehl World News" target="_blank">Visit</a>
+          <a href="http://riehlworldview.com" title="Riehl World News" target="_blank" rel="noopener">Visit</a>
         </p>
         <p class="app-sidebar-description">Riehl news for real people</p>
       </div>
@@ -64,7 +67,7 @@
         <p class="app-sidebar-name">
           <strong>Bay Vista Baptist Church</strong><br>
           <a href="/solutions/bay-vista" title="About Bay Vista Baptist Church &bull; Bit Badger Solutions">About</a> •
-          <a href="https://bayvista.org" title="Bay Vista Baptist Church" target="_blank">Visit</a>
+          <a href="https://bayvista.org" title="Bay Vista Baptist Church" target="_blank" rel="noopener">Visit</a>
         </p>
         <p class="app-sidebar-description">Biloxi, Mississippi</p>
       </div>
@@ -72,7 +75,7 @@
         <p class="app-sidebar-name">
           <strong>The Bit Badger Blog</strong><br>
           <a href="/solutions/tech-blog" title="About The Bit Badger Blog &bull; Bit Badger Solutions">About</a> •
-          <a href="https://blog.bitbadger.solutions" title="The Bit Badger Blog" target="_blank">Visit</a>
+          <a href="https://blog.bitbadger.solutions" title="The Bit Badger Blog" target="_blank" rel="noopener">Visit</a>
         </p>
         <p class="app-sidebar-description">Technical information (“geek stuff”) from Bit Badger Solutions</p>
       </div>
@@ -82,14 +85,14 @@
       <div>
         <p class="app-sidebar-name">
           <strong>Daniel J. Summers</strong><br>
-          <a href="https://daniel.summershome.org" title="Daniel J. Summers" target="_blank">Visit</a>
+          <a href="https://daniel.summershome.org" title="Daniel J. Summers" target="_blank" rel="noopener">Visit</a>
         </p>
         <p class="app-sidebar-description">Daniel’s personal blog</p>
       </div>
       <div>
         <p class="app-sidebar-name">
           <strong>A Word from the Word</strong><br>
-          <a href="https://devotions.summershome.org" title="A Word from the Word" target="_blank">Visit</a>
+          <a href="https://devotions.summershome.org" title="A Word from the Word" target="_blank" rel="noopener">Visit</a>
         </p>
         <p class="app-sidebar-description">Devotions by Daniel</p>
       </div>

@@ -58,6 +58,7 @@ open System.Collections.Generic
 module private Helpers =
     
     open Microsoft.AspNetCore.Antiforgery
+    open Microsoft.Extensions.Configuration
     open Microsoft.Extensions.DependencyInjection
     open System.Security.Claims
     open System.IO
@@ -93,7 +94,17 @@ module private Helpers =
             return msg |> (List.rev >> Array.ofList)
         | None -> return [||]
     }
-
+    
+    /// Hold variable for the configured generator string
+    let mutable private generatorString : string option = None
+    
+    /// Get the generator string
+    let private generator (ctx : HttpContext) =
+        if Option.isNone generatorString then
+            let cfg = ctx.RequestServices.GetRequiredService<IConfiguration> ()
+            generatorString <- Option.ofObj cfg["Generator"]
+        match generatorString with Some gen -> gen | None -> "generator not configured"
+    
     /// Either get the web log from the hash, or get it from the cache and add it to the hash
     let private deriveWebLogFromHash (hash : Hash) ctx =
         match hash.ContainsKey "web_log" with
@@ -112,6 +123,7 @@ module private Helpers =
         hash.Add ("page_list",    PageListCache.get ctx)
         hash.Add ("current_page", ctx.Request.Path.Value.Substring 1)
         hash.Add ("messages",     messages)
+        hash.Add ("generator",    generator ctx)
         
         do! commitSession ctx
         
@@ -343,7 +355,7 @@ module Page =
         let! pages  = Data.Page.findPageOfPages webLog.id pageNbr (conn ctx)
         return!
             Hash.FromAnonymousObject
-                {| pages      = pages |> List.map (DisplayPage.fromPage webLog)
+                {| pages      = pages |> List.map (DisplayPage.fromPageMinimal webLog)
                    page_title = "Pages"
                 |}
             |> viewForTheme "admin" "page-list" next ctx
@@ -414,6 +426,7 @@ module Page =
                     metadata       = Seq.zip model.metaNames model.metaValues
                                      |> Seq.filter (fun it -> fst it > "")
                                      |> Seq.map (fun it -> { name = fst it; value = snd it })
+                                     |> Seq.sortBy (fun it -> $"{it.name.ToLower ()} {it.value.ToLower ()}")
                                      |> List.ofSeq
                     revisions      = revision :: page.revisions
                 }
@@ -482,7 +495,7 @@ module Post =
             match! Data.Page.findById (PageId pageId) webLog.id (conn ctx) with
             | Some page ->
                 return!
-                    Hash.FromAnonymousObject {| page = page; page_title = page.title |}
+                    Hash.FromAnonymousObject {| page = DisplayPage.fromPage webLog page; page_title = page.title |}
                     |> themedView (defaultArg page.template "single-page") next ctx
             | None -> return! Error.notFound next ctx
     }
@@ -501,7 +514,7 @@ module Post =
             match! Data.Page.findByPermalink permalink webLog.id conn with
             | Some page ->
                 return!
-                    Hash.FromAnonymousObject {| page = page; page_title = page.title |}
+                    Hash.FromAnonymousObject {| page = DisplayPage.fromPage webLog page; page_title = page.title |}
                     |> themedView (defaultArg page.template "single-page") next ctx
             | None ->
                 // Prior post

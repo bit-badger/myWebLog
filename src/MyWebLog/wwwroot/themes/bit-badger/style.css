@@ -19,7 +19,7 @@ a img {
 acronym {
   border-bottom: dotted 1px black;
 }
-header, h1, h2, h3, footer a {
+header, h1, h2, h3, .footer-by a {
   font-family: "Oswald", "Segoe UI", Ubuntu, "DejaVu Sans", "Liberation Sans", Arial, sans-serif;
 }
 h1 {
@@ -200,6 +200,48 @@ abbr[title] {
   font-size: 1.3rem;
   font-weight: bold;
   color: maroon;
+}
+/* Individual solution pages */
+h1.solution-header {
+  line-height: 1.6rem;
+}
+.app-info aside {
+  float: right;
+  background-color: #FFFAFA;
+}
+.app-info aside > span {
+  padding-left: .75rem;
+}
+.app-info aside > img {
+  overflow: hidden;
+  border: dotted 1px darkgray;
+  border-radius: 10px;
+}
+.tech-stack p {
+  margin-bottom: 0;
+}
+.tech-stack ul {
+  margin-top: 0;
+}
+blockquote {
+  border-left: solid 1px darkgray;
+  margin-left: 25px;
+  padding-left: 15px;
+}
+.quote {
+  font-style: italic;
+}
+.source {
+  text-align: right;
+  padding-right: 60px;
+}
+.app-info h3:hover {
+  cursor: hand;
+  cursor: pointer;
+}
+.app-info .arrow {
+  font-size: .75rem;
+  padding-left: 1rem;
 }
 /* Footer */
 footer {

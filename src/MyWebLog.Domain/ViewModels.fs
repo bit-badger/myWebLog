@@ -46,7 +46,26 @@ type DisplayPage =
         
         /// Is this the default page?
         isDefault : bool
+        
+        /// The text of the page
+        text : string
+        
+        /// The metadata for the page
+        metadata : MetaItem list
     }
+    /// Create a minimal display page (no text or metadata) from a database page
+    static member fromPageMinimal webLog (page : Page) =
+        let pageId = PageId.toString page.id
+        { id             = pageId
+          title          = page.title
+          permalink      = Permalink.toString page.permalink
+          publishedOn    = page.publishedOn
+          updatedOn      = page.updatedOn
+          showInPageList = page.showInPageList
+          isDefault      = pageId = webLog.defaultPage
+          text           = ""
+          metadata       = []
+        }
     /// Create a display page from a database page
     static member fromPage webLog (page : Page) =
         let pageId = PageId.toString page.id
@@ -57,6 +76,8 @@ type DisplayPage =
           updatedOn      = page.updatedOn
           showInPageList = page.showInPageList
           isDefault      = pageId = webLog.defaultPage
+          text           = page.text
+          metadata       = page.metadata
         }
 
 

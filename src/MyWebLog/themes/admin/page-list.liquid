@@ -5,6 +5,7 @@
     <thead>
       <tr>
         <th scope="col">Title</th>
+        <th scope="col">Permalink</th>
         <th scope="col">Last Updated</th>
       </tr>
     </thead>
@@ -23,6 +24,7 @@
               <a href="#" class="text-danger">Delete</a>
             </small>
           </td>
+          <td>/{% unless pg.is_default %}{{ pg.permalink }}{% endunless %}</td>
           <td>{{ pg.updated_on | date: "MMMM d, yyyy" }}</td>
         </tr>
       {%- endfor %}
