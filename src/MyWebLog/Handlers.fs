@@ -183,7 +183,8 @@ module private Helpers =
         seq {
             KeyValuePair.Create ("", $"- Default (single-{typ}) -")
             yield!
-                Directory.EnumerateFiles $"themes/{(WebLogCache.get ctx).themePath}/"
+                Path.Combine ("themes", (WebLogCache.get ctx).themePath)
+                |> Directory.EnumerateFiles
                 |> Seq.filter (fun it -> it.EndsWith $"{typ}.liquid")
                 |> Seq.map (fun it ->
                     let parts    = it.Split Path.DirectorySeparatorChar
@@ -428,7 +429,9 @@ module Page =
                                      |> Seq.map (fun it -> { name = fst it; value = snd it })
                                      |> Seq.sortBy (fun it -> $"{it.name.ToLower ()} {it.value.ToLower ()}")
                                      |> List.ofSeq
-                    revisions      = revision :: page.revisions
+                    revisions      = match page.revisions |> List.tryHead with
+                                     | Some r when r.text = revision.text -> page.revisions
+                                     | _ -> revision :: page.revisions
                 }
             do! (match model.pageId with "new" -> Data.Page.add | _ -> Data.Page.update) page conn
             if updateList then do! PageListCache.update ctx
@@ -588,7 +591,7 @@ module Post =
         | Some post ->
             let revision = { asOf = now; text = MarkupText.parse $"{model.source}: {model.text}" }
             // Detect a permalink change, and add the prior one to the prior list
-            let page =
+            let post =
                 match Permalink.toString post.permalink with
                 | "" -> post
                 | link when link = model.permalink -> post
@@ -607,7 +610,9 @@ module Post =
                                   |> List.ofSeq
                     categoryIds = model.categoryIds |> Array.map CategoryId |> List.ofArray
                     status      = if model.doPublish then Published else post.status
-                    revisions   = revision :: page.revisions
+                    revisions   = match post.revisions |> List.tryHead with
+                                  | Some r when r.text = revision.text -> post.revisions
+                                  | _ -> revision :: post.revisions
                 }
             do! (match model.postId with "new" -> Data.Post.add | _ -> Data.Post.update) post conn
             do! addMessage ctx { UserMessage.success with message = "Post saved successfully" }
