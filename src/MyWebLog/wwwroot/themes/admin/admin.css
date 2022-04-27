@@ -20,3 +20,10 @@ legend {
   float: unset;
   width: unset;
 }
+textarea {
+  font-family: monospace;
+  font-size: .8rem !important;
+}
+.no-wrap {
+  white-space: nowrap;
+}

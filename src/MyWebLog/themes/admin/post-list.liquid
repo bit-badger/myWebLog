@@ -5,7 +5,7 @@
     <thead>
       <tr>
         <th scope="col">Date</th>
-        <th scope="col">Title</th>
+        <th scope="col" style="width:300px;">Title</th>
         <th scope="col">Author</th>
         <th scope="col">Status</th>
         <th scope="col">Tags</th>
@@ -14,7 +14,7 @@
     <tbody>
       {% for post in model.posts -%}
         <tr>
-          <td>
+          <td class="no-wrap">
             {% if post.published_on.has_value -%}
               {{ post.published_on | date: "MMMM d, yyyy" }}
             {%- else -%}
@@ -31,9 +31,9 @@
               <a href="#" class="text-danger">Delete</a>
             </small>
           </td>
-          <td>{{ model.authors | value: post.author_id }}</td>
+          <td class="no-wrap">{{ model.authors | value: post.author_id }}</td>
           <td>{{ post.status }}</td>
-          <td>{{ post.tags | join: ", " }}</td>
+          <td><span class="no-wrap">{{ post.tags | join: "</span>, <span class='no-wrap'>" }}</span></td>
         </tr>
       {%- endfor %}
     </tbody>

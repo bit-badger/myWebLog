@@ -27,7 +27,7 @@ body {
   grid-template-rows: auto;
   color: var(--text-color);
 }
-a :link, a:visited {
+a:link, a:visited {
   color: var(--accent-color);
   text-decoration: none;
 }
@@ -231,6 +231,9 @@ footer.part-3 {
 }
 .text-center {
   text-align: center;
+}
+.no-wrap {
+  white-space: nowrap;
 }
 
 /* ----- SCALE UP STYLES ----- */

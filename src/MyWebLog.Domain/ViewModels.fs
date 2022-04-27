@@ -218,6 +218,15 @@ type EditPostModel =
         
         /// Values of metadata items
         metaValues : string[]
+        
+        /// Whether to override the published date/time
+        setPublished : bool
+        
+        /// The published date/time to override
+        pubOverride : Nullable<DateTime>
+        
+        /// Whether all revisions should be purged and the override date set as the updated date as well
+        setUpdated : bool
     }
     /// Create an edit model from an existing past
     static member fromPost (post : Post) =
@@ -226,17 +235,20 @@ type EditPostModel =
             | Some rev -> rev
             | None -> Revision.empty
         let post = if post.metadata |> List.isEmpty then { post with metadata = [ MetaItem.empty ] } else post
-        { postId      = PostId.toString post.id
-          title       = post.title
-          permalink   = Permalink.toString post.permalink
-          source      = MarkupText.sourceType latest.text
-          text        = MarkupText.text       latest.text
-          tags        = String.Join (", ", post.tags)
-          categoryIds = post.categoryIds |> List.map CategoryId.toString |> Array.ofList
-          status      = PostStatus.toString post.status
-          doPublish   = false
-          metaNames   = post.metadata |> List.map (fun m -> m.name)  |> Array.ofList
-          metaValues  = post.metadata |> List.map (fun m -> m.value) |> Array.ofList
+        { postId       = PostId.toString post.id
+          title        = post.title
+          permalink    = Permalink.toString post.permalink
+          source       = MarkupText.sourceType latest.text
+          text         = MarkupText.text       latest.text
+          tags         = String.Join (", ", post.tags)
+          categoryIds  = post.categoryIds |> List.map CategoryId.toString |> Array.ofList
+          status       = PostStatus.toString post.status
+          doPublish    = false
+          metaNames    = post.metadata |> List.map (fun m -> m.name)  |> Array.ofList
+          metaValues   = post.metadata |> List.map (fun m -> m.value) |> Array.ofList
+          setPublished = false
+          pubOverride  = Nullable<DateTime> ()
+          setUpdated   = false
         }
 
 
@@ -350,7 +362,19 @@ type SettingsModel =
 
         /// The time zone in which dates/times should be displayed
         timeZone : string
+        
+        /// The theme to use to display the web log
+        themePath : string
     }
+    /// Create a settings model from a web log
+    static member fromWebLog (webLog : WebLog) =
+        { name         = webLog.name
+          subtitle     = defaultArg webLog.subtitle ""
+          defaultPage  = webLog.defaultPage
+          postsPerPage = webLog.postsPerPage
+          timeZone     = webLog.timeZone
+          themePath    = webLog.themePath
+        }
 
 
 [<CLIMutable; NoComparison; NoEquality>]

@@ -8,14 +8,14 @@
         <div class="col-6 col-lg-4 pb-3">
           <div class="form-floating">
             <input type="text" name="name" id="name" class="form-control" placeholder="Name" autofocus required
-                   value="{{ model.name }}">
+                   value="{{ model.name | escape }}">
             <label for="name">Name</label>
           </div>
         </div>
         <div class="col-6 col-lg-4 pb-3">
           <div class="form-floating">
             <input type="text" name="slug" id="slug" class="form-control" placeholder="Slug" required
-                   value="{{ model.slug }}">
+                   value="{{ model.slug | escape }}">
             <label for="slug">Slug</label>
           </div>
         </div>
@@ -41,7 +41,7 @@
         <div class="col">
           <div class="form-floating">
             <input name="description" id="description" class="form-control"
-                   placeholder="A short description of this category" value="{{ model.description }}">
+                   placeholder="A short description of this category" value="{{ model.description | escape }}">
             <label for="description">Description</label>
           </div>
         </div>

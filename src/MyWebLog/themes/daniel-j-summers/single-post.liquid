@@ -1,0 +1,63 @@
+{%- assign post = model.posts | first -%}
+<div class="content single">
+  <article class="item">
+    <h1 class="item-heading">{{ post.title }}</h1>
+    <h4 class="text-center">
+      {% if post.published_on -%}
+        <i class="fa fa-calendar" title="Date"></i> {{ post.published_on | date: "MMMM d, yyyy" }} &nbsp;
+        <i class="fa fa-clock-o" title="Time"></i> {{ post.published_on | date: "h:mmtt" | downcase }}
+      {%- else -%}
+        **DRAFT**
+      {% endif %}
+    </h4>
+    <div>{{ post.text }}</div>
+    {%- assign cat_count = post.category_ids | size -%}
+    {% if cat_count > 0 -%}
+      <h4>
+        Categorized &nbsp;
+        {% for cat in post.category_ids -%}
+          {% assign cat_name = model.categories | value: cat %}
+          <span class="no-wrap">
+            <i class="fa fa-folder-open-o" title="Category"></i>
+            <a href="/category/{{ cat }}" title="Categorized under &ldquo;{{ cat_name | escape }}&rdquo;">
+             {{ cat_name }}
+            </a> &nbsp; &nbsp;
+          </span>
+        {%- endfor %}
+      </h4>
+    {%- endif %}
+    {%- assign tag_count = post.tags | size -%}
+    {% if tag_count > 0 -%}
+      <h4>
+        Tagged &nbsp;
+        {% for tag in post.tags %}
+          <span class="no-wrap">
+            <a href="/tag/{{ tag | replace: " ", "-" }}" title="Posts tagged &ldquo;{{ tag | escape }}&rdquo;">
+              <i class="fa fa-tag"></i> {{ tag }}
+            </a> &nbsp; &nbsp;
+          </span>
+        {%- endfor %}
+      </h4>
+    {%- endif %}
+  </article>
+  <div>
+    <nav aria-label="pagination">
+      <ul class="pager">
+        {% if model.newer_link -%}
+          <li class="previous item">
+            <h4 class="item-heading"><a href="/{{ model.newer_link[0] }}">&ldquo;</a> Previous Post</h4>
+            <a href="/{{ model.newer_link[0] }}">&ldquo;{{ model.newer_link[1] }}&rdquo;</a>
+          </li>
+        {%- else -%}
+          <li></li>
+        {% endif %}
+        {% if model.older_link -%}
+          <li class="next item">
+            <h4 class="item-heading">Next Post <a href="/{{ model.older_link[0] }}">&rdquo;</a></h4>
+            <a href="/{{ model.older_link[0] }}">&ldquo;{{ model.older_link[1] }}&rdquo;</a>
+          </li>
+        {%- endif -%}
+      </ul>
+    </nav>
+  </div>
+</div>

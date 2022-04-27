@@ -197,6 +197,16 @@ module private Helpers =
 /// Handlers to manipulate admin functions
 module Admin =
     
+    open System.IO
+    
+    /// The currently available themes
+    let private themes () =
+        Directory.EnumerateDirectories "themes"
+        |> Seq.map (fun it -> it.Split Path.DirectorySeparatorChar |> Array.last)
+        |> Seq.filter (fun it -> it <> "admin")
+        |> Seq.map (fun it -> KeyValuePair.Create (it, it))
+        |> Array.ofSeq
+        
     // GET /admin
     let dashboard : HttpHandler = requireUser >=> fun next ctx -> task {
         let webLogId = webLogId ctx
@@ -230,20 +240,16 @@ module Admin =
         return!
             Hash.FromAnonymousObject
                 {|  csrf  = csrfToken ctx
-                    model =
-                        { name         = webLog.name
-                          subtitle     = defaultArg webLog.subtitle ""
-                          defaultPage  = webLog.defaultPage
-                          postsPerPage = webLog.postsPerPage
-                          timeZone     = webLog.timeZone
-                        }
+                    model = SettingsModel.fromWebLog webLog
                     pages =
                         seq {
                             KeyValuePair.Create ("posts", "- First Page of Posts -")
                             yield! allPages
+                                   |> List.sortBy (fun p -> p.title.ToLower ())
                                    |> List.map (fun p -> KeyValuePair.Create (PageId.toString p.id, p.title))
                         }
                         |> Array.ofSeq
+                    themes     = themes ()
                     web_log    = webLog
                     page_title = "Web Log Settings"
                 |}
@@ -263,6 +269,7 @@ module Admin =
                     defaultPage  = model.defaultPage
                     postsPerPage = model.postsPerPage
                     timeZone     = model.timeZone
+                    themePath    = model.themePath
                 }
             do! Data.WebLog.updateSettings updated conn
 
@@ -510,8 +517,10 @@ module Post =
         let permalink = (string >> Permalink) ctx.Request.RouteValues["link"]
         // Current post
         match! Data.Post.findByPermalink permalink webLog.id conn with
-        | Some _ -> return! Error.notFound next ctx
-            // TODO: return via single-post action
+        | Some post ->
+            let! model = preparePostList webLog [ post ] 1 1 conn
+            model.Add ("page_title", post.title)
+            return! themedView "single-post" next ctx model
         | None ->
             // Current page
             match! Data.Page.findByPermalink permalink webLog.id conn with
@@ -610,10 +619,29 @@ module Post =
                                   |> List.ofSeq
                     categoryIds = model.categoryIds |> Array.map CategoryId |> List.ofArray
                     status      = if model.doPublish then Published else post.status
+                    metadata    = Seq.zip model.metaNames model.metaValues
+                                  |> Seq.filter (fun it -> fst it > "")
+                                  |> Seq.map (fun it -> { name = fst it; value = snd it })
+                                  |> Seq.sortBy (fun it -> $"{it.name.ToLower ()} {it.value.ToLower ()}")
+                                  |> List.ofSeq
                     revisions   = match post.revisions |> List.tryHead with
                                   | Some r when r.text = revision.text -> post.revisions
                                   | _ -> revision :: post.revisions
                 }
+            let post =
+                match model.setPublished with
+                | true ->
+                    let dt = DateTime (model.pubOverride.Value.ToUniversalTime().Ticks, DateTimeKind.Utc)
+                    printf $"**** DateKind = {dt.Kind}"
+                    match model.setUpdated with
+                    | true ->
+                        { post with
+                            publishedOn = Some dt
+                            updatedOn   = dt
+                            revisions   = [ { (List.head post.revisions) with asOf = dt } ]
+                        }
+                    | false -> { post with publishedOn = Some dt }
+                | false -> post
             do! (match model.postId with "new" -> Data.Post.add | _ -> Data.Post.update) post conn
             do! addMessage ctx { UserMessage.success with message = "Post saved successfully" }
             return! redirectToGet $"/post/{PostId.toString post.id}/edit" next ctx

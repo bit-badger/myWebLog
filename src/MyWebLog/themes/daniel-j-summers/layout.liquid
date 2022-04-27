@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="generator" content="{{ generator }}">
-    <title>{{ page_title }} &raquo; {{ web_log.name }}</title>
+    <title>{{ page_title }}{% if page_title and page_title != "" %} &raquo; {% endif %}{{ web_log.name }}</title>
     <link rel="preload" href="https://fonts.googleapis.com/css?family=Quicksand|Oswald" as="style">
     <link rel="preload" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" as="style">
     <link rel="preload" href="/themes/{{ web_log.theme_path }}/style.css" as="style">
@@ -22,7 +22,7 @@
       {%- if web_log.subtitle %}<p>{{ web_log.subtitle.value }}</p>{% endif -%}
       <p class="nav-spacer"></p>
       {% for page in page_list %}
-        <p class="desktop"><a href="{{ page.permalink }}">{{ page.title }}</a></p>
+        <p class="desktop"><a href="/{{ page.permalink }}">{{ page.title }}</a></p>
       {% endfor %}
       <p class="desktop">
         <a href="https://devotions.summershome.org" target="_blank" rel="noopener">A Word from the Word</a>
@@ -72,7 +72,7 @@
             <table style="width:100%;"><tbody><tr>
               <td style="width:75px;">
                 <a href="https://utsports.com" style="background:none;padding:0;" target="_blank" rel="noopener">
-                  <img src="/themes/{{ web_log.theme_path }}/img/tennessee.png" alt="T" title="Tennessee Sports"
+                  <img src="/themes/{{ web_log.theme_path }}/tennessee.png" alt="T" title="Tennessee Sports"
                        style="border:0;" width="75px">
                 </a>
               </td>
@@ -93,7 +93,7 @@
             <table style="width:100%;"><tbody><tr>
               <td style="width:75px;">
                 <a href="https://csurams.com" style="background:none;padding:0;" target="_blank" rel="noopener">
-                  <img src="/themes/{{ web_log.theme_path }}/img/csurams.png" alt="CSU Rams Logo"
+                  <img src="/themes/{{ web_log.theme_path }}/csurams.png" alt="CSU Rams Logo"
                        title="Colorado State Sports" style="border:0;" height="75px" width="75px">
                 </a>
               </td>

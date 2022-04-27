@@ -62,6 +62,85 @@
           <button type="submit" class="btn btn-primary">Save Changes</button>
         </div>
       </div>
+      <div class="row mb-3">
+        <div class="col">
+          <fieldset>
+            <legend>
+              Metadata
+              <button type="button" class="btn btn-sm btn-secondary" data-bs-toggle="collapse"
+                      data-bs-target="#metaItemContainer">
+                show
+              </button>
+            </legend>
+            <div id="metaItemContainer" class="collapse">
+              <div id="metaItems" class="container">
+                {%- for meta in model.metadata %}
+                  <div id="meta_{{ meta[0] }}" class="row mb-3">
+                    <div class="col-1 text-center align-self-center">
+                      <button type="button" class="btn btn-sm btn-danger" onclick="Admin.removeMetaItem({{ meta[0] }})">
+                        &minus;
+                      </button>
+                    </div>
+                    <div class="col-3">
+                      <div class="form-floating">
+                        <input type="text" name="metaNames" id="metaNames_{{ meta[0] }}" class="form-control"
+                               placeholder="Name" value="{{ meta[1] }}">
+                        <label for="metaNames_{{ meta[0] }}">Name</label>
+                      </div>
+                    </div>
+                    <div class="col-8">
+                      <div class="form-floating">
+                        <input type="text" name="metaValues" id="metaValues_{{ meta[0] }}" class="form-control"
+                               placeholder="Value" value="{{ meta[2] }}">
+                        <label for="metaValues_{{ meta[0] }}">Value</label>
+                      </div>
+                    </div>
+                  </div>
+                {% endfor -%}
+              </div>
+              <button type="button" class="btn btn-sm btn-secondary" onclick="Admin.addMetaItem()">Add an Item</button>
+              <script>
+                document.addEventListener("DOMContentLoaded", () => Admin.setNextMetaIndex({{ model.metadata | size }}))
+              </script>
+            </div>
+          </fieldset>
+        </div>
+      </div>
+      {% if model.status == "Published" %}
+        <div class="row mb-3">
+          <div class="col">
+            <fieldset>
+              <legend>Maintenance</legend>
+              <div class="container">
+                <div class="row">
+                  <div class="col align-self-center">
+                    <div class="form-check pb-2">
+                      <input type="checkbox" name="setPublished" id="setPublished" class="form-check-input"
+                             value="true">
+                      <label for="setPublished" class="form-check-label">Set Published Date</label>
+                    </div>
+                  </div>
+                  <div class="col-3">
+                    <div class="form-floating">
+                      <input type="datetime-local" name="pubOverride" id="pubOverride" class="form-control"
+                             placeholder="Override Date">
+                      <label for="pubOverride" class="form-label">Published On</label>
+                    </div>
+                  </div>
+                  <div class="col-6 align-self-center">
+                    <div class="form-check pb-2">
+                      <input type="checkbox" name="setUpdated" id="setUpdated" class="form-check-input" value="true">
+                      <label for="setUpdated" class="form-check-label">
+                        Purge revisions and set as updated date as well
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </fieldset>
+          </div>
+        </div>
+      {% endif %}
     </div>
   </form>
 </article>

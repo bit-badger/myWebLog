@@ -1,0 +1,59 @@
+<div class="content">
+  {% for post in model.posts %}
+    <article class="item">
+      <h1 class="item-heading">
+        <a href="/{{ post.permalink }}" title="Permanent Link to &quot;{{ post.title | escape }}&quot;">
+          {{ post.title }}
+        </a>
+      </h1>
+      <h4 class="text-center">
+        <i class="fa fa-calendar" title="Date"></i> {{ post.published_on | date: "MMMM d, yyyy" }} &nbsp;
+        <i class="fa fa-clock-o" title="Time"></i> {{ post.published_on | date: "h:mmtt" | downcase }}
+      </h4>
+      {{ post.text }}
+    </article>
+  {% endfor %}
+  <nav aria-label="pagination">
+    <ul class="pager">
+      {% if model.newer_link -%}
+        <li class="previous item"><a href="/{{ model.newer_link }}">&laquo; Newer Posts</a></li>
+      {%- else -%}
+        <li></li>
+      {% endif %}
+      {% if model.older_link -%}
+        <li class="next item"><a href="/{{ model.older_link }}">Older Posts &raquo;</a></li>
+      {%- endif -%}
+    </ul>
+  </nav>
+</div>
+<div class="sidebar">
+  <br>
+  <div class="item votd-item">
+    <h4 class="item-heading votd-heading">Verse of the Day</h4>
+    <div>
+      <span class="verse"> &ndash;</span>
+      <a class="votd-reference" target="_blank" rel="noopener"></a>
+      <small> <a class="version-link" target="'_blank" rel="noopener">(ESV)</a></small><br>
+      <div class="votd-credits">
+        <small>Powered by <a href="https://biblegateway.com" target="_blank" rel="noopener">Bible Gateway</a></small>
+      </div>
+      <script src="https://www.biblegateway.com/votd/get/?format=json&amp;version=ESV&amp;callback=djs.displayVotd">
+      </script>
+    </div>
+  </div>
+  <div class="item">
+    <h4 class="item-heading">#VoteGold</h4>
+    <div class="text-center">
+      <p><em>
+        (Don't blame me;<br>
+        I voted for <a href="https://jo20.com/" title="Jorgensen / Cohen 2020" target="_blank" rel="noopener">Jo</a>)
+      </em></p>
+    </div>
+  </div>
+  <div class="item">
+    <h4 class="item-heading">Categories</h4>
+    <div>
+      TODO: list_categories({ class: 'cat' })
+    </div>
+  </div>
+</div>

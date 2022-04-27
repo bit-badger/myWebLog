@@ -376,7 +376,7 @@ module Post =
     let findByPermalink (permalink : Permalink) (webLogId : WebLogId) =
         rethink<Post list> {
             withTable Table.Post
-            getAll [ r.Array(permalink, webLogId) ] (nameof permalink)
+            getAll [ r.Array(webLogId, permalink) ] (nameof permalink)
             without [ "priorPermalinks"; "revisions" ]
             limit 1
             result; withRetryDefault
@@ -468,18 +468,12 @@ module WebLog =
             resultOption; withRetryOptionDefault
         }
     
-    /// Update web log settings
+    /// Update web log settings (updates all values)
     let updateSettings (webLog : WebLog) =
         rethink {
             withTable Table.WebLog
             get webLog.id
-            update [ 
-                "name",         webLog.name :> obj
-                "subtitle",     webLog.subtitle
-                "defaultPage",  webLog.defaultPage
-                "postsPerPage", webLog.postsPerPage
-                "timeZone",     webLog.timeZone
-                ]
+            replace webLog
             write; withRetryDefault; ignoreResult
         }
 
