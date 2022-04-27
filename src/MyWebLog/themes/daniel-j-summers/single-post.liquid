@@ -5,7 +5,7 @@
     <h4 class="text-center">
       {% if post.published_on -%}
         <i class="fa fa-calendar" title="Date"></i> {{ post.published_on | date: "MMMM d, yyyy" }} &nbsp;
-        <i class="fa fa-clock-o" title="Time"></i> {{ post.published_on | date: "h:mmtt" | downcase }}
+        <i class="fa fa-clock-o" title="Time"></i> {{ post.published_on | date: "h:mm tt" | downcase }}
       {%- else -%}
         **DRAFT**
       {% endif %}
@@ -15,12 +15,12 @@
     {% if cat_count > 0 -%}
       <h4>
         Categorized &nbsp;
-        {% for cat in post.category_ids -%}
-          {% assign cat_name = model.categories | value: cat %}
+        {% for cat_id in post.category_ids -%}
+          {% assign cat = categories | where: "id", cat_id | first %}
           <span class="no-wrap">
             <i class="fa fa-folder-open-o" title="Category"></i>
-            <a href="/category/{{ cat }}" title="Categorized under &ldquo;{{ cat_name | escape }}&rdquo;">
-             {{ cat_name }}
+            <a href="/category/{{ cat.slug }}" title="Categorized under &ldquo;{{ cat.name | escape }}&rdquo;">
+             {{ cat.name }}
             </a> &nbsp; &nbsp;
           </span>
         {%- endfor %}

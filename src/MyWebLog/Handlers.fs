@@ -285,6 +285,12 @@ module Admin =
 /// Handlers to manipulate categories
 module Category =
     
+    /// Update the category cache with flattened category hierarchy
+    let private updateCategoryCache webLogId ctx conn = task {
+        let! cats = Data.Category.findAllForView webLogId conn
+        CategoryCache.set ctx cats
+    }
+    
     // GET /categories
     let all : HttpHandler = requireUser >=> fun next ctx -> task {
         let! cats = Data.Category.findAllForView (webLogId ctx) (conn ctx)
@@ -305,7 +311,6 @@ module Category =
                 | Some cat -> return Some ("Edit Category", cat)
                 | None -> return None
         }
-        let! allCats = Data.Category.findAllForView webLogId conn
         match result with
         | Some (title, cat) ->
             return!
@@ -313,7 +318,7 @@ module Category =
                     csrf       = csrfToken ctx
                     model      = EditCategoryModel.fromCategory cat
                     page_title = title
-                    categories = allCats
+                    categories = CategoryCache.get ctx
                 |}
                 |> viewForTheme "admin" "category-edit" next ctx
         | None -> return! Error.notFound next ctx
@@ -339,6 +344,7 @@ module Category =
                     parentId    = if model.parentId    = "" then None else Some (CategoryId model.parentId)
                 }
             do! (match model.categoryId with "new" -> Data.Category.add | _ -> Data.Category.update) cat conn
+            do! updateCategoryCache webLogId ctx conn
             do! addMessage ctx { UserMessage.success with message = "Category saved successfully" }
             return! redirectToGet $"/category/{CategoryId.toString cat.id}/edit" next ctx
         | None -> return! Error.notFound next ctx
@@ -346,8 +352,12 @@ module Category =
     
     // POST /category/{id}/delete
     let delete catId : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
-        match! Data.Category.delete (CategoryId catId) (webLogId ctx) (conn ctx) with
-        | true -> do! addMessage ctx { UserMessage.success with message = "Category deleted successfully" }
+        let webLogId = webLogId ctx
+        let conn     = conn     ctx
+        match! Data.Category.delete (CategoryId catId) webLogId conn with
+        | true ->
+            do! updateCategoryCache webLogId ctx conn
+            do! addMessage ctx { UserMessage.success with message = "Category deleted successfully" }
         | false -> do! addMessage ctx { UserMessage.error with message = "Category not found; cannot delete" }
         return! redirectToGet "/categories" next ctx
     }
@@ -452,7 +462,7 @@ module Page =
 module Post =
     
     /// Convert a list of posts into items ready to be displayed
-    let private preparePostList (webLog : WebLog) (posts : Post list) pageNbr perPage conn = task {
+    let private preparePostList (webLog : WebLog) (posts : Post list) pageNbr perPage ctx conn = task {
         let! authors =
             posts
             |> List.map (fun p -> p.authorId)
@@ -468,7 +478,7 @@ module Post =
             posts
             |> Seq.ofList
             |> Seq.truncate perPage
-            |> Seq.map PostListItem.fromPost
+            |> Seq.map (PostListItem.fromPost webLog)
             |> Array.ofSeq
         let model =
             { posts      = postItems
@@ -476,9 +486,9 @@ module Post =
               categories = cats
               subtitle   = None
               hasNewer   = pageNbr <> 1
-              hasOlder   = posts |> List.length > perPage
+              hasOlder   = List.length posts > perPage
             }
-        return Hash.FromAnonymousObject {| model = model |}
+        return Hash.FromAnonymousObject {| model = model; categories = CategoryCache.get ctx |}
     }
     
     // GET /page/{pageNbr}
@@ -486,7 +496,7 @@ module Post =
         let  webLog = WebLogCache.get ctx
         let  conn   = conn ctx
         let! posts  = Data.Post.findPageOfPublishedPosts webLog.id pageNbr webLog.postsPerPage conn
-        let! hash   = preparePostList webLog posts pageNbr webLog.postsPerPage conn
+        let! hash   = preparePostList webLog posts pageNbr webLog.postsPerPage ctx conn
         let  title  =
             match pageNbr, webLog.defaultPage with
             | 1, "posts" -> None
@@ -518,7 +528,7 @@ module Post =
         // Current post
         match! Data.Post.findByPermalink permalink webLog.id conn with
         | Some post ->
-            let! model = preparePostList webLog [ post ] 1 1 conn
+            let! model = preparePostList webLog [ post ] 1 1 ctx conn
             model.Add ("page_title", post.title)
             return! themedView "single-post" next ctx model
         | None ->
@@ -548,7 +558,7 @@ module Post =
         let  webLog = WebLogCache.get ctx
         let  conn   = conn ctx
         let! posts  = Data.Post.findPageOfPosts webLog.id pageNbr 25 conn
-        let! hash   = preparePostList webLog posts pageNbr 25 conn
+        let! hash   = preparePostList webLog posts pageNbr 25 ctx conn
         hash.Add ("page_title", "Posts")
         return! viewForTheme "admin" "post-list" next ctx hash
     }

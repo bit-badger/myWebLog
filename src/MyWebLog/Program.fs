@@ -17,6 +17,8 @@ type WebLogMiddleware (next : RequestDelegate) =
             | Some webLog ->
                 WebLogCache.set ctx webLog
                 do! PageListCache.update ctx
+                let! cats = Data.Category.findAllForView webLog.id conn
+                CategoryCache.set ctx cats
                 return! next.Invoke ctx
             | None -> ctx.Response.StatusCode <- 404
     }

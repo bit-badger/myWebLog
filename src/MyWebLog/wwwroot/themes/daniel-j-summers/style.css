@@ -154,7 +154,7 @@ img {
 .cat-list ul {
   padding-left: 1rem;
 }
-.cat-list ul li {
+.cat-list li {
   list-style-type: none;
   padding-bottom: .2rem;
 }

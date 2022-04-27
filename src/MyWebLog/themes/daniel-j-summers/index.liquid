@@ -1,5 +1,5 @@
 <div class="content">
-  {% for post in model.posts %}
+  {%- for post in model.posts %}
     <article class="item">
       <h1 class="item-heading">
         <a href="/{{ post.permalink }}" title="Permanent Link to &quot;{{ post.title | escape }}&quot;">
@@ -8,11 +8,11 @@
       </h1>
       <h4 class="text-center">
         <i class="fa fa-calendar" title="Date"></i> {{ post.published_on | date: "MMMM d, yyyy" }} &nbsp;
-        <i class="fa fa-clock-o" title="Time"></i> {{ post.published_on | date: "h:mmtt" | downcase }}
+        <i class="fa fa-clock-o" title="Time"></i> {{ post.published_on | date: "h:mm tt" | downcase }}
       </h4>
       {{ post.text }}
     </article>
-  {% endfor %}
+  {%- endfor %}
   <nav aria-label="pagination">
     <ul class="pager">
       {% if model.newer_link -%}
@@ -52,8 +52,13 @@
   </div>
   <div class="item">
     <h4 class="item-heading">Categories</h4>
-    <div>
-      TODO: list_categories({ class: 'cat' })
-    </div>
+    <ul class="cat-list">
+      {% for cat in categories -%}
+        {%- assign indent = cat.parent_names | size -%}
+        <li class="cat-list-item"{% if indent > 0 %} style="padding-left:{{ indent }}rem;"{% endif %}>
+          <a href="/category/{{ cat.slug }}" class="cat-list-link">{{ cat.name }}</a>
+        </li>
+      {%- endfor %}
+    </ul>
   </div>
 </div>

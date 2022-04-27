@@ -308,14 +308,16 @@ type PostListItem =
     }
 
     /// Create a post list item from a post
-    static member fromPost (post : Post) =
+    static member fromPost (webLog : WebLog) (post : Post) =
+        let tz = TimeZoneInfo.FindSystemTimeZoneById webLog.timeZone
+        let inTZ (it : DateTime) = TimeZoneInfo.ConvertTimeFromUtc (DateTime (it.Ticks, DateTimeKind.Utc), tz)
         { id          = PostId.toString post.id
           authorId    = WebLogUserId.toString post.authorId
           status      = PostStatus.toString   post.status
           title       = post.title
           permalink   = Permalink.toString post.permalink
-          publishedOn = Option.toNullable post.publishedOn
-          updatedOn   = post.updatedOn
+          publishedOn = post.publishedOn |> Option.map inTZ |> Option.toNullable
+          updatedOn   = inTZ post.updatedOn
           text        = post.text
           categoryIds = post.categoryIds |> List.map CategoryId.toString
           tags        = post.tags

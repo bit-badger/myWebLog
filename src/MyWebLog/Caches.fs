@@ -52,6 +52,22 @@ module PageListCache =
         _cache[Cache.makeKey ctx] <- pages |> List.map (DisplayPage.fromPage webLog) |> Array.ofList
     }
 
+
+/// Cache of all categories, indexed by web log
+module CategoryCache =
+    
+    open MyWebLog.ViewModels
+    
+    /// The cache itself
+    let private _cache = ConcurrentDictionary<string, DisplayCategory[]> ()
+    
+    /// Get the categories for the web log for this request
+    let get ctx = _cache[Cache.makeKey ctx]
+    
+    /// Set the categories for the current web log
+    let set ctx cats = _cache[Cache.makeKey ctx] <- cats
+
+
 /// Cache for parsed templates
 module TemplateCache =
     
