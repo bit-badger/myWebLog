@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="generator" content="{{ generator }}">
-    <title>{{ page_title }}{% if page_title and page_title != "" %} &raquo; {% endif %}{{ web_log.name }}</title>
+    <title>{{ page_title | strip_html }}{% if page_title and page_title != "" %} &raquo; {% endif %}{{ web_log.name }}</title>
     <link rel="preload" href="https://fonts.googleapis.com/css?family=Quicksand|Oswald" as="style">
     <link rel="preload" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" as="style">
     <link rel="preload" href="/themes/{{ web_log.theme_path }}/style.css" as="style">

@@ -2,7 +2,7 @@
   {%- for post in model.posts %}
     <article class="item">
       <h1 class="item-heading">
-        <a href="/{{ post.permalink }}" title="Permanent Link to &quot;{{ post.title | escape }}&quot;">
+        <a href="/{{ post.permalink }}" title="Permanent Link to &quot;{{ post.title | strip_html | escape }}&quot;">
           {{ post.title }}
         </a>
       </h1>
