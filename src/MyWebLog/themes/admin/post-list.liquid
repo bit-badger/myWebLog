@@ -15,10 +15,9 @@
       {% for post in model.posts -%}
         <tr>
           <td class="no-wrap">
-            {% if post.published_on.has_value -%}
-              {{ post.published_on | date: "MMMM d, yyyy" }}
-            {%- else -%}
-              {{ post.updated_on | date: "MMMM d, yyyy" }}
+            {% if post.published_on %}{{ post.published_on | date: "MMMM d, yyyy" }}{% else %}Not Published{% endif %}
+            {%- if post.published_on != post.updated_on %}<br>
+              <small class="text-muted"><em>{{ post.updated_on | date: "MMMM d, yyyy" }}</em></small>
             {%- endif %}
           </td>
           <td>
@@ -38,4 +37,18 @@
       {%- endfor %}
     </tbody>
   </table>
+  {% if model.newer_link or model.older_link %}
+    <div class="d-flex justify-content-evenly">
+      <div>
+        {% if model.newer_link %}
+          <p><a class="btn btn-default" href="/{{ model.newer_link.value }}">&laquo; Newer Posts</a></p>
+        {% endif %}
+      </div>
+      <div class="text-right">
+        {% if model.older_link %}
+          <p><a class="btn btn-default" href="/{{ model.older_link.value }}">Older Posts &raquo;</a></p>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
 </article>

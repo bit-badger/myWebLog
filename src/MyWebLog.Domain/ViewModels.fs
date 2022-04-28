@@ -20,6 +20,9 @@ type DisplayCategory =
         
         /// The parent category names for this (sub)category
         parentNames : string[]
+        
+        /// The number of posts in this category
+        postCount : int
     }
 
 
@@ -333,17 +336,14 @@ type PostDisplay =
         /// Author ID -> name lookup
         authors : MetaItem list
         
-        /// Category ID -> name lookup
-        categories : MetaItem list
-        
         /// A subtitle for the page
         subtitle : string option
         
-        /// Whether there are newer posts than the ones in this model
-        hasNewer : bool
+        /// The link to view newer (more recent) posts
+        newerLink : string option
         
-        /// Whether there are older posts than the ones in this model
-        hasOlder : bool
+        /// The link to view older (less recent) posts
+        olderLink : string option
     }
 
 

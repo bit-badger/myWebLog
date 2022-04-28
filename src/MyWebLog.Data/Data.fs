@@ -63,31 +63,39 @@ module Startup =
         let! indexes = rethink<string list> { withTable table; indexList; result; withRetryOnce conn }
         for field in fields do
             if not (indexes |> List.contains field) then
-                log.LogInformation($"Creating index {table}.{field}...")
+                log.LogInformation $"Creating index {table}.{field}..."
                 do! rethink { withTable table; indexCreate field; write; withRetryOnce; ignoreResult conn }
         // Post and page need index by web log ID and permalink
         if [ Table.Page; Table.Post ] |> List.contains table then
             if not (indexes |> List.contains "permalink") then
-                log.LogInformation($"Creating index {table}.permalink...")
+                log.LogInformation $"Creating index {table}.permalink..."
                 do! rethink {
                     withTable table
-                    indexCreate "permalink" (fun row -> r.Array(row.G "webLogId", row.G "permalink") :> obj)
+                    indexCreate "permalink" (fun row -> r.Array (row.G "webLogId", row.G "permalink") :> obj)
                     write; withRetryOnce; ignoreResult conn
                 }
             // Prior permalinks are searched when a post or page permalink do not match the current URL
             if not (indexes |> List.contains "priorPermalinks") then
-                log.LogInformation($"Creating index {table}.priorPermalinks...")
+                log.LogInformation $"Creating index {table}.priorPermalinks..."
                 do! rethink {
                     withTable table
                     indexCreate "priorPermalinks" [ Multi ]
                     write; withRetryOnce; ignoreResult conn
                 }
-        // Users log on with e-mail
-        if Table.WebLogUser = table && not (indexes |> List.contains "logOn") then
-            log.LogInformation($"Creating index {table}.logOn...")
+        // Post needs index by category (used for counting posts)
+        if Table.Post = table && not (indexes |> List.contains "categoryIds") then
+            log.LogInformation $"Creating index {table}.categoryIds..."
             do! rethink {
                 withTable table
-                indexCreate "logOn" (fun row -> r.Array(row.G "webLogId", row.G "userName") :> obj)
+                indexCreate "categoryIds" [ Multi ]
+                write; withRetryOnce; ignoreResult conn
+            }
+        // Users log on with e-mail
+        if Table.WebLogUser = table && not (indexes |> List.contains "logOn") then
+            log.LogInformation $"Creating index {table}.logOn..."
+            do! rethink {
+                withTable table
+                indexCreate "logOn" (fun row -> r.Array (row.G "webLogId", row.G "userName") :> obj)
                 write; withRetryOnce; ignoreResult conn
             }
     }
@@ -118,6 +126,7 @@ module Startup =
 /// Functions to manipulate categories
 module Category =
     
+    open System.Threading.Tasks
     open MyWebLog.ViewModels
     
     /// Add a category
@@ -156,6 +165,8 @@ module Category =
               name        = cat.name
               description = cat.description
               parentNames = Array.ofList parentNames
+              // Post counts are filled on a second pass
+              postCount   = 0
             }
             yield! orderByHierarchy cats (Some cat.id) (Some fullSlug) ([ cat.name ] |> List.append parentNames)
     }
@@ -168,7 +179,37 @@ module Category =
             orderBy "name"
             result; withRetryDefault conn
         }
-        return orderByHierarchy cats None None [] |> Array.ofSeq
+        let  ordered = orderByHierarchy cats None None []
+        let! counts  =
+            ordered
+            |> Seq.map (fun it -> backgroundTask {
+                // Parent category post counts include posts in subcategories
+                let catIds =
+                    ordered
+                    |> Seq.filter (fun cat -> cat.parentNames |> Array.contains it.name)
+                    |> Seq.map (fun cat -> cat.id :> obj)
+                    |> Seq.append (Seq.singleton it.id)
+                    |> List.ofSeq
+                let! count = rethink<int> {
+                    withTable Table.Post
+                    getAll catIds "categoryIds"
+                    filter "status" Published
+                    count
+                    result; withRetryDefault conn
+                }
+                return it.id, count
+                })
+            |> Task.WhenAll
+        return
+            ordered
+            |> Seq.map (fun cat ->
+                { cat with
+                    postCount = counts
+                                |> Array.tryFind (fun c -> fst c = cat.id)
+                                |> Option.map snd
+                                |> Option.defaultValue 0
+                })
+            |> Array.ofSeq
     }
     
     /// Find a category by its ID
@@ -189,7 +230,7 @@ module Category =
                 withTable Table.Post
                 getAll [ webLogId ] (nameof webLogId)
                 filter (fun row -> row.G("categoryIds").Contains catId :> obj)
-                update (fun row -> r.HashMap("categoryIds", r.Array(row.G("categoryIds")).Remove catId) :> obj)
+                update (fun row -> r.HashMap ("categoryIds", r.Array(row.G "categoryIds").Remove catId) :> obj)
                 write; withRetryDefault; ignoreResult conn 
             }
             // Delete the category itself
@@ -405,26 +446,28 @@ module Post =
         |> tryFirst
 
     /// Find posts to be displayed on an admin page
-    let findPageOfPosts (webLogId : WebLogId) pageNbr postsPerPage =
+    let findPageOfPosts (webLogId : WebLogId) (pageNbr : int64) postsPerPage =
+        let pg = int pageNbr
         rethink<Post list> {
             withTable Table.Post
             getAll [ webLogId ] (nameof webLogId)
             without [ "priorPermalinks"; "revisions" ]
-            orderByFuncDescending (fun row -> row.G("publishedOn").Default_("updatedOn") :> obj)
-            skip ((pageNbr - 1) * postsPerPage)
+            orderByFuncDescending (fun row -> row.G("publishedOn").Default_ "updatedOn" :> obj)
+            skip ((pg - 1) * postsPerPage)
             limit (postsPerPage + 1)
             result; withRetryDefault
         }
 
     /// Find posts to be displayed on a page
-    let findPageOfPublishedPosts (webLogId : WebLogId) pageNbr postsPerPage =
+    let findPageOfPublishedPosts (webLogId : WebLogId) (pageNbr : int64) postsPerPage =
+        let pg = int pageNbr
         rethink<Post list> {
             withTable Table.Post
             getAll [ webLogId ] (nameof webLogId)
             filter "status" Published
             without [ "priorPermalinks"; "revisions" ]
             orderByDescending "publishedOn"
-            skip ((pageNbr - 1) * postsPerPage)
+            skip ((pg - 1) * postsPerPage)
             limit (postsPerPage + 1)
             result; withRetryDefault
         }

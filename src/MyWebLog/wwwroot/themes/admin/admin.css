@@ -27,3 +27,15 @@ textarea {
 .no-wrap {
   white-space: nowrap;
 }
+a:link, a:visited {
+  text-decoration: none;
+}
+a:link:hover, a:visited:hover {
+  text-decoration: underline;
+}
+a.text-danger:link:hover, a.text-danger:visited:hover {
+  text-decoration: none;
+  background-color: var(--bs-danger);
+  border-radius: 0.25rem;
+  color: white !important;
+}

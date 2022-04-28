@@ -4,7 +4,6 @@
   <table class="table table-sm table-hover">
     <thead>
       <tr>
-        <th scope="col">Actions</th>
         <th scope="col">Category</th>
         <th scope="col">Description</th>
       </tr>
@@ -12,22 +11,28 @@
     <tbody>
       {% for cat in categories -%}
         <tr>
-          <td class="action-button-column">
-            <a class="btn btn-secondary btn-sm" href="/category/{{ cat.id }}/edit">Edit</a>
-            <a class="btn btn-danger btn-sm" href="/category/{{ cat.id }}/delete"
-               onclick="return Admin.deleteCategory('{{ cat.id }}', '{{ cat.name }}')">
-              Delete
-            </a>
-          </td>
-          <td>
+          <td class="no-wrap">
             {%- if cat.parent_names %}
               <small class="text-muted">{% for name in cat.parent_names %}{{ name }} &rang; {% endfor %}</small>
-            {% endif -%}
-            {{ cat.name }} &nbsp;
-            <small><a href="/posts/category/{{ cat.slug }}" target="_blank">View Posts</a></small>
+            {%- endif %}
+            {{ cat.name }}<br>
+            <small>
+            {%- if cat.post_count > 0 %}
+              <a href="/category/{{ cat.slug }}" target="_blank">
+                View {{ cat.post_count }} Post{% unless cat.post_count == 1 %}s{% endunless -%}
+              </a>
+              <span class="text-muted"> &bull; </span>
+            {%- endif %}
+              <a href="/category/{{ cat.id }}/edit">Edit</a>
+              <span class="text-muted"> &bull; </span>
+              <a href="/category/{{ cat.id }}/delete" class="text-danger"
+                 onclick="return Admin.deleteCategory('{{ cat.id }}', '{{ cat.name }}')">
+                Delete
+              </a>
+            </small>
           </td>
           <td>
-            {%- if cat.description %}{{ cat.description.value }}{% else %}<em class="text-muted">none</em>{% endif -%}
+            {%- if cat.description %}{{ cat.description.value }}{% else %}<em class="text-muted">none</em>{% endif %}
           </td>
         </tr>
       {%- endfor %}

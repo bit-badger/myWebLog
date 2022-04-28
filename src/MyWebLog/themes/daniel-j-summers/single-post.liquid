@@ -45,16 +45,16 @@
       <ul class="pager">
         {% if model.newer_link -%}
           <li class="previous item">
-            <h4 class="item-heading"><a href="/{{ model.newer_link[0] }}">&ldquo;</a> Previous Post</h4>
-            <a href="/{{ model.newer_link[0] }}">&ldquo;{{ model.newer_link[1] }}&rdquo;</a>
+            <h4 class="item-heading"><a href="/{{ model.newer_link.value }}">&laquo;</a> Previous Post</h4>
+            <a href="/{{ model.newer_link.value }}">&ldquo;{{ model.newer_link.value }}&rdquo;</a>
           </li>
         {%- else -%}
           <li></li>
         {% endif %}
         {% if model.older_link -%}
           <li class="next item">
-            <h4 class="item-heading">Next Post <a href="/{{ model.older_link[0] }}">&rdquo;</a></h4>
-            <a href="/{{ model.older_link[0] }}">&ldquo;{{ model.older_link[1] }}&rdquo;</a>
+            <h4 class="item-heading">Next Post <a href="/{{ model.older_link.value }}">&raquo;</a></h4>
+            <a href="/{{ model.older_link.value }}">&ldquo;{{ model.older_link.value }}&rdquo;</a>
           </li>
         {%- endif -%}
       </ul>

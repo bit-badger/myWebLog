@@ -16,12 +16,12 @@
   <nav aria-label="pagination">
     <ul class="pager">
       {% if model.newer_link -%}
-        <li class="previous item"><a href="/{{ model.newer_link }}">&laquo; Newer Posts</a></li>
+        <li class="previous item"><a href="/{{ model.newer_link.value }}">&laquo; Newer Posts</a></li>
       {%- else -%}
         <li></li>
       {% endif %}
       {% if model.older_link -%}
-        <li class="next item"><a href="/{{ model.older_link }}">Older Posts &raquo;</a></li>
+        <li class="next item"><a href="/{{ model.older_link.value }}">Older Posts &raquo;</a></li>
       {%- endif -%}
     </ul>
   </nav>
@@ -57,6 +57,7 @@
         {%- assign indent = cat.parent_names | size -%}
         <li class="cat-list-item"{% if indent > 0 %} style="padding-left:{{ indent }}rem;"{% endif %}>
           <a href="/category/{{ cat.slug }}" class="cat-list-link">{{ cat.name }}</a>
+          <span class="cat-list-count">{{ cat.post_count }}</span>
         </li>
       {%- endfor %}
     </ul>

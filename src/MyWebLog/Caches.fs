@@ -31,12 +31,13 @@ module WebLogCache =
     let set ctx webLog = _cache[Cache.makeKey ctx] <- webLog
 
 
+open Microsoft.Extensions.DependencyInjection
+open RethinkDb.Driver.Net
+
 /// A cache of page information needed to display the page list in templates
 module PageListCache =
     
-    open Microsoft.Extensions.DependencyInjection
     open MyWebLog.ViewModels
-    open RethinkDb.Driver.Net
     
     /// Cache of displayed pages
     let private _cache = ConcurrentDictionary<string, DisplayPage[]> ()
@@ -64,8 +65,13 @@ module CategoryCache =
     /// Get the categories for the web log for this request
     let get ctx = _cache[Cache.makeKey ctx]
     
-    /// Set the categories for the current web log
-    let set ctx cats = _cache[Cache.makeKey ctx] <- cats
+    /// Update the cache with fresh data
+    let update ctx = backgroundTask {
+        let  webLog = WebLogCache.get ctx
+        let  conn   = ctx.RequestServices.GetRequiredService<IConnection> ()
+        let! cats   = Data.Category.findAllForView webLog.id conn
+        _cache[Cache.makeKey ctx] <- cats
+    }
 
 
 /// Cache for parsed templates

@@ -285,17 +285,14 @@ module Admin =
 /// Handlers to manipulate categories
 module Category =
     
-    /// Update the category cache with flattened category hierarchy
-    let private updateCategoryCache webLogId ctx conn = task {
-        let! cats = Data.Category.findAllForView webLogId conn
-        CategoryCache.set ctx cats
-    }
-    
     // GET /categories
     let all : HttpHandler = requireUser >=> fun next ctx -> task {
-        let! cats = Data.Category.findAllForView (webLogId ctx) (conn ctx)
         return!
-            Hash.FromAnonymousObject {| categories = cats; page_title = "Categories"; csrf = csrfToken ctx |}
+            Hash.FromAnonymousObject {|
+                categories = CategoryCache.get ctx
+                page_title = "Categories"
+                csrf       = csrfToken ctx
+            |}
             |> viewForTheme "admin" "category-list" next ctx
     }
     
@@ -344,7 +341,7 @@ module Category =
                     parentId    = if model.parentId    = "" then None else Some (CategoryId model.parentId)
                 }
             do! (match model.categoryId with "new" -> Data.Category.add | _ -> Data.Category.update) cat conn
-            do! updateCategoryCache webLogId ctx conn
+            do! CategoryCache.update ctx
             do! addMessage ctx { UserMessage.success with message = "Category saved successfully" }
             return! redirectToGet $"/category/{CategoryId.toString cat.id}/edit" next ctx
         | None -> return! Error.notFound next ctx
@@ -356,7 +353,7 @@ module Category =
         let conn     = conn     ctx
         match! Data.Category.delete (CategoryId catId) webLogId conn with
         | true ->
-            do! updateCategoryCache webLogId ctx conn
+            do! CategoryCache.update ctx
             do! addMessage ctx { UserMessage.success with message = "Category deleted successfully" }
         | false -> do! addMessage ctx { UserMessage.error with message = "Category not found; cannot delete" }
         return! redirectToGet "/categories" next ctx
@@ -461,47 +458,66 @@ module Page =
 /// Handlers to manipulate posts
 module Post =
     
+    /// The type of post list being prepared
+    type ListType =
+        | CategoryList
+        | TagList
+        | PostList
+        | SinglePost
+        | AdminList
+        
     /// Convert a list of posts into items ready to be displayed
-    let private preparePostList (webLog : WebLog) (posts : Post list) pageNbr perPage ctx conn = task {
+    let private preparePostList (webLog : WebLog) (posts : Post list) listType pageNbr perPage ctx conn = task {
         let! authors =
             posts
             |> List.map (fun p -> p.authorId)
             |> List.distinct
             |> Data.WebLogUser.findNames webLog.id conn
-        let! cats =
-            posts
-            |> List.map (fun c -> c.categoryIds)
-            |> List.concat
-            |> List.distinct
-            |> Data.Category.findNames webLog.id conn
         let postItems =
             posts
             |> Seq.ofList
             |> Seq.truncate perPage
             |> Seq.map (PostListItem.fromPost webLog)
             |> Array.ofSeq
+        let newerLink =
+            match listType, pageNbr with
+            | SinglePost,   _  -> Some "TODO: retrieve prior post"
+            | _,            1L -> None
+            | PostList,     2L    when webLog.defaultPage = "posts" -> Some ""
+            | PostList,     _  -> Some $"page/{pageNbr - 1L}"
+            | CategoryList, _  -> Some "TODO"
+            | TagList,      _  -> Some "TODO"
+            | AdminList,    2L -> Some "posts"
+            | AdminList,    _  -> Some $"posts/page/{pageNbr - 1L}"
+        let olderLink =
+            match listType, List.length posts > perPage with
+            | SinglePost,   _     -> Some "TODO: retrieve next post"
+            | _,            false -> None
+            | PostList,     true  -> Some $"page/{pageNbr + 1L}"
+            | CategoryList, true  -> Some $"category/TODO-slug-goes-here/page/{pageNbr + 1L}"
+            | TagList,      true  -> Some $"tag/TODO-slug-goes-here/page/{pageNbr + 1L}"
+            | AdminList,    true  -> Some $"posts/page/{pageNbr + 1L}"
         let model =
             { posts      = postItems
               authors    = authors
-              categories = cats
               subtitle   = None
-              hasNewer   = pageNbr <> 1
-              hasOlder   = List.length posts > perPage
+              newerLink  = newerLink
+              olderLink  = olderLink
             }
         return Hash.FromAnonymousObject {| model = model; categories = CategoryCache.get ctx |}
     }
     
     // GET /page/{pageNbr}
-    let pageOfPosts (pageNbr : int) : HttpHandler = fun next ctx -> task {
+    let pageOfPosts pageNbr : HttpHandler = fun next ctx -> task {
         let  webLog = WebLogCache.get ctx
         let  conn   = conn ctx
         let! posts  = Data.Post.findPageOfPublishedPosts webLog.id pageNbr webLog.postsPerPage conn
-        let! hash   = preparePostList webLog posts pageNbr webLog.postsPerPage ctx conn
+        let! hash   = preparePostList webLog posts PostList pageNbr webLog.postsPerPage ctx conn
         let  title  =
             match pageNbr, webLog.defaultPage with
-            | 1, "posts" -> None
-            | _, "posts" -> Some $"Page {pageNbr}"
-            | _, _ -> Some $"Page {pageNbr} &laquo; Posts"
+            | 1L, "posts" -> None
+            | _,  "posts" -> Some $"Page {pageNbr}"
+            | _,  _       -> Some $"Page {pageNbr} &laquo; Posts"
         match title with Some ttl -> hash.Add ("page_title", ttl) | None -> ()
         return! themedView "index" next ctx hash
     }
@@ -528,7 +544,7 @@ module Post =
         // Current post
         match! Data.Post.findByPermalink permalink webLog.id conn with
         | Some post ->
-            let! model = preparePostList webLog [ post ] 1 1 ctx conn
+            let! model = preparePostList webLog [ post ] SinglePost 1 1 ctx conn
             model.Add ("page_title", post.title)
             return! themedView "single-post" next ctx model
         | None ->
@@ -558,7 +574,7 @@ module Post =
         let  webLog = WebLogCache.get ctx
         let  conn   = conn ctx
         let! posts  = Data.Post.findPageOfPosts webLog.id pageNbr 25 conn
-        let! hash   = preparePostList webLog posts pageNbr 25 ctx conn
+        let! hash   = preparePostList webLog posts AdminList pageNbr 25 ctx conn
         hash.Add ("page_title", "Posts")
         return! viewForTheme "admin" "post-list" next ctx hash
     }
@@ -653,6 +669,13 @@ module Post =
                     | false -> { post with publishedOn = Some dt }
                 | false -> post
             do! (match model.postId with "new" -> Data.Post.add | _ -> Data.Post.update) post conn
+            // If the post was published or its categories changed, refresh the category cache
+            if model.doPublish
+               || not (pst.Value.categoryIds
+                       |> List.append post.categoryIds
+                       |> List.distinct
+                       |> List.length = List.length pst.Value.categoryIds) then
+                do! CategoryCache.update ctx
             do! addMessage ctx { UserMessage.success with message = "Post saved successfully" }
             return! redirectToGet $"/post/{PostId.toString post.id}/edit" next ctx
         | None -> return! Error.notFound next ctx

@@ -62,8 +62,12 @@ sup {
 sub {
   vertical-align: baseline;
 }
-img {
+.content img {
   max-width: 100%;
+  border-radius: 1rem;
+}
+.content img.flat {
+  border-radius: 0;
 }
 
 /* ----- SITE HEADER ----- */
