@@ -255,6 +255,32 @@ type EditPostModel =
         }
 
 
+/// View model to edit a user
+[<CLIMutable; NoComparison; NoEquality>]
+type EditUserModel =
+    {   /// The user's first name
+        firstName : string
+        
+        /// The user's last name
+        lastName : string
+        
+        /// The user's preferred name
+        preferredName : string
+        
+        /// A new password for the user
+        newPassword : string
+        
+        /// A new password for the user, confirmed
+        newPasswordConfirm : string
+    }
+    /// Create an edit model from a user
+    static member fromUser (user : WebLogUser) =
+        { firstName          = user.firstName
+          lastName           = user.lastName
+          preferredName      = user.preferredName
+          newPassword        = ""
+          newPasswordConfirm = ""
+        }
 /// The model to use to allow a user to log on
 [<CLIMutable; NoComparison; NoEquality>]
 type LogOnModel =
@@ -342,8 +368,14 @@ type PostDisplay =
         /// The link to view newer (more recent) posts
         newerLink : string option
         
+        /// The name of the next newer post (single-post only)
+        newerName : string option
+        
         /// The link to view older (less recent) posts
         olderLink : string option
+        
+        /// The name of the next older post (single-post only)
+        olderName : string option
     }
 
 

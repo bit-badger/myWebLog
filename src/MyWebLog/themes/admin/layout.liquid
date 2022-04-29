@@ -28,6 +28,7 @@
             {%- endif %}
             <ul class="navbar-nav flex-grow-1 justify-content-end">
               {% if logged_on -%}
+                {{ "user/edit" | nav_link: "Edit User" }}
                 {{ "user/log-off" | nav_link: "Log Off" }}
               {%- else -%}
                 {{ "user/log-on" | nav_link: "Log On" }}

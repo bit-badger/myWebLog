@@ -82,14 +82,16 @@ module Startup =
                     indexCreate "priorPermalinks" [ Multi ]
                     write; withRetryOnce; ignoreResult conn
                 }
-        // Post needs index by category (used for counting posts)
-        if Table.Post = table && not (indexes |> List.contains "categoryIds") then
-            log.LogInformation $"Creating index {table}.categoryIds..."
-            do! rethink {
-                withTable table
-                indexCreate "categoryIds" [ Multi ]
-                write; withRetryOnce; ignoreResult conn
-            }
+        // Post needs indexes by category and tag (used for counting and retrieving posts)
+        if Table.Post = table then
+            for idx in [ "categoryIds"; "tags" ] do
+                if not (List.contains idx indexes) then
+                    log.LogInformation $"Creating index {table}.{idx}..."
+                    do! rethink {
+                        withTable table
+                        indexCreate idx [ Multi ]
+                        write; withRetryOnce; ignoreResult conn
+                    }
         // Users log on with e-mail
         if Table.WebLogUser = table && not (indexes |> List.contains "logOn") then
             log.LogInformation $"Creating index {table}.logOn..."
@@ -194,6 +196,7 @@ module Category =
                     withTable Table.Post
                     getAll catIds "categoryIds"
                     filter "status" Published
+                    distinct
                     count
                     result; withRetryDefault conn
                 }
@@ -395,6 +398,8 @@ module Page =
 /// Functions to manipulate posts
 module Post =
     
+    open System
+    
     /// Add a post
     let add (post : Post) =
         rethink {
@@ -445,6 +450,22 @@ module Post =
         }
         |> tryFirst
 
+    /// Find posts to be displayed on a category list page
+    let findPageOfCategorizedPosts (webLogId : WebLogId) (catIds : CategoryId list) (pageNbr : int64) postsPerPage =
+        let pg = int pageNbr
+        rethink<Post list> {
+            withTable Table.Post
+            getAll (catIds |> List.map (fun it -> it :> obj)) "categoryIds"
+            filter "webLogId" webLogId
+            filter "status" Published
+            without [ "priorPermalinks"; "revisions" ]
+            distinct
+            orderByDescending "publishedOn"
+            skip ((pg - 1) * postsPerPage)
+            limit (postsPerPage + 1)
+            result; withRetryDefault
+        }
+    
     /// Find posts to be displayed on an admin page
     let findPageOfPosts (webLogId : WebLogId) (pageNbr : int64) postsPerPage =
         let pg = int pageNbr
@@ -471,6 +492,46 @@ module Post =
             limit (postsPerPage + 1)
             result; withRetryDefault
         }
+    
+    /// Find posts to be displayed on a tag list page
+    let findPageOfTaggedPosts (webLogId : WebLogId) (tag : string) (pageNbr : int64) postsPerPage =
+        let pg = int pageNbr
+        rethink<Post list> {
+            withTable Table.Post
+            getAll [ tag ] "tags"
+            filter "webLogId" webLogId
+            filter "status" Published
+            without [ "priorPermalinks"; "revisions" ]
+            orderByDescending "publishedOn"
+            skip ((pg - 1) * postsPerPage)
+            limit (postsPerPage + 1)
+            result; withRetryDefault
+        }
+    
+    /// Find the next older and newer post for the given post
+    let findSurroundingPosts (webLogId : WebLogId) (publishedOn : DateTime) conn = backgroundTask {
+        let! older =
+            rethink<Post list> {
+                withTable Table.Post
+                getAll [ webLogId ] (nameof webLogId)
+                filter (fun row -> row.G("publishedOn").Lt publishedOn :> obj)
+                orderByDescending "publishedOn"
+                limit 1
+                result; withRetryDefault
+            }
+            |> tryFirst <| conn
+        let! newer =
+            rethink<Post list> {
+                withTable Table.Post
+                getAll [ webLogId ] (nameof webLogId)
+                filter (fun row -> row.G("publishedOn").Gt publishedOn :> obj)
+                orderBy "publishedOn"
+                limit 1
+                result; withRetryDefault
+            }
+            |> tryFirst <| conn
+        return older, newer
+    }
     
     /// Update a post (all fields are updated)
     let update (post : Post) =
@@ -542,6 +603,14 @@ module WebLogUser =
         }
         |> tryFirst
     
+    /// Find a user by their ID
+    let findById (userId : WebLogUserId) =
+        rethink<WebLogUser> {
+            withTable Table.WebLogUser
+            get userId
+            resultOption; withRetryOptionDefault
+        }
+    
     /// Get a user ID -> name dictionary for the given user IDs
     let findNames (webLogId : WebLogId) conn (userIds : WebLogUserId list) = backgroundTask {
         let! users = rethink<WebLogUser list> {
@@ -552,3 +621,19 @@ module WebLogUser =
         }
         return users |> List.map (fun u -> { name = WebLogUserId.toString u.id; value = WebLogUser.displayName u })
     }
+    
+    /// Update a user
+    let update (user : WebLogUser) =
+        rethink {
+            withTable Table.WebLogUser
+            get user.id
+            update [
+                "firstName",     user.firstName :> obj
+                "lastName",      user.lastName
+                "preferredName", user.preferredName
+                "passwordHash",  user.passwordHash
+                "salt",          user.salt
+                ]
+            write; withRetryDefault; ignoreResult
+        }
+    

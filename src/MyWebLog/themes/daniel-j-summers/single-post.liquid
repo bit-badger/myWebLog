@@ -5,9 +5,13 @@
     <h4 class="text-center">
       {% if post.published_on -%}
         <i class="fa fa-calendar" title="Date"></i> {{ post.published_on | date: "MMMM d, yyyy" }} &nbsp;
-        <i class="fa fa-clock-o" title="Time"></i> {{ post.published_on | date: "h:mm tt" | downcase }}
+        <i class="fa fa-clock-o" title="Time"></i> {{ post.published_on | date: "h:mm tt" | downcase }} &nbsp;
       {%- else -%}
-        **DRAFT**
+        **DRAFT** &nbsp;
+      {% endif %}
+      <i class="fa fa-user" title="Author"></i> {{ model.authors | value: post.author_id }}
+      {% if logged_on %}
+        &nbsp; <a href="/post/{{ post.id }}/edit"><i class="fa fa-pencil-square-o"></i> Edit Post</a>
       {% endif %}
     </h4>
     <div>{{ post.text }}</div>
@@ -19,7 +23,7 @@
           {% assign cat = categories | where: "id", cat_id | first %}
           <span class="no-wrap">
             <i class="fa fa-folder-open-o" title="Category"></i>
-            <a href="/category/{{ cat.slug }}" title="Categorized under &ldquo;{{ cat.name | escape }}&rdquo;">
+            <a href="/category/{{ cat.slug }}/" title="Categorized under &ldquo;{{ cat.name | escape }}&rdquo;">
              {{ cat.name }}
             </a> &nbsp; &nbsp;
           </span>
@@ -32,7 +36,7 @@
         Tagged &nbsp;
         {% for tag in post.tags %}
           <span class="no-wrap">
-            <a href="/tag/{{ tag | replace: " ", "-" }}" title="Posts tagged &ldquo;{{ tag | escape }}&rdquo;">
+            <a href="/tag/{{ tag | replace: " ", "+" }}/" title="Posts tagged &ldquo;{{ tag | escape }}&rdquo;">
               <i class="fa fa-tag"></i> {{ tag }}
             </a> &nbsp; &nbsp;
           </span>
@@ -46,7 +50,7 @@
         {% if model.newer_link -%}
           <li class="previous item">
             <h4 class="item-heading"><a href="/{{ model.newer_link.value }}">&laquo;</a> Previous Post</h4>
-            <a href="/{{ model.newer_link.value }}">&ldquo;{{ model.newer_link.value }}&rdquo;</a>
+            <a href="/{{ model.newer_link.value }}">{{ model.newer_name.value }}</a>
           </li>
         {%- else -%}
           <li></li>
@@ -54,7 +58,7 @@
         {% if model.older_link -%}
           <li class="next item">
             <h4 class="item-heading">Next Post <a href="/{{ model.older_link.value }}">&raquo;</a></h4>
-            <a href="/{{ model.older_link.value }}">&ldquo;{{ model.older_link.value }}&rdquo;</a>
+            <a href="/{{ model.older_link.value }}">{{ model.older_name.value }}</a>
           </li>
         {%- endif -%}
       </ul>
