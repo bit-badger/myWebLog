@@ -226,9 +226,11 @@ footer.part-3 {
 }
 .float-left {
   float: left;
+  padding-right: .5rem;
 }
 .float-right {
   float: right;
+  padding-left: .5rem;
 }
 .small-caps {
   font-variant: small-caps;

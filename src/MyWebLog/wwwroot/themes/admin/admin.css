@@ -33,6 +33,9 @@ a:link, a:visited {
 a:link:hover, a:visited:hover {
   text-decoration: underline;
 }
+a.btn:link:hover, a.btn:visited:hover {
+  text-decoration: none;
+}
 a.text-danger:link:hover, a.text-danger:visited:hover {
   text-decoration: none;
   background-color: var(--bs-danger);

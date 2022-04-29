@@ -26,45 +26,23 @@
             <label class="btn btn-sm btn-outline-secondary" for="source_md">Markdown</label>
           </div>
           <div class="pb-3">
-            <textarea name="text" id="text" class="form-control" rows="10">{{ model.text }}</textarea>
+            <textarea name="text" id="text" class="form-control" rows="20">{{ model.text }}</textarea>
           </div>
           <div class="form-floating pb-3">
-            <input type="text" name="tags" id="tags" class="form-control" placeholder="Tags" required
+            <input type="text" name="tags" id="tags" class="form-control" placeholder="Tags"
                    value="{{ model.tags }}">
             <label for="tags">Tags</label>
             <div class="form-text">comma-delimited</div>
           </div>
-        </div>
-        <div class="col-12 col-lg-3">
-          <fieldset>
-            <legend>Categories</legend>
-            {% for cat in categories %}
-              <div class="form-check">
-                <input type="checkbox" name="categoryIds" id="categoryId_{{ cat.id }}" class="form-check-input"
-                       value="{{ cat.id }}" {% if model.category_ids contains cat.id %} checked="checked"{% endif %}>
-                <label for="categoryId_{{ cat.id }}" class="form-check-label"
-                       {%- if cat.description %} title="{{ cat.description.value | escape }}"{% endif %}>
-                  {%- for it in cat.parent_names %}&nbsp; &rang; &nbsp;{% endfor %}{{ cat.name }}
-                </label>
-              </div>
-            {% endfor %}
-          </fieldset>
-        </div>
-      </div>
-      <div class="row mb-3">
-        <div class="col">
           {% if model.status == "Draft" %}
             <div class="form-check pb-2">
               <input type="checkbox" name="doPublish" id="doPublish" class="form-check-input" value="true">
               <label for="doPublish" class="form-check-label">Publish This Post</label>
             </div>
           {% endif %}
-          <button type="submit" class="btn btn-primary">Save Changes</button>
-        </div>
-      </div>
-      <div class="row mb-3">
-        <div class="col">
-          <fieldset>
+          <button type="submit" class="btn btn-primary pb-2">Save Changes</button>
+          <hr class="mb-3">
+          <fieldset class="pb-3">
             <legend>
               Metadata
               <button type="button" class="btn btn-sm btn-secondary" data-bs-toggle="collapse"
@@ -104,43 +82,54 @@
               </script>
             </div>
           </fieldset>
-        </div>
-      </div>
-      {% if model.status == "Published" %}
-        <div class="row mb-3">
-          <div class="col">
-            <fieldset>
+          {% if model.status == "Published" %}
+            <fieldset class="pb-3">
               <legend>Maintenance</legend>
               <div class="container">
                 <div class="row">
                   <div class="col align-self-center">
-                    <div class="form-check pb-2">
+                    <div class="form-check form-switch pb-2">
                       <input type="checkbox" name="setPublished" id="setPublished" class="form-check-input"
                              value="true">
                       <label for="setPublished" class="form-check-label">Set Published Date</label>
                     </div>
                   </div>
-                  <div class="col-3">
+                  <div class="col-4">
                     <div class="form-floating">
                       <input type="datetime-local" name="pubOverride" id="pubOverride" class="form-control"
                              placeholder="Override Date">
                       <label for="pubOverride" class="form-label">Published On</label>
                     </div>
                   </div>
-                  <div class="col-6 align-self-center">
-                    <div class="form-check pb-2">
+                  <div class="col-5 align-self-center">
+                    <div class="form-check form-switch pb-2">
                       <input type="checkbox" name="setUpdated" id="setUpdated" class="form-check-input" value="true">
                       <label for="setUpdated" class="form-check-label">
-                        Purge revisions and set as updated date as well
+                        Purge revisions and<br>set as updated date as well
                       </label>
                     </div>
                   </div>
                 </div>
               </div>
             </fieldset>
-          </div>
+          {% endif %}
         </div>
-      {% endif %}
+        <div class="col-12 col-lg-3">
+          <fieldset>
+            <legend>Categories</legend>
+            {% for cat in categories %}
+              <div class="form-check">
+                <input type="checkbox" name="categoryIds" id="categoryId_{{ cat.id }}" class="form-check-input"
+                       value="{{ cat.id }}" {% if model.category_ids contains cat.id %} checked="checked"{% endif %}>
+                <label for="categoryId_{{ cat.id }}" class="form-check-label"
+                       {%- if cat.description %} title="{{ cat.description.value | escape }}"{% endif %}>
+                  {%- for it in cat.parent_names %}&nbsp; &rang; &nbsp;{% endfor %}{{ cat.name }}
+                </label>
+              </div>
+            {% endfor %}
+          </fieldset>
+        </div>
+      </div>
     </div>
   </form>
 </article>
