@@ -264,6 +264,11 @@ module WebLog =
     
     /// Convert a permalink to an absolute URL
     let absoluteUrl webLog = function Permalink link -> $"{webLog.urlBase}{link}"
+    
+    /// Convert a date/time to the web log's local date/time
+    let localTime webLog (date : DateTime) =
+        let tz = TimeZoneInfo.FindSystemTimeZoneById webLog.timeZone
+        TimeZoneInfo.ConvertTimeFromUtc (DateTime (date.Ticks, DateTimeKind.Utc), tz)
 
 
 /// A user of the web log

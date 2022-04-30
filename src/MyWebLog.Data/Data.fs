@@ -3,7 +3,7 @@ module MyWebLog.Data
 
 /// Table names
 [<RequireQualifiedAccess>]
-module private Table =
+module Table =
     
     /// The category table
     let Category = "Category"

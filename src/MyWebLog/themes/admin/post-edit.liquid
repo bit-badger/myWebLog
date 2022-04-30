@@ -97,7 +97,10 @@
                   <div class="col-4">
                     <div class="form-floating">
                       <input type="datetime-local" name="pubOverride" id="pubOverride" class="form-control"
-                             placeholder="Override Date">
+                             placeholder="Override Date"
+                             {%- if model.pub_override -%}
+                               value="{{ model.pub_override | date: "yyyy-MM-dd\THH:mm" }}"
+                             {%- endif %}>
                       <label for="pubOverride" class="form-label">Published On</label>
                     </div>
                   </div>

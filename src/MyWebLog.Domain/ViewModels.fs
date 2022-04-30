@@ -232,7 +232,7 @@ type EditPostModel =
         setUpdated : bool
     }
     /// Create an edit model from an existing past
-    static member fromPost (post : Post) =
+    static member fromPost webLog (post : Post) =
         let latest =
             match post.revisions |> List.sortByDescending (fun r -> r.asOf) |> List.tryHead with
             | Some rev -> rev
@@ -250,7 +250,7 @@ type EditPostModel =
           metaNames    = post.metadata |> List.map (fun m -> m.name)  |> Array.ofList
           metaValues   = post.metadata |> List.map (fun m -> m.value) |> Array.ofList
           setPublished = false
-          pubOverride  = Nullable<DateTime> ()
+          pubOverride  = post.publishedOn |> Option.map (WebLog.localTime webLog) |> Option.toNullable
           setUpdated   = false
         }
 
@@ -338,8 +338,7 @@ type PostListItem =
 
     /// Create a post list item from a post
     static member fromPost (webLog : WebLog) (post : Post) =
-        let tz = TimeZoneInfo.FindSystemTimeZoneById webLog.timeZone
-        let inTZ (it : DateTime) = TimeZoneInfo.ConvertTimeFromUtc (DateTime (it.Ticks, DateTimeKind.Utc), tz)
+        let inTZ = WebLog.localTime webLog
         { id          = PostId.toString post.id
           authorId    = WebLogUserId.toString post.authorId
           status      = PostStatus.toString   post.status

@@ -716,23 +716,23 @@ module Post =
     
     // GET /post/{id}/edit
     let edit postId : HttpHandler = requireUser >=> fun next ctx -> task {
-        let  webLogId = webLogId ctx
-        let  conn     = conn     ctx
-        let! result   = task {
+        let  webLog = WebLogCache.get ctx
+        let  conn   = conn     ctx
+        let! result = task {
             match postId with
             | "new" -> return Some ("Write a New Post", { Post.empty with id = PostId "new" })
             | _ ->
-                match! Data.Post.findByFullId (PostId postId) webLogId conn with
+                match! Data.Post.findByFullId (PostId postId) webLog.id conn with
                 | Some post -> return Some ("Edit Post", post)
                 | None -> return None
         }
         match result with
         | Some (title, post) ->
-            let! cats = Data.Category.findAllForView webLogId conn
+            let! cats = Data.Category.findAllForView webLog.id conn
             return!
                 Hash.FromAnonymousObject {|
                     csrf       = csrfToken ctx
-                    model      = EditPostModel.fromPost post
+                    model      = EditPostModel.fromPost webLog post
                     page_title = title
                     categories = cats
                 |}

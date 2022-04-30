@@ -72,6 +72,9 @@ module DotLiquidBespoke =
 /// Create the default information for a new web log
 module NewWebLog =
     
+    open System.IO
+    open RethinkDb.Driver.FSharp
+    
     /// Create the web log information
     let private createWebLog (args : string[]) (sp : IServiceProvider) = task {
         
@@ -134,7 +137,7 @@ module NewWebLog =
                     ]
                 } conn
 
-        Console.WriteLine($"Successfully initialized database for {args[2]} with URL base {args[1]}");
+        printfn $"Successfully initialized database for {args[2]} with URL base {args[1]}"
     }
 
     /// Create a new web log
@@ -142,7 +145,50 @@ module NewWebLog =
         match args |> Array.length with
         | 5 -> return! createWebLog args sp
         | _ ->
-            Console.WriteLine "Usage: MyWebLog init [url] [name] [admin-email] [admin-pw]"
+            printfn "Usage: MyWebLog init [url] [name] [admin-email] [admin-pw]"
+            return! System.Threading.Tasks.Task.CompletedTask
+    }
+    
+    /// Import prior permalinks from a text files with lines in the format "[old] [new]"
+    let importPriorPermalinks urlBase file (sp : IServiceProvider) = task {
+        let conn = sp.GetRequiredService<IConnection> ()
+
+        match! Data.WebLog.findByHost urlBase conn with
+        | Some webLog ->
+            
+            let mapping =
+                File.ReadAllLines file
+                |> Seq.ofArray
+                |> Seq.map (fun it ->
+                    let parts = it.Split " "
+                    Permalink parts[0], Permalink parts[1])
+            
+            for old, current in mapping do
+                match! Data.Post.findByPermalink current webLog.id conn with
+                | Some post ->
+                    let! withLinks = rethink<Post> {
+                        withTable Data.Table.Post
+                        get post.id
+                        result conn
+                    }
+                    do! rethink {
+                        withTable Data.Table.Post
+                        get post.id
+                        update [ "priorPermalinks", old :: withLinks.priorPermalinks :> obj]
+                        write; ignoreResult conn
+                    }
+                    printfn $"{Permalink.toString old} -> {Permalink.toString current}"
+                | None -> printfn $"Cannot find current post for {Permalink.toString current}"
+            printfn "Done!"
+        | None -> printfn $"No web log found at {urlBase}"
+    }
+    
+    /// Import permalinks if all is well
+    let importPermalinks args sp = task {
+        match args |> Array.length with
+        | 3 -> return! importPriorPermalinks args[1] args[2] sp
+        | _ ->
+            printfn "Usage: MyWebLog import-permalinks [url] [file-name]"
             return! System.Threading.Tasks.Task.CompletedTask
     }
 
@@ -219,7 +265,10 @@ let main args =
     let app = builder.Build ()
     
     match args |> Array.tryHead with
-    | Some it when it = "init" -> NewWebLog.create args app.Services |> Async.AwaitTask |> Async.RunSynchronously
+    | Some it when it = "init" ->
+        NewWebLog.create args app.Services |> Async.AwaitTask |> Async.RunSynchronously
+    | Some it when it = "import-permalinks" ->
+        NewWebLog.importPermalinks args app.Services |> Async.AwaitTask |> Async.RunSynchronously
     | _ ->
         let _ = app.UseCookiePolicy (CookiePolicyOptions (MinimumSameSitePolicy = SameSiteMode.Strict))
         let _ = app.UseMiddleware<WebLogMiddleware> ()
