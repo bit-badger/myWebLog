@@ -2,16 +2,20 @@
 <div class="content single">
   <article class="item">
     <h1 class="item-heading">{{ post.title }}</h1>
-    <h4 class="text-center">
+    <h4 class="post-meta">
       {% if post.published_on -%}
-        <i class="fa fa-calendar" title="Date"></i> {{ post.published_on | date: "MMMM d, yyyy" }} &nbsp;
-        <i class="fa fa-clock-o" title="Time"></i> {{ post.published_on | date: "h:mm tt" | downcase }} &nbsp;
+        <span title="Published On">
+          <i class="fa fa-calendar"></i> {{ post.published_on | date: "dddd, MMMM d, yyyy" }}
+        </span>
+        <span title="Published At">
+          <i class="fa fa-clock-o"></i> {{ post.published_on | date: "h:mm tt" | downcase }}
+        </span>
       {%- else -%}
-        **DRAFT** &nbsp;
+        <span>**DRAFT**</span>
       {% endif %}
-      <i class="fa fa-user" title="Author"></i> {{ model.authors | value: post.author_id }}
+      <span title="Author"><i class="fa fa-user"></i> {{ model.authors | value: post.author_id }}</span>
       {% if logged_on %}
-        &nbsp; <a href="/post/{{ post.id }}/edit"><i class="fa fa-pencil-square-o"></i> Edit Post</a>
+        <span><a href="/post/{{ post.id }}/edit"><i class="fa fa-pencil-square-o"></i> Edit Post</a></span>
       {% endif %}
     </h4>
     <div>{{ post.text }}</div>

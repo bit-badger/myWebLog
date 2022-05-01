@@ -12,12 +12,20 @@
           {{ post.title }}
         </a>
       </h1>
-      <h4 class="text-center">
-        <i class="fa fa-calendar" title="Date"></i> {{ post.published_on | date: "MMMM d, yyyy" }} &nbsp;
-        <i class="fa fa-clock-o" title="Time"></i> {{ post.published_on | date: "h:mm tt" | downcase }} &nbsp;
-        <i class="fa fa-user" title="Author"></i> {{ model.authors | value: post.author_id }}
+      <h4 class="post-meta">
+        <span title="Published On">
+          <i class="fa fa-calendar"></i> {{ post.published_on | date: "dddd, MMMM d, yyyy" }}
+        </span>
+        <span title="Published At">
+          <i class="fa fa-clock-o" title="Time"></i> {{ post.published_on | date: "h:mm tt" | downcase }}
+        </span>
+        <span title="Author">
+          <i class="fa fa-user" title="Author"></i> {{ model.authors | value: post.author_id }}
+        </span>
         {% if logged_on %}
-          &nbsp; <a href="/post/{{ post.id }}/edit"><i class="fa fa-pencil-square-o"></i> Edit Post</a>
+          <span>
+            <a href="/post/{{ post.id }}/edit"><i class="fa fa-pencil-square-o"></i> Edit Post</a>
+          </span>
         {% endif %}
       </h4>
       {{ post.text }}
@@ -41,9 +49,9 @@
   <div class="item votd-item">
     <h4 class="item-heading votd-heading">Verse of the Day</h4>
     <div>
-      <span class="verse"> &ndash;</span>
+      <span class="verse"></span> &ndash;
       <a class="votd-reference" target="_blank" rel="noopener"></a>
-      <small> <a class="version-link" target="'_blank" rel="noopener">(ESV)</a></small><br>
+      <small> <a class="version-link" target="_blank" rel="noopener">(ESV)</a></small><br>
       <div class="votd-credits">
         <small>Powered by <a href="https://biblegateway.com" target="_blank" rel="noopener">Bible Gateway</a></small>
       </div>

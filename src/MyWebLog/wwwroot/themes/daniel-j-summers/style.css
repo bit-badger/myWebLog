@@ -54,7 +54,7 @@ blockquote {
   padding-left: 1rem;
 }
 sup, sub {
-  font-size: .85rem;
+  font-size: smaller;
 }
 sup {
   vertical-align: text-top;
@@ -130,6 +130,11 @@ sub {
   color: var(--accent-color);
   background-color: var(--hdr-bkg-color);
 }
+.post-meta {
+  display: flex;
+  flex-flow: row wrap;
+  justify-content: space-evenly;
+}
 .pager {
   display: flex;
   flex-flow: row wrap;
@@ -160,7 +165,7 @@ sub {
 }
 .cat-list li {
   list-style-type: none;
-  padding-bottom: .2rem;
+  padding-bottom: .25rem;
 }
 .cat-list ul li ul > li {
   padding-top: .2rem;
@@ -218,6 +223,16 @@ footer.part-3 {
 }
 .copy a:hover {
   text-decoration: underline;
+}
+.football-panel {
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: space-around;
+  align-items: center;
+}
+.football-panel div {
+  text-align: center;
+  line-height: 1.6rem;
 }
 
 /* ----- UTILITY CLASSES ----- */

@@ -74,43 +74,39 @@
       <div>
         <div class="item">
           <h4 class="item-heading">Tennessee Football</h4>
-          <div>
-            <table style="width:100%;"><tbody><tr>
-              <td style="width:75px;">
-                <a href="https://utsports.com" style="background:none;padding:0;" target="_blank" rel="noopener">
-                  <img src="/themes/{{ web_log.theme_path }}/tennessee.png" alt="T" title="Tennessee Sports"
-                       style="border:0;" width="75px">
-                </a>
-              </td>
-              <td class="text-center" style="line-height:1.3em;">
-                2021 Season &mdash; <strong>NR</strong><br>
-                <small>
-                  (7-6 &bull; 4-4 SEC/3<sup>rd</sup> East)<br><br>
-                  Last &mdash; L* (45-48) vs. Purdue<br>
-                  <em>Music City Bowl</em>
-                </small>
-              </td>
-            </tr></tbody></table>
+          <div class="football-panel">
+            <span>
+              <a href="https://utsports.com" style="background:none;padding:0;" target="_blank" rel="noopener">
+                <img src="/themes/{{ web_log.theme_path }}/tennessee.png" alt="T" title="Tennessee Sports"
+                     style="border:0;" width="75px">
+              </a>
+            </span>
+            <div>
+              2021 Season &mdash; <strong>NR</strong><br>
+              <small>
+                (7-6 &bull; 4-4 SEC/3<sup>rd</sup> East)<br><br>
+                Last &mdash; L* (45-48) vs. Purdue<br>
+                <em>Music City Bowl</em>
+              </small>
+            </div>
           </div>
         </div>
         <div class="item">
           <h4 class="item-heading">Colorado State Football</h4>
-          <div>
-            <table style="width:100%;"><tbody><tr>
-              <td style="width:75px;">
-                <a href="https://csurams.com" style="background:none;padding:0;" target="_blank" rel="noopener">
-                  <img src="/themes/{{ web_log.theme_path }}/csurams.png" alt="CSU Rams Logo"
-                       title="Colorado State Sports" style="border:0;" height="75px" width="75px">
-                </a>
-              </td>
-              <td class="text-center" style="line-height:1.3em;">
-                2021 Season &mdash; <strong>NR</strong><br>
-                <small>
-                  (3-9 &bull; 2-6 MWC/5<sup>th</sup> Mountain)<br><br>
-                  Last &mdash; L (10-52) at Nevada
-                </small>
-              </td>
-            </tr></tbody></table>
+          <div class="football-panel">
+            <span>
+              <a href="https://csurams.com" style="background:none;padding:0;" target="_blank" rel="noopener">
+                <img src="/themes/{{ web_log.theme_path }}/csurams.png" alt="CSU Rams Logo"
+                     title="Colorado State Sports" style="border:0;" height="75px" width="75px">
+              </a>
+            </span>
+            <div>
+              2021 Season &mdash; <strong>NR</strong><br>
+              <small>
+                (3-9 &bull; 2-6 MWC/5<sup>th</sup> Mountain)<br><br>
+                Last &mdash; L (10-52) at Nevada
+              </small>
+            </div>
           </div>
         </div>
       </div>
@@ -145,7 +141,12 @@
         <a href="https://bitbadger.solutions" title="Building the site you need to ensure your success!">
           Bit Badger Solutions
         </a>
-        &bull; Powered by <a href="https://github.com/bit-badger/myWebLog/tree/v2">myWebLog</a>
+        &bull; Powered by <a href="https://github.com/bit-badger/myWebLog/tree/v2">myWebLog</a> &bull;
+        {% if logged_on %}
+          <a href="/admin">Dashboard</a>
+        {% else %}
+          <a href="/user/log-on">Log On</a>
+        {%- endif %}
       </div>
     </footer>
   </body>
