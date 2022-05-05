@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="generator" content="{{ generator }}">
+    <title>
+      {%- if is_home %}
+        {{ web_log.name }}{% if web_log.subtitle %} | {{ web_log.subtitle.value }}{% endif %}
+      {%- else %}
+        {{ page_title | strip_html }}{% if page_title and page_title != "" %} &raquo; {% endif %}{{ web_log.name }}
+      {%- endif %}
+    </title>
+    <link rel="stylesheet" href="/themes/tech-blog/style.css">
+    {% comment %}link(rel='canonical' href=config.url + url_for(page.path.replace('index.html', ''))) {% endcomment %}
+    {%- if is_home %}
+      <link rel="alternate" type="application/rss+xml"
+            title="{{ web_log.name }}" href="https://{{ web_log.urlBase }}/feed.xml">
+    {%- endif %}
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="header-logo">
+        <a href="/">
+          <img src="/themes/tech-blog/img/bitbadger.png"
+               alt="A cartoon badger looking at a computer screen, with his paw on a mouse"
+               title="Bit Badger Solutions">
+        </a>
+      </div>
+      <div class="header-title"><a href="/">The Bit Badger Blog</a></div>
+      <div class="header-spacer">&nbsp;</div>
+      <div class="header-social">
+        <a href="/feed.xml" title="Subscribe to The Bit Badger Blog via RSS">
+          <img src="/themes/tech-blog/img/rss.png" alt="RSS">
+        </a> &nbsp; &nbsp;
+        <a href="https://twitter.com/Bit_Badger" title="Bit_Badger on Twitter">
+          <img src="/themes/tech-blog/img/twitter.png" alt="Twitter">
+        </a> &nbsp; &nbsp;
+        <a href="https://www.facebook.com/bitbadger.solutions" title="Bit Badger Solutions on Facebook">
+          <img src="/themes/tech-blog/img/facebook.png" alt="Facebook">
+        </a>
+      </div>
+    </header>
+    <div class="content-wrapper">
+      <div id="content" role="main">
+        {{ content }}
+      </div>
+      <aside class="blog-sidebar">
+        <div>
+          <div class="sidebar-head">Linux Resources</div>
+          <ul><li><a href="/linux/">Browse Resources</a></li></ul>
+        </div>
+        <div>
+          <div class="sidebar-head">Categories</div>
+          <ul class="cat-list">
+            {% for cat in categories -%}
+              {%- assign indent = cat.parent_names | size -%}
+              <li class="cat-list-item"{% if indent > 0 %} style="padding-left:{{ indent }}rem;"{% endif %}>
+                <a href="/category/{{ cat.slug }}/" class="cat-list-link">{{ cat.name }}</a>
+                <span class="cat-list-count">{{ cat.post_count }}</span>
+              </li>
+            {%- endfor %}
+          </ul>
+        </div>
+      </aside>
+    </div>
+    <footer>
+      <span>
+        A production of
+        <a href="https://bitbadger.solutions" title="Bit Badger Solutions" target="_blank" rel="noopener">
+          Bit Badger Solutions
+        </a>
+      </span>
+      <span>
+        Powered by <a href="https://github.com/bit-badger/myWebLog/tree/v2" target="_blank" rel="noopener">myWebLog</a>
+        &bull;
+        {% if logged_on %}
+          <a href="/admin">Dashboard</a>
+        {% else %}
+          <a href="/user/log-on">Log On</a>
+        {%- endif %}
+      </span>
+    </footer>
+  </body>
+</html>

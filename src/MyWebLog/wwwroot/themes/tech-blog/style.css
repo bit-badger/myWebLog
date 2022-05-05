@@ -1,0 +1,396 @@
+@import url('https://fonts.googleapis.com/css?family=Oswald|Raleway');
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('https://raw.githubusercontent.com/JetBrains/JetBrainsMono/master/fonts/webfonts/JetBrainsMono-Regular.woff2') format('woff2'),
+       url('https://raw.githubusercontent.com/JetBrains/JetBrainsMono/master/fonts/ttf/JetBrainsMono-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+html {
+  background-color: lightgray;
+}
+body, .entry-meta {
+	font-family: "Raleway", "Segoe UI", Ubuntu, Tahoma, "DejaVu Sans", "Liberation Sans", Arial, sans-serif;
+}
+body {
+	margin: 0px;
+	background-color: #FFFAFA;
+}
+a {
+	color: navy;
+	text-decoration: none;
+}
+a:hover {
+	border-bottom: dotted 1px navy;
+}
+a img {
+	border:0;
+}
+acronym {
+	border-bottom:dotted 1px black;
+}
+header, h1, h2, h3, footer a, .home-lead a, .highlight {
+	font-family: "Oswald", "Segoe UI", Ubuntu, "DejaVu Sans", "Liberation Sans", Arial, sans-serif;
+}
+h1 {
+  text-align: center;
+  margin: 1.4rem 0;
+  font-size: 2rem;
+}
+h2 {
+  margin: 1.2rem 0;
+}
+h3 {
+  margin: 1rem 0;
+}
+h2, h3 {
+  border-bottom: solid 2px navy;
+}
+@media all and (min-width:40rem) {
+  h2, h3 {
+    width: 80%;
+  }
+}
+p {
+  margin: 1rem 0;
+}
+code, pre {
+  font-family: "JetBrains Mono","SFMono-Regular",Consolas,"Liberation Mono",Menlo,Courier,monospace;
+  font-size: 1rem;
+}
+code {
+  background-color: rgba(0, 0, 0, .1);
+  padding: 0 .25rem;
+}
+#content {
+  margin: 0 1rem;
+  font-size: 1.1rem;
+}
+.auto {
+  margin: 0 auto;
+}
+@media all and (min-width: 68rem) {
+  .content {
+    width: 66rem;
+  }
+}
+.hdr {
+	font-size: 14pt;
+	font-weight: bold;
+}
+.site-header {
+	height: 100px;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  background-image: -webkit-gradient(linear, left top, left bottom, from(lightgray), to(#FFFAFA));
+  background-image: -webkit-linear-gradient(top, lightgray, #FFFAFA);
+  background-image: -moz-linear-gradient(top, lightgray, #FFFAFA);
+  background-image: linear-gradient(to bottom, lightgray, #FFFAFA);
+}
+.site-header a:link, .site-header a:visited {
+  color: black;
+}
+.site-header a:hover {
+	border-bottom:none;
+}
+.header-title {
+  font-size: 3rem;
+  font-weight: bold;
+  line-height: 100px;
+  text-align: center;
+}
+.header-spacer {
+  flex-grow: 3;
+}
+.header-social {
+  padding: 25px .8rem 0 0;
+}
+.header-social img {
+  width: 50px;
+  height: 50px;
+}
+@media all and (max-width:40rem) {
+  .site-header {
+    height: auto;
+    flex-direction: column;
+    align-items: center;
+  }
+  .header-title {
+    line-height: 3rem;
+  }
+  .header-spacer {
+    display: none;
+  }
+  .header-social {
+    padding-right: 0;
+  }
+}
+.content-item {
+	padding-left: 5px;
+	padding-right: 5px;
+	font-size: 1rem;
+}
+article.page .metadata {
+    display: none;
+}
+.strike {
+  text-decoration: line-through;
+}
+.category-list span:after {
+  content: ", ";
+}
+.category-list span:last-of-type:after {
+  content: "";
+}
+footer {
+	padding: 20px 15px 10px 15px;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+	font-size: 1rem;
+	color: black;
+	clear: both;
+  background-image: -webkit-gradient(linear, left top, left bottom, from(#FFFAFA), to(lightgray));
+  background-image: -webkit-linear-gradient(top, #FFFAFA, lightgray);
+  background-image: -moz-linear-gradient(top, #FFFAFA, lightgray);
+  background-image: linear-gradient(to bottom, #FFFAFA, lightgray);
+}
+footer a:link, footer a:visited {
+	color: black;
+}
+.alignleft {
+	float:left;
+	padding-right: 5px;
+}
+ul {
+	padding-left: 40px;
+}
+li {
+	list-style-type: disc;
+}
+
+.content-wrapper {
+  margin: 0 1rem;
+}
+@media all and (min-width: 80rem) {
+  .content-wrapper {
+    margin: 0;
+    display: flex;
+    flex-flow: row;
+    align-items: flex-start;
+    justify-content: space-around;
+  }
+}
+.home-title {
+  text-align: left;
+  line-height: 2rem;
+}
+.home-lead {
+  font-family: "Raleway", "Segoe UI", Ubuntu, Tahoma, "DejaVu Sans", "Liberation Sans", Arial, sans-serif;
+  font-size: 1.2rem;
+}
+.home-break {
+  width: 80%;
+  border: dotted 1px lightgray;
+  border-bottom: 0;
+}
+.blog-sidebar {
+  border-top: dotted 1px lightgray;
+  padding-top: 1rem;
+  font-size: 1rem;
+  display: flex;
+  flex-flow: row wrap;
+  justify-content: space-around;
+}
+.blog-sidebar ul {
+  padding-left: 1rem;
+}
+.blog-sidebar > ul {
+  padding: 0;
+  margin: 0;
+}
+.blog-sidebar li {
+  list-style: none;
+}
+.blog-sidebar li:before {
+  content: '» ';
+}
+@media all and (min-width: 68rem) {
+  .blog-sidebar {
+    width: 66rem;
+    margin: auto;
+  }
+}
+@media all and (min-width: 80rem) {
+  .blog-sidebar {
+    width: 12rem;
+    border-top: none;
+    border-left: dotted 1px lightgray;
+    padding-top: 0;
+    padding-left: 2rem;
+    margin: 0;
+    flex-direction: column;
+  }
+}
+.blog-sidebar a {
+	font-size: 10pt;
+	font-family: sans-serif;
+}
+.sidebar-head {
+  text-align: center;
+  font-family: "Oswald", "Segoe UI", Ubuntu, "DejaVu Sans", "Liberation Sans", Arial, sans-serif;
+  font-weight: bold;
+  color: maroon;
+  margin-bottom: .8rem;
+  padding: 3px 12px;
+  border-bottom: solid 2px lightgray;
+  font-size: 1rem;
+}
+.app-sidebar-name, .app-sidebar-description {
+  margin: 0;
+  padding: 0;
+}
+.app-sidebar-description {
+  font-style: italic;
+  color: #555555;
+  padding-bottom: .6rem;
+}
+
+
+.content {
+  font-size: 1.1rem;
+}
+.auto {
+  margin: 0 auto;
+}
+.auto > div {
+  max-width: 66rem;
+}
+@media all and (min-width: 68rem) {
+  .content {
+    width: 66rem;
+  }
+}
+.entry-title {
+  line-height: 1.5rem;
+}
+.entry-meta {
+  font-size: 1rem;
+}
+.cat-list-count {
+  padding-left: .3rem;
+  font-size: .8rem;
+}
+.cat-list-count:before {
+  content: '(';
+}
+.cat-list-count:after {
+  content: ')';
+}
+.bottom-nav {
+  display: flex;
+  flex-flow: row wrap;
+  justify-content: space-between;
+  padding-top: 1.5rem;
+}
+
+figure.highlight {
+  background-color: #F8F8F8;
+}
+figure.highlight table {
+  background-color: #002b36;
+  width: 100%;
+}
+figure.highlight td.gutter,
+figure.highlight td.code,
+figure.highlight pre {
+  padding: 0;
+  border: 0;
+  background-color: #002b36;
+  color: #839496;
+}
+figure.highlight td.gutter {
+  text-align:right;
+  padding-right: .4rem;
+}
+figure.highlight td.gutter div.line:after {
+  content: ':';
+  color: #586e75;
+}
+figure.highlight td.code pre div.line:after {
+  content: '.';
+  visibility: hidden;
+}
+figure.highlight pre div.line,
+figure.highlight pre div.line > * {
+  font-family: Consolas,"Courier New",Courier,monospace !important;
+}
+figure.highlight {
+  display: block;
+  overflow-x: auto;
+  padding: 0.5em;
+  color: #839496;
+	border:1px dashed #ddd;
+}
+figure.highlight .comment,
+figure.highlight .quote {
+  color: #586e75;
+}
+/* Solarized Green */
+figure.highlight .keyword,
+figure.highlight .selector-tag,
+figure.highlight .addition {
+  color: #859900;
+}
+/* Solarized Cyan */
+figure.highlight .number,
+figure.highlight .string,
+figure.highlight .meta .meta-string,
+figure.highlight .literal,
+figure.highlight .doctag,
+figure.highlight .regexp {
+  color: #2aa198;
+}
+/* Solarized Blue */
+figure.highlight .title,
+figure.highlight .section,
+figure.highlight .name,
+figure.highlight .selector-id,
+figure.highlight .selector-class {
+  color: #268bd2;
+}
+/* Solarized Yellow */
+figure.highlight .attribute,
+figure.highlight .attr,
+figure.highlight .variable,
+figure.highlight .template-variable,
+figure.highlight .class .title,
+figure.highlight .type {
+  color: #b58900;
+}
+/* Solarized Orange */
+figure.highlight .symbol,
+figure.highlight .bullet,
+figure.highlight .subst,
+figure.highlight .meta,
+figure.highlight .meta .keyword,
+figure.highlight .selector-attr,
+figure.highlight .selector-pseudo,
+figure.highlight .link {
+  color: #cb4b16;
+}
+/* Solarized Red */
+figure.highlight .built_in,
+figure.highlight .deletion {
+  color: #dc322f;
+}
+figure.highlight .formula {
+  background: #eee8d5;
+}
+figure.highlight .emphasis {
+  font-style: italic;
+}
+figure.highlight .strong {
+  font-weight: bold;
+}

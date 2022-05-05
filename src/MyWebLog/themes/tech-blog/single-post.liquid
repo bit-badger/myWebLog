@@ -1,0 +1,41 @@
+{%- assign post = model.posts | first -%}
+<article class="auto">
+  <h1 class="entry-title">
+    {{ post.title }}<br>
+    <span class="entry-meta">
+      Posted by {{ model.authors | value: post.author_id }} on {{ post.published_on | date: "dddd, MMMM d, yyyy" }}
+      at {{ post.published_on | date: "h:mm tt" | downcase }}
+      {%- assign cat_count = post.category_ids | size -%}
+      {%- if cat_count > 0 %}
+        <br>
+        <small class="category-list">
+          Categorized under
+          {%- for cat_id in post.category_ids %}
+            {%- assign cat = categories | where: "id", cat_id | first -%}
+            <span>
+                <a href="/category/{{ cat.slug }}/"
+                   title="Categorized under {{ cat.name | strip_html | escape }}" rel="tag">{{ cat.name }}</a></span>
+          {%- endfor %}
+        </small>
+      {%- endif %}
+    </span>
+  </h1>
+  <div class="entry-content">{{ post.text }}</div>
+  <div class="entry-footer">
+    {%- assign tag_count = post.tags | size -%}
+    {%- if tag_count > 0 %}
+      <span class="category-list">
+        Tagged
+        {%- for tag in post.tags %}
+          <span>
+              <a href="/tag/{{ tag | replace: " ", "+" }}/"
+                 title="Tagged &ldquo;{{ tag | escape }}&rdquo;" rel="tag">{{ tag }}</a></span>
+        {%- endfor %}
+      </span> &bull;
+    {%- endif %}
+    Bookmark the
+    <a href="/{{ post.permalink }}" rel="bookmark"
+       title="Permanent link to &ldquo;{{ post.title | strip_html | escape }}&rdquo;">permalink</a>
+    {%- if logged_on %} &bull; <a href="/post/{{ post.id }}/edit">Edit Post</a>{% endif %}
+  </div>
+</article>

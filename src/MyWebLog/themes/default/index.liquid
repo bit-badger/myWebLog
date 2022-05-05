@@ -23,11 +23,14 @@
             <footer>
               <p>
                 {%- if category_count > 0 -%}
+                  Categorized under: {{ cat_names | reverse | join: ", " }}
                   {%- for cat in post.category_ids -%}
-                    {%- assign cat_names = model.categories | value: cat | split: "," | concat: cat_names -%}
+                    {%- assign this_cat = categories | where: "id", cat | first -%}
+                    {{ this_cat.name }},
+                    {%- assign cat_names = this_cat.name | concat: cat_names -%}
                   {%- endfor -%}
-                  Categorized under: {{ cat_names | reverse | join: ", " }}<br>
                   {%- assign cat_names = "" -%}
+                  <br>
                 {% endif -%}
                 {%- if tag_count > 0 %}
                   Tagged: {{ post.tags | join: ", " }}

@@ -1,7 +1,6 @@
 ﻿namespace MyWebLog
 
 open System
-open Markdig
 
 /// Support functions for domain definition
 [<AutoOpen>]
@@ -55,6 +54,9 @@ type CommentStatus =
     | Spam
 
 
+open Markdig
+open Markdown.ColorCode
+
 /// Types of markup text
 type MarkupText =
     /// Markdown text
@@ -66,7 +68,7 @@ type MarkupText =
 module MarkupText =
     
     /// Pipeline with most extensions enabled
-    let private _pipeline = MarkdownPipelineBuilder().UseSmartyPants().UseAdvancedExtensions().Build ()
+    let private _pipeline = MarkdownPipelineBuilder().UseSmartyPants().UseAdvancedExtensions().UseColorCode().Build ()
 
     /// Get the source type for the markup text
     let sourceType = function Markdown _ -> "Markdown" | Html _ -> "HTML"
