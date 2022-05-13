@@ -8,29 +8,31 @@
 }
 html {
   background-color: lightgray;
+  scroll-behavior: smooth;
 }
 body, .entry-meta {
-	font-family: "Raleway", "Segoe UI", Ubuntu, Tahoma, "DejaVu Sans", "Liberation Sans", Arial, sans-serif;
+  font-family: "Raleway", "Segoe UI", Ubuntu, Tahoma, "DejaVu Sans", "Liberation Sans", Arial, sans-serif;
 }
 body {
-	margin: 0px;
-	background-color: #FFFAFA;
+  margin: 0;
+  background-color: #FFFAFA;
 }
 a {
-	color: navy;
-	text-decoration: none;
+  color: navy;
+  text-decoration: none;
 }
 a:hover {
-	border-bottom: dotted 1px navy;
+  border-bottom: dotted 1px navy;
 }
 a img {
-	border:0;
+  border:0;
 }
 acronym {
-	border-bottom:dotted 1px black;
+  border-bottom:dotted 1px black;
+  text-decoration: none;
 }
 header, h1, h2, h3, footer a, .home-lead a, .highlight {
-	font-family: "Oswald", "Segoe UI", Ubuntu, "DejaVu Sans", "Liberation Sans", Arial, sans-serif;
+  font-family: "Oswald", "Segoe UI", Ubuntu, "DejaVu Sans", "Liberation Sans", Arial, sans-serif;
 }
 h1 {
   text-align: center;
@@ -61,6 +63,20 @@ code, pre {
 code {
   background-color: rgba(0, 0, 0, .1);
   padding: 0 .25rem;
+  white-space: pre;
+}
+pre {
+  background-color: rgba(0, 0, 0, .9);
+  color: rgba(255, 255, 255, .9);
+  padding: .5rem;
+  border-radius: .5rem;
+  overflow: auto;
+}
+pre > code {
+  background-color: unset;
+}
+div[style="color:#DADADA;background-color:#1E1E1E;"] {
+  background-color: unset !important;
 }
 #content {
   margin: 0 1rem;
@@ -224,7 +240,8 @@ li {
 }
 @media all and (min-width: 80rem) {
   .blog-sidebar {
-    width: 12rem;
+    min-width: 12rem;
+    max-width: 16rem;
     border-top: none;
     border-left: dotted 1px lightgray;
     padding-top: 0;

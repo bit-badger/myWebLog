@@ -125,7 +125,7 @@
                 <input type="checkbox" name="categoryIds" id="categoryId_{{ cat.id }}" class="form-check-input"
                        value="{{ cat.id }}" {% if model.category_ids contains cat.id %} checked="checked"{% endif %}>
                 <label for="categoryId_{{ cat.id }}" class="form-check-label"
-                       {%- if cat.description %} title="{{ cat.description.value | escape }}"{% endif %}>
+                       {%- if cat.description %} title="{{ cat.description.value | strip_html | escape }}"{% endif %}>
                   {%- for it in cat.parent_names %}&nbsp; &rang; &nbsp;{% endfor %}{{ cat.name }}
                 </label>
               </div>

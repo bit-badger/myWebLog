@@ -42,3 +42,15 @@
     {%- if logged_on %}<small><a href="/post/{{ post.id }}/edit">Edit Post</a></small>{% endif %}
   </article>
 {%- endfor %}
+<div class="bottom-nav" role="navigation">
+  <div class="nav-previous">
+    {% if model.newer_link -%}
+      <a href="/{{ model.newer_link.value }}">&laquo; Newer Posts</a>
+    {% endif %}
+  </div>
+  <div class="nav-next">
+    {% if model.older_link -%}
+      <a href="/{{ model.older_link.value }}">Older Posts &raquo;</a>
+    {% endif %}
+  </div>
+</div>

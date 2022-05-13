@@ -178,7 +178,7 @@ module Category =
         let! cats = rethink<Category list> {
             withTable Table.Category
             getAll [ webLogId ] (nameof webLogId)
-            orderBy "name"
+            orderByFunc (fun it -> it.G("name").Downcase () :> obj)
             result; withRetryDefault conn
         }
         let  ordered = orderByHierarchy cats None None []
