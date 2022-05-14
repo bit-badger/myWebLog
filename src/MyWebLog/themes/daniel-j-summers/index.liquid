@@ -17,10 +17,10 @@
           <i class="fa fa-calendar"></i> {{ post.published_on | date: "dddd, MMMM d, yyyy" }}
         </span>
         <span title="Published At">
-          <i class="fa fa-clock-o" title="Time"></i> {{ post.published_on | date: "h:mm tt" | downcase }}
+          <i class="fa fa-clock-o"></i> {{ post.published_on | date: "h:mm tt" | downcase }}
         </span>
         <span title="Author">
-          <i class="fa fa-user" title="Author"></i> {{ model.authors | value: post.author_id }}
+          <i class="fa fa-user"></i> {{ model.authors | value: post.author_id }}
         </span>
         {% if logged_on %}
           <span>

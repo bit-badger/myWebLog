@@ -461,6 +461,7 @@ module Post =
     
     open System.IO
     open System.ServiceModel.Syndication
+    open System.Text.RegularExpressions
     open System.Xml
     
     /// Split the "rest" capture for categories and tags into the page number and category/tag URL parts
@@ -587,7 +588,14 @@ module Post =
             hash.Add ("page_title", $"Posts Tagged &ldquo;{tag}&rdquo;{pgTitle}")
             hash.Add ("is_tag", true)
             return! themedView "index" next ctx hash
-        | _ -> return! Error.notFound next ctx
+        // Other systems use hyphens for spaces; redirect if this is an old tag link
+        | _ ->
+            let spacedTag = tag.Replace ("-", " ")
+            match! Data.Post.findPageOfTaggedPosts webLog.id spacedTag pageNbr 1 conn with
+            | posts when List.length posts > 0 ->
+                let endUrl = if pageNbr = 1L then "" else $"page/{pageNbr}"
+                return! redirectTo true $"""/tag/{spacedTag.Replace (" ", "+")}/{endUrl}""" next ctx
+            | _ -> return! Error.notFound next ctx
     }
 
     // GET /
@@ -613,32 +621,41 @@ module Post =
     let generateFeed : HttpHandler = fun next ctx -> backgroundTask {
         let  conn    = conn ctx
         let  webLog  = WebLogCache.get ctx
+        let  urlBase = $"https://{webLog.urlBase}/"
         // TODO: hard-coded number of items
         let! posts   = Data.Post.findPageOfPublishedPosts webLog.id 1L 10 conn
         let! authors = getAuthors webLog posts conn
         let  cats    = CategoryCache.get ctx
         
         let toItem (post : Post) =
-            let urlBase = $"https://{webLog.urlBase}/"
+            let plainText =
+                Regex.Replace (post.text, "<(.|\n)*?>", "")
+                |> function
+                | txt when txt.Length < 255 -> txt
+                | txt -> $"{txt.Substring (0, 252)}..."
             let item = SyndicationItem (
-                Id          = $"{urlBase}{Permalink.toString post.permalink}",
-                Title       = TextSyndicationContent.CreateHtmlContent post.title,
-                PublishDate = DateTimeOffset post.publishedOn.Value)
+                Id              = $"{urlBase}{Permalink.toString post.permalink}",
+                Title           = TextSyndicationContent.CreateHtmlContent post.title,
+                PublishDate     = DateTimeOffset post.publishedOn.Value,
+                LastUpdatedTime = DateTimeOffset post.updatedOn,
+                Content         = TextSyndicationContent.CreatePlaintextContent plainText)
             item.AddPermalink (Uri item.Id)
-            let doc = XmlDocument ()
-            let content = doc.CreateElement ("content", "encoded", "http://purl.org/rss/1.0/modules/content/")
-            content.InnerText <- post.text
-                                     .Replace("src=\"/", $"src=\"{urlBase}")
-                                     .Replace ("href=\"/", $"href=\"{urlBase}")
-            item.ElementExtensions.Add content
+            
+            let encoded = post.text.Replace("src=\"/", $"src=\"{urlBase}").Replace ("href=\"/", $"href=\"{urlBase}")
+            item.ElementExtensions.Add ("encoded", "http://purl.org/rss/1.0/modules/content/", encoded)
             item.Authors.Add (SyndicationPerson (
                 Name = (authors |> List.find (fun a -> a.name = WebLogUserId.toString post.authorId)).value))
-            for catId in post.categoryIds do
-                let cat = cats |> Array.find (fun c -> c.id = CategoryId.toString catId)
-                item.Categories.Add (SyndicationCategory (cat.name, $"{urlBase}category/{cat.slug}/", cat.name))
-            for tag in post.tags do
-                let urlTag = tag.Replace (" ", "+")
-                item.Categories.Add (SyndicationCategory (tag, $"{urlBase}tag/{urlTag}/", $"{tag} (tag)"))
+            [ post.categoryIds
+              |> List.map (fun catId ->
+                  let cat = cats |> Array.find (fun c -> c.id = CategoryId.toString catId)
+                  SyndicationCategory (cat.name, $"{urlBase}category/{cat.slug}/", cat.name))
+              post.tags
+              |> List.map (fun tag ->
+                  let urlTag = tag.Replace (" ", "+")
+                  SyndicationCategory (tag, $"{urlBase}tag/{urlTag}/", $"{tag} (tag)"))
+            ]
+            |> List.concat
+            |> List.iter item.Categories.Add
             item
             
         
@@ -648,11 +665,16 @@ module Post =
         feed.LastUpdatedTime <- DateTimeOffset <| (List.head posts).updatedOn
         feed.Generator       <- generator ctx
         feed.Items           <- posts |> Seq.ofList |> Seq.map toItem
+        feed.Language        <- "en"
+        feed.Id              <- urlBase
+        
+        feed.Links.Add (SyndicationLink (Uri $"{urlBase}feed.xml", "self", "", "application/rss+xml", 0L))
+        feed.AttributeExtensions.Add (XmlQualifiedName ("content", "http://www.w3.org/2000/xmlns/"), "http://purl.org/rss/1.0/modules/content/")
+        feed.ElementExtensions.Add ("link", "", urlBase)
         
         use mem = new MemoryStream ()
         use xml = XmlWriter.Create mem
-        let formatter = Rss20FeedFormatter feed
-        formatter.WriteTo xml
+        feed.SaveAsRss20 xml
         xml.Close ()
         
         let _ = mem.Seek (0L, SeekOrigin.Begin)
