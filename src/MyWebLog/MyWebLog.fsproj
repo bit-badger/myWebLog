@@ -9,15 +9,22 @@
   <ItemGroup>
     <Content Include="appsettings.json" CopyToOutputDirectory="Always" />
     <Compile Include="Caches.fs" />
-    <Compile Include="Handlers.fs" />
+    <Compile Include="Handlers\Error.fs" />
+    <Compile Include="Handlers\Helpers.fs" />
+    <Compile Include="Handlers\Admin.fs" />
+    <Compile Include="Handlers\Category.fs" />
+    <Compile Include="Handlers\Page.fs" />
+    <Compile Include="Handlers\Post.fs" />
+    <Compile Include="Handlers\User.fs" />
+    <Compile Include="Handlers\Routes.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="DotLiquid" Version="2.2.614" />
+    <PackageReference Include="DotLiquid" Version="2.2.656" />
     <PackageReference Include="Giraffe" Version="6.0.0" />
     <PackageReference Include="RethinkDB.DistributedCache" Version="0.9.0-alpha05" />
-    <PackageReference Update="FSharp.Core" Version="6.0.3" />
+    <PackageReference Update="FSharp.Core" Version="6.0.4" />
     <PackageReference Include="System.ServiceModel.Syndication" Version="6.0.0" />
   </ItemGroup>
 
@@ -30,7 +37,5 @@
     <None Include=".\themes\**" CopyToOutputDirectory="Always" />
     <None Include=".\wwwroot\**" CopyToOutputDirectory="Always" />
   </ItemGroup>
-
-  <ItemGroup />
 
 </Project>

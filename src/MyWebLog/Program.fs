@@ -276,7 +276,7 @@ let main args =
         let _ = app.UseStaticFiles ()
         let _ = app.UseRouting ()
         let _ = app.UseSession ()
-        let _ = app.UseGiraffe Handlers.endpoints
+        let _ = app.UseGiraffe Handlers.Routes.endpoints
 
         app.Run()
 
