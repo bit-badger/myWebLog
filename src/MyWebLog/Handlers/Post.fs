@@ -328,6 +328,8 @@ let edit postId : HttpHandler = requireUser >=> fun next ctx -> task {
     | None -> return! Error.notFound next ctx
 }
 
+#nowarn "3511"
+
 // POST /post/save
 let save : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
     let! model    = ctx.BindFormAsync<EditPostModel> ()
@@ -391,7 +393,7 @@ let save : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
                     }
                 | false -> { post with publishedOn = Some dt }
             | false -> post
-        do! (match model.postId with "new" -> Data.Post.add | _ -> Data.Post.update) post conn
+        do! (if model.postId = "new" then Data.Post.add else Data.Post.update) post conn
         // If the post was published or its categories changed, refresh the category cache
         if model.doPublish
            || not (pst.Value.categoryIds

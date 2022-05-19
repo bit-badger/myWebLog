@@ -47,6 +47,8 @@ let edit pgId : HttpHandler = requireUser >=> fun next ctx -> task {
 
 open System
 
+#nowarn "3511"
+
 // POST /page/save
 let save : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
     let! model    = ctx.BindFormAsync<EditPageModel> ()
@@ -92,7 +94,7 @@ let save : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
                                  | Some r when r.text = revision.text -> page.revisions
                                  | _ -> revision :: page.revisions
             }
-        do! (match model.pageId with "new" -> Data.Page.add | _ -> Data.Page.update) page conn
+        do! (if model.pageId = "new" then Data.Page.add else Data.Page.update) page conn
         if updateList then do! PageListCache.update ctx
         do! addMessage ctx { UserMessage.success with message = "Page saved successfully" }
         return! redirectToGet $"/page/{PageId.toString page.id}/edit" next ctx
