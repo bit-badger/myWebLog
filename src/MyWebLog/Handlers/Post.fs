@@ -9,7 +9,11 @@ open Microsoft.AspNetCore.Http
 let private pathAndPageNumber (ctx : HttpContext) =
     let slugs     = (string ctx.Request.RouteValues["slug"]).Split "/" |> Array.filter (fun it -> it <> "")
     let pageIdx   = Array.IndexOf (slugs, "page")
-    let pageNbr   = if pageIdx > 0 then (int64 slugs[pageIdx + 1]) else 1L
+    let pageNbr   =
+        match pageIdx with
+        | -1 -> Some 1L
+        | idx when idx + 2 = slugs.Length -> Some (int64 slugs[pageIdx + 1])
+        | _ -> None
     let slugParts = if pageIdx > 0 then Array.truncate pageIdx slugs else slugs
     pageNbr, String.Join ("/", slugParts)
     
@@ -101,27 +105,29 @@ let pageOfPosts pageNbr : HttpHandler = fun next ctx -> task {
 // GET /category/{slug}/
 // GET /category/{slug}/page/{pageNbr}
 let pageOfCategorizedPosts : HttpHandler = fun next ctx -> task {
-    let  webLog  = WebLogCache.get ctx
-    let  conn    = conn ctx
-    let  pageNbr, slug = pathAndPageNumber ctx
-    let  allCats = CategoryCache.get ctx
-    let  cat     = allCats |> Array.find (fun cat -> cat.slug = slug)
-    // Category pages include posts in subcategories
-    let  catIds  =
-        allCats
-        |> Seq.ofArray
-        |> Seq.filter (fun c -> c.id = cat.id || Array.contains cat.name c.parentNames)
-        |> Seq.map (fun c -> CategoryId c.id)
-        |> List.ofSeq
-    match! Data.Post.findPageOfCategorizedPosts webLog.id catIds pageNbr webLog.postsPerPage conn with
-    | posts when List.length posts > 0 ->
-        let! hash    = preparePostList webLog posts CategoryList cat.slug pageNbr webLog.postsPerPage ctx conn
-        let  pgTitle = if pageNbr = 1L then "" else $""" <small class="archive-pg-nbr">(Page {pageNbr})</small>"""
-        hash.Add ("page_title", $"{cat.name}: Category Archive{pgTitle}")
-        hash.Add ("subtitle", cat.description.Value)
-        hash.Add ("is_category", true)
-        return! themedView "index" next ctx hash
-    | _ -> return! Error.notFound next ctx
+    let  webLog = WebLogCache.get ctx
+    let  conn   = conn ctx
+    match pathAndPageNumber ctx with
+    | Some pageNbr, slug -> 
+        let allCats = CategoryCache.get ctx
+        let cat     = allCats |> Array.find (fun cat -> cat.slug = slug)
+        // Category pages include posts in subcategories
+        let catIds  =
+            allCats
+            |> Seq.ofArray
+            |> Seq.filter (fun c -> c.id = cat.id || Array.contains cat.name c.parentNames)
+            |> Seq.map (fun c -> CategoryId c.id)
+            |> List.ofSeq
+        match! Data.Post.findPageOfCategorizedPosts webLog.id catIds pageNbr webLog.postsPerPage conn with
+        | posts when List.length posts > 0 ->
+            let! hash    = preparePostList webLog posts CategoryList cat.slug pageNbr webLog.postsPerPage ctx conn
+            let  pgTitle = if pageNbr = 1L then "" else $""" <small class="archive-pg-nbr">(Page {pageNbr})</small>"""
+            hash.Add ("page_title", $"{cat.name}: Category Archive{pgTitle}")
+            hash.Add ("subtitle", cat.description.Value)
+            hash.Add ("is_category", true)
+            return! themedView "index" next ctx hash
+        | _ -> return! Error.notFound next ctx
+    | None, _ -> return! Error.notFound next ctx
 }
 
 open System.Web
@@ -129,25 +135,27 @@ open System.Web
 // GET /tag/{tag}/
 // GET /tag/{tag}/page/{pageNbr}
 let pageOfTaggedPosts : HttpHandler = fun next ctx -> task {
-    let  webLog  = WebLogCache.get ctx
-    let  conn    = conn ctx
-    let  pageNbr, rawTag = pathAndPageNumber ctx
-    let  tag     = HttpUtility.UrlDecode rawTag
-    match! Data.Post.findPageOfTaggedPosts webLog.id tag pageNbr webLog.postsPerPage conn with
-    | posts when List.length posts > 0 ->
-        let! hash    = preparePostList webLog posts TagList rawTag pageNbr webLog.postsPerPage ctx conn
-        let  pgTitle = if pageNbr = 1L then "" else $""" <small class="archive-pg-nbr">(Page {pageNbr})</small>"""
-        hash.Add ("page_title", $"Posts Tagged &ldquo;{tag}&rdquo;{pgTitle}")
-        hash.Add ("is_tag", true)
-        return! themedView "index" next ctx hash
-    // Other systems use hyphens for spaces; redirect if this is an old tag link
-    | _ ->
-        let spacedTag = tag.Replace ("-", " ")
-        match! Data.Post.findPageOfTaggedPosts webLog.id spacedTag pageNbr 1 conn with
+    let webLog = WebLogCache.get ctx
+    let conn   = conn ctx
+    match pathAndPageNumber ctx with
+    | Some pageNbr, rawTag -> 
+        let tag = HttpUtility.UrlDecode rawTag
+        match! Data.Post.findPageOfTaggedPosts webLog.id tag pageNbr webLog.postsPerPage conn with
         | posts when List.length posts > 0 ->
-            let endUrl = if pageNbr = 1L then "" else $"page/{pageNbr}"
-            return! redirectTo true $"""/tag/{spacedTag.Replace (" ", "+")}/{endUrl}""" next ctx
-        | _ -> return! Error.notFound next ctx
+            let! hash    = preparePostList webLog posts TagList rawTag pageNbr webLog.postsPerPage ctx conn
+            let  pgTitle = if pageNbr = 1L then "" else $""" <small class="archive-pg-nbr">(Page {pageNbr})</small>"""
+            hash.Add ("page_title", $"Posts Tagged &ldquo;{tag}&rdquo;{pgTitle}")
+            hash.Add ("is_tag", true)
+            return! themedView "index" next ctx hash
+        // Other systems use hyphens for spaces; redirect if this is an old tag link
+        | _ ->
+            let spacedTag = tag.Replace ("-", " ")
+            match! Data.Post.findPageOfTaggedPosts webLog.id spacedTag pageNbr 1 conn with
+            | posts when List.length posts > 0 ->
+                let endUrl = if pageNbr = 1L then "" else $"page/{pageNbr}"
+                return! redirectTo true $"""/tag/{spacedTag.Replace (" ", "+")}/{endUrl}""" next ctx
+            | _ -> return! Error.notFound next ctx
+    | None, _ -> return! Error.notFound next ctx
 }
 
 // GET /
