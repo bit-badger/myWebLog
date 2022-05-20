@@ -328,6 +328,31 @@ let edit postId : HttpHandler = requireUser >=> fun next ctx -> task {
     | None -> return! Error.notFound next ctx
 }
 
+// GET /post/{id}/permalinks
+let editPermalinks postId : HttpHandler = requireUser >=> fun next ctx -> task {
+    match! Data.Post.findByFullId (PostId postId) (webLogId ctx) (conn ctx) with
+    | Some post ->
+        return!
+            Hash.FromAnonymousObject {|
+                csrf       = csrfToken ctx
+                model      = ManagePermalinksModel.fromPost post
+                page_title = $"Manage Prior Permalinks"
+            |}
+            |> viewForTheme "admin" "permalinks" next ctx
+    | None -> return! Error.notFound next ctx
+}
+
+// POST /post/permalinks
+let savePermalinks : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
+    let! model = ctx.BindFormAsync<ManagePermalinksModel> ()
+    let  links = model.prior |> Array.map Permalink |> List.ofArray
+    match! Data.Post.updatePriorPermalinks (PostId model.id) (webLogId ctx) links (conn ctx) with
+    | true ->
+        do! addMessage ctx { UserMessage.success with message = "Post permalinks saved successfully" }
+        return! redirectToGet $"/post/{model.id}/permalinks" next ctx
+    | false -> return! Error.notFound next ctx
+}
+
 #nowarn "3511"
 
 // POST /post/save

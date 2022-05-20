@@ -9,6 +9,7 @@ body {
   scrollbar-color: var(--dark-gray) gray;
   padding-top: 3rem;
   padding-bottom: 2rem;
+  min-height: 100vh;
 }
 body::-webkit-scrollbar {
   width: 12px;

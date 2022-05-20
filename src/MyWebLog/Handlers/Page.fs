@@ -45,6 +45,31 @@ let edit pgId : HttpHandler = requireUser >=> fun next ctx -> task {
     | None -> return! Error.notFound next ctx
 }
 
+// GET /page/{id}/permalinks
+let editPermalinks pgId : HttpHandler = requireUser >=> fun next ctx -> task {
+    match! Data.Page.findByFullId (PageId pgId) (webLogId ctx) (conn ctx) with
+    | Some pg ->
+        return!
+            Hash.FromAnonymousObject {|
+                csrf       = csrfToken ctx
+                model      = ManagePermalinksModel.fromPage pg
+                page_title = $"Manage Prior Permalinks"
+            |}
+            |> viewForTheme "admin" "permalinks" next ctx
+    | None -> return! Error.notFound next ctx
+}
+
+// POST /page/permalinks
+let savePermalinks : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
+    let! model = ctx.BindFormAsync<ManagePermalinksModel> ()
+    let  links = model.prior |> Array.map Permalink |> List.ofArray
+    match! Data.Page.updatePriorPermalinks (PageId model.id) (webLogId ctx) links (conn ctx) with
+    | true ->
+        do! addMessage ctx { UserMessage.success with message = "Page permalinks saved successfully" }
+        return! redirectToGet $"/page/{model.id}/permalinks" next ctx
+    | false -> return! Error.notFound next ctx
+}
+
 open System
 
 #nowarn "3511"

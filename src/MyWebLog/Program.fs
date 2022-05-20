@@ -253,9 +253,10 @@ let main args =
     [   // Domain types
         typeof<MetaItem>; typeof<Page>; typeof<WebLog>
         // View models
-        typeof<DashboardModel>; typeof<DisplayCategory>; typeof<DisplayPage>;   typeof<EditCategoryModel>
-        typeof<EditPageModel>;  typeof<EditPostModel>;   typeof<EditUserModel>; typeof<LogOnModel>
-        typeof<PostDisplay>;    typeof<PostListItem>;    typeof<SettingsModel>; typeof<UserMessage>
+        typeof<DashboardModel>;        typeof<DisplayCategory>; typeof<DisplayPage>;   typeof<EditCategoryModel>
+        typeof<EditPageModel>;         typeof<EditPostModel>;   typeof<EditUserModel>; typeof<LogOnModel>
+        typeof<ManagePermalinksModel>; typeof<PostDisplay>;     typeof<PostListItem>;  typeof<SettingsModel>
+        typeof<UserMessage>
         // Framework types
         typeof<AntiforgeryTokenSet>; typeof<KeyValuePair>; typeof<MetaItem list>; typeof<string list>
         typeof<string option>

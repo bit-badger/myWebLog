@@ -299,6 +299,44 @@ type LogOnModel =
         { emailAddress = ""; password = ""; returnTo = None }
 
 
+/// View model to manage permalinks
+[<CLIMutable; NoComparison; NoEquality>]
+type ManagePermalinksModel =
+    {   /// The ID for the entity being edited
+        id : string
+        
+        /// The type of entity being edited ("page" or "post")
+        entity : string
+        
+        /// The current title of the page or post
+        currentTitle : string
+        
+        /// The current permalink of the page or post
+        currentPermalink : string
+        
+        /// The prior permalinks for the page or post
+        prior : string[]
+    }
+    
+    /// Create a permalink model from a page
+    static member fromPage (pg : Page) =
+        { id               = PageId.toString pg.id
+          entity           = "page"
+          currentTitle     = pg.title
+          currentPermalink = Permalink.toString pg.permalink
+          prior            = pg.priorPermalinks |> List.map Permalink.toString |> Array.ofList
+        }
+
+    /// Create a permalink model from a post
+    static member fromPost (post : Post) =
+        { id               = PostId.toString post.id
+          entity           = "post"
+          currentTitle     = post.title
+          currentPermalink = Permalink.toString post.permalink
+          prior            = post.priorPermalinks |> List.map Permalink.toString |> Array.ofList
+        }
+
+
 /// View model for posts in a list
 [<NoComparison; NoEquality>]
 type PostListItem =

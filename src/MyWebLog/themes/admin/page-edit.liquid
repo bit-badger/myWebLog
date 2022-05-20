@@ -15,6 +15,9 @@
             <input type="text" name="permalink" id="permalink" class="form-control" required
                    value="{{ model.permalink }}">
             <label for="permalink">Permalink</label>
+            {%- if model.page_id != "new" %}
+              <span class="form-text"><a href="/page/{{ model.page_id }}/permalinks">Manage Permalinks</a></span>
+            {% endif -%}
           </div>
         </div>
         <div class="col-3">

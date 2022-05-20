@@ -30,24 +30,27 @@ let endpoints = [
     ]
     subRoute "/page" [
         GET [
-            routef "/%d"       Post.pageOfPosts
-            //routef "/%d/"      (fun pg -> redirectTo true $"/page/{pg}")
-            routef "/%s/edit"  Page.edit
-            route  "s"         (Page.all 1)
-            routef "s/page/%d" Page.all
+            routef "/%d"            Post.pageOfPosts
+            routef "/%s/edit"       Page.edit
+            routef "/%s/permalinks" Page.editPermalinks
+            route  "s"              (Page.all 1)
+            routef "s/page/%d"      Page.all
         ]
         POST [
-            route "/save" Page.save
+            route "/permalinks" Page.savePermalinks
+            route "/save"       Page.save
         ]
     ]
     subRoute "/post" [
         GET [
-            routef "/%s/edit"  Post.edit
-            route  "s"         (Post.all 1)
-            routef "s/page/%d" Post.all
+            routef "/%s/edit"       Post.edit
+            routef "/%s/permalinks" Post.editPermalinks
+            route  "s"              (Post.all 1)
+            routef "s/page/%d"      Post.all
         ]
         POST [
-            route "/save" Post.save
+            route "/permalinks" Post.savePermalinks
+            route "/save"       Post.save
         ]
     ]
     subRoute "/tag" [

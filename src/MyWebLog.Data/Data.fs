@@ -394,6 +394,21 @@ module Page =
                 ]
             write; withRetryDefault; ignoreResult
         }
+    
+    /// Update prior permalinks for a page
+    let updatePriorPermalinks pageId webLogId (permalinks : Permalink list) conn = task {
+        match! findById pageId webLogId conn with
+        | Some _ ->
+            do! rethink {
+                withTable Table.Page
+                get pageId
+                update [ "priorPermalinks", permalinks :> obj ]
+                write; withRetryDefault; ignoreResult conn
+            }
+            return true
+        | None -> return false
+    }
+
 
 /// Functions to manipulate posts
 module Post =
@@ -541,6 +556,27 @@ module Post =
             replace post
             write; withRetryDefault; ignoreResult
         }
+
+    /// Update prior permalinks for a post
+    let updatePriorPermalinks (postId : PostId) webLogId (permalinks : Permalink list) conn = task {
+        match! (
+            rethink<Post> {
+                withTable Table.Post
+                get postId
+                without [ "revisions"; "priorPermalinks" ]
+                resultOption; withRetryOptionDefault
+            }
+            |> verifyWebLog webLogId (fun p -> p.webLogId)) conn with
+        | Some _ ->
+            do! rethink {
+                withTable Table.Post
+                get postId
+                update [ "priorPermalinks", permalinks :> obj ]
+                write; withRetryDefault; ignoreResult conn
+            }
+            return true
+        | None -> return false
+    }
 
 
 /// Functions to manipulate web logs
