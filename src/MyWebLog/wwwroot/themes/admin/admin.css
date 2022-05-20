@@ -1,4 +1,30 @@
-﻿footer {
+﻿:root {
+  --dark-gray: #212529;
+}
+html {
+  background-color: var(--dark-gray);
+}
+body {
+  scrollbar-width: thin;
+  scrollbar-color: var(--dark-gray) gray;
+  padding-top: 3rem;
+  padding-bottom: 2rem;
+}
+body::-webkit-scrollbar {
+  width: 12px;
+}
+body::-webkit-scrollbar-track {
+  background: gray;
+}
+body::-webkit-scrollbar-thumb {
+  background-color: var(--dark-gray);
+  border-radius: 20px;
+  border: 3px solid gray;
+}
+header nav {
+  z-index: 9;
+}
+footer {
   background-color: #808080;
   border-top: solid 1px black;
   color: white;

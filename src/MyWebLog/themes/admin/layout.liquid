@@ -10,7 +10,7 @@
   </head>
   <body>
     <header>
-      <nav class="navbar navbar-dark bg-dark navbar-expand-md justify-content-start px-2">
+      <nav class="navbar navbar-dark bg-dark navbar-expand-md justify-content-start px-2 position-fixed top-0 w-100">
         <div class="container-fluid">
           <a class="navbar-brand" href="/">{{ web_log.name }}</a>
           <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarText"
@@ -55,10 +55,10 @@
       {% endif %}
       {{ content }}
     </main>
-    <footer>
+    <footer class="position-fixed bottom-0 w-100">
       <div class="container-fluid">
         <div class="row">
-          <div class="col-xs-12 text-end"><img src="/img/logo-light.png" alt="myWebLog"></div>
+          <div class="col-xs-12 text-end"><img src="/img/logo-light.png" alt="myWebLog" width="120" height="34"></div>
         </div>
       </div>
     </footer>
