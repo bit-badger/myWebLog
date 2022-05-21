@@ -10,63 +10,65 @@ let endpoints = [
     ]
     subRoute "/admin" [
         GET [
-            route ""          Admin.dashboard
-            route "/settings" Admin.settings
+            route    "" Admin.dashboard
+            subRoute "/categor" [
+                route  "ies"       Admin.listCategories
+                routef "y/%s/edit" Admin.editCategory
+            ]
+            subRoute "/page" [
+                route  "s"              (Admin.listPages 1)
+                routef "s/page/%d"      Admin.listPages
+                routef "/%s/edit"       Admin.editPage
+                routef "/%s/permalinks" Admin.editPagePermalinks
+            ]
+            subRoute "/post" [
+                route  "s"              (Post.all 1)
+                routef "s/page/%d"      Post.all
+                routef "/%s/edit"       Post.edit
+                routef "/%s/permalinks" Post.editPermalinks
+            ]
+            route    "/settings" Admin.settings
+            subRoute "/tag-mapping" [
+                route  "s"        Admin.tagMappings
+                routef "/%s/edit" Admin.editMapping
+            ]
+            route    "/user/edit" User.edit
         ]
         POST [
-            route "/settings" Admin.saveSettings
+            subRoute "/category" [
+                route  "/save"      Admin.saveCategory
+                routef "/%s/delete" Admin.deleteCategory
+            ]
+            subRoute "/page" [
+                route  "/save"       Admin.savePage
+                route  "/permalinks" Admin.savePagePermalinks
+                routef "/%s/delete"  Admin.deletePage
+            ]
+            subRoute "/post" [
+                route  "/save"       Post.save
+                route  "/permalinks" Post.savePermalinks
+                routef "/%s/delete"  Post.delete
+            ]
+            route    "/settings" Admin.saveSettings
+            subRoute "/tag-mapping" [
+                route  "/save"      Admin.saveMapping
+                routef "/%s/delete" Admin.deleteMapping
+            ]
+            route    "/user/save" User.save
         ]
     ]
-    subRoute "/categor" [
-        GET [
-            route  "ies"        Category.all
-            routef "y/%s/edit"  Category.edit
-            route  "y/{**slug}" Post.pageOfCategorizedPosts
-        ]
-        POST [
-            route  "y/save"      Category.save
-            routef "y/%s/delete" Category.delete
-        ]
-    ]
-    subRoute "/page" [
-        GET [
-            routef "/%d"            Post.pageOfPosts
-            routef "/%s/edit"       Page.edit
-            routef "/%s/permalinks" Page.editPermalinks
-            route  "s"              (Page.all 1)
-            routef "s/page/%d"      Page.all
-        ]
-        POST [
-            route "/permalinks" Page.savePermalinks
-            route "/save"       Page.save
-        ]
-    ]
-    subRoute "/post" [
-        GET [
-            routef "/%s/edit"       Post.edit
-            routef "/%s/permalinks" Post.editPermalinks
-            route  "s"              (Post.all 1)
-            routef "s/page/%d"      Post.all
-        ]
-        POST [
-            route "/permalinks" Post.savePermalinks
-            route "/save"       Post.save
-        ]
-    ]
-    subRoute "/tag" [
-        GET [
-            route "/{**slug}" Post.pageOfTaggedPosts
-        ]
+    GET [
+        route  "/category/{**slug}" Post.pageOfCategorizedPosts
+        routef "/page/%d"           Post.pageOfPosts
+        route  "/tag/{**slug}"      Post.pageOfTaggedPosts
     ]
     subRoute "/user" [
         GET [
-            route "/edit"    User.edit
             route "/log-on"  (User.logOn None)
             route "/log-off" User.logOff
         ]
         POST [
             route "/log-on" User.doLogOn
-            route "/save"   User.save
         ]
     ]
     route "{**link}" Post.catchAll

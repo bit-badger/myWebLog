@@ -1,0 +1,35 @@
+﻿<h2 class="my-3">{{ page_title }}</h2>
+<article>
+  <form action="/admin/tag-mapping/save" method="post">
+    <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
+    <input type="hidden" name="id" value="{{ model.id }}">
+    <div class="container">
+      <div class="row mb-3">
+        <div class="col">
+          <a href="/admin/tag-mappings">&laquo; Back to Tag Mappings</a>
+        </div>
+      </div>
+      <div class="row mb-3">
+        <div class="col-6 col-lg-4 pb-3">
+          <div class="form-floating">
+            <input type="text" name="tag" id="tag" class="form-control" placeholder="Tag" autofocus required
+                   value="{{ model.tag }}">
+            <label for="tag">Tag</label>
+          </div>
+        </div>
+        <div class="col-6 col-lg-4 pb-3">
+          <div class="form-floating">
+            <input type="text" name="urlValue" id="urlValue" class="form-control" placeholder="URL Value" required
+                   value="{{ model.url_value }}">
+            <label for="urlValue">URL Value</label>
+          </div>
+        </div>
+      </div>
+      <div class="row mb-3">
+        <div class="col">
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+      </div>
+    </div>
+  </form>
+</article>

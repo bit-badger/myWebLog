@@ -187,6 +187,22 @@ module PostId =
     let create () = PostId (newId ())
 
 
+/// An identifier for a tag mapping
+type TagMapId = TagMapId of string
+
+/// Functions to support tag mapping IDs
+module TagMapId =
+    
+    /// An empty tag mapping ID
+    let empty = TagMapId ""
+    
+    /// Convert a tag mapping ID to a string
+    let toString = function TagMapId tmi -> tmi
+    
+    /// Create a new tag mapping ID
+    let create () = TagMapId (newId ())
+
+
 /// An identifier for a web log
 type WebLogId = WebLogId of string
 

@@ -1,0 +1,32 @@
+﻿<h2 class="my-3">{{ page_title }}</h2>
+<article class="container">
+  <a href="/admin/tag-mapping/new/edit" class="btn btn-primary btn-sm mb-3">Add a New Tag Mapping</a>
+  <table class="table table-sm table-hover">
+    <thead>
+      <tr>
+        <th scope="col">Tag</th>
+        <th scope="col">URL Value</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for map in mappings -%}
+        {%- assign map_id = mapping_ids | value: map.tag -%}
+        <tr>
+          <td class="no-wrap">
+            {{ map.tag }}<br>
+            <small>
+              <a href="/admin/tag-mapping/{{ map_id }}/delete" class="text-danger"
+                 onclick="return Admin.deleteTagMapping('{{ map_id }}', '{{ map.tag }}')">
+                Delete
+              </a>
+            </small>
+          </td>
+          <td>{{ map.url_value }}</td>
+        </tr>
+      {%- endfor %}
+    </tbody>
+  </table>
+  <form method="post" id="deleteForm">
+    <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
+  </form>
+</article>

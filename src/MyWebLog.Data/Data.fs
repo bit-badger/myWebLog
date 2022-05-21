@@ -17,6 +17,9 @@ module Table =
     /// The post table
     let Post = "Post"
     
+    /// The tag map table
+    let TagMap = "TagMap"
+    
     /// The web log table
     let WebLog = "WebLog"
 
@@ -24,7 +27,7 @@ module Table =
     let WebLogUser = "WebLogUser"
 
     /// A list of all tables
-    let all = [ Category; Comment; Page; Post; WebLog; WebLogUser ]
+    let all = [ Category; Comment; Page; Post; TagMap; WebLog; WebLogUser ]
 
 
 /// Functions to assist with retrieving data
@@ -50,6 +53,9 @@ module Helpers =
             let! results = f conn
             return results |> List.tryHead
         }
+    
+    /// Cast a strongly-typed list to an object list
+    let objList<'T> (objects : 'T list) = objects |> List.map (fun it -> it :> obj)
 
     
 open RethinkDb.Driver.FSharp
@@ -71,7 +77,7 @@ module Startup =
                 log.LogInformation $"Creating index {table}.permalink..."
                 do! rethink {
                     withTable table
-                    indexCreate "permalink" (fun row -> r.Array (row.G "webLogId", row.G "permalink") :> obj)
+                    indexCreate "permalink" (fun row -> r.Array (row["webLogId"], row["permalink"]) :> obj)
                     write; withRetryOnce; ignoreResult conn
                 }
             // Prior permalinks are searched when a post or page permalink do not match the current URL
@@ -92,18 +98,34 @@ module Startup =
                         indexCreate idx [ Multi ]
                         write; withRetryOnce; ignoreResult conn
                     }
+        // Tag mapping needs an index by web log ID and both tag and URL values
+        if Table.TagMap = table then
+            if not (indexes |> List.contains "webLogAndTag") then
+                log.LogInformation $"Creating index {table}.webLogAndTag..."
+                do! rethink {
+                    withTable table
+                    indexCreate "webLogAndTag" (fun row -> r.Array (row["webLogId"], row["tag"]) :> obj)
+                    write; withRetryOnce; ignoreResult conn
+                }
+            if not (indexes |> List.contains "webLogAndUrl") then
+                log.LogInformation $"Creating index {table}.webLogAndUrl..."
+                do! rethink {
+                    withTable table
+                    indexCreate "webLogAndUrl" (fun row -> r.Array (row["webLogId"], row["urlValue"]) :> obj)
+                    write; withRetryOnce; ignoreResult conn
+                }
         // Users log on with e-mail
         if Table.WebLogUser = table && not (indexes |> List.contains "logOn") then
             log.LogInformation $"Creating index {table}.logOn..."
             do! rethink {
                 withTable table
-                indexCreate "logOn" (fun row -> r.Array (row.G "webLogId", row.G "userName") :> obj)
+                indexCreate "logOn" (fun row -> r.Array (row["webLogId"], row["userName"]) :> obj)
                 write; withRetryOnce; ignoreResult conn
             }
     }
 
     /// Ensure all necessary tables and indexes exist
-    let ensureDb (config : DataConfig) (log : ILogger) conn = task {
+    let ensureDb (config : DataConfig) (log : ILogger) conn = backgroundTask {
         
         let! dbs = rethink<string list> { dbList; result; withRetryOnce conn }
         if not (dbs |> List.contains config.Database) then
@@ -121,6 +143,7 @@ module Startup =
         do! makeIdx Table.Comment    [ "postId" ]
         do! makeIdx Table.Page       [ "webLogId"; "authorId" ]
         do! makeIdx Table.Post       [ "webLogId"; "authorId" ]
+        do! makeIdx Table.TagMap     []
         do! makeIdx Table.WebLog     [ "urlBase" ]
         do! makeIdx Table.WebLogUser [ "webLogId" ]
     }
@@ -178,7 +201,7 @@ module Category =
         let! cats = rethink<Category list> {
             withTable Table.Category
             getAll [ webLogId ] (nameof webLogId)
-            orderByFunc (fun it -> it.G("name").Downcase () :> obj)
+            orderByFunc (fun it -> it["name"].Downcase () :> obj)
             result; withRetryDefault conn
         }
         let  ordered = orderByHierarchy cats None None []
@@ -232,8 +255,8 @@ module Category =
             do! rethink {
                 withTable Table.Post
                 getAll [ webLogId ] (nameof webLogId)
-                filter (fun row -> row.G("categoryIds").Contains catId :> obj)
-                update (fun row -> r.HashMap ("categoryIds", r.Array(row.G "categoryIds").Remove catId) :> obj)
+                filter (fun row -> row["categoryIds"].Contains catId :> obj)
+                update (fun row -> r.HashMap ("categoryIds", r.Array(row["categoryIds"]).Remove catId) :> obj)
                 write; withRetryDefault; ignoreResult conn 
             }
             // Delete the category itself
@@ -251,7 +274,7 @@ module Category =
     let findNames (webLogId : WebLogId) conn (catIds : CategoryId list) = backgroundTask {
         let! cats = rethink<Category list> {
             withTable Table.Category
-            getAll (catIds |> List.map (fun it -> it :> obj))
+            getAll (objList catIds)
             filter "webLogId" webLogId
             result; withRetryDefault conn
         }
@@ -274,6 +297,8 @@ module Category =
 
 /// Functions to manipulate pages
 module Page =
+    
+    open RethinkDb.Driver.Model
     
     /// Add a new page
     let add (page : Page) =
@@ -302,6 +327,19 @@ module Page =
             result; withRetryDefault
         }
 
+    /// Delete a page
+    let delete (pageId : PageId) (webLogId : WebLogId) conn = backgroundTask {
+        let! result =
+            rethink<Result> {
+                withTable Table.Page
+                getAll [ pageId ]
+                filter (fun row -> row["webLogId"].Eq webLogId :> obj)
+                delete
+                write; withRetryDefault conn
+            }
+        return result.Deleted > 0UL
+    }
+    
     /// Retrieve all pages for a web log (excludes text, prior permalinks, and revisions)
     let findAll (webLogId : WebLogId) =
         rethink<Page list> {
@@ -342,10 +380,10 @@ module Page =
         |> tryFirst
     
     /// Find the current permalink for a page by a prior permalink
-    let findCurrentPermalink (permalink : Permalink) (webLogId : WebLogId) =
+    let findCurrentPermalink (permalinks : Permalink list) (webLogId : WebLogId) =
         rethink<Permalink list> {
             withTable Table.Page
-            getAll [ permalink ] "priorPermalinks"
+            getAll (objList permalinks) "priorPermalinks"
             filter "webLogId" webLogId
             pluck [ "permalink" ]
             limit 1
@@ -370,7 +408,7 @@ module Page =
             withTable Table.Page
             getAll [ webLogId ] (nameof webLogId)
             without [ "priorPermalinks"; "revisions" ]
-            orderByFunc (fun row -> row.G("title").Downcase ())
+            orderByFunc (fun row -> row["title"].Downcase ())
             skip ((pageNbr - 1) * 25)
             limit 25
             result; withRetryDefault
@@ -396,7 +434,7 @@ module Page =
         }
     
     /// Update prior permalinks for a page
-    let updatePriorPermalinks pageId webLogId (permalinks : Permalink list) conn = task {
+    let updatePriorPermalinks pageId webLogId (permalinks : Permalink list) conn = backgroundTask {
         match! findById pageId webLogId conn with
         | Some _ ->
             do! rethink {
@@ -414,6 +452,7 @@ module Page =
 module Post =
     
     open System
+    open RethinkDb.Driver.Model
     
     /// Add a post
     let add (post : Post) =
@@ -433,11 +472,24 @@ module Post =
             result; withRetryDefault
         }
 
+    /// Delete a post
+    let delete (postId : PostId) (webLogId : WebLogId) conn = backgroundTask {
+        let! result =
+            rethink<Result> {
+                withTable Table.Post
+                getAll [ postId ]
+                filter (fun row -> row["webLogId"].Eq webLogId :> obj)
+                delete
+                write; withRetryDefault conn
+            }
+        return result.Deleted > 0UL
+    }
+    
     /// Find a post by its permalink
     let findByPermalink (permalink : Permalink) (webLogId : WebLogId) =
         rethink<Post list> {
             withTable Table.Post
-            getAll [ r.Array(webLogId, permalink) ] (nameof permalink)
+            getAll [ r.Array (webLogId, permalink) ] (nameof permalink)
             without [ "priorPermalinks"; "revisions" ]
             limit 1
             result; withRetryDefault
@@ -454,10 +506,10 @@ module Post =
         |> verifyWebLog webLogId (fun p -> p.webLogId)
 
     /// Find the current permalink for a post by a prior permalink
-    let findCurrentPermalink (permalink : Permalink) (webLogId : WebLogId) =
+    let findCurrentPermalink (permalinks : Permalink list) (webLogId : WebLogId) =
         rethink<Permalink list> {
             withTable Table.Post
-            getAll [ permalink ] "priorPermalinks"
+            getAll (objList permalinks) "priorPermalinks"
             filter "webLogId" webLogId
             pluck [ "permalink" ]
             limit 1
@@ -470,7 +522,7 @@ module Post =
         let pg = int pageNbr
         rethink<Post list> {
             withTable Table.Post
-            getAll (catIds |> List.map (fun it -> it :> obj)) "categoryIds"
+            getAll (objList catIds) "categoryIds"
             filter "webLogId" webLogId
             filter "status" Published
             without [ "priorPermalinks"; "revisions" ]
@@ -488,7 +540,7 @@ module Post =
             withTable Table.Post
             getAll [ webLogId ] (nameof webLogId)
             without [ "priorPermalinks"; "revisions" ]
-            orderByFuncDescending (fun row -> row.G("publishedOn").Default_ "updatedOn" :> obj)
+            orderByFuncDescending (fun row -> row["publishedOn"].Default_ "updatedOn" :> obj)
             skip ((pg - 1) * postsPerPage)
             limit (postsPerPage + 1)
             result; withRetryDefault
@@ -529,7 +581,7 @@ module Post =
             rethink<Post list> {
                 withTable Table.Post
                 getAll [ webLogId ] (nameof webLogId)
-                filter (fun row -> row.G("publishedOn").Lt publishedOn :> obj)
+                filter (fun row -> row["publishedOn"].Lt publishedOn :> obj)
                 orderByDescending "publishedOn"
                 limit 1
                 result; withRetryDefault
@@ -539,7 +591,7 @@ module Post =
             rethink<Post list> {
                 withTable Table.Post
                 getAll [ webLogId ] (nameof webLogId)
-                filter (fun row -> row.G("publishedOn").Gt publishedOn :> obj)
+                filter (fun row -> row["publishedOn"].Gt publishedOn :> obj)
                 orderBy "publishedOn"
                 limit 1
                 result; withRetryDefault
@@ -558,7 +610,7 @@ module Post =
         }
 
     /// Update prior permalinks for a post
-    let updatePriorPermalinks (postId : PostId) webLogId (permalinks : Permalink list) conn = task {
+    let updatePriorPermalinks (postId : PostId) webLogId (permalinks : Permalink list) conn = backgroundTask {
         match! (
             rethink<Post> {
                 withTable Table.Post
@@ -579,16 +631,79 @@ module Post =
     }
 
 
+/// Functions to manipulate tag mappings
+module TagMap =
+    
+    open RethinkDb.Driver.Model
+    
+    /// Delete a tag mapping
+    let delete (tagMapId : TagMapId) (webLogId : WebLogId) conn = backgroundTask {
+        let! result =
+            rethink<Result> {
+                withTable Table.TagMap
+                getAll [ tagMapId ]
+                filter (fun row -> row["webLogId"].Eq webLogId :> obj)
+                delete
+                write; withRetryDefault conn
+            }
+        return result.Deleted > 0UL
+    }
+    
+    /// Find a tag map by its ID
+    let findById (tagMapId : TagMapId) webLogId =
+        rethink<TagMap> {
+            withTable Table.TagMap
+            get tagMapId
+            resultOption; withRetryOptionDefault
+        }
+        |> verifyWebLog webLogId (fun tm -> tm.webLogId)
+    
+    /// Find a tag mapping via URL value for a given web log
+    let findByUrlValue (urlValue : string) (webLogId : WebLogId) =
+        rethink<TagMap list> {
+            withTable Table.TagMap
+            getAll [ r.Array (webLogId, urlValue) ] "webLogAndUrl"
+            limit 1
+            result; withRetryDefault
+        }
+        |> tryFirst
+    
+    /// Find all tag mappings for a web log
+    let findByWebLogId (webLogId : WebLogId) =
+        rethink<TagMap list> {
+            withTable Table.TagMap
+            between (r.Array (webLogId, r.Minval ())) (r.Array (webLogId, r.Maxval ())) [ Index "webLogAndTag" ]
+            orderBy "tag"
+            result; withRetryDefault
+        }
+    
+    /// Retrieve mappings for the specified tags
+    let findMappingForTags (tags : string list) (webLogId : WebLogId) =
+        rethink<TagMap list> {
+            withTable Table.TagMap
+            getAll (tags |> List.map (fun tag -> r.Array (webLogId, tag) :> obj)) "webLogAndTag"
+            result; withRetryDefault
+        }
+    
+    /// Save a tag mapping
+    let save (tagMap : TagMap) =
+        rethink {
+            withTable Table.TagMap
+            get tagMap.id
+            replace tagMap
+            write; withRetryDefault; ignoreResult
+        }
+
+
 /// Functions to manipulate web logs
 module WebLog =
     
     /// Add a web log
-    let add (webLog : WebLog) =
-        rethink {
-            withTable Table.WebLog
-            insert webLog
-            write; withRetryOnce; ignoreResult
-        }
+    let add (webLog : WebLog) = rethink {
+        withTable Table.WebLog
+        insert webLog
+        write; withRetryOnce; ignoreResult
+    }
     
     /// Retrieve a web log by the URL base
     let findByHost (url : string) =
@@ -651,7 +766,7 @@ module WebLogUser =
     let findNames (webLogId : WebLogId) conn (userIds : WebLogUserId list) = backgroundTask {
         let! users = rethink<WebLogUser list> {
             withTable Table.WebLogUser
-            getAll (userIds |> List.map (fun it -> it :> obj))
+            getAll (objList userIds)
             filter "webLogId" webLogId
             result; withRetryDefault conn
         }

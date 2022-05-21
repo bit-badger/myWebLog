@@ -1,6 +1,6 @@
 ﻿<h2 class="my-3">{{ page_title }}</h2>
 <article>
-  <form action="/{{ model.entity }}/permalinks" method="post">
+  <form action="/admin/{{ model.entity }}/permalinks" method="post">
     <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
     <input type="hidden" name="id" value="{{ model.id }}">
     <div class="container">
@@ -10,7 +10,7 @@
             <strong>{{ model.current_title }}</strong><br>
             <small class="text-muted">
               <span class="fst-italic">{{ model.current_permalink }}</span><br>
-              <a href="/{{ model.entity }}/{{ model.id }}/edit">&laquo; Back to Edit {{ model.entity | capitalize }}</a>
+              <a href="/admin/{{ model.entity }}/{{ model.id }}/edit">&laquo; Back to Edit {{ model.entity | capitalize }}</a>
             </small>
           </p>
         </div>

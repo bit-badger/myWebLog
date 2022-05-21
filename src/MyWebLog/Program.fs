@@ -28,7 +28,26 @@ module DotLiquidBespoke =
     
     open System.IO
     open DotLiquid
+    open MyWebLog.ViewModels
 
+    /// A filter to generate a link with posts categorized under the given category
+    type CategoryLinkFilter () =
+        static member CategoryLink (_ : Context, catObj : obj) =
+            match catObj with
+            | :? DisplayCategory as cat -> $"/category/{cat.slug}/"
+            | :? DropProxy as proxy -> $"""/category/{proxy["slug"]}/"""
+            | _ -> $"alert('unknown category object type {catObj.GetType().Name}')"
+    
+    /// A filter to generate a link that will edit a page
+    type EditPageLinkFilter () =
+        static member EditPageLink (_ : Context, postId : string) =
+            $"/admin/page/{postId}/edit"
+        
+    /// A filter to generate a link that will edit a post
+    type EditPostLinkFilter () =
+        static member EditPostLink (_ : Context, postId : string) =
+            $"/admin/post/{postId}/edit"
+        
     /// A filter to generate nav links, highlighting the active link (exact match)
     type NavLinkFilter () =
         static member NavLink (ctx : Context, url : string, text : string) =
@@ -43,6 +62,14 @@ module DotLiquidBespoke =
             }
             |> Seq.fold (+) ""
     
+    /// A filter to generate a link with posts tagged with the given tag
+    type TagLinkFilter () =
+        static member TagLink (ctx : Context, tag : string) =
+            match ctx.Environments[0].["tag_mappings"] :?> TagMap list
+                  |> List.tryFind (fun it -> it.tag = tag) with
+            | Some tagMap -> $"/tag/{tagMap.urlValue}/"
+            | None -> $"""/tag/{tag.Replace (" ", "+")}/"""
+                
     /// Create links for a user to log on or off, and a dashboard link if they are logged off
     type UserLinksTag () =
         inherit Tag ()
@@ -246,20 +273,24 @@ let main args =
     let _ = builder.Services.AddGiraffe ()
     
     // Set up DotLiquid
-    Template.RegisterFilter typeof<DotLiquidBespoke.NavLinkFilter>
-    Template.RegisterFilter typeof<DotLiquidBespoke.ValueFilter>
+    [ typeof<DotLiquidBespoke.CategoryLinkFilter>; typeof<DotLiquidBespoke.EditPageLinkFilter>
+      typeof<DotLiquidBespoke.EditPostLinkFilter>; typeof<DotLiquidBespoke.NavLinkFilter>
+      typeof<DotLiquidBespoke.TagLinkFilter>;      typeof<DotLiquidBespoke.ValueFilter>
+    ]
+    |> List.iter Template.RegisterFilter
+    
     Template.RegisterTag<DotLiquidBespoke.UserLinksTag> "user_links"
     
     [   // Domain types
-        typeof<MetaItem>; typeof<Page>; typeof<WebLog>
+        typeof<MetaItem>; typeof<Page>; typeof<TagMap>; typeof<WebLog>
         // View models
-        typeof<DashboardModel>;        typeof<DisplayCategory>; typeof<DisplayPage>;   typeof<EditCategoryModel>
-        typeof<EditPageModel>;         typeof<EditPostModel>;   typeof<EditUserModel>; typeof<LogOnModel>
-        typeof<ManagePermalinksModel>; typeof<PostDisplay>;     typeof<PostListItem>;  typeof<SettingsModel>
-        typeof<UserMessage>
+        typeof<DashboardModel>; typeof<DisplayCategory>;       typeof<DisplayPage>;     typeof<EditCategoryModel>
+        typeof<EditPageModel>;  typeof<EditPostModel>;         typeof<EditTagMapModel>; typeof<EditUserModel>
+        typeof<LogOnModel>;     typeof<ManagePermalinksModel>; typeof<PostDisplay>;     typeof<PostListItem>
+        typeof<SettingsModel>;  typeof<UserMessage>
         // Framework types
         typeof<AntiforgeryTokenSet>; typeof<KeyValuePair>; typeof<MetaItem list>; typeof<string list>
-        typeof<string option>
+        typeof<string option>;       typeof<TagMap list>
     ]
     |> List.iter (fun it -> Template.RegisterSafeType (it, [| "*" |]))
 

@@ -48,6 +48,13 @@ type PostIdConverter () =
     override _.ReadJson (reader : JsonReader, _ : Type, _ : PostId, _ : bool, _ : JsonSerializer) =
         (string >> PostId) reader.Value
 
+type TagMapIdConverter () =
+    inherit JsonConverter<TagMapId> ()
+    override _.WriteJson (writer : JsonWriter, value : TagMapId, _ : JsonSerializer) =
+        writer.WriteValue (TagMapId.toString value)
+    override _.ReadJson (reader : JsonReader, _ : Type, _ : TagMapId, _ : bool, _ : JsonSerializer) =
+        (string >> TagMapId) reader.Value
+
 type WebLogIdConverter () =
     inherit JsonConverter<WebLogId> ()
     override _.WriteJson (writer : JsonWriter, value : WebLogId, _ : JsonSerializer) =
@@ -74,6 +81,7 @@ let all () : JsonConverter seq =
         PermalinkConverter    ()
         PageIdConverter       ()
         PostIdConverter       ()
+        TagMapIdConverter     ()
         WebLogIdConverter     ()
         WebLogUserIdConverter ()
         // Handles DUs with no associated data, as well as option fields

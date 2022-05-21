@@ -1,6 +1,6 @@
 ﻿<h2 class="my-3">{{ page_title }}</h2>
 <article class="container">
-  <a href="/category/new/edit" class="btn btn-primary btn-sm mb-3">Add a New Category</a>
+  <a href="/admin/category/new/edit" class="btn btn-primary btn-sm mb-3">Add a New Category</a>
   <table class="table table-sm table-hover">
     <thead>
       <tr>
@@ -18,14 +18,14 @@
             {{ cat.name }}<br>
             <small>
             {%- if cat.post_count > 0 %}
-              <a href="/category/{{ cat.slug }}" target="_blank">
+              <a href="{{ cat | category_link }}" target="_blank">
                 View {{ cat.post_count }} Post{% unless cat.post_count == 1 %}s{% endunless -%}
               </a>
               <span class="text-muted"> &bull; </span>
             {%- endif %}
-              <a href="/category/{{ cat.id }}/edit">Edit</a>
+              <a href="/admin/category/{{ cat.id }}/edit">Edit</a>
               <span class="text-muted"> &bull; </span>
-              <a href="/category/{{ cat.id }}/delete" class="text-danger"
+              <a href="/admin/category/{{ cat.id }}/delete" class="text-danger"
                  onclick="return Admin.deleteCategory('{{ cat.id }}', '{{ cat.name }}')">
                 Delete
               </a>

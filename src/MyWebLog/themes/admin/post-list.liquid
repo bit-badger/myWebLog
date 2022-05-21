@@ -1,6 +1,6 @@
 <h2 class="my-3">{{ page_title }}</h2>
 <article class="container">
-  <a href="/post/new/edit" class="btn btn-primary btn-sm mb-3">Write a New Post</a>
+  <a href="/admin/post/new/edit" class="btn btn-primary btn-sm mb-3">Write a New Post</a>
   <table class="table table-sm table-hover">
     <thead>
       <tr>
@@ -25,9 +25,12 @@
             <small>
               <a href="/{{ post.permalink }}" target="_blank">View Post</a>
               <span class="text-muted"> &bull; </span>
-              <a href="/post/{{ post.id }}/edit">Edit</a>
+              <a href="{{ post.id | edit_post_link }}">Edit</a>
               <span class="text-muted"> &bull; </span>
-              <a href="#" class="text-danger">Delete</a>
+              <a href="/admin/post/{{ pg.id }}/delete" class="text-danger"
+                 onclick="return Admin.deletePost('{{ post.id }}', '{{ post.title }}')">
+                Delete
+              </a>
             </small>
           </td>
           <td class="no-wrap">{{ model.authors | value: post.author_id }}</td>
@@ -51,4 +54,7 @@
       </div>
     </div>
   {% endif %}
+  <form method="post" id="deleteForm">
+    <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
+  </form>
 </article>

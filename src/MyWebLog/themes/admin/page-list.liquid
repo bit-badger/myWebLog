@@ -1,6 +1,6 @@
 <h2 class="my-3">{{ page_title }}</h2>
 <article class="container">
-  <a href="/page/new/edit" class="btn btn-primary btn-sm mb-3">Create a New Page</a>
+  <a href="/admin/page/new/edit" class="btn btn-primary btn-sm mb-3">Create a New Page</a>
   <table class="table table-sm table-hover">
     <thead>
       <tr>
@@ -19,9 +19,12 @@
             <small>
               <a href="/{% unless pg.is_default %}{{ pg.permalink }}{% endunless %}" target="_blank">View Page</a>
               <span class="text-muted"> &bull; </span>
-              <a href="/page/{{ pg.id }}/edit">Edit</a>
+              <a href="{{ pg.id | edit_page_link }}">Edit</a>
               <span class="text-muted"> &bull; </span>
-              <a href="#" class="text-danger">Delete</a>
+              <a href="/admin/page/{{ pg.id }}/delete" class="text-danger"
+                 onclick="return Admin.deletePage('{{ pg.id }}', '{{ pg.title }}')">
+                Delete
+              </a>
             </small>
           </td>
           <td>/{% unless pg.is_default %}{{ pg.permalink }}{% endunless %}</td>
@@ -30,4 +33,7 @@
       {%- endfor %}
     </tbody>
   </table>
+  <form method="post" id="deleteForm">
+    <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
+  </form>
 </article>

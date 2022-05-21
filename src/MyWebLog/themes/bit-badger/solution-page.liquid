@@ -94,7 +94,7 @@
     {%- endif %}
     <p><br><a href="/solutions">&laquo; Back to All Solutions</a></p>
     {% if logged_on -%}
-      <p><small><a href="/page/{{ page.id }}/edit">Edit This Page</a></small></p>
+      <p><small><a href="{{ page.id | edit_page_link }}">Edit This Page</a></small></p>
     {% endif %}
   </article>
 </div>

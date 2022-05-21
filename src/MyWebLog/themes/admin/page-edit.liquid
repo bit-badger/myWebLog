@@ -1,6 +1,6 @@
 <h2 class="my-3">{{ page_title }}</h2>
 <article>
-  <form action="/page/save" method="post">
+  <form action="/admin/page/save" method="post">
     <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
     <input type="hidden" name="pageId" value="{{ model.page_id }}">
     <div class="container">

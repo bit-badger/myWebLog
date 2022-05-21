@@ -1,6 +1,6 @@
 <h2 class="my-3">{{ page_title }}</h2>
 <article>
-  <form action="/user/save" method="post">
+  <form action="/admin/user/save" method="post">
     <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
     <div class="container">
       <div class="row mb-3">

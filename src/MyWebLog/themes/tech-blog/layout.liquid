@@ -57,7 +57,7 @@
             {% for cat in categories -%}
               {%- assign indent = cat.parent_names | size -%}
               <li class="cat-list-item"{% if indent > 0 %} style="padding-left:{{ indent }}rem;"{% endif %}>
-                <a href="/category/{{ cat.slug }}/" class="cat-list-link">{{ cat.name }}</a>
+                <a href="{{ cat | category_link }}" class="cat-list-link">{{ cat.name }}</a>
                 <span class="cat-list-count">{{ cat.post_count }}</span>
               </li>
             {%- endfor %}

@@ -76,14 +76,14 @@ let private showEdit (hash : Hash) : HttpHandler = fun next ctx -> task {
     return! viewForTheme "admin" "user-edit" next ctx hash
 }
 
-// GET /user/edit
+// GET /admin/user/edit
 let edit : HttpHandler = requireUser >=> fun next ctx -> task {
     match! Data.WebLogUser.findById (userId ctx) (conn ctx) with
     | Some user -> return! showEdit (Hash.FromAnonymousObject {| model = EditUserModel.fromUser user |}) next ctx
     | None -> return! Error.notFound next ctx
 }
 
-// POST /user/save
+// POST /admin/user/save
 let save : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
     let! model = ctx.BindFormAsync<EditUserModel> ()
     if model.newPassword = model.newPasswordConfirm then
@@ -107,7 +107,7 @@ let save : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
             do! Data.WebLogUser.update user conn
             let pwMsg = if model.newPassword = "" then "" else " and updated your password"
             do! addMessage ctx { UserMessage.success with message = $"Saved your information{pwMsg} successfully" }
-            return! redirectToGet "/user/edit" next ctx
+            return! redirectToGet "/admin/user/edit" next ctx
         | None -> return! Error.notFound next ctx
     else
         do! addMessage ctx { UserMessage.error with message = "Passwords did not match; no updates made" }

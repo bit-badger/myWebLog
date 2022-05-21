@@ -219,6 +219,33 @@ module Post =
         }
 
 
+/// A mapping between a tag and its URL value, used to translate restricted characters (ex. "#1" -> "number-1")
+type TagMap =
+    {   /// The ID of this tag mapping
+        id : TagMapId
+        
+        /// The ID of the web log to which this tag mapping belongs
+        webLogId : WebLogId
+        
+        /// The tag which should be mapped to a different value in links
+        tag : string
+        
+        /// The value by which the tag should be linked
+        urlValue : string
+    }
+
+/// Functions to support tag mappings
+module TagMap =
+    
+    /// An empty tag mapping
+    let empty =
+        { id       = TagMapId.empty
+          webLogId = WebLogId.empty
+          tag      = ""
+          urlValue = ""
+        }
+
+
 /// A web log
 [<CLIMutable; NoComparison; NoEquality>]
 type WebLog =

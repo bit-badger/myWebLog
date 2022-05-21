@@ -163,7 +163,49 @@
   deleteCategory(id, name) {
     if (confirm(`Are you sure you want to delete the category "${name}"? This action cannot be undone.`)) {
       const form = document.getElementById("deleteForm")
-      form.action = `/category/${id}/delete`
+      form.action = `/admin/category/${id}/delete`
+      form.submit()
+    }
+    return false
+  },
+
+  /**
+   * Confirm and delete a page
+   * @param id The ID of the page to be deleted
+   * @param title The title of the page to be deleted
+   */
+  deletePage(id, title) {
+    if (confirm(`Are you sure you want to delete the page "${name}"? This action cannot be undone.`)) {
+      const form = document.getElementById("deleteForm")
+      form.action = `/admin/page/${id}/delete`
+      form.submit()
+    }
+    return false
+  },
+
+  /**
+   * Confirm and delete a post
+   * @param id The ID of the post to be deleted
+   * @param title The title of the post to be deleted
+   */
+  deletePost(id, title) {
+    if (confirm(`Are you sure you want to delete the post "${name}"? This action cannot be undone.`)) {
+      const form = document.getElementById("deleteForm")
+      form.action = `/admin/post/${id}/delete`
+      form.submit()
+    }
+    return false
+  },
+
+  /**
+   * Confirm and delete a tag mapping
+   * @param id The ID of the mapping to be deleted
+   * @param tag The tag for which the mapping will be deleted
+   */
+  deleteTagMapping(id, tag) {
+    if (confirm(`Are you sure you want to delete the mapping for "${tag}"? This action cannot be undone.`)) {
+      const form = document.getElementById("deleteForm")
+      form.action = `/admin/tag-mapping/${id}/delete`
       form.submit()
     }
     return false

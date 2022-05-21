@@ -34,13 +34,22 @@ let private getAuthors (webLog : WebLog) (posts : Post list) conn =
     |> List.distinct
     |> Data.WebLogUser.findNames webLog.id conn
 
+/// Get all tag mappings for a list of posts as metadata items
+let private getTagMappings (webLog : WebLog) (posts : Post list) =
+    posts
+    |> List.map (fun p -> p.tags)
+    |> List.concat
+    |> List.distinct
+    |> fun tags -> Data.TagMap.findMappingForTags tags webLog.id
+    
 open System.Threading.Tasks
 open DotLiquid
 open MyWebLog.ViewModels
 
 /// Convert a list of posts into items ready to be displayed
 let private preparePostList webLog posts listType url pageNbr perPage ctx conn = task {
-    let! authors = getAuthors webLog posts conn
+    let! authors     = getAuthors     webLog posts conn
+    let! tagMappings = getTagMappings webLog posts conn
     let postItems =
         posts
         |> Seq.ofList
@@ -64,8 +73,8 @@ let private preparePostList webLog posts listType url pageNbr perPage ctx conn =
         | CategoryList, _  -> Some $"category/{url}/page/{pageNbr - 1L}"
         | TagList,      2L -> Some $"tag/{url}/"
         | TagList,      _  -> Some $"tag/{url}/page/{pageNbr - 1L}"
-        | AdminList,    2L -> Some "posts"
-        | AdminList,    _  -> Some $"posts/page/{pageNbr - 1L}"
+        | AdminList,    2L -> Some "admin/posts"
+        | AdminList,    _  -> Some $"admin/posts/page/{pageNbr - 1L}"
     let olderLink =
         match listType, List.length posts > perPage with
         | SinglePost,   _     -> olderPost |> Option.map (fun p -> Permalink.toString p.permalink)
@@ -73,7 +82,7 @@ let private preparePostList webLog posts listType url pageNbr perPage ctx conn =
         | PostList,     true  -> Some $"page/{pageNbr + 1L}"
         | CategoryList, true  -> Some $"category/{url}/page/{pageNbr + 1L}"
         | TagList,      true  -> Some $"tag/{url}/page/{pageNbr + 1L}"
-        | AdminList,    true  -> Some $"posts/page/{pageNbr + 1L}"
+        | AdminList,    true  -> Some $"admin/posts/page/{pageNbr + 1L}"
     let model =
         { posts      = postItems
           authors    = authors
@@ -83,7 +92,7 @@ let private preparePostList webLog posts listType url pageNbr perPage ctx conn =
           olderLink  = olderLink
           olderName  = olderPost |> Option.map (fun p -> p.title)
         }
-    return Hash.FromAnonymousObject {| model = model; categories = CategoryCache.get ctx |}
+    return Hash.FromAnonymousObject {| model = model; categories = CategoryCache.get ctx; tag_mappings = tagMappings |}
 }
 
 // GET /page/{pageNbr}
@@ -139,7 +148,12 @@ let pageOfTaggedPosts : HttpHandler = fun next ctx -> task {
     let conn   = conn ctx
     match pathAndPageNumber ctx with
     | Some pageNbr, rawTag -> 
-        let tag = HttpUtility.UrlDecode rawTag
+        let  urlTag = HttpUtility.UrlDecode rawTag
+        let! tag    = backgroundTask {
+            match! Data.TagMap.findByUrlValue urlTag webLog.id conn with
+            | Some m -> return m.tag
+            | None   -> return urlTag
+        }
         match! Data.Post.findPageOfTaggedPosts webLog.id tag pageNbr webLog.postsPerPage conn with
         | posts when List.length posts > 0 ->
             let! hash    = preparePostList webLog posts TagList rawTag pageNbr webLog.postsPerPage ctx conn
@@ -254,7 +268,8 @@ let generateFeed : HttpHandler = fun next ctx -> backgroundTask {
 let private deriveAction ctx : HttpHandler seq =
     let webLog    = WebLogCache.get ctx
     let conn      = conn ctx
-    let permalink = (string >> Permalink) ctx.Request.RouteValues["link"]
+    let textLink  = string ctx.Request.RouteValues["link"]
+    let permalink = Permalink textLink
     let await it  = (Async.AwaitTask >> Async.RunSynchronously) it
     seq {
         // Current post
@@ -273,13 +288,22 @@ let private deriveAction ctx : HttpHandler seq =
         | None -> ()
         // RSS feed
         // TODO: configure this via web log
-        if Permalink.toString permalink = "feed.xml" then yield generateFeed
+        if textLink = "feed.xml" then yield generateFeed
+        // Post differing only by trailing slash
+        let altLink = Permalink (if textLink.EndsWith "/" then textLink[..textLink.Length - 2] else $"{textLink}/")
+        match Data.Post.findByPermalink altLink webLog.id conn |> await with
+        | Some post -> yield redirectTo true $"/{Permalink.toString post.permalink}"
+        | None -> ()
+        // Page differing only by trailing slash
+        match Data.Page.findByPermalink altLink webLog.id conn |> await with
+        | Some page -> yield redirectTo true $"/{Permalink.toString page.permalink}"
+        | None -> ()
         // Prior post
-        match Data.Post.findCurrentPermalink permalink webLog.id conn |> await with
+        match Data.Post.findCurrentPermalink [ permalink; altLink ] webLog.id conn |> await with
         | Some link -> yield redirectTo true $"/{Permalink.toString link}"
         | None -> ()
         // Prior permalink
-        match Data.Page.findCurrentPermalink permalink webLog.id conn |> await with
+        match Data.Page.findCurrentPermalink [ permalink; altLink ] webLog.id conn |> await with
         | Some link -> yield redirectTo true $"/{Permalink.toString link}"
         | None -> ()
     }
@@ -291,8 +315,8 @@ let catchAll : HttpHandler = fun next ctx -> task {
     | None -> return! Error.notFound next ctx
 }
 
-// GET /posts
-// GET /posts/page/{pageNbr}
+// GET /admin/posts
+// GET /admin/posts/page/{pageNbr}
 let all pageNbr : HttpHandler = requireUser >=> fun next ctx -> task {
     let  webLog = WebLogCache.get ctx
     let  conn   = conn ctx
@@ -302,7 +326,7 @@ let all pageNbr : HttpHandler = requireUser >=> fun next ctx -> task {
     return! viewForTheme "admin" "post-list" next ctx hash
 }
 
-// GET /post/{id}/edit
+// GET /admin/post/{id}/edit
 let edit postId : HttpHandler = requireUser >=> fun next ctx -> task {
     let  webLog = WebLogCache.get ctx
     let  conn   = conn     ctx
@@ -328,7 +352,7 @@ let edit postId : HttpHandler = requireUser >=> fun next ctx -> task {
     | None -> return! Error.notFound next ctx
 }
 
-// GET /post/{id}/permalinks
+// GET /admin/post/{id}/permalinks
 let editPermalinks postId : HttpHandler = requireUser >=> fun next ctx -> task {
     match! Data.Post.findByFullId (PostId postId) (webLogId ctx) (conn ctx) with
     | Some post ->
@@ -342,20 +366,28 @@ let editPermalinks postId : HttpHandler = requireUser >=> fun next ctx -> task {
     | None -> return! Error.notFound next ctx
 }
 
-// POST /post/permalinks
+// POST /admin/post/permalinks
 let savePermalinks : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
     let! model = ctx.BindFormAsync<ManagePermalinksModel> ()
     let  links = model.prior |> Array.map Permalink |> List.ofArray
     match! Data.Post.updatePriorPermalinks (PostId model.id) (webLogId ctx) links (conn ctx) with
     | true ->
         do! addMessage ctx { UserMessage.success with message = "Post permalinks saved successfully" }
-        return! redirectToGet $"/post/{model.id}/permalinks" next ctx
+        return! redirectToGet $"/admin/post/{model.id}/permalinks" next ctx
     | false -> return! Error.notFound next ctx
+}
+
+// POST /admin/post/{id}/delete
+let delete postId : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
+    match! Data.Post.delete (PostId postId) (webLogId ctx) (conn ctx) with
+    | true  -> do! addMessage ctx { UserMessage.success with message = "Post deleted successfully" }
+    | false -> do! addMessage ctx { UserMessage.error with message = "Post not found; nothing deleted" }
+    return! redirectToGet "/admin/posts" next ctx
 }
 
 #nowarn "3511"
 
-// POST /post/save
+// POST /admin/post/save
 let save : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
     let! model    = ctx.BindFormAsync<EditPostModel> ()
     let  webLogId = webLogId ctx
@@ -391,6 +423,7 @@ let save : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
                 tags        = model.tags.Split ","
                               |> Seq.ofArray
                               |> Seq.map (fun it -> it.Trim().ToLower ())
+                              |> Seq.filter (fun it -> it <> "")
                               |> Seq.sort
                               |> List.ofSeq
                 categoryIds = model.categoryIds |> Array.map CategoryId |> List.ofArray
@@ -427,6 +460,6 @@ let save : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
                    |> List.length = List.length pst.Value.categoryIds) then
             do! CategoryCache.update ctx
         do! addMessage ctx { UserMessage.success with message = "Post saved successfully" }
-        return! redirectToGet $"/post/{PostId.toString post.id}/edit" next ctx
+        return! redirectToGet $"/admin/post/{PostId.toString post.id}/edit" next ctx
     | None -> return! Error.notFound next ctx
 }

@@ -255,6 +255,30 @@ type EditPostModel =
         }
 
 
+/// View model to edit a tag mapping
+[<CLIMutable; NoComparison; NoEquality>]
+type EditTagMapModel =
+    {   /// The ID of the tag mapping being edited
+        id : string
+        
+        /// The tag being mapped to a different link value
+        tag : string
+        
+        /// The link value for the tag
+        urlValue : string
+    }
+    
+    /// Whether this is a new tag mapping
+    member this.isNew = this.id = "new"
+    
+    /// Create an edit model from the tag mapping
+    static member fromMapping (tagMap : TagMap) : EditTagMapModel =
+        { id       = TagMapId.toString tagMap.id
+          tag      = tagMap.tag
+          urlValue = tagMap.urlValue
+        }
+
+
 /// View model to edit a user
 [<CLIMutable; NoComparison; NoEquality>]
 type EditUserModel =
