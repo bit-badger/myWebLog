@@ -380,17 +380,20 @@ module Page =
         |> tryFirst
     
     /// Find the current permalink for a page by a prior permalink
-    let findCurrentPermalink (permalinks : Permalink list) (webLogId : WebLogId) =
-        rethink<Permalink list> {
-            withTable Table.Page
-            getAll (objList permalinks) "priorPermalinks"
-            filter "webLogId" webLogId
-            pluck [ "permalink" ]
-            limit 1
-            result; withRetryDefault
-        }
-        |> tryFirst
-
+    let findCurrentPermalink (permalinks : Permalink list) (webLogId : WebLogId) conn = backgroundTask {
+        let! result =
+            (rethink<Page list> {
+                withTable Table.Page
+                getAll (objList permalinks) "priorPermalinks"
+                filter "webLogId" webLogId
+                without [ "revisions"; "text" ]
+                limit 1
+                result; withRetryDefault
+            }
+            |> tryFirst) conn
+        return result |> Option.map (fun pg -> pg.permalink)
+    }
+    
     /// Find all pages in the page list for the given web log
     let findListed (webLogId : WebLogId) =
         rethink<Page list> {
@@ -506,16 +509,19 @@ module Post =
         |> verifyWebLog webLogId (fun p -> p.webLogId)
 
     /// Find the current permalink for a post by a prior permalink
-    let findCurrentPermalink (permalinks : Permalink list) (webLogId : WebLogId) =
-        rethink<Permalink list> {
-            withTable Table.Post
-            getAll (objList permalinks) "priorPermalinks"
-            filter "webLogId" webLogId
-            pluck [ "permalink" ]
-            limit 1
-            result; withRetryDefault
-        }
-        |> tryFirst
+    let findCurrentPermalink (permalinks : Permalink list) (webLogId : WebLogId) conn = backgroundTask {
+        let! result =
+            (rethink<Post list> {
+                withTable Table.Post
+                getAll (objList permalinks) "priorPermalinks"
+                filter "webLogId" webLogId
+                without [ "revisions"; "text" ]
+                limit 1
+                result; withRetryDefault
+            }
+            |> tryFirst) conn
+        return result |> Option.map (fun post -> post.permalink)
+    }
 
     /// Find posts to be displayed on a category list page
     let findPageOfCategorizedPosts (webLogId : WebLogId) (catIds : CategoryId list) (pageNbr : int64) postsPerPage =

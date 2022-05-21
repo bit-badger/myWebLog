@@ -16,7 +16,7 @@
                    value="{{ model.permalink }}">
             <label for="permalink">Permalink</label>
             {%- if model.page_id != "new" %}
-              <span class="form-text"><a href="/post/{{ model.post_id }}/permalinks">Manage Permalinks</a></span>
+              <span class="form-text"><a href="/admin/post/{{ model.post_id }}/permalinks">Manage Permalinks</a></span>
             {% endif -%}
           </div>
           <div class="mb-2">

@@ -302,7 +302,7 @@ let private deriveAction ctx : HttpHandler seq =
         match Data.Post.findCurrentPermalink [ permalink; altLink ] webLog.id conn |> await with
         | Some link -> yield redirectTo true $"/{Permalink.toString link}"
         | None -> ()
-        // Prior permalink
+        // Prior page
         match Data.Page.findCurrentPermalink [ permalink; altLink ] webLog.id conn |> await with
         | Some link -> yield redirectTo true $"/{Permalink.toString link}"
         | None -> ()
