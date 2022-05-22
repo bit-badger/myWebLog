@@ -26,16 +26,11 @@ open System.Collections.Concurrent
 /// settings update page</remarks>
 module WebLogCache =
     
-    /// Create the full path of the request
-    let private fullPath (ctx : HttpContext) =
-        $"{ctx.Request.Scheme}://{ctx.Request.Host.Value}{ctx.Request.Path.Value}"
-    
     /// The cache of web log details
     let mutable private _cache : WebLog list = []
 
     /// Try to get the web log for the current request (longest matching URL base wins)
-    let tryGet ctx =
-        let path = fullPath ctx
+    let tryGet (path : string) =
         _cache
         |> List.filter (fun wl -> path.StartsWith wl.urlBase)
         |> List.sortByDescending (fun wl -> wl.urlBase.Length)

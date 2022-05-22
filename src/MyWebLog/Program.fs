@@ -1,17 +1,26 @@
 ﻿open Microsoft.AspNetCore.Http
+open Microsoft.Extensions.Logging
 open MyWebLog
 
 /// Middleware to derive the current web log
-type WebLogMiddleware (next : RequestDelegate) =
-
+type WebLogMiddleware (next : RequestDelegate, log : ILogger<WebLogMiddleware>) =
+    
+    /// Is the debug level enabled on the logger?
+    let isDebug = log.IsEnabled LogLevel.Debug
+        
     member this.InvokeAsync (ctx : HttpContext) = task {
-        match WebLogCache.tryGet ctx with
+        /// Create the full path of the request
+        let path = $"{ctx.Request.Scheme}://{ctx.Request.Host.Value}{ctx.Request.Path.Value}"
+        match WebLogCache.tryGet path with
         | Some webLog ->
+            if isDebug then log.LogDebug $"Resolved web log {WebLogId.toString webLog.id} for {path}"
             ctx.Items["webLog"] <- webLog
             if PageListCache.exists ctx then () else do! PageListCache.update ctx
             if CategoryCache.exists ctx then () else do! CategoryCache.update ctx
             return! next.Invoke ctx
-        | None -> ctx.Response.StatusCode <- 404
+        | None ->
+            if isDebug then log.LogDebug $"No resolved web log for {path}"
+            ctx.Response.StatusCode <- 404
     }
 
 
@@ -153,7 +162,6 @@ open Microsoft.AspNetCore.Authentication.Cookies
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.HttpOverrides
 open Microsoft.Extensions.Configuration
-open Microsoft.Extensions.Logging
 open MyWebLog.ViewModels
 open RethinkDB.DistributedCache
 open RethinkDb.Driver.FSharp
