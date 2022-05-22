@@ -39,10 +39,10 @@ open Microsoft.AspNetCore.Authentication.Cookies
 open MyWebLog
 
 // POST /user/log-on
-let doLogOn : HttpHandler = validateCsrf >=> fun next ctx -> task {
+let doLogOn : HttpHandler = fun next ctx -> task {
     let! model  = ctx.BindFormAsync<LogOnModel> ()
-    let  webLog = webLog ctx
-    match! Data.WebLogUser.findByEmail model.emailAddress webLog.id (conn ctx) with 
+    let  webLog = ctx.WebLog
+    match! Data.WebLogUser.findByEmail model.emailAddress webLog.id ctx.Conn with 
     | Some user when user.passwordHash = hashedPassword model.password user.userName user.salt ->
         let claims = seq {
             Claim (ClaimTypes.NameIdentifier, WebLogUserId.toString user.id)
@@ -66,7 +66,7 @@ let doLogOn : HttpHandler = validateCsrf >=> fun next ctx -> task {
 let logOff : HttpHandler = fun next ctx -> task {
     do! ctx.SignOutAsync CookieAuthenticationDefaults.AuthenticationScheme
     do! addMessage ctx { UserMessage.info with message = "Log off successful" }
-    return! redirectToGet (WebLog.relativeUrl (webLog ctx) Permalink.empty) next ctx
+    return! redirectToGet (WebLog.relativeUrl ctx.WebLog Permalink.empty) next ctx
 }
 
 /// Display the user edit page, with information possibly filled in
@@ -77,8 +77,8 @@ let private showEdit (hash : Hash) : HttpHandler = fun next ctx -> task {
 }
 
 // GET /admin/user/edit
-let edit : HttpHandler = requireUser >=> fun next ctx -> task {
-    match! Data.WebLogUser.findById (userId ctx) (conn ctx) with
+let edit : HttpHandler = fun next ctx -> task {
+    match! Data.WebLogUser.findById (userId ctx) ctx.Conn with
     | Some user -> return! showEdit (Hash.FromAnonymousObject {| model = EditUserModel.fromUser user |}) next ctx
     | None -> return! Error.notFound next ctx
 }
@@ -87,7 +87,7 @@ let edit : HttpHandler = requireUser >=> fun next ctx -> task {
 let save : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
     let! model = ctx.BindFormAsync<EditUserModel> ()
     if model.newPassword = model.newPasswordConfirm then
-        let conn = conn ctx
+        let conn = ctx.Conn
         match! Data.WebLogUser.findById (userId ctx) conn with
         | Some user ->
             let pw, salt =
@@ -107,7 +107,7 @@ let save : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
             do! Data.WebLogUser.update user conn
             let pwMsg = if model.newPassword = "" then "" else " and updated your password"
             do! addMessage ctx { UserMessage.success with message = $"Saved your information{pwMsg} successfully" }
-            return! redirectToGet (WebLog.relativeUrl (webLog ctx) (Permalink "admin/user/edit")) next ctx
+            return! redirectToGet (WebLog.relativeUrl ctx.WebLog (Permalink "admin/user/edit")) next ctx
         | None -> return! Error.notFound next ctx
     else
         do! addMessage ctx { UserMessage.error with message = "Passwords did not match; no updates made" }

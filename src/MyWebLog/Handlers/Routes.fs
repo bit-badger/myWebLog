@@ -34,7 +34,7 @@ let router : HttpHandler = choose [
             ])
             route    "/user/edit" >=> User.edit
         ]
-        POST >=> choose [
+        POST >=> validateCsrf >=> choose [
             subRoute "/category" (choose [
                 route  "/save"      >=> Admin.saveCategory
                 routef "/%s/delete"     Admin.deleteCategory
@@ -65,7 +65,7 @@ let router : HttpHandler = choose [
             route "/log-on"  >=> User.logOn None
             route "/log-off" >=> User.logOff
         ]
-        POST >=> choose [
+        POST >=> validateCsrf >=> choose [
             route "/log-on" >=> User.doLogOn
         ]
     ])
@@ -79,7 +79,7 @@ let routerWithPath extraPath : HttpHandler =
 
 /// Handler to apply Giraffe routing with a possible sub-route
 let handleRoute : HttpHandler = fun next ctx -> task {
-    let _, extraPath = WebLog.hostAndPath (webLog ctx)
+    let _, extraPath = WebLog.hostAndPath ctx.WebLog
     return! (if extraPath = "" then router else routerWithPath extraPath) next ctx
 }
 

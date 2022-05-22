@@ -64,20 +64,18 @@ let generator (ctx : HttpContext) =
     | Some gen -> gen
     | None ->
         let cfg = ctx.RequestServices.GetRequiredService<IConfiguration> ()
-        generatorString <- Option.ofObj cfg["Generator"]
-        defaultArg generatorString "generator not configured"
+        generatorString <-
+            match Option.ofObj cfg["Generator"] with
+            | Some gen -> Some gen
+            | None -> Some "generator not configured"
+        generatorString.Value
 
 open MyWebLog
-
-/// Get the web log for the request from the context (established by middleware)
-let webLog (ctx : HttpContext) =
-    ctx.Items["webLog"] :?> WebLog
-
 open DotLiquid
 
 /// Either get the web log from the hash, or get it from the cache and add it to the hash
-let private deriveWebLogFromHash (hash : Hash) ctx =
-    if hash.ContainsKey "web_log" then () else hash.Add ("web_log", webLog ctx)
+let private deriveWebLogFromHash (hash : Hash) (ctx : HttpContext) =
+    if hash.ContainsKey "web_log" then () else hash.Add ("web_log", ctx.WebLog)
     hash["web_log"] :?> WebLog
 
 open Giraffe
@@ -125,11 +123,6 @@ open System.Security.Claims
 let userId (ctx : HttpContext) =
     WebLogUserId (ctx.User.Claims |> Seq.find (fun c -> c.Type = ClaimTypes.NameIdentifier)).Value
 
-open RethinkDb.Driver.Net
-
-/// Get the RethinkDB connection
-let conn (ctx : HttpContext) = ctx.RequestServices.GetRequiredService<IConnection> ()
-
 open Microsoft.AspNetCore.Antiforgery
 
 /// Get the Anti-CSRF service
@@ -153,11 +146,11 @@ open System.Collections.Generic
 open System.IO
 
 /// Get the templates available for the current web log's theme (in a key/value pair list)
-let templatesForTheme ctx (typ : string) =
+let templatesForTheme (ctx : HttpContext) (typ : string) =
     seq {
         KeyValuePair.Create ("", $"- Default (single-{typ}) -")
         yield!
-            Path.Combine ("themes", (webLog ctx).themePath)
+            Path.Combine ("themes", ctx.WebLog.themePath)
             |> Directory.EnumerateFiles
             |> Seq.filter (fun it -> it.EndsWith $"{typ}.liquid")
             |> Seq.map (fun it ->
@@ -167,3 +160,24 @@ let templatesForTheme ctx (typ : string) =
     }
     |> Array.ofSeq
 
+open Microsoft.Extensions.Logging
+
+/// Log level for debugging
+let mutable private debugEnabled : bool option = None
+
+/// Is debug enabled for handlers?
+let private isDebugEnabled (ctx : HttpContext) =
+    match debugEnabled with
+    | Some flag -> flag
+    | None ->
+        let fac = ctx.RequestServices.GetRequiredService<ILoggerFactory> ()
+        let log = fac.CreateLogger "MyWebLog.Handlers"
+        debugEnabled <- Some (log.IsEnabled LogLevel.Debug)
+        debugEnabled.Value
+
+/// Log a debug message
+let debug name ctx (msg : unit -> string) =
+    if isDebugEnabled ctx then
+        let fac = ctx.RequestServices.GetRequiredService<ILoggerFactory> ()
+        let log = fac.CreateLogger $"MyWebLog.Handlers.{name}"
+        log.LogDebug (msg ())

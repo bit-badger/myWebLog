@@ -5,13 +5,13 @@ open MyWebLog
 type WebLogMiddleware (next : RequestDelegate) =
 
     member this.InvokeAsync (ctx : HttpContext) = task {
-        if WebLogCache.exists ctx then
-            ctx.Items["webLog"] <- WebLogCache.get ctx
+        match WebLogCache.tryGet ctx with
+        | Some webLog ->
+            ctx.Items["webLog"] <- webLog
             if PageListCache.exists ctx then () else do! PageListCache.update ctx
             if CategoryCache.exists ctx then () else do! CategoryCache.update ctx
             return! next.Invoke ctx
-        else
-            ctx.Response.StatusCode <- 404
+        | None -> ctx.Response.StatusCode <- 404
     }
 
 
@@ -151,6 +151,7 @@ open Giraffe.EndpointRouting
 open Microsoft.AspNetCore.Antiforgery
 open Microsoft.AspNetCore.Authentication.Cookies
 open Microsoft.AspNetCore.Builder
+open Microsoft.AspNetCore.HttpOverrides
 open Microsoft.Extensions.Configuration
 open Microsoft.Extensions.Logging
 open MyWebLog.ViewModels
@@ -161,6 +162,8 @@ open RethinkDb.Driver.FSharp
 let main args =
 
     let builder = WebApplication.CreateBuilder(args)
+    let _ = builder.Services.Configure<ForwardedHeadersOptions>(fun (opts : ForwardedHeadersOptions) ->
+        opts.ForwardedHeaders <- ForwardedHeaders.XForwardedFor ||| ForwardedHeaders.XForwardedProto)
     let _ = 
         builder.Services
             .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -227,6 +230,7 @@ let main args =
     | Some it when it = "import-permalinks" ->
         NewWebLog.importPermalinks args app.Services |> Async.AwaitTask |> Async.RunSynchronously
     | _ ->
+        let _ = app.UseForwardedHeaders ()
         let _ = app.UseCookiePolicy (CookiePolicyOptions (MinimumSameSitePolicy = SameSiteMode.Strict))
         let _ = app.UseMiddleware<WebLogMiddleware> ()
         let _ = app.UseAuthentication ()

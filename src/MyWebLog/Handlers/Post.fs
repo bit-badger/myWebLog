@@ -2,6 +2,7 @@
 module MyWebLog.Handlers.Post
 
 open System
+open Microsoft.AspNetCore.Http
 
 /// Parse a slug and page number from an "everything else" URL
 let private parseSlugAndPage (slugAndPage : string seq) =
@@ -98,8 +99,8 @@ open Giraffe
 
 // GET /page/{pageNbr}
 let pageOfPosts pageNbr : HttpHandler = fun next ctx -> task {
-    let  webLog = webLog ctx
-    let  conn   = conn   ctx
+    let  webLog = ctx.WebLog
+    let  conn   = ctx.Conn
     let! posts  = Data.Post.findPageOfPublishedPosts webLog.id pageNbr webLog.postsPerPage conn
     let! hash   = preparePostList webLog posts PostList "" pageNbr webLog.postsPerPage ctx conn
     let  title  =
@@ -115,8 +116,8 @@ let pageOfPosts pageNbr : HttpHandler = fun next ctx -> task {
 // GET /category/{slug}/
 // GET /category/{slug}/page/{pageNbr}
 let pageOfCategorizedPosts slugAndPage : HttpHandler = fun next ctx -> task {
-    let webLog = webLog ctx
-    let conn   = conn   ctx
+    let webLog = ctx.WebLog
+    let conn   = ctx.Conn
     match parseSlugAndPage slugAndPage with
     | Some pageNbr, slug -> 
         let allCats = CategoryCache.get ctx
@@ -145,8 +146,8 @@ open System.Web
 // GET /tag/{tag}/
 // GET /tag/{tag}/page/{pageNbr}
 let pageOfTaggedPosts slugAndPage : HttpHandler = fun next ctx -> task {
-    let webLog = webLog ctx
-    let conn   = conn   ctx
+    let webLog = ctx.WebLog
+    let conn   = ctx.Conn
     match parseSlugAndPage slugAndPage with
     | Some pageNbr, rawTag -> 
         let  urlTag = HttpUtility.UrlDecode rawTag
@@ -178,11 +179,11 @@ let pageOfTaggedPosts slugAndPage : HttpHandler = fun next ctx -> task {
 
 // GET /
 let home : HttpHandler = fun next ctx -> task {
-    let webLog = webLog ctx
+    let webLog = ctx.WebLog
     match webLog.defaultPage with
     | "posts" -> return! pageOfPosts 1 next ctx
     | pageId ->
-        match! Data.Page.findById (PageId pageId) webLog.id (conn ctx) with
+        match! Data.Page.findById (PageId pageId) webLog.id ctx.Conn with
         | Some page ->
             return!
                 Hash.FromAnonymousObject {|
@@ -203,8 +204,8 @@ open System.Xml
 // GET /feed.xml
 //   (Routing handled by catch-all handler for future configurability)
 let generateFeed : HttpHandler = fun next ctx -> backgroundTask {
-    let  conn    = conn   ctx
-    let  webLog  = webLog ctx
+    let  webLog  = ctx.WebLog
+    let  conn    = ctx.Conn
     // TODO: hard-coded number of items
     let! posts   = Data.Post.findPageOfPublishedPosts webLog.id 1 10 conn
     let! authors = getAuthors     webLog posts conn
@@ -274,13 +275,16 @@ let generateFeed : HttpHandler = fun next ctx -> backgroundTask {
 }
 
 /// Sequence where the first returned value is the proper handler for the link
-let private deriveAction ctx : HttpHandler seq =
-    let webLog    = webLog ctx
-    let conn      = conn   ctx
-    let _, extra  = WebLog.hostAndPath webLog
-    let textLink  = if extra = "" then ctx.Request.Path.Value else ctx.Request.Path.Value.Substring extra.Length
-    let await it  = (Async.AwaitTask >> Async.RunSynchronously) it
+let private deriveAction (ctx : HttpContext) : HttpHandler seq =
+    let webLog   = ctx.WebLog
+    let conn     = ctx.Conn
+    let textLink =
+        let _, extra = WebLog.hostAndPath webLog
+        let url      = string ctx.Request.Path
+        if extra = "" then url else url.Substring extra.Length
+    let await it = (Async.AwaitTask >> Async.RunSynchronously) it
     seq {
+        debug "Post" ctx (fun () -> $"Considering URL {textLink}")
         // Home page directory without the directory slash 
         if textLink = "" then yield redirectTo true (WebLog.relativeUrl webLog Permalink.empty)
         let permalink = Permalink (textLink.Substring 1)
@@ -329,9 +333,9 @@ let catchAll : HttpHandler = fun next ctx -> task {
 
 // GET /admin/posts
 // GET /admin/posts/page/{pageNbr}
-let all pageNbr : HttpHandler = requireUser >=> fun next ctx -> task {
-    let  webLog = webLog ctx
-    let  conn   = conn   ctx
+let all pageNbr : HttpHandler = fun next ctx -> task {
+    let  webLog = ctx.WebLog
+    let  conn   = ctx.Conn
     let! posts  = Data.Post.findPageOfPosts webLog.id pageNbr 25 conn
     let! hash   = preparePostList webLog posts AdminList "" pageNbr 25 ctx conn
     hash.Add ("page_title", "Posts")
@@ -339,9 +343,9 @@ let all pageNbr : HttpHandler = requireUser >=> fun next ctx -> task {
 }
 
 // GET /admin/post/{id}/edit
-let edit postId : HttpHandler = requireUser >=> fun next ctx -> task {
-    let  webLog = webLog ctx
-    let  conn   = conn   ctx
+let edit postId : HttpHandler = fun next ctx -> task {
+    let  webLog = ctx.WebLog
+    let  conn   = ctx.Conn
     let! result = task {
         match postId with
         | "new" -> return Some ("Write a New Post", { Post.empty with id = PostId "new" })
@@ -365,8 +369,8 @@ let edit postId : HttpHandler = requireUser >=> fun next ctx -> task {
 }
 
 // GET /admin/post/{id}/permalinks
-let editPermalinks postId : HttpHandler = requireUser >=> fun next ctx -> task {
-    match! Data.Post.findByFullId (PostId postId) (webLog ctx).id (conn ctx) with
+let editPermalinks postId : HttpHandler = fun next ctx -> task {
+    match! Data.Post.findByFullId (PostId postId) ctx.WebLog.id ctx.Conn with
     | Some post ->
         return!
             Hash.FromAnonymousObject {|
@@ -379,11 +383,11 @@ let editPermalinks postId : HttpHandler = requireUser >=> fun next ctx -> task {
 }
 
 // POST /admin/post/permalinks
-let savePermalinks : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
-    let  webLog = webLog ctx
+let savePermalinks : HttpHandler = fun next ctx -> task {
+    let  webLog = ctx.WebLog
     let! model  = ctx.BindFormAsync<ManagePermalinksModel> ()
     let  links  = model.prior |> Array.map Permalink |> List.ofArray
-    match! Data.Post.updatePriorPermalinks (PostId model.id) webLog.id links (conn ctx) with
+    match! Data.Post.updatePriorPermalinks (PostId model.id) webLog.id links ctx.Conn with
     | true ->
         do! addMessage ctx { UserMessage.success with message = "Post permalinks saved successfully" }
         return! redirectToGet (WebLog.relativeUrl webLog (Permalink $"admin/post/{model.id}/permalinks")) next ctx
@@ -391,9 +395,9 @@ let savePermalinks : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx
 }
 
 // POST /admin/post/{id}/delete
-let delete postId : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
-    let webLog = webLog ctx
-    match! Data.Post.delete (PostId postId) webLog.id (conn ctx) with
+let delete postId : HttpHandler = fun next ctx -> task {
+    let webLog = ctx.WebLog
+    match! Data.Post.delete (PostId postId) webLog.id ctx.Conn with
     | true  -> do! addMessage ctx { UserMessage.success with message = "Post deleted successfully" }
     | false -> do! addMessage ctx { UserMessage.error with message = "Post not found; nothing deleted" }
     return! redirectToGet (WebLog.relativeUrl webLog (Permalink "admin/posts")) next ctx
@@ -402,10 +406,10 @@ let delete postId : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx 
 #nowarn "3511"
 
 // POST /admin/post/save
-let save : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
+let save : HttpHandler = fun next ctx -> task {
     let! model  = ctx.BindFormAsync<EditPostModel> ()
-    let  webLog = webLog ctx
-    let  conn   = conn   ctx
+    let  webLog = ctx.WebLog
+    let  conn   = ctx.Conn
     let  now    = DateTime.UtcNow
     let! pst    = task {
         match model.postId with

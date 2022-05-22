@@ -9,10 +9,10 @@ open MyWebLog
 
 /// Handle unauthorized actions, redirecting to log on for GETs, otherwise returning a 401 Not Authorized response
 let notAuthorized : HttpHandler = fun next ctx -> task {
-    let webLog = ctx.Items["webLog"] :?> WebLog
     if ctx.Request.Method = "GET" then
         let returnUrl = WebUtility.UrlEncode ctx.Request.Path
-        return! redirectTo false (WebLog.relativeUrl webLog (Permalink $"user/log-on?returnUrl={returnUrl}")) next ctx
+        return!
+            redirectTo false (WebLog.relativeUrl ctx.WebLog (Permalink $"user/log-on?returnUrl={returnUrl}")) next ctx
     else
         return! (setStatusCode 401 >=> fun _ _ -> Task.FromResult<HttpContext option> None) next ctx
 }

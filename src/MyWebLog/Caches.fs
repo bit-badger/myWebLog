@@ -2,16 +2,22 @@
 
 open Microsoft.AspNetCore.Http
 
-/// Helper functions for caches
-module Cache =
+/// Extension properties on HTTP context for web log
+[<AutoOpen>]
+module Extensions =
     
-    /// Create the cache key for the web log for the current request
-    let makeKey (ctx : HttpContext) = (ctx.Items["webLog"] :?> WebLog).urlBase
+    open Microsoft.Extensions.DependencyInjection
+    open RethinkDb.Driver.Net
+    
+    type HttpContext with
+        /// The web log for the current request
+        member this.WebLog = this.Items["webLog"] :?> WebLog
+        
+        /// The RethinkDB data connection
+        member this.Conn = this.RequestServices.GetRequiredService<IConnection> ()
 
-
+        
 open System.Collections.Concurrent
-open Microsoft.Extensions.DependencyInjection
-open RethinkDb.Driver.Net
 
 /// <summary>
 /// In-memory cache of web log details
@@ -27,15 +33,13 @@ module WebLogCache =
     /// The cache of web log details
     let mutable private _cache : WebLog list = []
 
-    /// Does a host exist in the cache?
-    let exists ctx =
+    /// Try to get the web log for the current request (longest matching URL base wins)
+    let tryGet ctx =
         let path = fullPath ctx
-        _cache |> List.exists (fun wl -> path.StartsWith wl.urlBase)
-
-    /// Get the web log for the current request
-    let get ctx =
-        let path = fullPath ctx
-        _cache |> List.find (fun wl -> path.StartsWith wl.urlBase)
+        _cache
+        |> List.filter (fun wl -> path.StartsWith wl.urlBase)
+        |> List.sortByDescending (fun wl -> wl.urlBase.Length)
+        |> List.tryHead
 
     /// Cache the web log for a particular host
     let set webLog =
@@ -57,17 +61,16 @@ module PageListCache =
     let private _cache = ConcurrentDictionary<string, DisplayPage[]> ()
     
     /// Are there pages cached for this web log?
-    let exists ctx = _cache.ContainsKey (Cache.makeKey ctx)
+    let exists (ctx : HttpContext) = _cache.ContainsKey ctx.WebLog.urlBase
     
     /// Get the pages for the web log for this request
-    let get ctx = _cache[Cache.makeKey ctx]
+    let get (ctx : HttpContext) = _cache[ctx.WebLog.urlBase]
     
     /// Update the pages for the current web log
     let update (ctx : HttpContext) = backgroundTask {
-        let  webLog = ctx.Items["webLog"] :?> WebLog
-        let  conn   = ctx.RequestServices.GetRequiredService<IConnection> ()
-        let! pages  = Data.Page.findListed webLog.id conn
-        _cache[Cache.makeKey ctx] <- pages |> List.map (DisplayPage.fromPage webLog) |> Array.ofList
+        let  webLog = ctx.WebLog
+        let! pages  = Data.Page.findListed webLog.id ctx.Conn
+        _cache[webLog.urlBase] <- pages |> List.map (DisplayPage.fromPage webLog) |> Array.ofList
     }
 
 
@@ -80,17 +83,15 @@ module CategoryCache =
     let private _cache = ConcurrentDictionary<string, DisplayCategory[]> ()
     
     /// Are there categories cached for this web log?
-    let exists ctx = _cache.ContainsKey (Cache.makeKey ctx)
+    let exists (ctx : HttpContext) = _cache.ContainsKey ctx.WebLog.urlBase
     
     /// Get the categories for the web log for this request
-    let get ctx = _cache[Cache.makeKey ctx]
+    let get (ctx : HttpContext) = _cache[ctx.WebLog.urlBase]
     
     /// Update the cache with fresh data
     let update (ctx : HttpContext) = backgroundTask {
-        let  webLog = ctx.Items["webLog"] :?> WebLog
-        let  conn   = ctx.RequestServices.GetRequiredService<IConnection> ()
-        let! cats   = Data.Category.findAllForView webLog.id conn
-        _cache[Cache.makeKey ctx] <- cats
+        let! cats = Data.Category.findAllForView ctx.WebLog.id ctx.Conn
+        _cache[ctx.WebLog.urlBase] <- cats
     }
 
 
