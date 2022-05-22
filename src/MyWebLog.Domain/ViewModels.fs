@@ -400,7 +400,8 @@ type PostListItem =
 
     /// Create a post list item from a post
     static member fromPost (webLog : WebLog) (post : Post) =
-        let inTZ = WebLog.localTime webLog
+        let _, extra = WebLog.hostAndPath webLog
+        let inTZ     = WebLog.localTime   webLog
         { id          = PostId.toString post.id
           authorId    = WebLogUserId.toString post.authorId
           status      = PostStatus.toString   post.status
@@ -408,7 +409,7 @@ type PostListItem =
           permalink   = Permalink.toString post.permalink
           publishedOn = post.publishedOn |> Option.map inTZ |> Option.toNullable
           updatedOn   = inTZ post.updatedOn
-          text        = post.text
+          text        = if extra = "" then post.text else post.text.Replace ("href=\"/", $"href=\"{extra}/")
           categoryIds = post.categoryIds |> List.map CategoryId.toString
           tags        = post.tags
           meta        = post.metadata

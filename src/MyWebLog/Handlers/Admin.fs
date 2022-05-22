@@ -1,6 +1,8 @@
 /// Handlers to manipulate admin functions
 module MyWebLog.Handlers.Admin
 
+// TODO: remove requireUser, as this is applied in the router
+
 open System.Collections.Generic
 open System.IO
 
@@ -21,9 +23,9 @@ open RethinkDb.Driver.Net
 
 // GET /admin
 let dashboard : HttpHandler = requireUser >=> fun next ctx -> task {
-    let webLogId = webLogId ctx
-    let conn     = conn ctx
-    let getCount (f : WebLogId -> IConnection -> Task<int>) = f webLogId conn
+    let webLog = webLog ctx
+    let conn   = conn   ctx
+    let getCount (f : WebLogId -> IConnection -> Task<int>) = f webLog.id conn
     let! posts   = Data.Post.countByStatus Published |> getCount
     let! drafts  = Data.Post.countByStatus Draft     |> getCount
     let! pages   = Data.Page.countAll                |> getCount
@@ -60,13 +62,13 @@ let listCategories : HttpHandler = requireUser >=> fun next ctx -> task {
 
 // GET /admin/category/{id}/edit
 let editCategory catId : HttpHandler = requireUser >=> fun next ctx -> task {
-    let  webLogId = webLogId ctx
-    let  conn     = conn     ctx
-    let! result   = task {
+    let  webLog = webLog ctx
+    let  conn   = conn   ctx
+    let! result = task {
         match catId with
         | "new" -> return Some ("Add a New Category", { Category.empty with id = CategoryId "new" })
         | _ ->
-            match! Data.Category.findById (CategoryId catId) webLogId conn with
+            match! Data.Category.findById (CategoryId catId) webLog.id conn with
             | Some cat -> return Some ("Edit Category", cat)
             | None -> return None
     }
@@ -86,12 +88,12 @@ let editCategory catId : HttpHandler = requireUser >=> fun next ctx -> task {
 // POST /admin/category/save
 let saveCategory : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
     let! model    = ctx.BindFormAsync<EditCategoryModel> ()
-    let  webLogId = webLogId ctx
-    let  conn     = conn     ctx
+    let  webLog   = webLog ctx
+    let  conn     = conn   ctx
     let! category = task {
         match model.categoryId with
-        | "new" -> return Some { Category.empty with id = CategoryId.create (); webLogId = webLogId }
-        | catId -> return! Data.Category.findById (CategoryId catId) webLogId conn
+        | "new" -> return Some { Category.empty with id = CategoryId.create (); webLogId = webLog.id }
+        | catId -> return! Data.Category.findById (CategoryId catId) webLog.id conn
     }
     match category with
     | Some cat ->
@@ -105,20 +107,22 @@ let saveCategory : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -
         do! (match model.categoryId with "new" -> Data.Category.add | _ -> Data.Category.update) cat conn
         do! CategoryCache.update ctx
         do! addMessage ctx { UserMessage.success with message = "Category saved successfully" }
-        return! redirectToGet $"/admin/category/{CategoryId.toString cat.id}/edit" next ctx
+        return!
+            redirectToGet (WebLog.relativeUrl webLog (Permalink $"admin/category/{CategoryId.toString cat.id}/edit"))
+                next ctx
     | None -> return! Error.notFound next ctx
 }
 
 // POST /admin/category/{id}/delete
 let deleteCategory catId : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
-    let webLogId = webLogId ctx
-    let conn     = conn     ctx
-    match! Data.Category.delete (CategoryId catId) webLogId conn with
+    let webLog = webLog ctx
+    let conn   = conn   ctx
+    match! Data.Category.delete (CategoryId catId) webLog.id conn with
     | true ->
         do! CategoryCache.update ctx
         do! addMessage ctx { UserMessage.success with message = "Category deleted successfully" }
     | false -> do! addMessage ctx { UserMessage.error with message = "Category not found; cannot delete" }
-    return! redirectToGet "/admin/categories" next ctx
+    return! redirectToGet (WebLog.relativeUrl webLog (Permalink "admin/categories")) next ctx
 }
 
 // -- PAGES --
@@ -126,7 +130,7 @@ let deleteCategory catId : HttpHandler = requireUser >=> validateCsrf >=> fun ne
 // GET /admin/pages
 // GET /admin/pages/page/{pageNbr}
 let listPages pageNbr : HttpHandler = requireUser >=> fun next ctx -> task {
-    let  webLog = WebLogCache.get ctx
+    let  webLog = webLog ctx
     let! pages  = Data.Page.findPageOfPages webLog.id pageNbr (conn ctx)
     return!
         Hash.FromAnonymousObject
@@ -142,7 +146,7 @@ let editPage pgId : HttpHandler = requireUser >=> fun next ctx -> task {
         match pgId with
         | "new" -> return Some ("Add a New Page", { Page.empty with id = PageId "new" })
         | _ ->
-            match! Data.Page.findByFullId (PageId pgId) (webLogId ctx) (conn ctx) with
+            match! Data.Page.findByFullId (PageId pgId) (webLog ctx).id (conn ctx) with
             | Some page -> return Some ("Edit Page", page)
             | None -> return None
     }
@@ -164,7 +168,7 @@ let editPage pgId : HttpHandler = requireUser >=> fun next ctx -> task {
 
 // GET /admin/page/{id}/permalinks
 let editPagePermalinks pgId : HttpHandler = requireUser >=> fun next ctx -> task {
-    match! Data.Page.findByFullId (PageId pgId) (webLogId ctx) (conn ctx) with
+    match! Data.Page.findByFullId (PageId pgId) (webLog ctx).id (conn ctx) with
     | Some pg ->
         return!
             Hash.FromAnonymousObject {|
@@ -178,44 +182,46 @@ let editPagePermalinks pgId : HttpHandler = requireUser >=> fun next ctx -> task
 
 // POST /admin/page/permalinks
 let savePagePermalinks : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
-    let! model = ctx.BindFormAsync<ManagePermalinksModel> ()
-    let  links = model.prior |> Array.map Permalink |> List.ofArray
-    match! Data.Page.updatePriorPermalinks (PageId model.id) (webLogId ctx) links (conn ctx) with
+    let  webLog = webLog ctx
+    let! model  = ctx.BindFormAsync<ManagePermalinksModel> ()
+    let  links  = model.prior |> Array.map Permalink |> List.ofArray
+    match! Data.Page.updatePriorPermalinks (PageId model.id) webLog.id links (conn ctx) with
     | true ->
         do! addMessage ctx { UserMessage.success with message = "Page permalinks saved successfully" }
-        return! redirectToGet $"/admin/page/{model.id}/permalinks" next ctx
+        return! redirectToGet (WebLog.relativeUrl webLog (Permalink $"admin/page/{model.id}/permalinks")) next ctx
     | false -> return! Error.notFound next ctx
 }
 
 // POST /admin/page/{id}/delete
 let deletePage pgId : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
-    match! Data.Page.delete (PageId pgId) (webLogId ctx) (conn ctx) with
+    let webLog = webLog ctx
+    match! Data.Page.delete (PageId pgId) webLog.id (conn ctx) with
     | true  -> do! addMessage ctx { UserMessage.success with message = "Page deleted successfully" }
     | false -> do! addMessage ctx { UserMessage.error with message = "Page not found; nothing deleted" }
-    return! redirectToGet "/admin/pages" next ctx
+    return! redirectToGet (WebLog.relativeUrl webLog (Permalink "admin/pages")) next ctx
 }
 
 open System
 
 #nowarn "3511"
 
-// POST /page/save
+// POST /admin/page/save
 let savePage : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
-    let! model    = ctx.BindFormAsync<EditPageModel> ()
-    let  webLogId = webLogId ctx
-    let  conn     = conn ctx
-    let  now      = DateTime.UtcNow
-    let! pg       = task {
+    let! model  = ctx.BindFormAsync<EditPageModel> ()
+    let  webLog = webLog ctx
+    let  conn   = conn ctx
+    let  now    = DateTime.UtcNow
+    let! pg     = task {
         match model.pageId with
         | "new" ->
             return Some
                 { Page.empty with
                     id          = PageId.create ()
-                    webLogId    = webLogId
+                    webLogId    = webLog.id
                     authorId    = userId ctx
                     publishedOn = now
                 }
-        | pgId -> return! Data.Page.findByFullId (PageId pgId) webLogId conn
+        | pgId -> return! Data.Page.findByFullId (PageId pgId) webLog.id conn
     }
     match pg with
     | Some page ->
@@ -247,7 +253,8 @@ let savePage : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> ta
         do! (if model.pageId = "new" then Data.Page.add else Data.Page.update) page conn
         if updateList then do! PageListCache.update ctx
         do! addMessage ctx { UserMessage.success with message = "Page saved successfully" }
-        return! redirectToGet $"/admin/page/{PageId.toString page.id}/edit" next ctx
+        return!
+            redirectToGet (WebLog.relativeUrl webLog (Permalink $"admin/page/{PageId.toString page.id}/edit")) next ctx
     | None -> return! Error.notFound next ctx
 }
 
@@ -255,7 +262,7 @@ let savePage : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> ta
 
 // GET /admin/settings
 let settings : HttpHandler = requireUser >=> fun next ctx -> task {
-    let  webLog   = WebLogCache.get ctx
+    let  webLog   = webLog ctx
     let! allPages = Data.Page.findAll webLog.id (conn ctx)
     return!
         Hash.FromAnonymousObject
@@ -278,9 +285,10 @@ let settings : HttpHandler = requireUser >=> fun next ctx -> task {
 
 // POST /admin/settings
 let saveSettings : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
-    let  conn  = conn ctx
-    let! model = ctx.BindFormAsync<SettingsModel> ()
-    match! Data.WebLog.findById (WebLogCache.get ctx).id conn with
+    let  webLog = webLog ctx
+    let  conn   = conn ctx
+    let! model  = ctx.BindFormAsync<SettingsModel> ()
+    match! Data.WebLog.findById webLog.id conn with
     | Some webLog ->
         let updated =
             { webLog with
@@ -294,10 +302,10 @@ let saveSettings : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -
         do! Data.WebLog.updateSettings updated conn
 
         // Update cache
-        WebLogCache.set ctx updated
+        WebLogCache.set updated
     
         do! addMessage ctx { UserMessage.success with message = "Web log settings saved successfully" }
-        return! redirectToGet "/admin" next ctx
+        return! redirectToGet (WebLog.relativeUrl webLog (Permalink "admin")) next ctx
     | None -> return! Error.notFound next ctx
 }
 
@@ -305,7 +313,7 @@ let saveSettings : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -
 
 // GET /admin/tag-mappings
 let tagMappings : HttpHandler = requireUser >=> fun next ctx -> task {
-    let! mappings = Data.TagMap.findByWebLogId (webLogId ctx) (conn ctx)
+    let! mappings = Data.TagMap.findByWebLogId (webLog ctx).id (conn ctx)
     return!
         Hash.FromAnonymousObject
             {|  csrf        = csrfToken ctx
@@ -318,13 +326,12 @@ let tagMappings : HttpHandler = requireUser >=> fun next ctx -> task {
 
 // GET /admin/tag-mapping/{id}/edit
 let editMapping tagMapId : HttpHandler = requireUser >=> fun next ctx -> task {
-    let webLogId = webLogId ctx
-    let isNew    = tagMapId = "new"
-    let tagMap   =
+    let isNew  = tagMapId = "new"
+    let tagMap =
         if isNew then
             Task.FromResult (Some { TagMap.empty with id = TagMapId "new" })
         else
-            Data.TagMap.findById (TagMapId tagMapId) webLogId (conn ctx)
+            Data.TagMap.findById (TagMapId tagMapId) (webLog ctx).id (conn ctx)
     match! tagMap with
     | Some tm ->
         return!
@@ -339,26 +346,29 @@ let editMapping tagMapId : HttpHandler = requireUser >=> fun next ctx -> task {
 
 // POST /admin/tag-mapping/save
 let saveMapping : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
-    let  webLogId = webLogId ctx
-    let  conn     = conn     ctx
-    let! model    = ctx.BindFormAsync<EditTagMapModel> ()
-    let  tagMap   =
+    let  webLog = webLog ctx
+    let  conn   = conn   ctx
+    let! model  = ctx.BindFormAsync<EditTagMapModel> ()
+    let  tagMap =
         if model.id = "new" then
-            Task.FromResult (Some { TagMap.empty with id = TagMapId.create (); webLogId = webLogId })
+            Task.FromResult (Some { TagMap.empty with id = TagMapId.create (); webLogId = webLog.id })
         else
-            Data.TagMap.findById (TagMapId model.id) webLogId conn
+            Data.TagMap.findById (TagMapId model.id) webLog.id conn
     match! tagMap with
     | Some tm ->
         do! Data.TagMap.save { tm with tag = model.tag.ToLower (); urlValue = model.urlValue.ToLower () } conn
         do! addMessage ctx { UserMessage.success with message = "Tag mapping saved successfully" }
-        return! redirectToGet $"/admin/tag-mapping/{TagMapId.toString tm.id}/edit" next ctx
+        return!
+            redirectToGet (WebLog.relativeUrl webLog (Permalink $"admin/tag-mapping/{TagMapId.toString tm.id}/edit"))
+                next ctx
     | None -> return! Error.notFound next ctx
 }
 
 // POST /admin/tag-mapping/{id}/delete
 let deleteMapping tagMapId : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
-    match! Data.TagMap.delete (TagMapId tagMapId) (webLogId ctx) (conn ctx) with
+    let webLog = webLog ctx
+    match! Data.TagMap.delete (TagMapId tagMapId) webLog.id (conn ctx) with
     | true  -> do! addMessage ctx { UserMessage.success with message = "Tag mapping deleted successfully" }
     | false -> do! addMessage ctx { UserMessage.error with message = "Tag mapping not found; nothing deleted" }
-    return! redirectToGet "/admin/tag-mappings" next ctx
+    return! redirectToGet (WebLog.relativeUrl webLog (Permalink "admin/tag-mappings")) next ctx
 }

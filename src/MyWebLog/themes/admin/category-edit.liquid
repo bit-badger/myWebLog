@@ -1,6 +1,6 @@
 ﻿<h2 class="my-3">{{ page_title }}</h2>
 <article>
-  <form action="/admin/category/save" method="post">
+  <form action="{{ "admin/category/save" | relative_link }}" method="post">
     <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
     <input type="hidden" name="categoryId" value="{{ model.category_id }}">
     <div class="container">

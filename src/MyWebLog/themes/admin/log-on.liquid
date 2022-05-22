@@ -1,6 +1,6 @@
 ﻿<h2 class="my-3">Log On to {{ web_log.name }}</h2>
 <article class="py-3">
-  <form action="/user/log-on" method="post">
+  <form action="{{ "user/log-on" | relative_link }}" method="post">
     <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
     {% if model.return_to %}
       <input type="hidden" name="returnTo" value="{{ model.return_to.value }}">

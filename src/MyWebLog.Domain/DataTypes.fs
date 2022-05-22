@@ -289,8 +289,20 @@ module WebLog =
           timeZone     = ""
         }
     
-    /// Convert a permalink to an absolute URL
-    let absoluteUrl webLog = function Permalink link -> $"{webLog.urlBase}{link}"
+    /// Get the host (including scheme) and extra path from the URL base
+    let hostAndPath webLog =
+        let scheme = webLog.urlBase.Split "://"
+        let host   = scheme[1].Split "/"
+        $"{scheme[0]}://{host[0]}", if host.Length > 1 then $"""/{String.Join ("/", host |> Array.skip 1)}""" else ""
+    
+    /// Generate an absolute URL for the given link
+    let absoluteUrl webLog permalink =
+        $"{webLog.urlBase}/{Permalink.toString permalink}"
+
+    /// Generate a relative URL for the given link
+    let relativeUrl webLog permalink =
+        let _, leadPath = hostAndPath webLog
+        $"{leadPath}/{Permalink.toString permalink}"
     
     /// Convert a date/time to the web log's local date/time
     let localTime webLog (date : DateTime) =

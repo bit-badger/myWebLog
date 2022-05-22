@@ -11,13 +11,13 @@
   <body>
     <header class="site-header">
       <div class="header-logo">
-        <a href="/">
+        <a href="{{ "" | relative_link }}">
           <img src="/themes/{{ web_log.theme_path }}/bitbadger.png"
                alt="A cartoon badger looking at a computer screen, with his paw on a mouse"
                title="Bit Badger Solutions">
         </a>
       </div>
-      <div class="header-title"><a href="/">Bit Badger Solutions</a></div>
+      <div class="header-title"><a href="{{ "" | relative_link }}">Bit Badger Solutions</a></div>
       <div class="header-spacer"> &nbsp; </div>
       <div class="header-social">
         <a href="https://twitter.com/Bit_Badger" title="Bit_Badger on Twitter" target="_blank">
@@ -33,14 +33,15 @@
       <div>
         <small>
           {% if logged_on -%}
-            <a href="/admin">Dashboard</a> ~ <a href="/user/log-off">Log Off</a>
+            <a href="{{ "admin" | relative_link }}">Dashboard</a> ~
+            <a href="{{ "user/log-off" | relative_link }}">Log Off</a>
           {% else %}
-            <a href="/user/log-on">Log On</a>
+            <a href="{{ "user/log-on" | relative_link }}">Log On</a>
           {% endif %}
         </small>
       </div>
       <div class="footer-by">
-        A <strong><a href="/">Bit Badger Solutions</a></strong> original design
+        A <strong><a href="{{ "" | relative_link }}">Bit Badger Solutions</a></strong> original design
       </div>
     </footer>
   </body>

@@ -37,8 +37,10 @@
       </span> &bull;
     {%- endif %}
     Bookmark the
-    <a href="/{{ post.permalink }}" rel="bookmark"
-       title="Permanent link to &ldquo;{{ post.title | strip_html | escape }}&rdquo;">permalink</a>
-    {%- if logged_on %} &bull; <a href="{{ post.id | edit_post_link }}">Edit Post</a>{% endif %}
+    <a href="{{ post | absolute_link }}" rel="bookmark"
+       title="Permanent link to &ldquo;{{ post.title | strip_html | escape }}&rdquo;">
+      permalink
+    </a>
+    {%- if logged_on %} &bull; <a href="{{ post | edit_post_link }}">Edit Post</a>{% endif %}
   </div>
 </article>

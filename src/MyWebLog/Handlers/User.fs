@@ -41,7 +41,7 @@ open MyWebLog
 // POST /user/log-on
 let doLogOn : HttpHandler = validateCsrf >=> fun next ctx -> task {
     let! model  = ctx.BindFormAsync<LogOnModel> ()
-    let  webLog = WebLogCache.get ctx
+    let  webLog = webLog ctx
     match! Data.WebLogUser.findByEmail model.emailAddress webLog.id (conn ctx) with 
     | Some user when user.passwordHash = hashedPassword model.password user.userName user.salt ->
         let claims = seq {
@@ -56,7 +56,7 @@ let doLogOn : HttpHandler = validateCsrf >=> fun next ctx -> task {
             AuthenticationProperties (IssuedUtc = DateTimeOffset.UtcNow))
         do! addMessage ctx
                 { UserMessage.success with message = $"Logged on successfully | Welcome to {webLog.name}!" }
-        return! redirectToGet (match model.returnTo with Some url -> url | None -> "/admin") next ctx
+        return! redirectToGet (defaultArg model.returnTo (WebLog.relativeUrl webLog (Permalink "admin"))) next ctx
     | _ ->
         do! addMessage ctx { UserMessage.error with message = "Log on attempt unsuccessful" }
         return! logOn model.returnTo next ctx
@@ -66,7 +66,7 @@ let doLogOn : HttpHandler = validateCsrf >=> fun next ctx -> task {
 let logOff : HttpHandler = fun next ctx -> task {
     do! ctx.SignOutAsync CookieAuthenticationDefaults.AuthenticationScheme
     do! addMessage ctx { UserMessage.info with message = "Log off successful" }
-    return! redirectToGet "/" next ctx
+    return! redirectToGet (WebLog.relativeUrl (webLog ctx) Permalink.empty) next ctx
 }
 
 /// Display the user edit page, with information possibly filled in
@@ -107,7 +107,7 @@ let save : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
             do! Data.WebLogUser.update user conn
             let pwMsg = if model.newPassword = "" then "" else " and updated your password"
             do! addMessage ctx { UserMessage.success with message = $"Saved your information{pwMsg} successfully" }
-            return! redirectToGet "/admin/user/edit" next ctx
+            return! redirectToGet (WebLog.relativeUrl (webLog ctx) (Permalink "admin/user/edit")) next ctx
         | None -> return! Error.notFound next ctx
     else
         do! addMessage ctx { UserMessage.error with message = "Passwords did not match; no updates made" }

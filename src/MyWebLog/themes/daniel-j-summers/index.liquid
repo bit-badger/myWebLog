@@ -8,7 +8,8 @@
   {%- for post in model.posts %}
     <article class="item">
       <h1 class="item-heading">
-        <a href="/{{ post.permalink }}" title="Permanent Link to &quot;{{ post.title | strip_html | escape }}&quot;">
+        <a href="{{ post | relative_link }}"
+           title="Permanent Link to &quot;{{ post.title | strip_html | escape }}&quot;">
           {{ post.title }}
         </a>
       </h1>
@@ -24,7 +25,7 @@
         </span>
         {% if logged_on %}
           <span>
-            <a href="{{ post.id | edit_post_link }}"><i class="fa fa-pencil-square-o"></i> Edit Post</a>
+            <a href="{{ post | edit_post_link }}"><i class="fa fa-pencil-square-o"></i> Edit Post</a>
           </span>
         {% endif %}
       </h4>
@@ -34,12 +35,12 @@
   <nav aria-label="pagination">
     <ul class="pager">
       {% if model.newer_link -%}
-        <li class="previous item"><a href="/{{ model.newer_link.value }}">&laquo; Newer Posts</a></li>
+        <li class="previous item"><a href="{{ model.newer_link.value }}">&laquo; Newer Posts</a></li>
       {%- else -%}
         <li></li>
       {% endif %}
       {% if model.older_link -%}
-        <li class="next item"><a href="/{{ model.older_link.value }}">Older Posts &raquo;</a></li>
+        <li class="next item"><a href="{{ model.older_link.value }}">Older Posts &raquo;</a></li>
       {%- endif -%}
     </ul>
   </nav>
@@ -74,7 +75,7 @@
       {% for cat in categories -%}
         {%- assign indent = cat.parent_names | size -%}
         <li class="cat-list-item"{% if indent > 0 %} style="padding-left:{{ indent }}rem;"{% endif %}>
-          <a href="/category/{{ cat.slug }}/" class="cat-list-link">{{ cat.name }}</a>
+          <a href="{{ cat | category_link }}" class="cat-list-link">{{ cat.name }}</a>
           <span class="cat-list-count">{{ cat.post_count }}</span>
         </li>
       {%- endfor %}

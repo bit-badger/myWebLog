@@ -1,6 +1,8 @@
 ﻿<h2 class="my-3">{{ page_title }}</h2>
 <article class="container">
-  <a href="/admin/tag-mapping/new/edit" class="btn btn-primary btn-sm mb-3">Add a New Tag Mapping</a>
+  <a href="{{ "admin/tag-mapping/new/edit" | relative_link }}" class="btn btn-primary btn-sm mb-3">
+    Add a New Tag Mapping
+  </a>
   <table class="table table-sm table-hover">
     <thead>
       <tr>
@@ -15,8 +17,13 @@
           <td class="no-wrap">
             {{ map.tag }}<br>
             <small>
-              <a href="/admin/tag-mapping/{{ map_id }}/delete" class="text-danger"
-                 onclick="return Admin.deleteTagMapping('{{ map_id }}', '{{ map.tag }}')">
+              {%- capture map_edit %}admin/tag-mapping/{{ map_id }}/edit{% endcapture -%}
+              <a href="{{ map_edit | relative_link }}">Edit</a>
+              <span class="text-muted"> &bull; </span>
+              {%- capture map_del %}admin/tag-mapping/{{ map_id }}/delete{% endcapture -%}
+              {%- capture map_del_link %}{{ map_del | relative_link }}{% endcapture -%}
+              <a href="{{ map_del_link }}" class="text-danger"
+                 onclick="return Admin.deleteTagMapping('{{ map.tag }}', '{{ map_del_link }}')">
                 Delete
               </a>
             </small>

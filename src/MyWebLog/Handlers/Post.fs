@@ -2,21 +2,19 @@
 module MyWebLog.Handlers.Post
 
 open System
-open Giraffe
-open Microsoft.AspNetCore.Http
 
-/// Split the "rest" capture for categories and tags into the page number and category/tag URL parts
-let private pathAndPageNumber (ctx : HttpContext) =
-    let slugs     = (string ctx.Request.RouteValues["slug"]).Split "/" |> Array.filter (fun it -> it <> "")
-    let pageIdx   = Array.IndexOf (slugs, "page")
-    let pageNbr   =
+/// Parse a slug and page number from an "everything else" URL
+let private parseSlugAndPage (slugAndPage : string seq) =
+    let slugs   = (slugAndPage |> Seq.skip 1 |> Seq.head).Split "/" |> Array.filter (fun it -> it <> "")
+    let pageIdx = Array.IndexOf (slugs, "page")
+    let pageNbr =
         match pageIdx with
-        | -1 -> Some 1L
-        | idx when idx + 2 = slugs.Length -> Some (int64 slugs[pageIdx + 1])
+        | -1 -> Some 1
+        | idx when idx + 2 = slugs.Length -> Some (int slugs[pageIdx + 1])
         | _ -> None
     let slugParts = if pageIdx > 0 then Array.truncate pageIdx slugs else slugs
     pageNbr, String.Join ("/", slugParts)
-    
+
 /// The type of post list being prepared
 type ListType =
     | AdminList
@@ -47,10 +45,11 @@ open DotLiquid
 open MyWebLog.ViewModels
 
 /// Convert a list of posts into items ready to be displayed
-let private preparePostList webLog posts listType url pageNbr perPage ctx conn = task {
+let private preparePostList webLog posts listType (url : string) pageNbr perPage ctx conn = task {
     let! authors     = getAuthors     webLog posts conn
     let! tagMappings = getTagMappings webLog posts conn
-    let postItems =
+    let  relUrl it   = Some <| WebLog.relativeUrl webLog (Permalink it)
+    let  postItems   =
         posts
         |> Seq.ofList
         |> Seq.truncate perPage
@@ -65,24 +64,24 @@ let private preparePostList webLog posts listType url pageNbr perPage ctx conn =
         | _ -> Task.FromResult (None, None)
     let newerLink =
         match listType, pageNbr with
-        | SinglePost,   _  -> newerPost |> Option.map (fun p -> Permalink.toString p.permalink)
-        | _,            1L -> None
-        | PostList,     2L    when webLog.defaultPage = "posts" -> Some ""
-        | PostList,     _  -> Some $"page/{pageNbr - 1L}"
-        | CategoryList, 2L -> Some $"category/{url}/"
-        | CategoryList, _  -> Some $"category/{url}/page/{pageNbr - 1L}"
-        | TagList,      2L -> Some $"tag/{url}/"
-        | TagList,      _  -> Some $"tag/{url}/page/{pageNbr - 1L}"
-        | AdminList,    2L -> Some "admin/posts"
-        | AdminList,    _  -> Some $"admin/posts/page/{pageNbr - 1L}"
+        | SinglePost,   _ -> newerPost |> Option.map (fun p -> Permalink.toString p.permalink)
+        | _,            1 -> None
+        | PostList,     2    when webLog.defaultPage = "posts" -> Some ""
+        | PostList,     _ -> relUrl $"page/{pageNbr - 1}"
+        | CategoryList, 2 -> relUrl $"category/{url}/"
+        | CategoryList, _ -> relUrl $"category/{url}/page/{pageNbr - 1}"
+        | TagList,      2 -> relUrl $"tag/{url}/"
+        | TagList,      _ -> relUrl $"tag/{url}/page/{pageNbr - 1}"
+        | AdminList,    2 -> relUrl "admin/posts"
+        | AdminList,    _ -> relUrl $"admin/posts/page/{pageNbr - 1}"
     let olderLink =
         match listType, List.length posts > perPage with
         | SinglePost,   _     -> olderPost |> Option.map (fun p -> Permalink.toString p.permalink)
         | _,            false -> None
-        | PostList,     true  -> Some $"page/{pageNbr + 1L}"
-        | CategoryList, true  -> Some $"category/{url}/page/{pageNbr + 1L}"
-        | TagList,      true  -> Some $"tag/{url}/page/{pageNbr + 1L}"
-        | AdminList,    true  -> Some $"admin/posts/page/{pageNbr + 1L}"
+        | PostList,     true  -> relUrl $"page/{pageNbr + 1}"
+        | CategoryList, true  -> relUrl $"category/{url}/page/{pageNbr + 1}"
+        | TagList,      true  -> relUrl $"tag/{url}/page/{pageNbr + 1}"
+        | AdminList,    true  -> relUrl $"admin/posts/page/{pageNbr + 1}"
     let model =
         { posts      = postItems
           authors    = authors
@@ -95,28 +94,30 @@ let private preparePostList webLog posts listType url pageNbr perPage ctx conn =
     return Hash.FromAnonymousObject {| model = model; categories = CategoryCache.get ctx; tag_mappings = tagMappings |}
 }
 
+open Giraffe
+
 // GET /page/{pageNbr}
 let pageOfPosts pageNbr : HttpHandler = fun next ctx -> task {
-    let  webLog = WebLogCache.get ctx
-    let  conn   = conn ctx
+    let  webLog = webLog ctx
+    let  conn   = conn   ctx
     let! posts  = Data.Post.findPageOfPublishedPosts webLog.id pageNbr webLog.postsPerPage conn
     let! hash   = preparePostList webLog posts PostList "" pageNbr webLog.postsPerPage ctx conn
     let  title  =
         match pageNbr, webLog.defaultPage with
-        | 1L, "posts" -> None
-        | _,  "posts" -> Some $"Page {pageNbr}"
-        | _,  _       -> Some $"Page {pageNbr} &laquo; Posts"
+        | 1, "posts" -> None
+        | _, "posts" -> Some $"Page {pageNbr}"
+        | _,  _      -> Some $"Page {pageNbr} &laquo; Posts"
     match title with Some ttl -> hash.Add ("page_title", ttl) | None -> ()
-    if pageNbr = 1L && webLog.defaultPage = "posts" then hash.Add ("is_home", true)
+    if pageNbr = 1 && webLog.defaultPage = "posts" then hash.Add ("is_home", true)
     return! themedView "index" next ctx hash
 }
 
 // GET /category/{slug}/
 // GET /category/{slug}/page/{pageNbr}
-let pageOfCategorizedPosts : HttpHandler = fun next ctx -> task {
-    let  webLog = WebLogCache.get ctx
-    let  conn   = conn ctx
-    match pathAndPageNumber ctx with
+let pageOfCategorizedPosts slugAndPage : HttpHandler = fun next ctx -> task {
+    let webLog = webLog ctx
+    let conn   = conn   ctx
+    match parseSlugAndPage slugAndPage with
     | Some pageNbr, slug -> 
         let allCats = CategoryCache.get ctx
         let cat     = allCats |> Array.find (fun cat -> cat.slug = slug)
@@ -130,7 +131,7 @@ let pageOfCategorizedPosts : HttpHandler = fun next ctx -> task {
         match! Data.Post.findPageOfCategorizedPosts webLog.id catIds pageNbr webLog.postsPerPage conn with
         | posts when List.length posts > 0 ->
             let! hash    = preparePostList webLog posts CategoryList cat.slug pageNbr webLog.postsPerPage ctx conn
-            let  pgTitle = if pageNbr = 1L then "" else $""" <small class="archive-pg-nbr">(Page {pageNbr})</small>"""
+            let  pgTitle = if pageNbr = 1 then "" else $""" <small class="archive-pg-nbr">(Page {pageNbr})</small>"""
             hash.Add ("page_title", $"{cat.name}: Category Archive{pgTitle}")
             hash.Add ("subtitle", cat.description.Value)
             hash.Add ("is_category", true)
@@ -143,10 +144,10 @@ open System.Web
 
 // GET /tag/{tag}/
 // GET /tag/{tag}/page/{pageNbr}
-let pageOfTaggedPosts : HttpHandler = fun next ctx -> task {
-    let webLog = WebLogCache.get ctx
-    let conn   = conn ctx
-    match pathAndPageNumber ctx with
+let pageOfTaggedPosts slugAndPage : HttpHandler = fun next ctx -> task {
+    let webLog = webLog ctx
+    let conn   = conn   ctx
+    match parseSlugAndPage slugAndPage with
     | Some pageNbr, rawTag -> 
         let  urlTag = HttpUtility.UrlDecode rawTag
         let! tag    = backgroundTask {
@@ -157,7 +158,7 @@ let pageOfTaggedPosts : HttpHandler = fun next ctx -> task {
         match! Data.Post.findPageOfTaggedPosts webLog.id tag pageNbr webLog.postsPerPage conn with
         | posts when List.length posts > 0 ->
             let! hash    = preparePostList webLog posts TagList rawTag pageNbr webLog.postsPerPage ctx conn
-            let  pgTitle = if pageNbr = 1L then "" else $""" <small class="archive-pg-nbr">(Page {pageNbr})</small>"""
+            let  pgTitle = if pageNbr = 1 then "" else $""" <small class="archive-pg-nbr">(Page {pageNbr})</small>"""
             hash.Add ("page_title", $"Posts Tagged &ldquo;{tag}&rdquo;{pgTitle}")
             hash.Add ("is_tag", true)
             return! themedView "index" next ctx hash
@@ -166,15 +167,18 @@ let pageOfTaggedPosts : HttpHandler = fun next ctx -> task {
             let spacedTag = tag.Replace ("-", " ")
             match! Data.Post.findPageOfTaggedPosts webLog.id spacedTag pageNbr 1 conn with
             | posts when List.length posts > 0 ->
-                let endUrl = if pageNbr = 1L then "" else $"page/{pageNbr}"
-                return! redirectTo true $"""/tag/{spacedTag.Replace (" ", "+")}/{endUrl}""" next ctx
+                let endUrl = if pageNbr = 1 then "" else $"page/{pageNbr}"
+                return!
+                    redirectTo true
+                        (WebLog.relativeUrl webLog (Permalink $"""tag/{spacedTag.Replace (" ", "+")}/{endUrl}"""))
+                        next ctx
             | _ -> return! Error.notFound next ctx
     | None, _ -> return! Error.notFound next ctx
 }
 
 // GET /
 let home : HttpHandler = fun next ctx -> task {
-    let webLog = WebLogCache.get ctx
+    let webLog = webLog ctx
     match webLog.defaultPage with
     | "posts" -> return! pageOfPosts 1 next ctx
     | pageId ->
@@ -190,6 +194,7 @@ let home : HttpHandler = fun next ctx -> task {
         | None -> return! Error.notFound next ctx
 }
 
+
 open System.IO
 open System.ServiceModel.Syndication
 open System.Text.RegularExpressions
@@ -198,12 +203,12 @@ open System.Xml
 // GET /feed.xml
 //   (Routing handled by catch-all handler for future configurability)
 let generateFeed : HttpHandler = fun next ctx -> backgroundTask {
-    let  conn    = conn ctx
-    let  webLog  = WebLogCache.get ctx
-    let  urlBase = $"https://{webLog.urlBase}/"
+    let  conn    = conn   ctx
+    let  webLog  = webLog ctx
     // TODO: hard-coded number of items
-    let! posts   = Data.Post.findPageOfPublishedPosts webLog.id 1L 10 conn
-    let! authors = getAuthors webLog posts conn
+    let! posts   = Data.Post.findPageOfPublishedPosts webLog.id 1 10 conn
+    let! authors = getAuthors     webLog posts conn
+    let! tagMaps = getTagMappings webLog posts conn
     let  cats    = CategoryCache.get ctx
     
     let toItem (post : Post) =
@@ -213,25 +218,29 @@ let generateFeed : HttpHandler = fun next ctx -> backgroundTask {
             | txt when txt.Length < 255 -> txt
             | txt -> $"{txt.Substring (0, 252)}..."
         let item = SyndicationItem (
-            Id              = $"{urlBase}{Permalink.toString post.permalink}",
+            Id              = WebLog.absoluteUrl webLog post.permalink,
             Title           = TextSyndicationContent.CreateHtmlContent post.title,
             PublishDate     = DateTimeOffset post.publishedOn.Value,
             LastUpdatedTime = DateTimeOffset post.updatedOn,
             Content         = TextSyndicationContent.CreatePlaintextContent plainText)
         item.AddPermalink (Uri item.Id)
         
-        let encoded = post.text.Replace("src=\"/", $"src=\"{urlBase}").Replace ("href=\"/", $"href=\"{urlBase}")
+        let encoded =
+            post.text.Replace("src=\"/", $"src=\"{webLog.urlBase}/").Replace ("href=\"/", $"href=\"{webLog.urlBase}/")
         item.ElementExtensions.Add ("encoded", "http://purl.org/rss/1.0/modules/content/", encoded)
         item.Authors.Add (SyndicationPerson (
             Name = (authors |> List.find (fun a -> a.name = WebLogUserId.toString post.authorId)).value))
         [ post.categoryIds
           |> List.map (fun catId ->
               let cat = cats |> Array.find (fun c -> c.id = CategoryId.toString catId)
-              SyndicationCategory (cat.name, $"{urlBase}category/{cat.slug}/", cat.name))
+              SyndicationCategory (cat.name, WebLog.absoluteUrl webLog (Permalink $"category/{cat.slug}/"), cat.name))
           post.tags
           |> List.map (fun tag ->
-              let urlTag = tag.Replace (" ", "+")
-              SyndicationCategory (tag, $"{urlBase}tag/{urlTag}/", $"{tag} (tag)"))
+              let urlTag =
+                  match tagMaps |> List.tryFind (fun tm -> tm.tag = tag) with
+                  | Some tm -> tm.urlValue
+                  | None -> tag.Replace (" ", "+")
+              SyndicationCategory (tag, WebLog.absoluteUrl webLog (Permalink $"tag/{urlTag}/"), $"{tag} (tag)"))
         ]
         |> List.concat
         |> List.iter item.Categories.Add
@@ -245,12 +254,12 @@ let generateFeed : HttpHandler = fun next ctx -> backgroundTask {
     feed.Generator       <- generator ctx
     feed.Items           <- posts |> Seq.ofList |> Seq.map toItem
     feed.Language        <- "en"
-    feed.Id              <- urlBase
+    feed.Id              <- webLog.urlBase
     
-    feed.Links.Add (SyndicationLink (Uri $"{urlBase}feed.xml", "self", "", "application/rss+xml", 0L))
+    feed.Links.Add (SyndicationLink (Uri $"{webLog.urlBase}/feed.xml", "self", "", "application/rss+xml", 0L))
     feed.AttributeExtensions.Add
         (XmlQualifiedName ("content", "http://www.w3.org/2000/xmlns/"), "http://purl.org/rss/1.0/modules/content/")
-    feed.ElementExtensions.Add ("link", "", urlBase)
+    feed.ElementExtensions.Add ("link", "", webLog.urlBase)
     
     use mem = new MemoryStream ()
     use xml = XmlWriter.Create mem
@@ -266,15 +275,18 @@ let generateFeed : HttpHandler = fun next ctx -> backgroundTask {
 
 /// Sequence where the first returned value is the proper handler for the link
 let private deriveAction ctx : HttpHandler seq =
-    let webLog    = WebLogCache.get ctx
-    let conn      = conn ctx
-    let textLink  = string ctx.Request.RouteValues["link"]
-    let permalink = Permalink textLink
+    let webLog    = webLog ctx
+    let conn      = conn   ctx
+    let _, extra  = WebLog.hostAndPath webLog
+    let textLink  = if extra = "" then ctx.Request.Path.Value else ctx.Request.Path.Value.Substring extra.Length
     let await it  = (Async.AwaitTask >> Async.RunSynchronously) it
     seq {
+        // Home page directory without the directory slash 
+        if textLink = "" then yield redirectTo true (WebLog.relativeUrl webLog Permalink.empty)
+        let permalink = Permalink (textLink.Substring 1)
         // Current post
         match Data.Post.findByPermalink permalink webLog.id conn |> await with
-        | Some post -> 
+        | Some post ->
             let model = preparePostList webLog [ post ] SinglePost "" 1 1 ctx conn |> await
             model.Add ("page_title", post.title)
             yield fun next ctx -> themedView "single-post" next ctx model
@@ -288,27 +300,27 @@ let private deriveAction ctx : HttpHandler seq =
         | None -> ()
         // RSS feed
         // TODO: configure this via web log
-        if textLink = "feed.xml" then yield generateFeed
+        if textLink = "/feed.xml" then yield generateFeed
         // Post differing only by trailing slash
         let altLink = Permalink (if textLink.EndsWith "/" then textLink[..textLink.Length - 2] else $"{textLink}/")
         match Data.Post.findByPermalink altLink webLog.id conn |> await with
-        | Some post -> yield redirectTo true $"/{Permalink.toString post.permalink}"
+        | Some post -> yield redirectTo true (WebLog.relativeUrl webLog post.permalink)
         | None -> ()
         // Page differing only by trailing slash
         match Data.Page.findByPermalink altLink webLog.id conn |> await with
-        | Some page -> yield redirectTo true $"/{Permalink.toString page.permalink}"
+        | Some page -> yield redirectTo true (WebLog.relativeUrl webLog page.permalink)
         | None -> ()
         // Prior post
         match Data.Post.findCurrentPermalink [ permalink; altLink ] webLog.id conn |> await with
-        | Some link -> yield redirectTo true $"/{Permalink.toString link}"
+        | Some link -> yield redirectTo true (WebLog.relativeUrl webLog link)
         | None -> ()
         // Prior page
         match Data.Page.findCurrentPermalink [ permalink; altLink ] webLog.id conn |> await with
-        | Some link -> yield redirectTo true $"/{Permalink.toString link}"
+        | Some link -> yield redirectTo true (WebLog.relativeUrl webLog link)
         | None -> ()
     }
 
-// GET {**link}
+// GET {all-of-the-above}
 let catchAll : HttpHandler = fun next ctx -> task {
     match deriveAction ctx |> Seq.tryHead with
     | Some handler -> return! handler next ctx
@@ -318,8 +330,8 @@ let catchAll : HttpHandler = fun next ctx -> task {
 // GET /admin/posts
 // GET /admin/posts/page/{pageNbr}
 let all pageNbr : HttpHandler = requireUser >=> fun next ctx -> task {
-    let  webLog = WebLogCache.get ctx
-    let  conn   = conn ctx
+    let  webLog = webLog ctx
+    let  conn   = conn   ctx
     let! posts  = Data.Post.findPageOfPosts webLog.id pageNbr 25 conn
     let! hash   = preparePostList webLog posts AdminList "" pageNbr 25 ctx conn
     hash.Add ("page_title", "Posts")
@@ -328,8 +340,8 @@ let all pageNbr : HttpHandler = requireUser >=> fun next ctx -> task {
 
 // GET /admin/post/{id}/edit
 let edit postId : HttpHandler = requireUser >=> fun next ctx -> task {
-    let  webLog = WebLogCache.get ctx
-    let  conn   = conn     ctx
+    let  webLog = webLog ctx
+    let  conn   = conn   ctx
     let! result = task {
         match postId with
         | "new" -> return Some ("Write a New Post", { Post.empty with id = PostId "new" })
@@ -354,7 +366,7 @@ let edit postId : HttpHandler = requireUser >=> fun next ctx -> task {
 
 // GET /admin/post/{id}/permalinks
 let editPermalinks postId : HttpHandler = requireUser >=> fun next ctx -> task {
-    match! Data.Post.findByFullId (PostId postId) (webLogId ctx) (conn ctx) with
+    match! Data.Post.findByFullId (PostId postId) (webLog ctx).id (conn ctx) with
     | Some post ->
         return!
             Hash.FromAnonymousObject {|
@@ -368,41 +380,43 @@ let editPermalinks postId : HttpHandler = requireUser >=> fun next ctx -> task {
 
 // POST /admin/post/permalinks
 let savePermalinks : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
-    let! model = ctx.BindFormAsync<ManagePermalinksModel> ()
-    let  links = model.prior |> Array.map Permalink |> List.ofArray
-    match! Data.Post.updatePriorPermalinks (PostId model.id) (webLogId ctx) links (conn ctx) with
+    let  webLog = webLog ctx
+    let! model  = ctx.BindFormAsync<ManagePermalinksModel> ()
+    let  links  = model.prior |> Array.map Permalink |> List.ofArray
+    match! Data.Post.updatePriorPermalinks (PostId model.id) webLog.id links (conn ctx) with
     | true ->
         do! addMessage ctx { UserMessage.success with message = "Post permalinks saved successfully" }
-        return! redirectToGet $"/admin/post/{model.id}/permalinks" next ctx
+        return! redirectToGet (WebLog.relativeUrl webLog (Permalink $"admin/post/{model.id}/permalinks")) next ctx
     | false -> return! Error.notFound next ctx
 }
 
 // POST /admin/post/{id}/delete
 let delete postId : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
-    match! Data.Post.delete (PostId postId) (webLogId ctx) (conn ctx) with
+    let webLog = webLog ctx
+    match! Data.Post.delete (PostId postId) webLog.id (conn ctx) with
     | true  -> do! addMessage ctx { UserMessage.success with message = "Post deleted successfully" }
     | false -> do! addMessage ctx { UserMessage.error with message = "Post not found; nothing deleted" }
-    return! redirectToGet "/admin/posts" next ctx
+    return! redirectToGet (WebLog.relativeUrl webLog (Permalink "admin/posts")) next ctx
 }
 
 #nowarn "3511"
 
 // POST /admin/post/save
 let save : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
-    let! model    = ctx.BindFormAsync<EditPostModel> ()
-    let  webLogId = webLogId ctx
-    let  conn     = conn     ctx
-    let  now      = DateTime.UtcNow
-    let! pst      = task {
+    let! model  = ctx.BindFormAsync<EditPostModel> ()
+    let  webLog = webLog ctx
+    let  conn   = conn   ctx
+    let  now    = DateTime.UtcNow
+    let! pst    = task {
         match model.postId with
         | "new" ->
             return Some
                 { Post.empty with
                     id        = PostId.create ()
-                    webLogId  = webLogId
+                    webLogId  = webLog.id
                     authorId  = userId ctx
                 }
-        | postId -> return! Data.Post.findByFullId (PostId postId) webLogId conn
+        | postId -> return! Data.Post.findByFullId (PostId postId) webLog.id conn
     }
     match pst with
     | Some post ->
@@ -460,6 +474,7 @@ let save : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
                    |> List.length = List.length pst.Value.categoryIds) then
             do! CategoryCache.update ctx
         do! addMessage ctx { UserMessage.success with message = "Post saved successfully" }
-        return! redirectToGet $"/admin/post/{PostId.toString post.id}/edit" next ctx
+        return!
+            redirectToGet (WebLog.relativeUrl webLog (Permalink $"admin/post/{PostId.toString post.id}/edit")) next ctx
     | None -> return! Error.notFound next ctx
 }

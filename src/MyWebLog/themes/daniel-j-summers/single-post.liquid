@@ -15,7 +15,7 @@
       {% endif %}
       <span title="Author"><i class="fa fa-user"></i> {{ model.authors | value: post.author_id }}</span>
       {% if logged_on %}
-        <span><a href="{{ post.id | edit_post_link }}"><i class="fa fa-pencil-square-o"></i> Edit Post</a></span>
+        <span><a href="{{ post | edit_post_link }}"><i class="fa fa-pencil-square-o"></i> Edit Post</a></span>
       {% endif %}
     </h4>
     <div>{{ post.text }}</div>
@@ -27,7 +27,7 @@
           {% assign cat = categories | where: "id", cat_id | first %}
           <span class="no-wrap">
             <i class="fa fa-folder-open-o" title="Category"></i>
-            <a href="{{ cat.slug | category_link }}" title="Categorized under &ldquo;{{ cat.name | escape }}&rdquo;">
+            <a href="{{ cat | category_link }}" title="Categorized under &ldquo;{{ cat.name | escape }}&rdquo;">
              {{ cat.name }}
             </a> &nbsp; &nbsp;
           </span>
@@ -53,16 +53,16 @@
       <ul class="pager">
         {% if model.newer_link -%}
           <li class="previous item">
-            <h4 class="item-heading"><a href="/{{ model.newer_link.value }}">&laquo;</a> Previous Post</h4>
-            <a href="/{{ model.newer_link.value }}">{{ model.newer_name.value }}</a>
+            <h4 class="item-heading"><a href="{{ model.newer_link.value }}">&laquo;</a> Previous Post</h4>
+            <a href="{{ model.newer_link.value }}">{{ model.newer_name.value }}</a>
           </li>
         {%- else -%}
           <li></li>
         {% endif %}
         {% if model.older_link -%}
           <li class="next item">
-            <h4 class="item-heading">Next Post <a href="/{{ model.older_link.value }}">&raquo;</a></h4>
-            <a href="/{{ model.older_link.value }}">{{ model.older_name.value }}</a>
+            <h4 class="item-heading">Next Post <a href="{{ model.older_link.value }}">&raquo;</a></h4>
+            <a href="{{ model.older_link.value }}">{{ model.older_name.value }}</a>
           </li>
         {%- endif -%}
       </ul>

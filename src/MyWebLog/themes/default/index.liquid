@@ -7,7 +7,7 @@
       <div class="col">
         <article>
           <h1>
-            <a href="/{{ post.permalink }}" title="Permanent link to &quot;{{ post.title | escape }}&quot;">
+            <a href="{{ post | relative_link }}" title="Permanent link to &quot;{{ post.title | escape }}&quot;">
               {{ post.title }}
             </a>
           </h1>

@@ -12,26 +12,26 @@
         {{ page_title | strip_html }}{% if page_title and page_title != "" %} &raquo; {% endif %}{{ web_log.name }}
       {%- endif %}
     </title>
-    <link rel="stylesheet" href="/themes/tech-blog/style.css">
-    {% comment %}link(rel='canonical' href=config.url + url_for(page.path.replace('index.html', ''))) {% endcomment %}
+    <link rel="stylesheet" href="/themes/{{ web_log.theme_path }}/style.css">
     {%- if is_home %}
-      <link rel="alternate" type="application/rss+xml"
-            title="{{ web_log.name }}" href="https://{{ web_log.urlBase }}/feed.xml">
+      <link rel="alternate" type="application/rss+xml" title="{{ web_log.name }}"
+            href="{{ "feed.xml" | absolute_link }}">
+      <link rel="canonical" href="{{ "" | absolute_link }}">
     {%- endif %}
   </head>
   <body>
     <header class="site-header">
       <div class="header-logo">
-        <a href="/">
+        <a href="{{ "" | relative_link }}">
           <img src="/themes/tech-blog/img/bitbadger.png"
                alt="A cartoon badger looking at a computer screen, with his paw on a mouse"
                title="Bit Badger Solutions">
         </a>
       </div>
-      <div class="header-title"><a href="/">The Bit Badger Blog</a></div>
+      <div class="header-title"><a href="{{ "" | relative_link }}">The Bit Badger Blog</a></div>
       <div class="header-spacer">&nbsp;</div>
       <div class="header-social">
-        <a href="/feed.xml" title="Subscribe to The Bit Badger Blog via RSS">
+        <a href="{{ "feed.xml" | relative_link }}" title="Subscribe to The Bit Badger Blog via RSS">
           <img src="/themes/tech-blog/img/rss.png" alt="RSS">
         </a> &nbsp; &nbsp;
         <a href="https://twitter.com/Bit_Badger" title="Bit_Badger on Twitter">
@@ -49,7 +49,7 @@
       <aside class="blog-sidebar">
         <div>
           <div class="sidebar-head">Linux Resources</div>
-          <ul><li><a href="/linux/">Browse Resources</a></li></ul>
+          <ul><li><a href="{{ "linux/" | relative_link }}">Browse Resources</a></li></ul>
         </div>
         <div>
           <div class="sidebar-head">Categories</div>
@@ -76,9 +76,9 @@
         Powered by <a href="https://github.com/bit-badger/myWebLog/tree/v2" target="_blank" rel="noopener">myWebLog</a>
         &bull;
         {% if logged_on %}
-          <a href="/admin">Dashboard</a>
+          <a href="{{ "admin" | relative_link }}">Dashboard</a>
         {% else %}
-          <a href="/user/log-on">Log On</a>
+          <a href="{{ "user/log-on" | relative_link }}">Log On</a>
         {%- endif %}
       </span>
     </footer>

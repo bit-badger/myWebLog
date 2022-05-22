@@ -540,35 +540,32 @@ module Post =
         }
     
     /// Find posts to be displayed on an admin page
-    let findPageOfPosts (webLogId : WebLogId) (pageNbr : int64) postsPerPage =
-        let pg = int pageNbr
+    let findPageOfPosts (webLogId : WebLogId) (pageNbr : int) postsPerPage =
         rethink<Post list> {
             withTable Table.Post
             getAll [ webLogId ] (nameof webLogId)
             without [ "priorPermalinks"; "revisions" ]
             orderByFuncDescending (fun row -> row["publishedOn"].Default_ "updatedOn" :> obj)
-            skip ((pg - 1) * postsPerPage)
+            skip ((pageNbr - 1) * postsPerPage)
             limit (postsPerPage + 1)
             result; withRetryDefault
         }
 
     /// Find posts to be displayed on a page
-    let findPageOfPublishedPosts (webLogId : WebLogId) (pageNbr : int64) postsPerPage =
-        let pg = int pageNbr
+    let findPageOfPublishedPosts (webLogId : WebLogId) pageNbr postsPerPage =
         rethink<Post list> {
             withTable Table.Post
             getAll [ webLogId ] (nameof webLogId)
             filter "status" Published
             without [ "priorPermalinks"; "revisions" ]
             orderByDescending "publishedOn"
-            skip ((pg - 1) * postsPerPage)
+            skip ((pageNbr - 1) * postsPerPage)
             limit (postsPerPage + 1)
             result; withRetryDefault
         }
     
     /// Find posts to be displayed on a tag list page
-    let findPageOfTaggedPosts (webLogId : WebLogId) (tag : string) (pageNbr : int64) postsPerPage =
-        let pg = int pageNbr
+    let findPageOfTaggedPosts (webLogId : WebLogId) (tag : string) pageNbr postsPerPage =
         rethink<Post list> {
             withTable Table.Post
             getAll [ tag ] "tags"
@@ -576,7 +573,7 @@ module Post =
             filter "status" Published
             without [ "priorPermalinks"; "revisions" ]
             orderByDescending "publishedOn"
-            skip ((pg - 1) * postsPerPage)
+            skip ((pageNbr - 1) * postsPerPage)
             limit (postsPerPage + 1)
             result; withRetryDefault
         }
@@ -709,6 +706,12 @@ module WebLog =
         withTable Table.WebLog
         insert webLog
         write; withRetryOnce; ignoreResult
+    }
+    
+    /// Get all web logs
+    let all = rethink<WebLog list> {
+        withTable Table.WebLog
+        result; withRetryDefault
     }
     
     /// Retrieve a web log by the URL base

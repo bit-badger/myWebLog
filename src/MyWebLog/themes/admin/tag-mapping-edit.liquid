@@ -1,12 +1,12 @@
 ﻿<h2 class="my-3">{{ page_title }}</h2>
 <article>
-  <form action="/admin/tag-mapping/save" method="post">
+  <form action="{{ "admin/tag-mapping/save" | relative_link }}" method="post">
     <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
     <input type="hidden" name="id" value="{{ model.id }}">
     <div class="container">
       <div class="row mb-3">
         <div class="col">
-          <a href="/admin/tag-mappings">&laquo; Back to Tag Mappings</a>
+          <a href="{{ "admin/tag-mappings" | relative_link }}">&laquo; Back to Tag Mappings</a>
         </div>
       </div>
       <div class="row mb-3">

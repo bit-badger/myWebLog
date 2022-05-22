@@ -67,17 +67,18 @@ let generator (ctx : HttpContext) =
         generatorString <- Option.ofObj cfg["Generator"]
         defaultArg generatorString "generator not configured"
 
-open DotLiquid
 open MyWebLog
+
+/// Get the web log for the request from the context (established by middleware)
+let webLog (ctx : HttpContext) =
+    ctx.Items["webLog"] :?> WebLog
+
+open DotLiquid
 
 /// Either get the web log from the hash, or get it from the cache and add it to the hash
 let private deriveWebLogFromHash (hash : Hash) ctx =
-    match hash.ContainsKey "web_log" with
-    | true -> hash["web_log"] :?> WebLog
-    | false ->
-        let wl = WebLogCache.get ctx
-        hash.Add ("web_log", wl)
-        wl
+    if hash.ContainsKey "web_log" then () else hash.Add ("web_log", webLog ctx)
+    hash["web_log"] :?> WebLog
 
 open Giraffe
 
@@ -118,9 +119,6 @@ let redirectToGet url : HttpHandler = fun next ctx -> task {
     return! redirectTo false url next ctx
 }
 
-/// Get the web log ID for the current request
-let webLogId ctx = (WebLogCache.get ctx).id
-
 open System.Security.Claims
 
 /// Get the user ID for the current request
@@ -159,7 +157,7 @@ let templatesForTheme ctx (typ : string) =
     seq {
         KeyValuePair.Create ("", $"- Default (single-{typ}) -")
         yield!
-            Path.Combine ("themes", (WebLogCache.get ctx).themePath)
+            Path.Combine ("themes", (webLog ctx).themePath)
             |> Directory.EnumerateFiles
             |> Seq.filter (fun it -> it.EndsWith $"{typ}.liquid")
             |> Seq.map (fun it ->

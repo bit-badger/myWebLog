@@ -15,6 +15,7 @@
     <Compile Include="Handlers\Post.fs" />
     <Compile Include="Handlers\User.fs" />
     <Compile Include="Handlers\Routes.fs" />
+    <Compile Include="DotLiquidBespoke.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 

@@ -156,58 +156,52 @@
   },
 
   /**
-   * Confirm and delete a category
-   * @param id The ID of the category to be deleted
-   * @param name The name of the category to be deleted
+   * Confirm and delete an item
+   * @param name The name of the item to be deleted
+   * @param url The URL to which the form should be posted
    */
-  deleteCategory(id, name) {
-    if (confirm(`Are you sure you want to delete the category "${name}"? This action cannot be undone.`)) {
+  deleteItem(name, url) {
+    if (confirm(`Are you sure you want to delete the ${name}? This action cannot be undone.`)) {
       const form = document.getElementById("deleteForm")
-      form.action = `/admin/category/${id}/delete`
+      form.action = url
       form.submit()
     }
     return false
+  },
+  
+  /**
+   * Confirm and delete a category
+   * @param name The name of the category to be deleted
+   * @param url The URL to which the form should be posted
+   */
+  deleteCategory(name, url) {
+    return this.deleteItem(`category "${name}"`, url)
   },
 
   /**
    * Confirm and delete a page
-   * @param id The ID of the page to be deleted
    * @param title The title of the page to be deleted
+   * @param url The URL to which the form should be posted
    */
-  deletePage(id, title) {
-    if (confirm(`Are you sure you want to delete the page "${name}"? This action cannot be undone.`)) {
-      const form = document.getElementById("deleteForm")
-      form.action = `/admin/page/${id}/delete`
-      form.submit()
-    }
-    return false
+  deletePage(title, url) {
+    return this.deleteItem(`page "${title}"`, url)
   },
 
   /**
    * Confirm and delete a post
-   * @param id The ID of the post to be deleted
    * @param title The title of the post to be deleted
+   * @param url The URL to which the form should be posted
    */
-  deletePost(id, title) {
-    if (confirm(`Are you sure you want to delete the post "${name}"? This action cannot be undone.`)) {
-      const form = document.getElementById("deleteForm")
-      form.action = `/admin/post/${id}/delete`
-      form.submit()
-    }
-    return false
+  deletePost(title, url) {
+    return this.deleteItem(`post "${title}"`, url)
   },
 
   /**
    * Confirm and delete a tag mapping
-   * @param id The ID of the mapping to be deleted
    * @param tag The tag for which the mapping will be deleted
+   * @param url The URL to which the form should be posted
    */
-  deleteTagMapping(id, tag) {
-    if (confirm(`Are you sure you want to delete the mapping for "${tag}"? This action cannot be undone.`)) {
-      const form = document.getElementById("deleteForm")
-      form.action = `/admin/tag-mapping/${id}/delete`
-      form.submit()
-    }
-    return false
+  deleteTagMapping(tag, url) {
+    return this.deleteItem(`mapping for "${tag}"`, url)
   }
 }

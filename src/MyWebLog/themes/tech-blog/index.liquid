@@ -10,7 +10,8 @@
       <h1 class="home-title">
         <small class="home-lead">{{ post.published_on | date: "dddd, MMMM d, yyyy" }}</small><br>
         &nbsp;
-        <a href="/{{ post.permalink }}" title="Permanent Link to &quot;{{ post.title | strip_html | escape }}&quot;">
+        <a href="{{ post | relative_link }}"
+           title="Permanent Link to &quot;{{ post.title | strip_html | escape }}&quot;">
           {{ post.title }}
         </a>
       </h1>
@@ -39,18 +40,18 @@
         {%- endfor %}
       </small><br>
     {%- endif %}
-    {%- if logged_on %}<small><a href="{{ post.id | edit_post_link }}">Edit Post</a></small>{% endif %}
+    {%- if logged_on %}<small><a href="{{ post | edit_post_link }}">Edit Post</a></small>{% endif %}
   </article>
 {%- endfor %}
 <div class="bottom-nav" role="navigation">
   <div class="nav-previous">
     {% if model.newer_link -%}
-      <a href="/{{ model.newer_link.value }}">&laquo; Newer Posts</a>
+      <a href="{{ model.newer_link.value }}">&laquo; Newer Posts</a>
     {% endif %}
   </div>
   <div class="nav-next">
     {% if model.older_link -%}
-      <a href="/{{ model.older_link.value }}">Older Posts &raquo;</a>
+      <a href="{{ model.older_link.value }}">Older Posts &raquo;</a>
     {% endif %}
   </div>
 </div>

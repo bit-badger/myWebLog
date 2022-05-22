@@ -18,17 +18,19 @@
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
     <link rel="stylesheet" href="/themes/{{ web_log.theme_path }}/style.css">
     {%- if is_home %}
-      <link rel="alternate" type="application/rss+xml" title="{{ web_log.name | escape }}" href="/feed.xml">
+      <link rel="alternate" type="application/rss+xml" title="{{ web_log.name | escape }}"
+            href="{{ "feed.xml" | relative_link }}">
+      <link rel="canonical" href="{{ "" | absolute_url }}">
     {%- endif %}
     <script src="/themes/{{ web_log.theme_path }}/djs.js"></script>
   </head>
   <body>
     <nav class="site-header" role="navigation">
-      <p><a class="nav-home" href="/">{{ web_log.name }}</a></p>
+      <p><a class="nav-home" href="{{ "" | relative_link }}">{{ web_log.name }}</a></p>
       {%- if web_log.subtitle %}<p>{{ web_log.subtitle.value }}</p>{% endif -%}
       <p class="nav-spacer"></p>
       {%- for page in page_list %}
-        <p class="desktop"><a href="/{{ page.permalink }}">{{ page.title }}</a></p>
+        <p class="desktop"><a href="{{ page | relative_link }}">{{ page.title }}</a></p>
       {%- endfor %}
       <p class="desktop">
         <a href="https://devotions.summershome.org" target="_blank" rel="noopener">A Word from the Word</a>
@@ -38,7 +40,7 @@
     {{ content }}
     <footer class="part-1" id="links">
       {%- for page in page_list %}
-        <p class="mobile"><a href="{{ page.permalink }}">{{ page.title }}</a></p>
+        <p class="mobile"><a href="{{ page | relative_link }}">{{ page.title }}</a></p>
       {%- endfor %}
       <p class="mobile">
         <a href="https://devotions.summershome.org" target="_blank" rel="noopener">A Word from the Word</a>
@@ -143,9 +145,9 @@
         </a>
         &bull; Powered by <a href="https://github.com/bit-badger/myWebLog/tree/v2">myWebLog</a> &bull;
         {% if logged_on %}
-          <a href="/admin">Dashboard</a>
+          <a href="{{ "admin" | relative_link }}">Dashboard</a>
         {% else %}
-          <a href="/user/log-on">Log On</a>
+          <a href="{{ "user/log-on" | relative_link }}">Log On</a>
         {%- endif %}
       </div>
     </footer>

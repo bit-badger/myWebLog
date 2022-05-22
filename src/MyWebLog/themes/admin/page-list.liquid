@@ -1,6 +1,6 @@
 <h2 class="my-3">{{ page_title }}</h2>
 <article class="container">
-  <a href="/admin/page/new/edit" class="btn btn-primary btn-sm mb-3">Create a New Page</a>
+  <a href="{{ "admin/page/new/edit" | relative_link }}" class="btn btn-primary btn-sm mb-3">Create a New Page</a>
   <table class="table table-sm table-hover">
     <thead>
       <tr>
@@ -17,12 +17,15 @@
             {%- if pg.is_default %} &nbsp; <span class="badge bg-success">HOME PAGE</span>{% endif -%}
             {%- if pg.show_in_page_list %} &nbsp; <span class="badge bg-primary">IN PAGE LIST</span> {% endif -%}<br>
             <small>
-              <a href="/{% unless pg.is_default %}{{ pg.permalink }}{% endunless %}" target="_blank">View Page</a>
+              {%- capture pg_link %}{% unless pg.is_default %}{{ pg.permalink }}{% endunless %}{% endcapture -%}
+              <a href="{{ pg_link | relative_link }}" target="_blank">View Page</a>
               <span class="text-muted"> &bull; </span>
-              <a href="{{ pg.id | edit_page_link }}">Edit</a>
+              <a href="{{ pg | edit_page_link }}">Edit</a>
               <span class="text-muted"> &bull; </span>
-              <a href="/admin/page/{{ pg.id }}/delete" class="text-danger"
-                 onclick="return Admin.deletePage('{{ pg.id }}', '{{ pg.title }}')">
+              {%- capture pg_del %}admin/page/{{ pg.id }}/delete{% endcapture -%}
+              {%- capture pg_del_link %}{{ pg_del | relative_link }}{% endcapture -%}
+              <a href="{{ pg_del_link }}" class="text-danger"
+                 onclick="return Admin.deletePage('{{ pg.title }}', '{{ pg_del_link }}')">
                 Delete
               </a>
             </small>

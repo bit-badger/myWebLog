@@ -1,6 +1,6 @@
 <h2 class="my-3">{{ page_title }}</h2>
 <article class="container">
-  <a href="/admin/post/new/edit" class="btn btn-primary btn-sm mb-3">Write a New Post</a>
+  <a href="{{ "/admin/post/new/edit" | relative_link }}" class="btn btn-primary btn-sm mb-3">Write a New Post</a>
   <table class="table table-sm table-hover">
     <thead>
       <tr>
@@ -23,12 +23,14 @@
           <td>
             {{ post.title }}<br>
             <small>
-              <a href="/{{ post.permalink }}" target="_blank">View Post</a>
+              <a href="{{ post | relative_link }}" target="_blank">View Post</a>
               <span class="text-muted"> &bull; </span>
-              <a href="{{ post.id | edit_post_link }}">Edit</a>
+              <a href="{{ post | edit_post_link }}">Edit</a>
               <span class="text-muted"> &bull; </span>
-              <a href="/admin/post/{{ pg.id }}/delete" class="text-danger"
-                 onclick="return Admin.deletePost('{{ post.id }}', '{{ post.title }}')">
+              {%- capture post_del %}admin/post/{{ pg.id }}/delete{% endcapture -%}
+              {%- capture post_del_link %}{{ post_del | relative_link }}{% endcapture -%}
+              <a href="{{ post_del_link }}" class="text-danger"
+                 onclick="return Admin.deletePost('{{ post.title }}', '{{ post_del_link }}')">
                 Delete
               </a>
             </small>
@@ -44,12 +46,12 @@
     <div class="d-flex justify-content-evenly">
       <div>
         {% if model.newer_link %}
-          <p><a class="btn btn-default" href="/{{ model.newer_link.value }}">&laquo; Newer Posts</a></p>
+          <p><a class="btn btn-default" href="{{ model.newer_link.value }}">&laquo; Newer Posts</a></p>
         {% endif %}
       </div>
       <div class="text-right">
         {% if model.older_link %}
-          <p><a class="btn btn-default" href="/{{ model.older_link.value }}">Older Posts &raquo;</a></p>
+          <p><a class="btn btn-default" href="{{ model.older_link.value }}">Older Posts &raquo;</a></p>
         {% endif %}
       </div>
     </div>

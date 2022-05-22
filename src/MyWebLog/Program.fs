@@ -1,100 +1,23 @@
-﻿open System.Collections.Generic
-open Microsoft.AspNetCore.Http
-open Microsoft.Extensions.DependencyInjection
+﻿open Microsoft.AspNetCore.Http
 open MyWebLog
-open RethinkDb.Driver.Net
-open System
 
 /// Middleware to derive the current web log
 type WebLogMiddleware (next : RequestDelegate) =
 
     member this.InvokeAsync (ctx : HttpContext) = task {
-        match WebLogCache.exists ctx with
-        | true -> return! next.Invoke ctx
-        | false ->
-            let conn = ctx.RequestServices.GetRequiredService<IConnection> ()
-            match! Data.WebLog.findByHost (Cache.makeKey ctx) conn with
-            | Some webLog ->
-                WebLogCache.set ctx webLog
-                do! PageListCache.update ctx
-                do! CategoryCache.update ctx
-                return! next.Invoke ctx
-            | None -> ctx.Response.StatusCode <- 404
+        if WebLogCache.exists ctx then
+            ctx.Items["webLog"] <- WebLogCache.get ctx
+            if PageListCache.exists ctx then () else do! PageListCache.update ctx
+            if CategoryCache.exists ctx then () else do! CategoryCache.update ctx
+            return! next.Invoke ctx
+        else
+            ctx.Response.StatusCode <- 404
     }
 
 
-/// DotLiquid filters
-module DotLiquidBespoke =
-    
-    open System.IO
-    open DotLiquid
-    open MyWebLog.ViewModels
-
-    /// A filter to generate a link with posts categorized under the given category
-    type CategoryLinkFilter () =
-        static member CategoryLink (_ : Context, catObj : obj) =
-            match catObj with
-            | :? DisplayCategory as cat -> $"/category/{cat.slug}/"
-            | :? DropProxy as proxy -> $"""/category/{proxy["slug"]}/"""
-            | _ -> $"alert('unknown category object type {catObj.GetType().Name}')"
-    
-    /// A filter to generate a link that will edit a page
-    type EditPageLinkFilter () =
-        static member EditPageLink (_ : Context, postId : string) =
-            $"/admin/page/{postId}/edit"
-        
-    /// A filter to generate a link that will edit a post
-    type EditPostLinkFilter () =
-        static member EditPostLink (_ : Context, postId : string) =
-            $"/admin/post/{postId}/edit"
-        
-    /// A filter to generate nav links, highlighting the active link (exact match)
-    type NavLinkFilter () =
-        static member NavLink (ctx : Context, url : string, text : string) =
-            seq {
-                "<li class=\"nav-item\"><a class=\"nav-link"
-                if url = string ctx.Environments[0].["current_page"] then " active"
-                "\" href=\"/"
-                url
-                "\">"
-                text
-                "</a></li>"
-            }
-            |> Seq.fold (+) ""
-    
-    /// A filter to generate a link with posts tagged with the given tag
-    type TagLinkFilter () =
-        static member TagLink (ctx : Context, tag : string) =
-            match ctx.Environments[0].["tag_mappings"] :?> TagMap list
-                  |> List.tryFind (fun it -> it.tag = tag) with
-            | Some tagMap -> $"/tag/{tagMap.urlValue}/"
-            | None -> $"""/tag/{tag.Replace (" ", "+")}/"""
-                
-    /// Create links for a user to log on or off, and a dashboard link if they are logged off
-    type UserLinksTag () =
-        inherit Tag ()
-        
-        override this.Render (context : Context, result : TextWriter) =
-            seq {
-                """<ul class="navbar-nav flex-grow-1 justify-content-end">"""
-                match Convert.ToBoolean context.Environments[0].["logged_on"] with
-                | true ->
-                    """<li class="nav-item"><a class="nav-link" href="/admin">Dashboard</a></li>"""
-                    """<li class="nav-item"><a class="nav-link" href="/user/log-off">Log Off</a></li>"""
-                | false ->
-                    """<li class="nav-item"><a class="nav-link" href="/user/log-on">Log On</a></li>"""
-                "</ul>"
-            }
-            |> Seq.iter result.WriteLine
-    
-    /// A filter to retrieve the value of a meta item from a list
-    //    (shorter than `{% assign item = list | where: "name", [name] | first %}{{ item.value }}`)
-    type ValueFilter () =
-        static member Value (_ : Context, items : MetaItem list, name : string) =
-            match items |> List.tryFind (fun it -> it.name = name) with
-            | Some item -> item.value
-            | None -> $"-- {name} not found --"
-
+open System
+open Microsoft.Extensions.DependencyInjection
+open RethinkDb.Driver.Net
 
 /// Create the default information for a new web log
 module NewWebLog =
@@ -220,7 +143,9 @@ module NewWebLog =
     }
 
 
+open System.Collections.Generic
 open DotLiquid
+open DotLiquidBespoke
 open Giraffe
 open Giraffe.EndpointRouting
 open Microsoft.AspNetCore.Antiforgery
@@ -257,6 +182,7 @@ let main args =
         task {
             let! conn = rethinkCfg.CreateConnectionAsync ()
             do! Data.Startup.ensureDb rethinkCfg (loggerFac.CreateLogger (nameof Data.Startup)) conn
+            do! WebLogCache.fill conn
             return conn
         } |> Async.AwaitTask |> Async.RunSynchronously
     let _ = builder.Services.AddSingleton<IConnection> conn
@@ -273,13 +199,12 @@ let main args =
     let _ = builder.Services.AddGiraffe ()
     
     // Set up DotLiquid
-    [ typeof<DotLiquidBespoke.CategoryLinkFilter>; typeof<DotLiquidBespoke.EditPageLinkFilter>
-      typeof<DotLiquidBespoke.EditPostLinkFilter>; typeof<DotLiquidBespoke.NavLinkFilter>
-      typeof<DotLiquidBespoke.TagLinkFilter>;      typeof<DotLiquidBespoke.ValueFilter>
+    [ typeof<AbsoluteLinkFilter>; typeof<CategoryLinkFilter>; typeof<EditPageLinkFilter>; typeof<EditPostLinkFilter>
+      typeof<NavLinkFilter>;      typeof<RelativeLinkFilter>; typeof<TagLinkFilter>;      typeof<ValueFilter>
     ]
     |> List.iter Template.RegisterFilter
     
-    Template.RegisterTag<DotLiquidBespoke.UserLinksTag> "user_links"
+    Template.RegisterTag<UserLinksTag> "user_links"
     
     [   // Domain types
         typeof<MetaItem>; typeof<Page>; typeof<TagMap>; typeof<WebLog>
@@ -308,7 +233,7 @@ let main args =
         let _ = app.UseStaticFiles ()
         let _ = app.UseRouting ()
         let _ = app.UseSession ()
-        let _ = app.UseGiraffe Handlers.Routes.endpoints
+        let _ = app.UseGiraffe Handlers.Routes.endpoint
 
         app.Run()
 

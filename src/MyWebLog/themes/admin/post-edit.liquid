@@ -1,6 +1,6 @@
 ﻿<h2 class="my-3">{{ page_title }}</h2>
 <article>
-  <form action="/admin/post/save" method="post">
+  <form action="{{ "/admin/post/save" | relative_link }}" method="post">
     <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
     <input type="hidden" name="postId" value="{{ model.post_id }}">
     <div class="container">
@@ -16,7 +16,8 @@
                    value="{{ model.permalink }}">
             <label for="permalink">Permalink</label>
             {%- if model.page_id != "new" %}
-              <span class="form-text"><a href="/admin/post/{{ model.post_id }}/permalinks">Manage Permalinks</a></span>
+              {%- capture perm_edit %}admin/post/{{ model.post_id }}/permalinks{% endcapture -%}
+              <span class="form-text"><a href="{{ perm_edit | relative_link }}">Manage Permalinks</a></span>
             {% endif -%}
           </div>
           <div class="mb-2">

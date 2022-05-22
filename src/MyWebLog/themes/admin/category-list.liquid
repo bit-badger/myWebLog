@@ -1,6 +1,6 @@
 ﻿<h2 class="my-3">{{ page_title }}</h2>
 <article class="container">
-  <a href="/admin/category/new/edit" class="btn btn-primary btn-sm mb-3">Add a New Category</a>
+  <a href="{{ "admin/category/new/edit" | relative_link }}" class="btn btn-primary btn-sm mb-3">Add a New Category</a>
   <table class="table table-sm table-hover">
     <thead>
       <tr>
@@ -17,16 +17,19 @@
             {%- endif %}
             {{ cat.name }}<br>
             <small>
-            {%- if cat.post_count > 0 %}
-              <a href="{{ cat | category_link }}" target="_blank">
-                View {{ cat.post_count }} Post{% unless cat.post_count == 1 %}s{% endunless -%}
-              </a>
+              {%- if cat.post_count > 0 %}
+                <a href="{{ cat | category_link }}" target="_blank">
+                  View {{ cat.post_count }} Post{% unless cat.post_count == 1 %}s{% endunless -%}
+                </a>
+                <span class="text-muted"> &bull; </span>
+              {%- endif %}
+              {%- capture cat_edit %}admin/category/{{ cat.id }}/edit{% endcapture -%}
+              <a href="{{ cat_edit | relative_link }}">Edit</a>
               <span class="text-muted"> &bull; </span>
-            {%- endif %}
-              <a href="/admin/category/{{ cat.id }}/edit">Edit</a>
-              <span class="text-muted"> &bull; </span>
-              <a href="/admin/category/{{ cat.id }}/delete" class="text-danger"
-                 onclick="return Admin.deleteCategory('{{ cat.id }}', '{{ cat.name }}')">
+              {%- capture cat_del %}admin/category/{{ cat.id }}/delete{% endcapture -%}
+              {%- capture cat_del_link %}{{ cat_del | relative_link }}{% endcapture -%}
+              <a href="{{ cat_del_link }}" class="text-danger"
+                 onclick="return Admin.deleteCategory('{{ cat.name }}', '{{ cat_del_link }}')">
                 Delete
               </a>
             </small>
