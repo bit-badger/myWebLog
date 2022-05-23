@@ -129,8 +129,9 @@ let listPages pageNbr : HttpHandler = fun next ctx -> task {
     let! pages  = Data.Page.findPageOfPages webLog.id pageNbr ctx.Conn
     return!
         Hash.FromAnonymousObject
-            {| pages      = pages |> List.map (DisplayPage.fromPageMinimal webLog)
-               page_title = "Pages"
+            {|  csrf       = csrfToken ctx
+                pages      = pages |> List.map (DisplayPage.fromPageMinimal webLog)
+                page_title = "Pages"
             |}
         |> viewForTheme "admin" "page-list" next ctx
 }
@@ -191,7 +192,9 @@ let savePagePermalinks : HttpHandler = fun next ctx -> task {
 let deletePage pgId : HttpHandler = fun next ctx -> task {
     let webLog = ctx.WebLog
     match! Data.Page.delete (PageId pgId) webLog.id ctx.Conn with
-    | true  -> do! addMessage ctx { UserMessage.success with message = "Page deleted successfully" }
+    | true ->
+        do! PageListCache.update ctx
+        do! addMessage ctx { UserMessage.success with message = "Page deleted successfully" }
     | false -> do! addMessage ctx { UserMessage.error with message = "Page not found; nothing deleted" }
     return! redirectToGet (WebLog.relativeUrl webLog (Permalink "admin/pages")) next ctx
 }

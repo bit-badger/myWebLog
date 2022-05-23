@@ -339,6 +339,7 @@ let all pageNbr : HttpHandler = fun next ctx -> task {
     let! posts  = Data.Post.findPageOfPosts webLog.id pageNbr 25 conn
     let! hash   = preparePostList webLog posts AdminList "" pageNbr 25 ctx conn
     hash.Add ("page_title", "Posts")
+    hash.Add ("csrf", csrfToken ctx)
     return! viewForTheme "admin" "post-list" next ctx hash
 }
 
