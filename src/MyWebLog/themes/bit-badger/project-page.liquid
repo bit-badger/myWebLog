@@ -1,19 +1,33 @@
 <article class="content auto">
   {%- assign parts = page.title | split: ' » ' -%}
   {%- assign parts_count = parts | size -%}
-  {% if parts_count == 1 -%}
-    <h1>{{ page.title }}</h1>
-  {%- else -%}
-    <h1><small><small>{{ parts[0] }}</small></small><br>{{ parts[1] }}</h1>
-  {%- endif %}
+  <h1 class="project-title">  
+    {% if parts_count == 1 -%}
+      {{ page.title }}<br>
+      <small><small>
+        <a href="https://github.com/bit-badger/{{ page.title }}" target="_blank" rel="noopener"
+           title="{{ parts[0] }} on GitHub">
+          View on GitHub
+        </a>
+        {% if logged_on %} &bull; <a href="{{ page | edit_page_link }}">Edit Page</a>{% endif %}
+      </small></small>
+    {%- else -%}
+      <small><small>
+        <a href="." title="{{ parts[0] }} Home">{{ parts[0] }}</a>
+        {% if logged_on %} &bull; <a href="{{ page | edit_page_link }}">Edit</a>{% endif %}
+      </small></small>
+      <br>
+      {{ parts[1] }}
+    {%- endif %}
+  </h1>
   {{ page.text }}
   {% if parts_count > 1 -%}
-    {%- assign project = parts[0] | downcase | replace: '\.', '-' -%}
-    {%- capture project_url %}open-source/{{ project }}/{% endcapture -%}
-    {% comment %}{{ project_url | relative_link }}{% endcomment %}
-    <p><br><a href="." title="{{ parts[0] }} Home">&laquo; {{ parts[0] }} Home</a></p>
-  {%- endif %}
-  {% if logged_on -%}
-    <p><small><a href="{{ page | edit_page_link }}">Edit This Page</a></small></p>
+    <p class="project-footer">
+      <a href="." title="{{ parts[0] }} Home">&laquo; {{ parts[0] }} Home</a>
+      <a href="https://github.com/bit-badger/{{ parts[0] }}" target="_blank" rel="noopener"
+         title="{{ parts[0] }} on GitHub">
+        View GitHub Repo
+      </a>
+    </p>
   {%- endif %}
 </article>
