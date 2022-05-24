@@ -1,6 +1,6 @@
 <h2 class="my-3">{{ page_title }}</h2>
 <article class="container">
-  <a href="{{ "/admin/post/new/edit" | relative_link }}" class="btn btn-primary btn-sm mb-3">Write a New Post</a>
+  <a href="{{ "admin/post/new/edit" | relative_link }}" class="btn btn-primary btn-sm mb-3">Write a New Post</a>
   <table class="table table-sm table-hover">
     <thead>
       <tr>
@@ -27,7 +27,7 @@
               <span class="text-muted"> &bull; </span>
               <a href="{{ post | edit_post_link }}">Edit</a>
               <span class="text-muted"> &bull; </span>
-              {%- capture post_del %}admin/post/{{ pg.id }}/delete{% endcapture -%}
+              {%- capture post_del %}admin/post/{{ post.id }}/delete{% endcapture -%}
               {%- capture post_del_link %}{{ post_del | relative_link }}{% endcapture -%}
               <a href="{{ post_del_link }}" class="text-danger"
                  onclick="return Admin.deletePost('{{ post.title }}', '{{ post_del_link }}')">

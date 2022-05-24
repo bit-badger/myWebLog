@@ -11,7 +11,7 @@
                    value="{{ model.title }}">
             <label for="title">Title</label>
           </div>
-          <div class="form-floating">
+          <div class="form-floating pb-3">
             <input type="text" name="permalink" id="permalink" class="form-control" required
                    value="{{ model.permalink }}">
             <label for="permalink">Permalink</label>
@@ -19,6 +19,18 @@
               {%- capture perm_edit %}admin/page/{{ model.page_id }}/permalinks{% endcapture -%}
               <span class="form-text"><a href="{{ perm_edit | relative_link }}">Manage Permalinks</a></span>
             {% endif -%}
+          </div>
+          <div class="mb-2">
+            <label for="text">Text</label> &nbsp; &nbsp;
+            <input type="radio" name="source" id="source_html" class="btn-check" value="HTML"
+            {%- if model.source == "HTML" %} checked="checked"{% endif %}>
+            <label class="btn btn-sm btn-outline-secondary" for="source_html">HTML</label>
+            <input type="radio" name="source" id="source_md" class="btn-check" value="Markdown"
+            {%- if model.source == "Markdown" %} checked="checked"{% endif %}>
+            <label class="btn btn-sm btn-outline-secondary" for="source_md">Markdown</label>
+          </div>
+          <div class="mb-3">
+            <textarea name="text" id="text" class="form-control">{{ model.text }}</textarea>
           </div>
         </div>
         <div class="col-3">
@@ -37,22 +49,6 @@
                    {%- if model.is_shown_in_page_list %} checked="checked"{% endif %}>
             <label for="showList" class="form-check-label">Show in Page List</label>
           </div>
-        </div>
-      </div>
-      <div class="row mb-2">
-        <div class="col">
-          <label for="text">Text</label> &nbsp; &nbsp;
-          <input type="radio" name="source" id="source_html" class="btn-check" value="HTML"
-                 {%- if model.source == "HTML" %} checked="checked"{% endif %}>
-          <label class="btn btn-sm btn-outline-secondary" for="source_html">HTML</label>
-          <input type="radio" name="source" id="source_md" class="btn-check" value="Markdown"
-                 {%- if model.source == "Markdown" %} checked="checked"{% endif %}>
-          <label class="btn btn-sm btn-outline-secondary" for="source_md">Markdown</label>
-        </div>
-      </div>
-      <div class="row mb-3">
-        <div class="col">
-          <textarea name="text" id="text" class="form-control" rows="10">{{ model.text }}</textarea>
         </div>
       </div>
       <div class="row mb-3">

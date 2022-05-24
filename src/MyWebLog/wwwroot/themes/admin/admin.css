@@ -51,6 +51,9 @@ textarea {
   font-family: monospace;
   font-size: .8rem !important;
 }
+#text {
+  min-height: 50vh;
+}
 .no-wrap {
   white-space: nowrap;
 }

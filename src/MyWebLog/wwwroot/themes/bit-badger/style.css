@@ -44,6 +44,28 @@ h2, h3 {
 p {
   margin: 1rem 0;
 }
+code, pre {
+  font-family: "JetBrains Mono","SFMono-Regular",Consolas,"Liberation Mono",Menlo,Courier,monospace;
+  font-size: 80%;
+}
+code {
+  background-color: rgba(0, 0, 0, .1);
+  padding: 0 .25rem;
+  white-space: pre;
+}
+pre {
+  background-color: rgba(0, 0, 0, .9);
+  color: rgba(255, 255, 255, .9);
+  padding: .5rem;
+  border-radius: .5rem;
+  overflow: auto;
+}
+pre > code {
+  background-color: unset;
+}
+div[style="color:#DADADA;background-color:#1E1E1E;"] {
+  background-color: unset !important;
+}
 #content {
   margin: 0 1rem;
 }
