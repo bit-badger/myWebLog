@@ -15,7 +15,7 @@
             <input type="text" name="permalink" id="permalink" class="form-control" placeholder="Permalink" required
                    value="{{ model.permalink }}">
             <label for="permalink">Permalink</label>
-            {%- if model.page_id != "new" %}
+            {%- if model.post_id != "new" %}
               {%- capture perm_edit %}admin/post/{{ model.post_id }}/permalinks{% endcapture -%}
               <span class="form-text"><a href="{{ perm_edit | relative_link }}">Manage Permalinks</a></span>
             {% endif -%}

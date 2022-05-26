@@ -6,12 +6,21 @@
   font-weight: normal;
   font-style: normal;
 }
+:root {
+  --heading-fonts: Oswald, "Segoe UI", Ubuntu, "DejaVu Sans", "Liberation Sans", Arial, sans-serif;
+  --body-fonts: Raleway, "Segoe UI", Ubuntu, Tahoma, "DejaVu Sans", "Liberation Sans", Arial, sans-serif;
+  --code-fonts: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+  --accent-color: navy;
+  --app-color: maroon;
+  --edge-color: lightgray;
+  --bkg-color: #fffafa;
+}
 html {
   background-color: lightgray;
   scroll-behavior: smooth;
 }
 body, .entry-meta {
-  font-family: "Raleway", "Segoe UI", Ubuntu, Tahoma, "DejaVu Sans", "Liberation Sans", Arial, sans-serif;
+  font-family: var(--body-fonts);
 }
 body {
   margin: 0;
@@ -22,7 +31,7 @@ a {
   text-decoration: none;
 }
 a:hover {
-  border-bottom: dotted 1px navy;
+  border-bottom: dotted 1px var(--accent-color);
 }
 a img {
   border:0;
@@ -32,7 +41,7 @@ acronym {
   text-decoration: none;
 }
 header, h1, h2, h3, footer a, .home-lead a, .highlight {
-  font-family: "Oswald", "Segoe UI", Ubuntu, "DejaVu Sans", "Liberation Sans", Arial, sans-serif;
+  font-family: var(--heading-fonts);
 }
 h1 {
   text-align: center;
@@ -46,9 +55,10 @@ h3 {
   margin: 1rem 0;
 }
 h2, h3 {
-  border-bottom: solid 2px navy;
+  border-bottom: solid 2px var(--accent-color);
+  width: 95%;
 }
-@media all and (min-width:40rem) {
+@media all and (min-width: 40rem) {
   h2, h3 {
     width: 80%;
   }
@@ -57,7 +67,7 @@ p {
   margin: 1rem 0;
 }
 code, pre {
-  font-family: "JetBrains Mono","SFMono-Regular",Consolas,"Liberation Mono",Menlo,Courier,monospace;
+  font-family: var(--code-fonts);
   font-size: 80%;
 }
 code {
@@ -78,8 +88,7 @@ pre > code {
 div[style="color:#DADADA;background-color:#1E1E1E;"] {
   background-color: unset !important;
 }
-#content {
-  margin: 0 1rem;
+.content {
   font-size: 1.1rem;
 }
 .auto {
@@ -99,10 +108,10 @@ div[style="color:#DADADA;background-color:#1E1E1E;"] {
   display: flex;
   flex-direction: row;
   justify-content: space-between;
-  background-image: -webkit-gradient(linear, left top, left bottom, from(lightgray), to(#FFFAFA));
-  background-image: -webkit-linear-gradient(top, lightgray, #FFFAFA);
-  background-image: -moz-linear-gradient(top, lightgray, #FFFAFA);
-  background-image: linear-gradient(to bottom, lightgray, #FFFAFA);
+  background-image: -webkit-gradient(linear, left top, left bottom, from(var(--edge-color)), to(var(--bkg-color)));
+  background-image: -webkit-linear-gradient(top, var(--edge-color), var(--bkg-color));
+  background-image: -moz-linear-gradient(top, var(--edge-color), var(--bkg-color));
+  background-image: linear-gradient(to bottom, var(--edge-color), var(--bkg-color));
 }
 .site-header a:link, .site-header a:visited {
   color: black;
@@ -126,7 +135,7 @@ div[style="color:#DADADA;background-color:#1E1E1E;"] {
   width: 50px;
   height: 50px;
 }
-@media all and (max-width:40rem) {
+@media all and (max-width: 40rem) {
   .site-header {
     height: auto;
     flex-direction: column;
@@ -161,10 +170,10 @@ footer {
 	font-size: 1rem;
 	color: black;
 	clear: both;
-  background-image: -webkit-gradient(linear, left top, left bottom, from(#FFFAFA), to(lightgray));
-  background-image: -webkit-linear-gradient(top, #FFFAFA, lightgray);
-  background-image: -moz-linear-gradient(top, #FFFAFA, lightgray);
-  background-image: linear-gradient(to bottom, #FFFAFA, lightgray);
+  background-image: -webkit-gradient(linear, left top, left bottom, from(var(--bkg-color)), to(var(--edge-color)));
+  background-image: -webkit-linear-gradient(top, var(--bkg-color), var(--edge-color));
+  background-image: -moz-linear-gradient(top, var(--bkg-color), var(--edge-color));
+  background-image: linear-gradient(to bottom, var(--bkg-color), var(--edge-color));
 }
 footer a:link, footer a:visited {
 	color: black;
@@ -174,14 +183,14 @@ footer a:link, footer a:visited {
 	padding-right: 5px;
 }
 ul {
-	padding-left: 40px;
+	padding-left: 1.5rem;
 }
 li {
 	list-style-type: disc;
 }
 
 .content-wrapper {
-  margin: 0 1rem;
+  padding: 0 .5rem;
 }
 @media all and (min-width: 80rem) {
   .content-wrapper {
@@ -191,22 +200,25 @@ li {
     align-items: flex-start;
     justify-content: space-around;
   }
+  .content {
+    margin-right: 1rem;
+  }
 }
 .home-title {
   text-align: left;
   line-height: 2rem;
 }
 .home-lead {
-  font-family: "Raleway", "Segoe UI", Ubuntu, Tahoma, "DejaVu Sans", "Liberation Sans", Arial, sans-serif;
+  font-family: var(--body-fonts);
   font-size: 1.2rem;
 }
 .home-break {
   width: 80%;
-  border: dotted 1px lightgray;
+  border: dotted 1px var(--edge-color);
   border-bottom: 0;
 }
 .blog-sidebar {
-  border-top: dotted 1px lightgray;
+  border-top: dotted 1px var(--edge-color);
   padding-top: 1rem;
   font-size: 1rem;
   display: flex;
@@ -214,7 +226,7 @@ li {
   justify-content: space-around;
 }
 .blog-sidebar ul {
-  padding-left: 1rem;
+  padding-left: 0;
 }
 .blog-sidebar > ul {
   padding: 0;
@@ -235,12 +247,12 @@ li {
 @media all and (min-width: 80rem) {
   .blog-sidebar {
     min-width: 12rem;
-    max-width: 16rem;
+    max-width: 14rem;
     border-top: none;
-    border-left: dotted 1px lightgray;
+    border-left: dotted 1px var(--edge-color);
     padding-top: 0;
-    padding-left: 2rem;
-    margin: 0;
+    padding-left: 1rem;
+    margin: 0 0 0 1rem;
     flex-direction: column;
   }
 }
@@ -250,12 +262,12 @@ li {
 }
 .sidebar-head {
   text-align: center;
-  font-family: "Oswald", "Segoe UI", Ubuntu, "DejaVu Sans", "Liberation Sans", Arial, sans-serif;
+  font-family: var(--heading-fonts);
   font-weight: bold;
-  color: maroon;
+  color: var(--app-color);
   margin-bottom: .8rem;
   padding: 3px 12px;
-  border-bottom: solid 2px lightgray;
+  border-bottom: solid 2px var(--edge-color);
   font-size: 1rem;
 }
 .app-sidebar-name, .app-sidebar-description {
@@ -268,7 +280,6 @@ li {
   padding-bottom: .6rem;
 }
 
-
 .content {
   font-size: 1.1rem;
 }
@@ -278,19 +289,19 @@ li {
 .auto > div {
   max-width: 66rem;
 }
-@media all and (min-width: 68rem) {
-  .content {
-    width: 66rem;
-  }
-}
 .entry-title {
-  line-height: 1.5rem;
+  line-height: 1;
 }
 .entry-meta {
   font-size: 1rem;
+  text-align: center;
+  font-weight: bold;
+  margin: 0 0 .5rem 0;
+}
+.entry-content {
+  margin-top: 1.5rem;
 }
 .cat-list-count {
-  padding-left: .3rem;
   font-size: .8rem;
 }
 .cat-list-count:before {
@@ -305,7 +316,9 @@ li {
   justify-content: space-between;
   padding-top: 1.5rem;
 }
-
+.no-wrap {
+  white-space: nowrap;
+}
 figure.highlight {
   background-color: #F8F8F8;
 }
@@ -335,7 +348,7 @@ figure.highlight td.code pre div.line:after {
 }
 figure.highlight pre div.line,
 figure.highlight pre div.line > * {
-  font-family: Consolas,"Courier New",Courier,monospace !important;
+  font-family: var(--code-fonts);
 }
 figure.highlight {
   display: block;

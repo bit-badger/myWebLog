@@ -1,17 +1,24 @@
+:root {
+  --heading-fonts: Oswald, "Segoe UI", Ubuntu, "DejaVu Sans", "Liberation Sans", Arial, sans-serif;
+  --accent-color: navy;
+  --app-color: maroon;
+  --edge-color: lightgray;
+  --bkg-color: #fffafa;
+}
 html {
-  background-color: lightgray;
+  background-color: var(--edge-color);
 }
 body {
   margin: 0;
-  font-family: "Raleway", "Segoe UI", Ubuntu, Tahoma, "DejaVu Sans", "Liberation Sans", Arial, sans-serif;
-  background-color: #FFFAFA;
+  font-family: Raleway, "Segoe UI", Ubuntu, Tahoma, "DejaVu Sans", "Liberation Sans", Arial, sans-serif;
+  background-color: var(--bkg-color);
 }
 a {
-  color: navy;
+  color: var(--accent-color);
   text-decoration: none;
 }
 a:hover {
-  border-bottom: dotted 1px navy;
+  border-bottom: dotted 1px var(--accent-color);
 }
 a img {
   border: 0;
@@ -20,7 +27,7 @@ acronym {
   border-bottom: dotted 1px black;
 }
 header, h1, h2, h3, .footer-by a {
-  font-family: "Oswald", "Segoe UI", Ubuntu, "DejaVu Sans", "Liberation Sans", Arial, sans-serif;
+  font-family: var(--heading-fonts);
 }
 h1 {
   text-align: center;
@@ -28,7 +35,6 @@ h1 {
   font-size: 2rem;
 }
 h1.project-title {
-  margin-top: 0;
   line-height: 1.2;
 }
 h2 {
@@ -38,9 +44,13 @@ h3 {
   margin: 1rem 0;
 }
 h2, h3 {
-  border-bottom: solid 2px navy;
+  border-bottom: solid 2px var(--accent-color);
+  width: 95%;
 }
-@media all and (min-width:40rem) {
+@media all and (min-width: 40rem) {
+  h1 {
+    margin: 0 0 1.4rem 0;
+  }
   h2, h3 {
     width: 80%;
   }
@@ -75,6 +85,7 @@ div[style="color:#DADADA;background-color:#1E1E1E;"] {
 }
 .content {
   font-size: 1.1rem;
+  padding: 0 .5rem;
 }
 .auto {
   margin: 0 auto;
@@ -82,6 +93,7 @@ div[style="color:#DADADA;background-color:#1E1E1E;"] {
 @media all and (min-width: 68rem) {
   .content {
     width: 66rem;
+    padding: 0 1rem;
   }
 }
 .hdr {
@@ -96,7 +108,7 @@ div[style="color:#DADADA;background-color:#1E1E1E;"] {
   padding-right: 5px;
 }
 ul {
-  padding-left: 40px;
+  padding-left: 1.5rem;
 }
 li {
   list-style-type: disc;
@@ -116,7 +128,7 @@ abbr[title] {
   display: flex;
   flex-direction: row;
   justify-content: space-between;
-  background-image: linear-gradient(to bottom, lightgray, #FFFAFA);
+  background-image: linear-gradient(to bottom, var(--edge-color), var(--bkg-color));
 }
 .site-header a, .site-header a:visited {
   color: black;
@@ -140,7 +152,7 @@ abbr[title] {
   width: 50px;
   height: 50px;
 }
-@media all and (max-width:40rem) {
+@media all and (max-width: 40rem) {
   .site-header {
     height: auto;
     flex-direction: column;
@@ -168,7 +180,7 @@ abbr[title] {
 }
 .app-sidebar {
   text-align: center;
-  border-top: dotted 1px lightgray;
+  border-top: dotted 1px var(--edge-color);
   padding-top: 1rem;
   font-size: .9rem;
   display: flex;
@@ -189,7 +201,7 @@ abbr[title] {
   .app-sidebar {
     width: 12rem;
     border-top: none;
-    border-left: dotted 1px lightgray;
+    border-left: dotted 1px var(--edge-color);
     padding-top: 0;
     padding-left: 2rem;
     flex-direction: column;
@@ -203,12 +215,12 @@ abbr[title] {
   font-family: sans-serif;
 }
 .app-sidebar-head {
-  font-family: "Oswald", "Segoe UI", Ubuntu, "DejaVu Sans", "Liberation Sans", Arial, sans-serif;
+  font-family: var(--heading-fonts);
   font-weight: bold;
-  color: maroon;
+  color: var(--app-color);
   margin-bottom: .8rem;
   padding: 3px 12px;
-  border-bottom: solid 2px lightgray;
+  border-bottom: solid 2px var(--edge-color);
   font-size: 1rem;
 }
 .app-sidebar-name, .app-sidebar-description {
@@ -222,26 +234,31 @@ abbr[title] {
 }
 /* All solution page */
 .app-name {
-  font-family: "Oswald", "Segoe UI", Ubuntu, "DejaVu Sans", "Liberation Sans", Arial, sans-serif;
+  font-family: var(--heading-fonts);
   font-size: 1.3rem;
   font-weight: bold;
-  color: maroon;
+  color: var(--app-color);
 }
 /* Individual solution pages */
 h1.solution-header {
-  line-height: 1.6rem;
+  line-height: 1;
 }
 .app-info aside {
   float: right;
   background-color: #FFFAFA;
+  padding-left: .5rem;
 }
-.app-info aside > span {
-  padding-left: .75rem;
+@media all and (max-width: 40rem) {
+  .app-info aside {
+    float: none;
+    text-align: center;
+    padding-left: 0;
+  }
 }
 .app-info aside > img {
   overflow: hidden;
   border: dotted 1px darkgray;
-  border-radius: 10px;
+  border-radius: .5rem;
 }
 .tech-stack p {
   margin-bottom: 0;
@@ -284,7 +301,7 @@ footer {
   font-size: 1rem;
   color: black;
   clear: both;
-  background-image: linear-gradient(to bottom, #FFFAFA, lightgray);
+  background-image: linear-gradient(to bottom, var(--bkg-color), var(--edge-color));
 }
 footer a:link, footer a:visited {
   color: black;

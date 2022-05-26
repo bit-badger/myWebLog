@@ -4,21 +4,21 @@
     <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
     <div class="container">
       <div class="row mb-3">
-        <div class="col-6 col-lg-4 pb-3">
+        <div class="col-12 col-md-6 col-lg-4 pb-3">
           <div class="form-floating">
             <input type="text" name="firstName" id="firstName" class="form-control" autofocus required
                    placeholder="First" value="{{ model.first_name }}">
             <label for="firstName">First Name</label>
           </div>
         </div>
-        <div class="col-6 col-lg-4 pb-3">
+        <div class="col-12 col-md-6 col-lg-4 pb-3">
           <div class="form-floating">
             <input type="text" name="lastName" id="lastName" class="form-control" required
                    placeholder="Last" value="{{ model.last_name }}">
             <label for="lastName">Last Name</label>
           </div>
         </div>
-        <div class="col-6 col-lg-4 pb-3">
+        <div class="col-12 col-md-6 col-lg-4 pb-3">
           <div class="form-floating">
             <input type="text" name="preferredName" id="preferredName" class="form-control" required
                    placeholder="Preferred" value="{{ model.preferred_name }}">
@@ -36,14 +36,14 @@
               </div>
             </div>
             <div class="row">
-              <div class="col">
+              <div class="col-12 col-md-6 pb-3">
                 <div class="form-floating">
                   <input type="password" name="newPassword" id="newPassword" class="form-control"
                          placeholder="Password">
                   <label for="newPassword">New Password</label>
                 </div>
               </div>
-              <div class="col">
+              <div class="col-12 col-md-6 pb-3">
                 <div class="form-floating">
                   <input type="password" name="newPasswordConfirm" id="newPasswordConfirm" class="form-control"
                          placeholder="Confirm">
@@ -55,7 +55,7 @@
         </div>
       </div>
       <div class="row">
-        <div class="col mb-3">
+        <div class="col text-center mb-3">
           <button type="submit" class="btn btn-primary">Save Changes</button>
         </div>
       </div>

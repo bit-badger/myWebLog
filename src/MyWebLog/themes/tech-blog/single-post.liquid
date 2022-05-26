@@ -1,24 +1,25 @@
 {%- assign post = model.posts | first -%}
 <article class="auto">
   <h1 class="entry-title">
-    {{ post.title }}<br>
-    <span class="entry-meta">
-      Posted by {{ model.authors | value: post.author_id }} on {{ post.published_on | date: "dddd, MMMM d, yyyy" }}
-      at {{ post.published_on | date: "h:mm tt" | downcase }}
-      {%- assign cat_count = post.category_ids | size -%}
-      {%- if cat_count > 0 %}
-        <br>
-        <small>
-          Categorized under
-          {% for cat_id in post.category_ids -%}
-            {%- assign cat = categories | where: "id", cat_id | first -%}
-            <a href="{{ cat | category_link }}" title="Categorized under {{ cat.name | strip_html | escape }}"
-               rel="tag">{{ cat.name }}</a>{% unless forloop.last %}, {% endunless %}
-          {%- endfor %}
-        </small>
-      {%- endif %}
-    </span>
+    {{ post.title }}
   </h1>
+  <p class="entry-meta">
+    Posted by {{ model.authors | value: post.author_id }} on {{ post.published_on | date: "dddd, MMMM d, yyyy" }}
+    at {{ post.published_on | date: "h:mm tt" | downcase }}
+  </p>
+  {%- assign cat_count = post.category_ids | size -%}
+  {%- if cat_count > 0 %}
+    <p class="entry-meta">
+      <small>
+        Categorized under
+        {% for cat_id in post.category_ids -%}
+          {%- assign cat = categories | where: "id", cat_id | first -%}
+          <a href="{{ cat | category_link }}" title="Categorized under {{ cat.name | strip_html | escape }}"
+             rel="tag">{{ cat.name }}</a>{% unless forloop.last %}, {% endunless %}
+        {%- endfor %}
+      </small>
+    </p>
+  {%- endif %}
   <div class="entry-content">{{ post.text }}</div>
   <div class="entry-footer">
     {%- assign tag_count = post.tags | size -%}
