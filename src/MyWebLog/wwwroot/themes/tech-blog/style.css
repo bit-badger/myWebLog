@@ -58,7 +58,7 @@ p {
 }
 code, pre {
   font-family: "JetBrains Mono","SFMono-Regular",Consolas,"Liberation Mono",Menlo,Courier,monospace;
-  font-size: 1rem;
+  font-size: 80%;
 }
 code {
   background-color: rgba(0, 0, 0, .1);
@@ -152,12 +152,6 @@ article.page .metadata {
 }
 .strike {
   text-decoration: line-through;
-}
-.category-list span:after {
-  content: ", ";
-}
-.category-list span:last-of-type:after {
-  content: "";
 }
 footer {
 	padding: 20px 15px 10px 15px;

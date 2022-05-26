@@ -14,7 +14,7 @@
 		<PackageReference Include="Microsoft.FSharpLu.Json" Version="0.11.7" />
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
 		<PackageReference Include="RethinkDb.Driver" Version="2.3.150" />
-		<PackageReference Include="RethinkDb.Driver.FSharp" Version="0.9.0-beta-01" />
+		<PackageReference Include="RethinkDb.Driver.FSharp" Version="0.9.0-beta-03" />
 		<PackageReference Update="FSharp.Core" Version="6.0.4" />
 	</ItemGroup>
 	
