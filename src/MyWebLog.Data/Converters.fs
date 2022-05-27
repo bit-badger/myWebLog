@@ -20,6 +20,20 @@ type CommentIdConverter () =
     override _.ReadJson (reader : JsonReader, _ : Type, _ : CommentId, _ : bool, _ : JsonSerializer) =
         (string >> CommentId) reader.Value
 
+type CustomFeedSourceConverter () =
+    inherit JsonConverter<CustomFeedSource> ()
+    override _.WriteJson (writer : JsonWriter, value : CustomFeedSource, _ : JsonSerializer) =
+        writer.WriteValue (CustomFeedSource.toString value)
+    override _.ReadJson (reader : JsonReader, _ : Type, _ : CustomFeedSource, _ : bool, _ : JsonSerializer) =
+        (string >> CustomFeedSource.parse) reader.Value
+        
+type ExplicitRatingConverter () =
+    inherit JsonConverter<ExplicitRating> ()
+    override _.WriteJson (writer : JsonWriter, value : ExplicitRating, _ : JsonSerializer) =
+        writer.WriteValue (ExplicitRating.toString value)
+    override _.ReadJson (reader : JsonReader, _ : Type, _ : ExplicitRating, _ : bool, _ : JsonSerializer) =
+        (string >> ExplicitRating.parse) reader.Value
+    
 type MarkupTextConverter () =
     inherit JsonConverter<MarkupText> ()
     override _.WriteJson (writer : JsonWriter, value : MarkupText, _ : JsonSerializer) =
@@ -75,15 +89,17 @@ open Microsoft.FSharpLu.Json
 let all () : JsonConverter seq =
     seq {
         // Our converters
-        CategoryIdConverter   ()
-        CommentIdConverter    ()
-        MarkupTextConverter   ()
-        PermalinkConverter    ()
-        PageIdConverter       ()
-        PostIdConverter       ()
-        TagMapIdConverter     ()
-        WebLogIdConverter     ()
-        WebLogUserIdConverter ()
+        CategoryIdConverter       ()
+        CommentIdConverter        ()
+        CustomFeedSourceConverter ()
+        ExplicitRatingConverter   ()
+        MarkupTextConverter       ()
+        PermalinkConverter        ()
+        PageIdConverter           ()
+        PostIdConverter           ()
+        TagMapIdConverter         ()
+        WebLogIdConverter         ()
+        WebLogUserIdConverter     ()
         // Handles DUs with no associated data, as well as option fields
         CompactUnionJsonConverter ()
     }

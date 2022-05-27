@@ -195,84 +195,119 @@ let home : HttpHandler = fun next ctx -> task {
         | None -> return! Error.notFound next ctx
 }
 
+/// Functions to support generating RSS feeds
+module Feed =
+    
+    open System.IO
+    open System.ServiceModel.Syndication
+    open System.Text.RegularExpressions
+    open System.Xml
 
-open System.IO
-open System.ServiceModel.Syndication
-open System.Text.RegularExpressions
-open System.Xml
+    /// The type of feed to generate
+    type FeedType =
+        | Standard
+        | Category of CategoryId
+        | Tag      of string
+        | Custom   of CustomFeed
+    
+    /// Derive the type of RSS feed requested
+    let deriveFeedType ctx webLog feedPath : (FeedType * int) option =
+        let name = $"/{webLog.rss.feedName}"
+        let postCount = defaultArg webLog.rss.itemsInFeed webLog.postsPerPage
+        // Standard feed
+        match webLog.rss.feedEnabled && feedPath = name with
+        | true -> Some (Standard, postCount)
+        | false ->
+            // Category feed
+            match CategoryCache.get ctx |> Array.tryFind (fun cat -> cat.slug = feedPath.Replace (name, "")) with
+            | Some cat -> Some (Category (CategoryId cat.id), postCount)
+            | None ->
+                // Tag feed
+                match feedPath.StartsWith "/tag/" with
+                | true -> Some (Tag (feedPath.Replace("/tag/", "").Replace(name, "")), postCount)
+                | false ->
+                    // Custom feed
+                    match webLog.rss.customFeeds
+                          |> List.tryFind (fun it -> (Permalink.toString it.path).EndsWith feedPath) with
+                    | Some feed ->
+                        Some (Custom feed,
+                              feed.podcast |> Option.map (fun p -> p.itemsInFeed) |> Option.defaultValue postCount)
+                    | None ->
+                        // No feed
+                        None
+        
+    // GET {any-prescribed-feed}
+    let generate (feedType : FeedType) postCount : HttpHandler = fun next ctx -> backgroundTask {
+        // TODO: stopped here; use feed type and count in the below function
+        let  webLog  = ctx.WebLog
+        let  conn    = ctx.Conn
+        let! posts   = Data.Post.findPageOfPublishedPosts webLog.id 1 postCount conn
+        let! authors = getAuthors     webLog posts conn
+        let! tagMaps = getTagMappings webLog posts conn
+        let  cats    = CategoryCache.get ctx
+        
+        let toItem (post : Post) =
+            let plainText =
+                Regex.Replace (post.text, "<(.|\n)*?>", "")
+                |> function
+                | txt when txt.Length < 255 -> txt
+                | txt -> $"{txt.Substring (0, 252)}..."
+            let item = SyndicationItem (
+                Id              = WebLog.absoluteUrl webLog post.permalink,
+                Title           = TextSyndicationContent.CreateHtmlContent post.title,
+                PublishDate     = DateTimeOffset post.publishedOn.Value,
+                LastUpdatedTime = DateTimeOffset post.updatedOn,
+                Content         = TextSyndicationContent.CreatePlaintextContent plainText)
+            item.AddPermalink (Uri item.Id)
+            
+            let encoded =
+                post.text.Replace("src=\"/", $"src=\"{webLog.urlBase}/").Replace ("href=\"/", $"href=\"{webLog.urlBase}/")
+            item.ElementExtensions.Add ("encoded", "http://purl.org/rss/1.0/modules/content/", encoded)
+            item.Authors.Add (SyndicationPerson (
+                Name = (authors |> List.find (fun a -> a.name = WebLogUserId.toString post.authorId)).value))
+            [ post.categoryIds
+              |> List.map (fun catId ->
+                  let cat = cats |> Array.find (fun c -> c.id = CategoryId.toString catId)
+                  SyndicationCategory (cat.name, WebLog.absoluteUrl webLog (Permalink $"category/{cat.slug}/"), cat.name))
+              post.tags
+              |> List.map (fun tag ->
+                  let urlTag =
+                      match tagMaps |> List.tryFind (fun tm -> tm.tag = tag) with
+                      | Some tm -> tm.urlValue
+                      | None -> tag.Replace (" ", "+")
+                  SyndicationCategory (tag, WebLog.absoluteUrl webLog (Permalink $"tag/{urlTag}/"), $"{tag} (tag)"))
+            ]
+            |> List.concat
+            |> List.iter item.Categories.Add
+            item
+            
+        
+        let feed = SyndicationFeed ()
+        feed.Title           <- TextSyndicationContent webLog.name
+        feed.Description     <- TextSyndicationContent <| defaultArg webLog.subtitle webLog.name
+        feed.LastUpdatedTime <- DateTimeOffset <| (List.head posts).updatedOn
+        feed.Generator       <- generator ctx
+        feed.Items           <- posts |> Seq.ofList |> Seq.map toItem
+        feed.Language        <- "en"
+        feed.Id              <- webLog.urlBase
+        
+        feed.Links.Add (SyndicationLink (Uri $"{webLog.urlBase}/feed.xml", "self", "", "application/rss+xml", 0L))
+        feed.AttributeExtensions.Add
+            (XmlQualifiedName ("content", "http://www.w3.org/2000/xmlns/"), "http://purl.org/rss/1.0/modules/content/")
+        feed.ElementExtensions.Add ("link", "", webLog.urlBase)
+        
+        use mem = new MemoryStream ()
+        use xml = XmlWriter.Create mem
+        feed.SaveAsRss20 xml
+        xml.Close ()
+        
+        let _ = mem.Seek (0L, SeekOrigin.Begin)
+        let rdr = new StreamReader(mem)
+        let! output = rdr.ReadToEndAsync ()
+        
+        return! ( setHttpHeader "Content-Type" "text/xml" >=> setStatusCode 200 >=> setBodyFromString output) next ctx
+    }
 
-// GET /feed.xml
-//   (Routing handled by catch-all handler for future configurability)
-let generateFeed : HttpHandler = fun next ctx -> backgroundTask {
-    let  webLog  = ctx.WebLog
-    let  conn    = ctx.Conn
-    // TODO: hard-coded number of items
-    let! posts   = Data.Post.findPageOfPublishedPosts webLog.id 1 10 conn
-    let! authors = getAuthors     webLog posts conn
-    let! tagMaps = getTagMappings webLog posts conn
-    let  cats    = CategoryCache.get ctx
-    
-    let toItem (post : Post) =
-        let plainText =
-            Regex.Replace (post.text, "<(.|\n)*?>", "")
-            |> function
-            | txt when txt.Length < 255 -> txt
-            | txt -> $"{txt.Substring (0, 252)}..."
-        let item = SyndicationItem (
-            Id              = WebLog.absoluteUrl webLog post.permalink,
-            Title           = TextSyndicationContent.CreateHtmlContent post.title,
-            PublishDate     = DateTimeOffset post.publishedOn.Value,
-            LastUpdatedTime = DateTimeOffset post.updatedOn,
-            Content         = TextSyndicationContent.CreatePlaintextContent plainText)
-        item.AddPermalink (Uri item.Id)
-        
-        let encoded =
-            post.text.Replace("src=\"/", $"src=\"{webLog.urlBase}/").Replace ("href=\"/", $"href=\"{webLog.urlBase}/")
-        item.ElementExtensions.Add ("encoded", "http://purl.org/rss/1.0/modules/content/", encoded)
-        item.Authors.Add (SyndicationPerson (
-            Name = (authors |> List.find (fun a -> a.name = WebLogUserId.toString post.authorId)).value))
-        [ post.categoryIds
-          |> List.map (fun catId ->
-              let cat = cats |> Array.find (fun c -> c.id = CategoryId.toString catId)
-              SyndicationCategory (cat.name, WebLog.absoluteUrl webLog (Permalink $"category/{cat.slug}/"), cat.name))
-          post.tags
-          |> List.map (fun tag ->
-              let urlTag =
-                  match tagMaps |> List.tryFind (fun tm -> tm.tag = tag) with
-                  | Some tm -> tm.urlValue
-                  | None -> tag.Replace (" ", "+")
-              SyndicationCategory (tag, WebLog.absoluteUrl webLog (Permalink $"tag/{urlTag}/"), $"{tag} (tag)"))
-        ]
-        |> List.concat
-        |> List.iter item.Categories.Add
-        item
-        
-    
-    let feed = SyndicationFeed ()
-    feed.Title           <- TextSyndicationContent webLog.name
-    feed.Description     <- TextSyndicationContent <| defaultArg webLog.subtitle webLog.name
-    feed.LastUpdatedTime <- DateTimeOffset <| (List.head posts).updatedOn
-    feed.Generator       <- generator ctx
-    feed.Items           <- posts |> Seq.ofList |> Seq.map toItem
-    feed.Language        <- "en"
-    feed.Id              <- webLog.urlBase
-    
-    feed.Links.Add (SyndicationLink (Uri $"{webLog.urlBase}/feed.xml", "self", "", "application/rss+xml", 0L))
-    feed.AttributeExtensions.Add
-        (XmlQualifiedName ("content", "http://www.w3.org/2000/xmlns/"), "http://purl.org/rss/1.0/modules/content/")
-    feed.ElementExtensions.Add ("link", "", webLog.urlBase)
-    
-    use mem = new MemoryStream ()
-    use xml = XmlWriter.Create mem
-    feed.SaveAsRss20 xml
-    xml.Close ()
-    
-    let _ = mem.Seek (0L, SeekOrigin.Begin)
-    let rdr = new StreamReader(mem)
-    let! output = rdr.ReadToEndAsync ()
-    
-    return! ( setHttpHeader "Content-Type" "text/xml" >=> setStatusCode 200 >=> setBodyFromString output) next ctx
-}
 
 /// Sequence where the first returned value is the proper handler for the link
 let private deriveAction (ctx : HttpContext) : HttpHandler seq =
@@ -281,7 +316,7 @@ let private deriveAction (ctx : HttpContext) : HttpHandler seq =
     let textLink =
         let _, extra = WebLog.hostAndPath webLog
         let url      = string ctx.Request.Path
-        if extra = "" then url else url.Substring extra.Length
+        (if extra = "" then url else url.Substring extra.Length).ToLowerInvariant ()
     let await it = (Async.AwaitTask >> Async.RunSynchronously) it
     seq {
         debug "Post" ctx (fun () -> $"Considering URL {textLink}")
@@ -303,8 +338,9 @@ let private deriveAction (ctx : HttpContext) : HttpHandler seq =
                 |> themedView (defaultArg page.template "single-page") next ctx
         | None -> ()
         // RSS feed
-        // TODO: configure this via web log
-        if textLink = "/feed.xml" then yield generateFeed
+        match Feed.deriveFeedType ctx webLog textLink with
+        | Some (feedType, postCount) -> yield Feed.generate feedType postCount 
+        | None -> ()
         // Post differing only by trailing slash
         let altLink = Permalink (if textLink.EndsWith "/" then textLink[..textLink.Length - 2] else $"{textLink}/")
         match Data.Post.findByPermalink altLink webLog.id conn |> await with

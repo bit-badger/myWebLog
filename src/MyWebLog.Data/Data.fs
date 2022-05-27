@@ -77,7 +77,7 @@ module Startup =
                 log.LogInformation $"Creating index {table}.permalink..."
                 do! rethink {
                     withTable table
-                    indexCreate "permalink" (fun row -> r.Array (row["webLogId"], row["permalink"]) :> obj)
+                    indexCreate "permalink" (fun row -> r.Array (row["webLogId"], row["permalink"].Downcase ()) :> obj)
                     write; withRetryOnce; ignoreResult conn
                 }
             // Prior permalinks are searched when a post or page permalink do not match the current URL
@@ -85,7 +85,7 @@ module Startup =
                 log.LogInformation $"Creating index {table}.priorPermalinks..."
                 do! rethink {
                     withTable table
-                    indexCreate "priorPermalinks" [ Multi ]
+                    indexCreate "priorPermalinks" (fun row -> row["priorPermalinks"].Downcase () :> obj) [ Multi ]
                     write; withRetryOnce; ignoreResult conn
                 }
         // Post needs indexes by category and tag (used for counting and retrieving posts)

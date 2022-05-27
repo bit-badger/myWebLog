@@ -187,6 +187,133 @@ module PostId =
     let create () = PostId (newId ())
 
 
+/// The source for a custom feed
+type CustomFeedSource =
+    /// A feed based on a particular category
+    | Category of CategoryId
+    /// A feed based on a particular tag
+    | Tag of string
+
+/// Functions to support feed sources
+module CustomFeedSource =
+    /// Create a string version of a feed source
+    let toString : CustomFeedSource -> string =
+        function
+        | Category (CategoryId catId) -> $"category:{catId}"
+        | Tag tag -> $"tag:{tag}"
+    
+    /// Parse a feed source from its string version
+    let parse : string -> CustomFeedSource =
+        let value (it : string) = it.Split(":").[1]
+        function
+        | source when source.StartsWith "category:" -> (value >> CategoryId >> Category) source
+        | source when source.StartsWith "tag:"      -> (value >> Tag) source
+        | source -> invalidArg "feedSource" $"{source} is not a valid feed source"
+
+
+/// Valid values for the iTunes explicit rating
+type ExplicitRating =
+    | Yes
+    | No
+    | Clean
+
+/// Functions to support iTunes explicit ratings
+module ExplicitRating =
+    /// Convert an explicit rating to a string
+    let toString : ExplicitRating -> string =
+        function
+        | Yes   -> "yes"
+        | No    -> "no"
+        | Clean -> "clean"
+    
+    /// Parse a string into an explicit rating
+    let parse : string -> ExplicitRating =
+        function
+        | "yes"   -> Yes
+        | "no"    -> No
+        | "clean" -> Clean
+        | x       -> raise (invalidArg "rating" $"{x} is not a valid explicit rating")
+
+
+/// Options for a feed that describes a podcast
+type PodcastOptions =
+    {   /// The title of the podcast
+        title : string
+        
+        /// A subtitle for the podcast
+        subtitle : string option
+        
+        /// The number of items in the podcast feed
+        itemsInFeed : int
+        
+        /// A summary of the podcast (iTunes field)
+        summary : string
+        
+        /// The display name of the podcast author (iTunes field)
+        displayedAuthor : string
+        
+        /// The e-mail address of the user who registered the podcast at iTunes
+        email : string
+        
+        /// The category from iTunes under which this podcast is categorized
+        iTunesCategory : string
+        
+        /// A further refinement of the categorization of this podcast (iTunes field / values)
+        iTunesSubcategory : string
+        
+        /// The explictness rating (iTunes field)
+        explicit : ExplicitRating
+    }
+
+
+/// A custom feed
+type CustomFeed =
+    {   /// The source for the custom feed
+        source : CustomFeedSource
+        
+        /// The path for the custom feed
+        path : Permalink
+        
+        /// Podcast options, if the feed defines a podcast
+        podcast : PodcastOptions option
+    }
+
+
+/// Really Simple Syndication (RSS) options for this web log
+type RssOptions =
+    {   /// Whether the site feed of posts is enabled
+        feedEnabled : bool
+        
+        /// The name of the file generated for the site feed
+        feedName : string
+        
+        /// Override the "posts per page" setting for the site feed
+        itemsInFeed : int option
+        
+        /// Whether feeds are enabled for all categories
+        categoryEnabled : bool
+        
+        /// Whether feeds are enabled for all tags
+        tagEnabled : bool
+        
+        /// Custom feeds for this web log
+        customFeeds: CustomFeed list
+    }
+
+/// Functions to support RSS options
+module RssOptions =
+    
+    /// An empty set of RSS options
+    let empty =
+        { feedEnabled     = true
+          feedName        = "feed.xml"
+          itemsInFeed     = None
+          categoryEnabled = true
+          tagEnabled      = true
+          customFeeds     = []
+        }
+
+
 /// An identifier for a tag mapping
 type TagMapId = TagMapId of string
 

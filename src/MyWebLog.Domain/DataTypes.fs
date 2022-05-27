@@ -272,12 +272,15 @@ type WebLog =
 
         /// The time zone in which dates/times should be displayed
         timeZone : string
+        
+        /// The RSS options for this web log
+        rss : RssOptions
     }
 
 /// Functions to support web logs
 module WebLog =
     
-    /// An empty set of web logs
+    /// An empty web log
     let empty =
         { id           = WebLogId.empty
           name         = ""
@@ -287,6 +290,7 @@ module WebLog =
           themePath    = "default"
           urlBase      = ""
           timeZone     = ""
+          rss          = RssOptions.empty
         }
     
     /// Get the host (including scheme) and extra path from the URL base
