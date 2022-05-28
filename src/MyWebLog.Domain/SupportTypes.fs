@@ -255,6 +255,9 @@ type PodcastOptions =
         /// The e-mail address of the user who registered the podcast at iTunes
         email : string
         
+        /// The link to the image for the podcast
+        imageUrl : Permalink
+        
         /// The category from iTunes under which this podcast is categorized
         iTunesCategory : string
         
@@ -263,6 +266,9 @@ type PodcastOptions =
         
         /// The explictness rating (iTunes field)
         explicit : ExplicitRating
+        
+        /// The default media type for files in this podcast
+        defaultMediaType : string option
     }
 
 

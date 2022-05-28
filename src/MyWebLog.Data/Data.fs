@@ -524,8 +524,7 @@ module Post =
     }
 
     /// Find posts to be displayed on a category list page
-    let findPageOfCategorizedPosts (webLogId : WebLogId) (catIds : CategoryId list) (pageNbr : int64) postsPerPage =
-        let pg = int pageNbr
+    let findPageOfCategorizedPosts (webLogId : WebLogId) (catIds : CategoryId list) pageNbr postsPerPage =
         rethink<Post list> {
             withTable Table.Post
             getAll (objList catIds) "categoryIds"
@@ -534,7 +533,7 @@ module Post =
             without [ "priorPermalinks"; "revisions" ]
             distinct
             orderByDescending "publishedOn"
-            skip ((pg - 1) * postsPerPage)
+            skip ((pageNbr - 1) * postsPerPage)
             limit (postsPerPage + 1)
             result; withRetryDefault
         }

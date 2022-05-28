@@ -13,6 +13,7 @@
     <Compile Include="Handlers\Helpers.fs" />
     <Compile Include="Handlers\Admin.fs" />
     <Compile Include="Handlers\Post.fs" />
+    <Compile Include="Handlers\Feed.fs" />
     <Compile Include="Handlers\User.fs" />
     <Compile Include="Handlers\Routes.fs" />
     <Compile Include="DotLiquidBespoke.fs" />
