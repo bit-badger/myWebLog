@@ -11,6 +11,8 @@ open Microsoft.AspNetCore.Http
 open MyWebLog
 open MyWebLog.ViewModels
 
+// ~~ FEED GENERATION ~~
+
 /// The type of feed to generate
 type FeedType =
     | StandardFeed
@@ -211,12 +213,11 @@ let private addPodcast webLog (rssFeed : SyndicationFeed) (feed : CustomFeed) =
     rssFeed.ElementExtensions.Add ("category",  "itunes",   categoryXml)
     rssFeed.ElementExtensions.Add ("explicit",  "itunes",   ExplicitRating.toString podcast.explicit)
     rssFeed.ElementExtensions.Add ("subscribe", "rawvoice", feedUrl)
-    
-// GET {any-prescribed-feed}
-let generate (feedType : FeedType) postCount : HttpHandler = fun next ctx -> backgroundTask {
+
+/// Create a feed with a known non-zero-length list of posts    
+let createFeed (feedType : FeedType) posts : HttpHandler = fun next ctx -> backgroundTask {
     let  webLog  = ctx.WebLog
     let  conn    = ctx.Conn
-    let! posts   = getFeedPosts        webLog feedType postCount conn
     let! authors = Post.getAuthors     webLog posts conn
     let! tagMaps = Post.getTagMappings webLog posts conn
     let  cats    = CategoryCache.get ctx
@@ -254,4 +255,25 @@ let generate (feedType : FeedType) postCount : HttpHandler = fun next ctx -> bac
     let! output = rdr.ReadToEndAsync ()
     
     return! (setHttpHeader "Content-Type" "text/xml" >=> setStatusCode 200 >=> setBodyFromString output) next ctx
+}
+
+// GET {any-prescribed-feed}
+let generate (feedType : FeedType) postCount : HttpHandler = fun next ctx -> backgroundTask {
+    match! getFeedPosts ctx.WebLog feedType postCount ctx.Conn with
+    | posts when List.length posts > 0 -> return! createFeed feedType posts next ctx
+    | _ -> return! Error.notFound next ctx
+}
+
+// ~~ FEED ADMINISTRATION ~~
+
+open DotLiquid
+
+// GET: /admin/rss/settings
+let editSettings : HttpHandler = fun next ctx -> task {
+    // TODO: stopped here
+    return!
+        Hash.FromAnonymousObject
+            {|  csrf = csrfToken ctx
+            |}
+        |> viewForTheme "admin" "rss-settings" next ctx
 }
