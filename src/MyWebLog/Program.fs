@@ -202,7 +202,7 @@ let main args =
         opts.TableName  <- "Session"
         opts.Connection <- conn)
     let _ = builder.Services.AddSession(fun opts ->
-        opts.IdleTimeout        <- TimeSpan.FromMinutes 30
+        opts.IdleTimeout        <- TimeSpan.FromMinutes 60
         opts.Cookie.HttpOnly    <- true
         opts.Cookie.IsEssential <- true)
     
@@ -218,15 +218,15 @@ let main args =
     Template.RegisterTag<UserLinksTag> "user_links"
     
     [   // Domain types
-        typeof<MetaItem>; typeof<Page>; typeof<TagMap>; typeof<WebLog>
+        typeof<CustomFeed>; typeof<MetaItem>; typeof<Page>; typeof<RssOptions>; typeof<TagMap>; typeof<WebLog>
         // View models
         typeof<DashboardModel>; typeof<DisplayCategory>;       typeof<DisplayPage>;     typeof<EditCategoryModel>
         typeof<EditPageModel>;  typeof<EditPostModel>;         typeof<EditTagMapModel>; typeof<EditUserModel>
         typeof<LogOnModel>;     typeof<ManagePermalinksModel>; typeof<PostDisplay>;     typeof<PostListItem>
         typeof<SettingsModel>;  typeof<UserMessage>
         // Framework types
-        typeof<AntiforgeryTokenSet>; typeof<KeyValuePair>; typeof<MetaItem list>; typeof<string list>
-        typeof<string option>;       typeof<TagMap list>
+        typeof<AntiforgeryTokenSet>; typeof<int option>;    typeof<KeyValuePair>; typeof<MetaItem list>
+        typeof<string list>;         typeof<string option>; typeof<TagMap list>
     ]
     |> List.iter (fun it -> Template.RegisterSafeType (it, [| "*" |]))
 

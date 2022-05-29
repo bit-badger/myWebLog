@@ -199,7 +199,6 @@ let private addPodcast webLog (rssFeed : SyndicationFeed) (feed : CustomFeed) =
               "link",  feedUrl
             ]
             |> List.fold (fun doc (name, value) -> addChild doc name "" value) (XmlDocument ()))
-    // TODO: is copyright required?
     rssFeed.ElementExtensions.Add ("summary", "itunes", podcast.summary)
     rssFeed.ElementExtensions.Add ("author",  "itunes", podcast.displayedAuthor)
     podcast.subtitle |> Option.iter (fun sub -> rssFeed.ElementExtensions.Add ("subtitle", "itunes", sub))
@@ -238,10 +237,11 @@ let createFeed (feedType : FeedType) posts : HttpHandler = fun next ctx -> backg
     feed.Items           <- posts |> Seq.ofList |> Seq.map toItem
     feed.Language        <- "en"
     feed.Id              <- webLog.urlBase
+    webLog.rss.copyright |> Option.iter (fun copy -> feed.Copyright <- TextSyndicationContent copy)
     
+    // TODO: adjust this link for non-root feeds
     feed.Links.Add (SyndicationLink (Uri $"{webLog.urlBase}/feed.xml", "self", "", "application/rss+xml", 0L))
-    feed.AttributeExtensions.Add
-        (XmlQualifiedName ("content", "http://www.w3.org/2000/xmlns/"), "http://purl.org/rss/1.0/modules/content/")
+    addNamespace feed "content" "http://purl.org/rss/1.0/modules/content/"
     feed.ElementExtensions.Add ("link", "", webLog.urlBase)
     podcast |> Option.iter (addPodcast webLog feed)
     
@@ -273,7 +273,9 @@ let editSettings : HttpHandler = fun next ctx -> task {
     // TODO: stopped here
     return!
         Hash.FromAnonymousObject
-            {|  csrf = csrfToken ctx
+            {|  csrf       = csrfToken ctx
+                model      = ctx.WebLog.rss
+                page_title = "RSS Settings"
             |}
         |> viewForTheme "admin" "rss-settings" next ctx
 }

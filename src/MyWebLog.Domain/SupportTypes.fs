@@ -302,6 +302,9 @@ type RssOptions =
         /// Whether feeds are enabled for all tags
         tagEnabled : bool
         
+        /// A copyright string to be placed in all feeds
+        copyright : string option
+        
         /// Custom feeds for this web log
         customFeeds: CustomFeed list
     }
@@ -316,6 +319,7 @@ module RssOptions =
           itemsInFeed     = None
           categoryEnabled = true
           tagEnabled      = true
+          copyright       = None
           customFeeds     = []
         }
 

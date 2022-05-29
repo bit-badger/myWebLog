@@ -93,13 +93,13 @@ let router : HttpHandler = choose [
                 routef "/%s/edit"           Post.edit
                 routef "/%s/permalinks"     Post.editPermalinks
             ])
-            subRoute "/rss" (choose [
-                route "/settings" >=> Feed.editSettings
-            ])
-            route    "/settings" >=> Admin.settings
-            subRoute "/tag-mapping" (choose [
-                route  "s"        >=> Admin.tagMappings
-                routef "/%s/edit"     Admin.editMapping
+            subRoute "/settings" (choose [
+                route ""     >=> Admin.settings
+                route "/rss" >=> Feed.editSettings
+                subRoute "/tag-mapping" (choose [
+                    route  "s"        >=> Admin.tagMappings
+                    routef "/%s/edit"     Admin.editMapping
+                ])
             ])
             route    "/user/edit" >=> User.edit
         ]
@@ -118,10 +118,12 @@ let router : HttpHandler = choose [
                 route  "/permalinks" >=> Post.savePermalinks
                 routef "/%s/delete"      Post.delete
             ])
-            route    "/settings" >=> Admin.saveSettings
-            subRoute "/tag-mapping" (choose [
-                route  "/save"      >=> Admin.saveMapping
-                routef "/%s/delete"     Admin.deleteMapping
+            subRoute "/settings" (choose [
+                route "" >=> Admin.saveSettings
+                subRoute "/tag-mapping" (choose [
+                    route  "/save"      >=> Admin.saveMapping
+                    routef "/%s/delete"     Admin.deleteMapping
+                ])
             ])
             route    "/user/save" >=> User.save
         ]

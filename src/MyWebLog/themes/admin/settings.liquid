@@ -1,4 +1,8 @@
 ﻿<h2 class="my-3">{{ web_log.name }} Settings</h2>
+<p class="text-muted">
+  Other Settings: <a href="{{ "admin/settings/tag-mappings" | relative_link }}">Tag Mappings</a> &bull;
+  <a href="{{ "admin/settings/rss" | relative_link }}">RSS Settings</a>
+</p>
 <article>
   <form action="{{ "admin/settings" | relative_link }}" method="post">
     <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">

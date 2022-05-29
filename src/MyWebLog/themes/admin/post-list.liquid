@@ -1,5 +1,5 @@
 <h2 class="my-3">{{ page_title }}</h2>
-<article class="container">
+<article>
   <a href="{{ "admin/post/new/edit" | relative_link }}" class="btn btn-primary btn-sm mb-3">Write a New Post</a>
   <table class="table table-sm table-hover">
     <thead>
@@ -12,34 +12,41 @@
       </tr>
     </thead>
     <tbody>
-      {% for post in model.posts -%}
+      {%- assign post_count = model.posts | size -%}
+      {%- if post_count > 0 %}
+        {% for post in model.posts -%}
+          <tr>
+            <td class="no-wrap">
+              {% if post.published_on %}{{ post.published_on | date: "MMMM d, yyyy" }}{% else %}Not Published{% endif %}
+              {%- if post.published_on != post.updated_on %}<br>
+                <small class="text-muted"><em>{{ post.updated_on | date: "MMMM d, yyyy" }}</em></small>
+              {%- endif %}
+            </td>
+            <td>
+              {{ post.title }}<br>
+              <small>
+                <a href="{{ post | relative_link }}" target="_blank">View Post</a>
+                <span class="text-muted"> &bull; </span>
+                <a href="{{ post | edit_post_link }}">Edit</a>
+                <span class="text-muted"> &bull; </span>
+                {%- capture post_del %}admin/post/{{ post.id }}/delete{% endcapture -%}
+                {%- capture post_del_link %}{{ post_del | relative_link }}{% endcapture -%}
+                <a href="{{ post_del_link }}" class="text-danger"
+                   onclick="return Admin.deletePost('{{ post.title }}', '{{ post_del_link }}')">
+                  Delete
+                </a>
+              </small>
+            </td>
+            <td class="no-wrap">{{ model.authors | value: post.author_id }}</td>
+            <td>{{ post.status }}</td>
+            <td><span class="no-wrap">{{ post.tags | join: "</span>, <span class='no-wrap'>" }}</span></td>
+          </tr>
+        {%- endfor %}
+      {% else %}
         <tr>
-          <td class="no-wrap">
-            {% if post.published_on %}{{ post.published_on | date: "MMMM d, yyyy" }}{% else %}Not Published{% endif %}
-            {%- if post.published_on != post.updated_on %}<br>
-              <small class="text-muted"><em>{{ post.updated_on | date: "MMMM d, yyyy" }}</em></small>
-            {%- endif %}
-          </td>
-          <td>
-            {{ post.title }}<br>
-            <small>
-              <a href="{{ post | relative_link }}" target="_blank">View Post</a>
-              <span class="text-muted"> &bull; </span>
-              <a href="{{ post | edit_post_link }}">Edit</a>
-              <span class="text-muted"> &bull; </span>
-              {%- capture post_del %}admin/post/{{ post.id }}/delete{% endcapture -%}
-              {%- capture post_del_link %}{{ post_del | relative_link }}{% endcapture -%}
-              <a href="{{ post_del_link }}" class="text-danger"
-                 onclick="return Admin.deletePost('{{ post.title }}', '{{ post_del_link }}')">
-                Delete
-              </a>
-            </small>
-          </td>
-          <td class="no-wrap">{{ model.authors | value: post.author_id }}</td>
-          <td>{{ post.status }}</td>
-          <td><span class="no-wrap">{{ post.tags | join: "</span>, <span class='no-wrap'>" }}</span></td>
+          <td colspan="5" class="text-muted fst-italic text-center">This web log has no posts</td>
         </tr>
-      {%- endfor %}
+      {% endif %}
     </tbody>
   </table>
   {% if model.newer_link or model.older_link %}

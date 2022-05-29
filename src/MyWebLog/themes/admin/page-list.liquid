@@ -1,5 +1,5 @@
 <h2 class="my-3">{{ page_title }}</h2>
-<article class="container">
+<article>
   <a href="{{ "admin/page/new/edit" | relative_link }}" class="btn btn-primary btn-sm mb-3">Create a New Page</a>
   <table class="table table-sm table-hover">
     <thead>
@@ -10,30 +10,37 @@
       </tr>
     </thead>
     <tbody>
-      {% for pg in pages -%}
+      {%- assign page_count = pages | size -%}
+      {% if page_count > 0 %}
+        {% for pg in pages -%}
+          <tr>
+            <td>
+              {{ pg.title }}
+              {%- if pg.is_default %} &nbsp; <span class="badge bg-success">HOME PAGE</span>{% endif -%}
+              {%- if pg.show_in_page_list %} &nbsp; <span class="badge bg-primary">IN PAGE LIST</span> {% endif -%}<br>
+              <small>
+                {%- capture pg_link %}{% unless pg.is_default %}{{ pg.permalink }}{% endunless %}{% endcapture -%}
+                <a href="{{ pg_link | relative_link }}" target="_blank">View Page</a>
+                <span class="text-muted"> &bull; </span>
+                <a href="{{ pg | edit_page_link }}">Edit</a>
+                <span class="text-muted"> &bull; </span>
+                {%- capture pg_del %}admin/page/{{ pg.id }}/delete{% endcapture -%}
+                {%- capture pg_del_link %}{{ pg_del | relative_link }}{% endcapture -%}
+                <a href="{{ pg_del_link }}" class="text-danger"
+                   onclick="return Admin.deletePage('{{ pg.title }}', '{{ pg_del_link }}')">
+                  Delete
+                </a>
+              </small>
+            </td>
+            <td>/{% unless pg.is_default %}{{ pg.permalink }}{% endunless %}</td>
+            <td>{{ pg.updated_on | date: "MMMM d, yyyy" }}</td>
+          </tr>
+        {%- endfor %}
+      {% else %}
         <tr>
-          <td>
-            {{ pg.title }}
-            {%- if pg.is_default %} &nbsp; <span class="badge bg-success">HOME PAGE</span>{% endif -%}
-            {%- if pg.show_in_page_list %} &nbsp; <span class="badge bg-primary">IN PAGE LIST</span> {% endif -%}<br>
-            <small>
-              {%- capture pg_link %}{% unless pg.is_default %}{{ pg.permalink }}{% endunless %}{% endcapture -%}
-              <a href="{{ pg_link | relative_link }}" target="_blank">View Page</a>
-              <span class="text-muted"> &bull; </span>
-              <a href="{{ pg | edit_page_link }}">Edit</a>
-              <span class="text-muted"> &bull; </span>
-              {%- capture pg_del %}admin/page/{{ pg.id }}/delete{% endcapture -%}
-              {%- capture pg_del_link %}{{ pg_del | relative_link }}{% endcapture -%}
-              <a href="{{ pg_del_link }}" class="text-danger"
-                 onclick="return Admin.deletePage('{{ pg.title }}', '{{ pg_del_link }}')">
-                Delete
-              </a>
-            </small>
-          </td>
-          <td>/{% unless pg.is_default %}{{ pg.permalink }}{% endunless %}</td>
-          <td>{{ pg.updated_on | date: "MMMM d, yyyy" }}</td>
+          <td colspan="3" class="text-muted fst-italic text-center">This web log has no pages</td>
         </tr>
-      {%- endfor %}
+      {% endif %}
     </tbody>
   </table>
   <form method="post" id="deleteForm">
