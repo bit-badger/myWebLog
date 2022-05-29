@@ -278,13 +278,16 @@ type PodcastOptions =
         iTunesCategory : string
         
         /// A further refinement of the categorization of this podcast (iTunes field / values)
-        iTunesSubcategory : string
+        iTunesSubcategory : string option
         
         /// The explictness rating (iTunes field)
         explicit : ExplicitRating
         
         /// The default media type for files in this podcast
         defaultMediaType : string option
+        
+        /// The base URL for relative URL media files for this podcast (optional; defaults to web log base)
+        mediaBaseUrl : string option
     }
 
 
@@ -302,6 +305,17 @@ type CustomFeed =
         /// Podcast options, if the feed defines a podcast
         podcast : PodcastOptions option
     }
+
+/// Functions to support custom feeds
+module CustomFeed =
+    
+    /// An empty custom feed
+    let empty =
+        { id      = CustomFeedId ""
+          source  = Category (CategoryId "")
+          path    = Permalink ""
+          podcast = None
+        }
 
 
 /// Really Simple Syndication (RSS) options for this web log

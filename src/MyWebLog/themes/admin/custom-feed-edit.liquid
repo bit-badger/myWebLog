@@ -1,0 +1,186 @@
+<h2 class="my-3">{{ page_title }}</h2>
+<article>
+  <form action="{{ "admin/settings/rss/save" | relative_link }}" method="post">
+    <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
+    {%- assign is_cat = model.source_type == "category" -%}
+    <div class="container">
+      <div class="row pb-3">
+        <div class="col-12 col-xl-10 offset-xl-1">
+          <fieldset class="container pb-0">
+            <legend>Feed Source</legend>
+            <div class="row d-flex align-items-center">
+              <div class="col-1 d-flex justify-content-end pb-3">
+                <div class="form-check form-check-inline me-0">
+                  <input type="radio" name="sourceType" id="sourceTypeCat" class="form-check-input" value="category"
+                         {% if is_cat %}checked="checked"{% endif %} onclick="Admin.customFeedBy('category')">
+                  <label for="sourceTypeCat" class="form-check-label d-none">Category</label>
+                </div>
+              </div>
+              <div class="col-11 col-lg-5 pb-3">
+                <div class="form-floating">
+                  <select name="sourceValue" id="sourceValueCat" class="form-control" required
+                          {% unless is_cat %}disabled="disabled"{% endunless %}>
+                    <option value="">&ndash; Select Category &ndash;</option>
+                    {% for cat in categories -%}
+                      <option value="{{ cat.id }}"
+                              {%- if is_cat and model.source_value == cat.id %} selected="selected"{% endif -%}>
+                        {% for it in cat.parent_names %}{{ it }} &rang; {% endfor %}{{ cat.name }}
+                      </option>
+                    {%- endfor %}
+                  </select>
+                  <label for="sourceValueCat">Category</label>
+                </div>
+              </div>
+              <div class="col-1 d-flex justify-content-end pb-3">
+                <div class="form-check form-check-inline me-0">
+                  <input type="radio" name="sourceType" id="sourceTypeTag" class="form-check-input" value="tag"
+                         {%- unless is_cat %} checked="checked"{% endunless %} onclick="Admin.customFeedBy('tag')">
+                  <label for="sourceTypeTag" class="form-check-label d-none">Tag</label>
+                </div>
+              </div>
+              <div class="col-11 col-lg-5 pb-3">
+                <div class="form-floating">
+                  <input type="text" name="sourceValue" id="sourceValueTag" class="form-control" placeholder="Tag"
+                         {%- if is_cat %} disabled="disabled"{% endif %} required
+                         {%- unless is_cat %} value="{{ model.source_value }}"{% endunless %}>
+                  <label for="sourceValueTag">Tag</label>
+                </div>
+              </div>
+            </div>
+          </fieldset>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-12 col-md-6 col-lg-5 offset-lg-1 col-xl-4 offset-xl-2 pb-3">
+          <div class="form-floating">
+            <input type="text" name="path" id="path" class="form-control" placeholder="Relative Feed Path"
+                   value="{{ model.path }}">
+            <label for="path">Relative Feed Path</label>
+            <span class="form-text fst-italic">Appended to {{ web_log.url_base }}/</span>
+          </div>
+        </div>
+        <div class="col-12 col-md-6 col-lg-5 col-xl-4 pb-3 d-flex align-self-center justify-content-center">
+          <div class="form-check form-switch">
+            <input type="checkbox" name="isPodcast" id="isPodcast" class="form-check-input" value="true"
+                   {%- if model.is_podcast %} checked="checked"{% endif %} onclick="Admin.checkPodcast()">
+            <label for="isPodcast" class="form-check-label">Is Podcast Feed</label>
+          </div>
+        </div>
+      </div>
+      <div class="row pb-3">
+        <div class="col">
+          <fieldset class="container" id="podcastFields"{% unless model.is_podcast %} disabled="disabled"{%endunless%}>
+            <legend>Podcast Settings</legend>
+            <div class="row">
+              <div class="col-12 col-lg-6 pb-3">
+                <div class="form-floating">
+                  <input type="text" name="title" id="title" class="form-control" placeholder="Title" required
+                         value="{{ model.title }}">
+                  <label for="title">Title</label>
+                </div>
+              </div>
+              <div class="col-12 col-lg-6 pb-3">
+                <div class="form-floating">
+                  <input type="text" name="subtitle" id="subtitle" class="form-control" placeholder="Subtitle"
+                         value="{{ model.subtitle }}">
+                  <label for="subtitle">Podcast Subtitle</label>
+                </div>
+              </div>
+            </div>
+            <div class="row pb-3">
+              <div class="col">
+                <div class="form-floating">
+                  <input type="text" name="summary" id="summary" class="form-control" placeholder="Summary" required
+                         value="{{ model.summary }}">
+                  <label for="summary">Summary</label>
+                  <span class="form-text fst-italic">Displayed in podcast directories</span>
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-12 col-lg-5 pb-3">
+                <div class="form-floating">
+                  <input type="text" name="displayedAuthor" id="displayedAuthor" class="form-control"
+                         placeholder="Author" required value="{{ model.displayed_author }}">
+                  <label for="displayedAuthor">Displayed Author</label>
+                </div>
+              </div>
+              <div class="col-12 col-lg-5 pb-3">
+                <div class="form-floating">
+                  <input type="text" name="email" id="email" class="form-control" placeholder="Email" required
+                         value="{{ model.email }}">
+                  <label for="email">Author E-mail</label>
+                  <span class="form-text fst-italic">For iTunes, must match registered e-mail</span>
+                </div>
+              </div>
+              <div class="col-12 col-lg-2 pb-3">
+                <div class="form-floating">
+                  <input type="number" name="itemsInFeed" id="itemsInFeed" class="form-control" placeholder="Items"
+                         required value="{{ model.items_in_feed }}">
+                  <label for="itemsInFeed"># Episodes</label>
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-12 col-lg-6 pb-3">
+                <div class="form-floating">
+                  <input type="text" name="itunesCategory" id="itunesCategory" class="form-control"
+                         placeholder="iTunes Category" required value="{{ model.itunes_category }}">
+                  <label for="itunesCategory">iTunes Category</label>
+                  <span class="form-text fst-italic">
+                    <a href="https://www.thepodcasthost.com/planning/itunes-podcast-categories/" target="_blank"
+                       rel="noopener">
+                      iTunes Category / Subcategory List
+                    </a>
+                  </span>
+                </div>
+              </div>
+              <div class="col-12 col-lg-6 pb-3">
+                <div class="form-floating">
+                  <input type="text" name="itunesSubcategory" id="itunesSubcategory" class="form-control"
+                         placeholder="iTunes Subcategory" value="{{ model.itunes_subcategory }}">
+                  <label for="itunesSubcategory">iTunes Subcategory</label>
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-12 col-sm-6 col-lg-4">
+                <div class="form-floating">
+                  <select name="explicit" id="explicit" class="form-control" required>
+                    <option value="yes"{% if model.explicit == "yes" %} selected="selected"{% endif %}>Yes</option>
+                    <option value="no"{% if model.explicit == "no" %} selected="selected"{% endif %}>No</option>
+                    <option value="clean"{% if model.explicit == "clean" %} selected="selected"{% endif %}>
+                      Clean
+                    </option>
+                  </select>
+                  <label for="explicit">Explicit Rating</label>
+                </div>
+              </div>
+              <div class="col-12 col-sm-6 col-lg-4">
+                <div class="form-floating">
+                  <input type="text" name="defaultMediaType" id="defaultMediaType" class="form-control"
+                         placeholder="Media Type" value="{{ model.default_media_type }}">
+                  <label for="defaultMediaType">Default Media Type</label>
+                  <span class="form-text fst-italic">Optional; blank for no default</span>
+                </div>
+              </div>
+              <div class="col-12 col-sm-6 col-lg-4">
+                <div class="form-floating">
+                  <input type="text" name="mediaBaseUrl" id="mediaBaseUrl" class="form-control"
+                         placeholder="Media Base URL" value="{{ model.media_base_url }}">
+                  <label for="mediaBaseUrl">Media Base URL</label>
+                  <span class="form-text fst-italic">Optional; prepended to episode media file if present</span>
+                </div>
+              </div>
+            </div>
+          </fieldset>
+        </div>
+      </div>
+      <div class="row pb-3">
+        <div class="col text-center">
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+      </div>
+    </div>
+  </form>
+</article>

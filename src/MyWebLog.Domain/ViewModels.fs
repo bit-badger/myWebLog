@@ -164,6 +164,110 @@ type EditCategoryModel =
         }
 
 
+/// View model to edit a custom RSS feed
+[<CLIMutable; NoComparison; NoEquality>]
+type EditCustomFeedModel =
+    {   /// The ID of the feed being editing
+        id : string
+        
+        /// The type of source for this feed ("category" or "tag")
+        sourceType : string
+        
+        /// The category ID or tag on which this feed is based
+        sourceValue : string
+        
+        /// The relative path at which this feed is served
+        path : string
+        
+        /// Whether this feed defines a podcast
+        isPodcast : bool
+        
+        /// The title of the podcast
+        title : string
+        
+        /// A subtitle for the podcast
+        subtitle : string
+        
+        /// The number of items in the podcast feed
+        itemsInFeed : int
+        
+        /// A summary of the podcast (iTunes field)
+        summary : string
+        
+        /// The display name of the podcast author (iTunes field)
+        displayedAuthor : string
+        
+        /// The e-mail address of the user who registered the podcast at iTunes
+        email : string
+        
+        /// The link to the image for the podcast
+        imageUrl : string
+        
+        /// The category from iTunes under which this podcast is categorized
+        itunesCategory : string
+        
+        /// A further refinement of the categorization of this podcast (iTunes field / values)
+        itunesSubcategory : string
+        
+        /// The explictness rating (iTunes field)
+        explicit : string
+        
+        /// The default media type for files in this podcast
+        defaultMediaType : string
+        
+        /// The base URL for relative URL media files for this podcast (optional; defaults to web log base)
+        mediaBaseUrl : string
+    }
+    
+    /// An empty custom feed model
+    static member empty =
+        { id                = ""
+          sourceType        = "category"
+          sourceValue       = ""
+          path              = ""
+          isPodcast         = false
+          title             = ""
+          subtitle          = ""
+          itemsInFeed       = 25
+          summary           = ""
+          displayedAuthor   = ""
+          email             = ""
+          imageUrl          = ""
+          itunesCategory    = ""
+          itunesSubcategory = ""
+          explicit          = "no"
+          defaultMediaType  = "audio/mpeg"
+          mediaBaseUrl      = ""
+        }
+    
+    /// Create a model from a custom feed
+    static member fromFeed (feed : CustomFeed) =
+        let rss =
+            { EditCustomFeedModel.empty with
+                id          = CustomFeedId.toString feed.id
+                sourceType  = match feed.source with Category _ -> "category" | Tag _ -> "tag"
+                sourceValue = match feed.source with Category (CategoryId catId) -> catId | Tag tag -> tag
+                path        = Permalink.toString feed.path
+            }
+        match feed.podcast with
+        | Some p ->
+            { rss with
+                isPodcast         = true
+                title             = p.title
+                subtitle          = defaultArg p.subtitle ""
+                itemsInFeed       = p.itemsInFeed
+                summary           = p.summary
+                displayedAuthor   = p.displayedAuthor
+                email             = p.email
+                itunesCategory    = p.iTunesCategory
+                itunesSubcategory = defaultArg p.iTunesSubcategory ""
+                explicit          = ExplicitRating.toString p.explicit
+                defaultMediaType  = defaultArg p.defaultMediaType ""
+                mediaBaseUrl      = defaultArg p.mediaBaseUrl ""
+            }
+        | None -> rss
+
+
 /// View model to edit a page
 [<CLIMutable; NoComparison; NoEquality>]
 type EditPageModel =

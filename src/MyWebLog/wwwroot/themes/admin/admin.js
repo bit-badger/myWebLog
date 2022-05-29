@@ -140,6 +140,31 @@
   },
 
   /**
+   * Check to enable or disable podcast fields
+   */
+  checkPodcast() {
+    document.getElementById("podcastFields").disabled = !document.getElementById("isPodcast").checked
+  },
+  
+  /**
+   * Toggle the source of a custom RSS feed
+   * @param source The source that was selected
+   */
+  customFeedBy(source) {
+    const categoryInput = document.getElementById("sourceValueCat")
+    const tagInput      = document.getElementById("sourceValueTag")
+    if (source === "category") {
+      tagInput.value         = ""
+      tagInput.disabled      = true
+      categoryInput.disabled = false
+    } else {
+      categoryInput.selectedIndex = -1
+      categoryInput.disabled      = true
+      tagInput.disabled           = false
+    }
+  },
+  
+  /**
    * Remove a metadata item
    * @param idx The index of the metadata item to remove
    */

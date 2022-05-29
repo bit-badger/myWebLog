@@ -180,9 +180,11 @@ let private addPodcast webLog (rssFeed : SyndicationFeed) (feed : CustomFeed) =
     let categoryXml = XmlDocument ()
     let catElt = categoryXml.CreateElement ("itunes", "category", "")
     catElt.SetAttribute ("text", podcast.iTunesCategory)
-    let subCat = categoryXml.CreateElement ("itunes", "category", "")
-    subCat.SetAttribute ("text", podcast.iTunesSubcategory)
-    catElt.AppendChild subCat |> ignore
+    podcast.iTunesSubcategory
+    |> Option.iter (fun subCat ->
+        let subCatElt = categoryXml.CreateElement ("itunes", "category", "")
+        subCatElt.SetAttribute ("text", subCat)
+        catElt.AppendChild subCatElt |> ignore)
     categoryXml.AppendChild catElt |> ignore
     
     [ "dc",       "http://purl.org/dc/elements/1.1/"
@@ -287,13 +289,12 @@ let editSettings : HttpHandler = fun next ctx -> task {
         webLog.rss.customFeeds
         |> List.map (DisplayCustomFeed.fromFeed (CategoryCache.get ctx))
         |> Array.ofList
-    return!
-        Hash.FromAnonymousObject
-            {|  csrf         = csrfToken ctx
-                page_title   = "RSS Settings"
-                model        = EditRssModel.fromRssOptions webLog.rss
-                custom_feeds = feeds
-            |}
+    return! Hash.FromAnonymousObject
+        {|  csrf         = csrfToken ctx
+            page_title   = "RSS Settings"
+            model        = EditRssModel.fromRssOptions webLog.rss
+            custom_feeds = feeds
+        |}
         |> viewForTheme "admin" "rss-settings" next ctx
 }
 
@@ -309,6 +310,30 @@ let saveSettings : HttpHandler = fun next ctx -> task {
         do! addMessage ctx { UserMessage.success with message = "RSS settings updated successfully" }
         return! redirectToGet (WebLog.relativeUrl webLog (Permalink "admin/settings/rss")) next ctx
     | None -> return! Error.notFound next ctx
+}
+
+// GET: /admin/rss/{id}/edit
+let editCustomFeed feedId : HttpHandler = fun next ctx -> task {
+    let customFeed =
+        match feedId with
+        | "new" -> Some CustomFeed.empty
+        | _     -> ctx.WebLog.rss.customFeeds |> List.tryFind (fun f -> f.id = CustomFeedId feedId)
+    match customFeed with
+    | Some f ->
+        return! Hash.FromAnonymousObject
+            {|  csrf       = csrfToken ctx
+                page_title = $"""{if feedId = "new" then "Add" else "Edit"} Custom RSS Feed"""
+                model      = EditCustomFeedModel.fromFeed f
+                categories = CategoryCache.get ctx
+            |}
+            |> viewForTheme "admin" "custom-feed-edit" next ctx
+    | None -> return! Error.notFound next ctx
+}
+
+// POST: /admin/rss/save
+let saveCustomFeed : HttpHandler = fun next ctx -> task {
+    // TODO: stub
+    return! Error.notFound next ctx
 }
 
 // POST /admin/rss/{id}/delete
@@ -329,7 +354,7 @@ let deleteCustomFeed feedId : HttpHandler = fun next ctx -> task {
             WebLogCache.set webLog
             do! addMessage ctx { UserMessage.success with message = "Custom feed deleted successfully" }
         else
-            do! addMessage ctx { UserMessage.warning with message = "Post not found; nothing deleted" }
+            do! addMessage ctx { UserMessage.warning with message = "Custom feed not found; no action taken" }
         return! redirectToGet (WebLog.relativeUrl webLog (Permalink "admin/settings/rss")) next ctx
     | None -> return! Error.notFound next ctx
 }

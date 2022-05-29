@@ -95,7 +95,10 @@ let router : HttpHandler = choose [
             ])
             subRoute "/settings" (choose [
                 route ""     >=> Admin.settings
-                route "/rss" >=> Feed.editSettings
+                subRoute "/rss" (choose [
+                    route  ""         >=> Feed.editSettings
+                    routef "/%s/edit"     Feed.editCustomFeed
+                ])
                 subRoute "/tag-mapping" (choose [
                     route  "s"        >=> Admin.tagMappings
                     routef "/%s/edit"     Admin.editMapping
@@ -122,6 +125,7 @@ let router : HttpHandler = choose [
                 route ""     >=> Admin.saveSettings
                 subRoute "/rss" (choose [
                     route  ""           >=> Feed.saveSettings
+                    route  "/save"      >=> Feed.saveCustomFeed
                     routef "/%s/delete"     Feed.deleteCustomFeed
                 ])
                 subRoute "/tag-mapping" (choose [
