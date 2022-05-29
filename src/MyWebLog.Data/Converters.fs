@@ -20,6 +20,13 @@ type CommentIdConverter () =
     override _.ReadJson (reader : JsonReader, _ : Type, _ : CommentId, _ : bool, _ : JsonSerializer) =
         (string >> CommentId) reader.Value
 
+type CustomFeedIdConverter () =
+    inherit JsonConverter<CustomFeedId> ()
+    override _.WriteJson (writer : JsonWriter, value : CustomFeedId, _ : JsonSerializer) =
+        writer.WriteValue (CustomFeedId.toString value)
+    override _.ReadJson (reader : JsonReader, _ : Type, _ : CustomFeedId, _ : bool, _ : JsonSerializer) =
+        (string >> CustomFeedId) reader.Value
+
 type CustomFeedSourceConverter () =
     inherit JsonConverter<CustomFeedSource> ()
     override _.WriteJson (writer : JsonWriter, value : CustomFeedSource, _ : JsonSerializer) =
@@ -91,6 +98,7 @@ let all () : JsonConverter seq =
         // Our converters
         CategoryIdConverter       ()
         CommentIdConverter        ()
+        CustomFeedIdConverter     ()
         CustomFeedSourceConverter ()
         ExplicitRatingConverter   ()
         MarkupTextConverter       ()

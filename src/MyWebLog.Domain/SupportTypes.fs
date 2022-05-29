@@ -187,6 +187,22 @@ module PostId =
     let create () = PostId (newId ())
 
 
+/// An identifier for a custom feed
+type CustomFeedId = CustomFeedId of string
+
+/// Functions to support custom feed IDs
+module CustomFeedId =
+    
+    /// An empty custom feed ID
+    let empty = CustomFeedId ""
+
+    /// Convert a custom feed ID to a string
+    let toString = function CustomFeedId pi -> pi
+    
+    /// Create a new custom feed ID
+    let create () = CustomFeedId (newId ())
+
+
 /// The source for a custom feed
 type CustomFeedSource =
     /// A feed based on a particular category
@@ -274,7 +290,10 @@ type PodcastOptions =
 
 /// A custom feed
 type CustomFeed =
-    {   /// The source for the custom feed
+    {   /// The ID of the custom feed
+        id : CustomFeedId
+        
+        /// The source for the custom feed
         source : CustomFeedSource
         
         /// The path for the custom feed

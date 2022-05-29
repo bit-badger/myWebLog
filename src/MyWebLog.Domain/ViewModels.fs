@@ -26,6 +26,34 @@ type DisplayCategory =
     }
 
 
+/// A display version of a custom feed definition
+type DisplayCustomFeed =
+    {   /// The ID of the custom feed
+        id : string
+        
+        /// The source of the custom feed
+        source : string
+        
+        /// The relative path at which the custom feed is served
+        path : string
+        
+        /// Whether this custom feed is for a podcast
+        isPodcast : bool
+    }
+    
+    /// Create a display version from a custom feed
+    static member fromFeed (cats : DisplayCategory[]) (feed : CustomFeed) : DisplayCustomFeed =
+        let source =
+            match feed.source with
+            | Category (CategoryId catId) -> $"Category: {(cats |> Array.find (fun cat -> cat.id = catId)).name}"
+            | Tag tag -> $"Tag: {tag}"
+        { id        = CustomFeedId.toString feed.id
+          source    = source
+          path      = Permalink.toString feed.path
+          isPodcast = Option.isSome feed.podcast
+        }
+
+
 /// Details about a page used to display page lists
 [<NoComparison; NoEquality>]
 type DisplayPage =
@@ -255,6 +283,50 @@ type EditPostModel =
         }
 
 
+/// View model to edit RSS settings
+[<CLIMutable; NoComparison; NoEquality>]
+type EditRssModel =
+    {   /// Whether the site feed of posts is enabled
+        feedEnabled : bool
+        
+        /// The name of the file generated for the site feed
+        feedName : string
+        
+        /// Override the "posts per page" setting for the site feed
+        itemsInFeed : int
+        
+        /// Whether feeds are enabled for all categories
+        categoryEnabled : bool
+        
+        /// Whether feeds are enabled for all tags
+        tagEnabled : bool
+        
+        /// A copyright string to be placed in all feeds
+        copyright : string
+    }
+    
+    /// Create an edit model from a set of RSS options
+    static member fromRssOptions (rss : RssOptions) =
+        { feedEnabled     = rss.feedEnabled
+          feedName        = rss.feedName
+          itemsInFeed     = defaultArg rss.itemsInFeed 0
+          categoryEnabled = rss.categoryEnabled
+          tagEnabled      = rss.tagEnabled
+          copyright       = defaultArg rss.copyright ""
+        }
+    
+    /// Update RSS options from values in this mode
+    member this.updateOptions (rss : RssOptions) =
+        { rss with
+            feedEnabled     = this.feedEnabled
+            feedName        = this.feedName
+            itemsInFeed     = if this.itemsInFeed = 0 then None else Some this.itemsInFeed
+            categoryEnabled = this.categoryEnabled
+            tagEnabled      = this.tagEnabled
+            copyright       = if this.copyright.Trim () = "" then None else Some (this.copyright.Trim ())
+        }
+
+
 /// View model to edit a tag mapping
 [<CLIMutable; NoComparison; NoEquality>]
 type EditTagMapModel =
@@ -305,6 +377,8 @@ type EditUserModel =
           newPassword        = ""
           newPasswordConfirm = ""
         }
+
+
 /// The model to use to allow a user to log on
 [<CLIMutable; NoComparison; NoEquality>]
 type LogOnModel =

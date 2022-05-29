@@ -179,6 +179,15 @@
   },
 
   /**
+   * Confirm and delete a custom RSS feed
+   * @param source The source for the feed to be deleted
+   * @param url The URL to which the form should be posted
+   */
+  deleteCustomFeed(source, url) {
+    return this.deleteItem(`custom RSS feed based on ${source}`, url)
+  },
+
+  /**
    * Confirm and delete a page
    * @param title The title of the page to be deleted
    * @param url The URL to which the form should be posted

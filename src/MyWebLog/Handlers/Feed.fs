@@ -15,10 +15,10 @@ open MyWebLog.ViewModels
 
 /// The type of feed to generate
 type FeedType =
-    | StandardFeed
-    | CategoryFeed of CategoryId
-    | TagFeed      of string
-    | Custom       of CustomFeed
+    | StandardFeed of string
+    | CategoryFeed of CategoryId * string
+    | TagFeed      of string * string
+    | Custom       of CustomFeed * string
 
 /// Derive the type of RSS feed requested
 let deriveFeedType (ctx : HttpContext) feedPath : (FeedType * int) option =
@@ -27,21 +27,21 @@ let deriveFeedType (ctx : HttpContext) feedPath : (FeedType * int) option =
     let postCount = defaultArg webLog.rss.itemsInFeed webLog.postsPerPage
     // Standard feed
     match webLog.rss.feedEnabled && feedPath = name with
-    | true  -> Some (StandardFeed, postCount)
+    | true  -> Some (StandardFeed feedPath, postCount)
     | false ->
         // Category feed
         match CategoryCache.get ctx |> Array.tryFind (fun cat -> cat.slug = feedPath.Replace (name, "")) with
-        | Some cat -> Some (CategoryFeed (CategoryId cat.id), postCount)
+        | Some cat -> Some (CategoryFeed (CategoryId cat.id, feedPath), postCount)
         | None ->
             // Tag feed
             match feedPath.StartsWith "/tag/" with
-            | true  -> Some (TagFeed (feedPath.Replace("/tag/", "").Replace(name, "")), postCount)
+            | true  -> Some (TagFeed (feedPath.Replace("/tag/", "").Replace(name, ""), feedPath), postCount)
             | false ->
                 // Custom feed
                 match webLog.rss.customFeeds
                       |> List.tryFind (fun it -> (Permalink.toString it.path).EndsWith feedPath) with
                 | Some feed ->
-                    Some (Custom feed,
+                    Some (Custom (feed, feedPath),
                           feed.podcast |> Option.map (fun p -> p.itemsInFeed) |> Option.defaultValue postCount)
                 | None ->
                     // No feed
@@ -50,10 +50,10 @@ let deriveFeedType (ctx : HttpContext) feedPath : (FeedType * int) option =
 /// Determine the function to retrieve posts for the given feed
 let private getFeedPosts (webLog : WebLog) feedType =
     match feedType with
-    | StandardFeed       -> Data.Post.findPageOfPublishedPosts webLog.id 1
-    | CategoryFeed catId -> Data.Post.findPageOfCategorizedPosts webLog.id [ catId ] 1
-    | TagFeed       tag  -> Data.Post.findPageOfTaggedPosts webLog.id tag 1
-    | Custom        feed ->
+    | StandardFeed _          -> Data.Post.findPageOfPublishedPosts webLog.id 1
+    | CategoryFeed (catId, _) -> Data.Post.findPageOfCategorizedPosts webLog.id [ catId ] 1
+    | TagFeed      (tag,   _) -> Data.Post.findPageOfTaggedPosts webLog.id tag 1
+    | Custom       (feed,  _) ->
         match feed.source with
         | Category catId -> Data.Post.findPageOfCategorizedPosts webLog.id [ catId ] 1
         | Tag      tag   -> Data.Post.findPageOfTaggedPosts webLog.id tag 1
@@ -213,6 +213,16 @@ let private addPodcast webLog (rssFeed : SyndicationFeed) (feed : CustomFeed) =
     rssFeed.ElementExtensions.Add ("explicit",  "itunes",   ExplicitRating.toString podcast.explicit)
     rssFeed.ElementExtensions.Add ("subscribe", "rawvoice", feedUrl)
 
+/// Get the feed's self reference and non-feed link
+let private selfAndLink webLog feedType =
+    match feedType with
+    | StandardFeed     path  -> path
+    | CategoryFeed (_, path) -> path
+    | TagFeed      (_, path) -> path
+    | Custom       (_, path) -> path
+    |> function
+    | path -> Permalink path, Permalink (path.Replace ($"/{webLog.rss.feedName}", ""))
+
 /// Create a feed with a known non-zero-length list of posts    
 let createFeed (feedType : FeedType) posts : HttpHandler = fun next ctx -> backgroundTask {
     let  webLog  = ctx.WebLog
@@ -220,7 +230,7 @@ let createFeed (feedType : FeedType) posts : HttpHandler = fun next ctx -> backg
     let! authors = Post.getAuthors     webLog posts conn
     let! tagMaps = Post.getTagMappings webLog posts conn
     let  cats    = CategoryCache.get ctx
-    let  podcast = match feedType with Custom feed when Option.isSome feed.podcast -> Some feed | _ -> None
+    let  podcast = match feedType with Custom (feed, _) when Option.isSome feed.podcast -> Some feed | _ -> None
     
     let toItem post =
         let item = toFeedItem webLog authors cats tagMaps post
@@ -229,7 +239,9 @@ let createFeed (feedType : FeedType) posts : HttpHandler = fun next ctx -> backg
             addEpisode webLog feed post item
         | _ -> item
         
-    let feed  = SyndicationFeed ()
+    let feed = SyndicationFeed ()
+    addNamespace feed "content" "http://purl.org/rss/1.0/modules/content/"
+    
     feed.Title           <- TextSyndicationContent webLog.name
     feed.Description     <- TextSyndicationContent <| defaultArg webLog.subtitle webLog.name
     feed.LastUpdatedTime <- DateTimeOffset <| (List.head posts).updatedOn
@@ -239,10 +251,10 @@ let createFeed (feedType : FeedType) posts : HttpHandler = fun next ctx -> backg
     feed.Id              <- webLog.urlBase
     webLog.rss.copyright |> Option.iter (fun copy -> feed.Copyright <- TextSyndicationContent copy)
     
-    // TODO: adjust this link for non-root feeds
-    feed.Links.Add (SyndicationLink (Uri $"{webLog.urlBase}/feed.xml", "self", "", "application/rss+xml", 0L))
-    addNamespace feed "content" "http://purl.org/rss/1.0/modules/content/"
-    feed.ElementExtensions.Add ("link", "", webLog.urlBase)
+    let self, link = selfAndLink webLog feedType
+    feed.Links.Add (SyndicationLink (Uri (WebLog.absoluteUrl webLog self), "self", "", "application/rss+xml", 0L))
+    feed.ElementExtensions.Add ("link", "", WebLog.absoluteUrl webLog link)
+    
     podcast |> Option.iter (addPodcast webLog feed)
     
     use mem = new MemoryStream ()
@@ -270,12 +282,54 @@ open DotLiquid
 
 // GET: /admin/rss/settings
 let editSettings : HttpHandler = fun next ctx -> task {
-    // TODO: stopped here
+    let webLog = ctx.WebLog
+    let feeds =
+        webLog.rss.customFeeds
+        |> List.map (DisplayCustomFeed.fromFeed (CategoryCache.get ctx))
+        |> Array.ofList
     return!
         Hash.FromAnonymousObject
-            {|  csrf       = csrfToken ctx
-                model      = ctx.WebLog.rss
-                page_title = "RSS Settings"
+            {|  csrf         = csrfToken ctx
+                page_title   = "RSS Settings"
+                model        = EditRssModel.fromRssOptions webLog.rss
+                custom_feeds = feeds
             |}
         |> viewForTheme "admin" "rss-settings" next ctx
+}
+
+// POST: /admin/rss/settings
+let saveSettings : HttpHandler = fun next ctx -> task {
+    let  conn  = ctx.Conn
+    let! model = ctx.BindFormAsync<EditRssModel> ()
+    match! Data.WebLog.findById ctx.WebLog.id conn with
+    | Some webLog ->
+        let webLog = { webLog with rss = model.updateOptions webLog.rss }
+        do! Data.WebLog.updateRssOptions webLog conn
+        WebLogCache.set webLog
+        do! addMessage ctx { UserMessage.success with message = "RSS settings updated successfully" }
+        return! redirectToGet (WebLog.relativeUrl webLog (Permalink "admin/settings/rss")) next ctx
+    | None -> return! Error.notFound next ctx
+}
+
+// POST /admin/rss/{id}/delete
+let deleteCustomFeed feedId : HttpHandler = fun next ctx -> task {
+    let conn = ctx.Conn
+    match! Data.WebLog.findById ctx.WebLog.id conn with
+    | Some webLog ->
+        let customId = CustomFeedId feedId
+        if webLog.rss.customFeeds |> List.exists (fun f -> f.id = customId) then
+            let webLog = {
+              webLog with
+                rss = {
+                  webLog.rss with
+                    customFeeds = webLog.rss.customFeeds |> List.filter (fun f -> f.id <> customId)
+                }
+            }
+            do! Data.WebLog.updateRssOptions webLog conn
+            WebLogCache.set webLog
+            do! addMessage ctx { UserMessage.success with message = "Custom feed deleted successfully" }
+        else
+            do! addMessage ctx { UserMessage.warning with message = "Post not found; nothing deleted" }
+        return! redirectToGet (WebLog.relativeUrl webLog (Permalink "admin/settings/rss")) next ctx
+    | None -> return! Error.notFound next ctx
 }

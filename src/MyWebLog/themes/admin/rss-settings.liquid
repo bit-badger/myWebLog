@@ -45,7 +45,7 @@
         <div class="col-12 col-md-5 col-xl-4 pb-3">
           <div class="form-floating">
             <input type="text" name="copyright" id="copyright" class="form-control" placeholder="Copyright String"
-                   {% if model.copyright %}value="{{ model.copyright.value }}"{% endif %}>
+                   value="{{ model.copyright }}">
             <label for="copyright">Copyright String</label>
             <span class="form-text">
               Can be a
@@ -69,18 +69,30 @@
     <thead>
       <tr>
         <th scope="col">Source</th>
-        <th scope="col">Path</th>
+        <th scope="col">Relative Path</th>
         <th scope="col">Podcast?</th>
       </tr>
     </thead>
     <tbody>
-      {%- assign feed_count = model.custom_feeds | size -%}
+      {%- assign feed_count = custom_feeds | size -%}
       {% if feed_count > 0 %}
-        {% for feed in model.custom_feeds %}
+        {% for feed in custom_feeds %}
           <tr>
             <td>
-              {{ feed.source }}
-              <!-- TODO: view / edit / delete -->
+              {{ feed.source }}<br>
+              <small>
+                <a href="{{ feed.path | relative_link }}" target="_blank">View Feed</a>
+                <span class="text-muted"> &bull; </span>
+                {%- capture feed_edit %}admin/rss/{{ feed.id }}/edit{% endcapture -%}
+                <a href="{{ feed_edit | relative_link }}">Edit</a>
+                <span class="text-muted"> &bull; </span>
+                {%- capture feed_del %}admin/rss/{{ feed.id }}/delete{% endcapture -%}
+                {%- capture feed_del_link %}{{ feed_del | relative_link }}{% endcapture -%}
+                <a href="{{ feed_del_link }}" class="text-danger"
+                   onclick="return Admin.deleteCustomFeed('{{ feed.source }}', '{{ feed_del_link }}')">
+                  Delete
+                </a>
+              </small>
             </td>
             <td>{{ feed.path }}</td>
             <td>{% if feed.is_podcast %}Yes{% else %}No{% endif %}</td>
@@ -93,4 +105,7 @@
       {% endif %}
     </tbody>
   </table>
+  <form method="post" id="deleteForm">
+    <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
+  </form>
 </article>

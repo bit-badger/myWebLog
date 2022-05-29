@@ -731,12 +731,28 @@ module WebLog =
             resultOption; withRetryOptionDefault
         }
     
-    /// Update web log settings (updates all values)
+    /// Update RSS options for a web log
+    let updateRssOptions (webLog : WebLog) =
+        rethink {
+            withTable Table.WebLog
+            get webLog.id
+            update [ "rss", webLog.rss :> obj ]
+            write; withRetryDefault; ignoreResult
+        }
+    
+    /// Update web log settings (from settings page)
     let updateSettings (webLog : WebLog) =
         rethink {
             withTable Table.WebLog
             get webLog.id
-            replace webLog
+            update [
+                "name",         webLog.name :> obj
+                "subtitle",     webLog.subtitle
+                "defaultPage",  webLog.defaultPage
+                "postsPerPage", webLog.postsPerPage
+                "timeZone",     webLog.timeZone
+                "themePath",    webLog.themePath
+            ]
             write; withRetryDefault; ignoreResult
         }
 

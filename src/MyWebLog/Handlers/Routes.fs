@@ -119,7 +119,11 @@ let router : HttpHandler = choose [
                 routef "/%s/delete"      Post.delete
             ])
             subRoute "/settings" (choose [
-                route "" >=> Admin.saveSettings
+                route ""     >=> Admin.saveSettings
+                subRoute "/rss" (choose [
+                    route  ""           >=> Feed.saveSettings
+                    routef "/%s/delete"     Feed.deleteCustomFeed
+                ])
                 subRoute "/tag-mapping" (choose [
                     route  "/save"      >=> Admin.saveMapping
                     routef "/%s/delete"     Admin.deleteMapping
