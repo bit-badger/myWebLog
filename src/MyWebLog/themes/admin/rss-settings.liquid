@@ -85,10 +85,10 @@
               <small>
                 <a href="{{ feed.path | relative_link }}" target="_blank">View Feed</a>
                 <span class="text-muted"> &bull; </span>
-                {%- capture feed_edit %}admin/rss/{{ feed.id }}/edit{% endcapture -%}
+                {%- capture feed_edit %}admin/settings/rss/{{ feed.id }}/edit{% endcapture -%}
                 <a href="{{ feed_edit | relative_link }}">Edit</a>
                 <span class="text-muted"> &bull; </span>
-                {%- capture feed_del %}admin/rss/{{ feed.id }}/delete{% endcapture -%}
+                {%- capture feed_del %}admin/settings/rss/{{ feed.id }}/delete{% endcapture -%}
                 {%- capture feed_del_link %}{{ feed_del | relative_link }}{% endcapture -%}
                 <a href="{{ feed_del_link }}" class="text-danger"
                    onclick="return Admin.deleteCustomFeed('{{ feed.source }}', '{{ feed_del_link }}')">

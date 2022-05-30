@@ -316,7 +316,7 @@ let saveSettings : HttpHandler = fun next ctx -> task {
 let editCustomFeed feedId : HttpHandler = fun next ctx -> task {
     let customFeed =
         match feedId with
-        | "new" -> Some CustomFeed.empty
+        | "new" -> Some { CustomFeed.empty with id = CustomFeedId "new" }
         | _     -> ctx.WebLog.rss.customFeeds |> List.tryFind (fun f -> f.id = CustomFeedId feedId)
     match customFeed with
     | Some f ->
@@ -332,8 +332,28 @@ let editCustomFeed feedId : HttpHandler = fun next ctx -> task {
 
 // POST: /admin/rss/save
 let saveCustomFeed : HttpHandler = fun next ctx -> task {
-    // TODO: stub
-    return! Error.notFound next ctx
+    let conn = ctx.Conn
+    match! Data.WebLog.findById ctx.WebLog.id conn with
+    | Some webLog ->
+        let! model = ctx.BindFormAsync<EditCustomFeedModel> ()
+        let theFeed =
+            match model.id with
+            | "new" -> Some { CustomFeed.empty with id = CustomFeedId.create () }
+            | _ -> webLog.rss.customFeeds |> List.tryFind (fun it -> CustomFeedId.toString it.id = model.id)
+        match theFeed with
+        | Some feed ->
+            let feeds = model.updateFeed feed :: (webLog.rss.customFeeds |> List.filter (fun it -> it.id <> feed.id))
+            let webLog = { webLog with rss = { webLog.rss with customFeeds = feeds } }
+            do! Data.WebLog.updateRssOptions webLog conn
+            WebLogCache.set webLog
+            do! addMessage ctx {
+                UserMessage.success with
+                  message = $"""Successfully {if model.id = "new" then "add" else "sav"}ed custom feed"""
+            }
+            let nextUrl = $"admin/settings/rss/{CustomFeedId.toString feed.id}/edit" 
+            return! redirectToGet (WebLog.relativeUrl webLog (Permalink nextUrl)) next ctx
+        | None -> return! Error.notFound next ctx
+    | None -> return! Error.notFound next ctx
 }
 
 // POST /admin/rss/{id}/delete

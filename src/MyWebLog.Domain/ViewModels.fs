@@ -3,6 +3,15 @@
 open System
 open MyWebLog
 
+/// Helper functions for view models
+[<AutoOpen>]
+module private Helpers =
+    
+    /// Create a string option if a string is blank
+    let noneIfBlank (it : string) =
+        match it.Trim () with "" -> None | trimmed -> Some trimmed
+
+
 /// Details about a category, used to display category lists
 [<NoComparison; NoEquality>]
 type DisplayCategory =
@@ -259,6 +268,7 @@ type EditCustomFeedModel =
                 summary           = p.summary
                 displayedAuthor   = p.displayedAuthor
                 email             = p.email
+                imageUrl          = Permalink.toString p.imageUrl
                 itunesCategory    = p.iTunesCategory
                 itunesSubcategory = defaultArg p.iTunesSubcategory ""
                 explicit          = ExplicitRating.toString p.explicit
@@ -266,7 +276,31 @@ type EditCustomFeedModel =
                 mediaBaseUrl      = defaultArg p.mediaBaseUrl ""
             }
         | None -> rss
-
+    
+    /// Update a feed with values from this model
+    member this.updateFeed (feed : CustomFeed) =
+        { feed with
+            source  = if this.sourceType = "tag" then Tag this.sourceValue else Category (CategoryId this.sourceValue)
+            path    = Permalink this.path
+            podcast =
+                if this.isPodcast then
+                    Some {
+                        title             = this.title
+                        subtitle          = noneIfBlank this.subtitle
+                        itemsInFeed       = this.itemsInFeed
+                        summary           = this.summary
+                        displayedAuthor   = this.displayedAuthor
+                        email             = this.email
+                        imageUrl          = Permalink this.imageUrl
+                        iTunesCategory    = this.itunesCategory
+                        iTunesSubcategory = noneIfBlank this.itunesSubcategory
+                        explicit          = ExplicitRating.parse this.explicit
+                        defaultMediaType  = noneIfBlank this.defaultMediaType
+                        mediaBaseUrl      = noneIfBlank this.mediaBaseUrl
+                    }
+                else
+                    None
+        }
 
 /// View model to edit a page
 [<CLIMutable; NoComparison; NoEquality>]
@@ -427,7 +461,7 @@ type EditRssModel =
             itemsInFeed     = if this.itemsInFeed = 0 then None else Some this.itemsInFeed
             categoryEnabled = this.categoryEnabled
             tagEnabled      = this.tagEnabled
-            copyright       = if this.copyright.Trim () = "" then None else Some (this.copyright.Trim ())
+            copyright       = noneIfBlank this.copyright
         }
 
 
