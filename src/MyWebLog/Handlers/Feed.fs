@@ -23,28 +23,37 @@ type FeedType =
 /// Derive the type of RSS feed requested
 let deriveFeedType (ctx : HttpContext) feedPath : (FeedType * int) option =
     let webLog    = ctx.WebLog
+    let debug     = debug "Feed" ctx
     let name      = $"/{webLog.rss.feedName}"
     let postCount = defaultArg webLog.rss.itemsInFeed webLog.postsPerPage
+    debug (fun () -> $"Considering potential feed for {feedPath} (configured feed name {name})")
     // Standard feed
     match webLog.rss.feedEnabled && feedPath = name with
-    | true  -> Some (StandardFeed feedPath, postCount)
+    | true  ->
+        debug (fun () -> "Found standard feed")
+        Some (StandardFeed feedPath, postCount)
     | false ->
         // Category feed
         match CategoryCache.get ctx |> Array.tryFind (fun cat -> cat.slug = feedPath.Replace (name, "")) with
-        | Some cat -> Some (CategoryFeed (CategoryId cat.id, feedPath), postCount)
+        | Some cat ->
+            debug (fun () -> "Found category feed")
+            Some (CategoryFeed (CategoryId cat.id, feedPath), postCount)
         | None ->
             // Tag feed
             match feedPath.StartsWith "/tag/" with
-            | true  -> Some (TagFeed (feedPath.Replace("/tag/", "").Replace(name, ""), feedPath), postCount)
+            | true  ->
+                debug (fun () -> "Found tag feed")
+                Some (TagFeed (feedPath.Replace("/tag/", "").Replace(name, ""), feedPath), postCount)
             | false ->
                 // Custom feed
                 match webLog.rss.customFeeds
-                      |> List.tryFind (fun it -> (Permalink.toString it.path).EndsWith feedPath) with
+                      |> List.tryFind (fun it -> feedPath.EndsWith (Permalink.toString it.path)) with
                 | Some feed ->
+                    debug (fun () -> "Found custom feed")
                     Some (Custom (feed, feedPath),
                           feed.podcast |> Option.map (fun p -> p.itemsInFeed) |> Option.defaultValue postCount)
                 | None ->
-                    // No feed
+                    debug (fun () -> $"No matching feed found")
                     None
 
 /// Determine the function to retrieve posts for the given feed
@@ -60,6 +69,25 @@ let private getFeedPosts (webLog : WebLog) feedType =
 
 /// Strip HTML from a string
 let private stripHtml text = Regex.Replace (text, "<(.|\n)*?>", "")
+
+/// XML namespaces for building RSS feeds
+[<RequireQualifiedAccess>]
+module private Namespace = 
+    
+    /// Enables encoded (HTML) content
+    let content = "http://purl.org/rss/1.0/modules/content/"
+
+    /// The dc XML namespace
+    let dc = "http://purl.org/dc/elements/1.1/"
+
+    /// iTunes elements
+    let iTunes = "http://www.itunes.com/dtds/podcast-1.0.dtd"
+
+    /// Enables chapters
+    let psc = "http://podlove.org/simple-chapters/"
+
+    /// Enables another "subscribe" option
+    let rawVoice = "http://www.rawvoice.com/rawvoiceRssModule/"
 
 /// Create a feed item from the given post    
 let private toFeedItem webLog (authors : MetaItem list) (cats : DisplayCategory[]) (tagMaps : TagMap list)
@@ -78,7 +106,7 @@ let private toFeedItem webLog (authors : MetaItem list) (cats : DisplayCategory[
     
     let encoded =
         post.text.Replace("src=\"/", $"src=\"{webLog.urlBase}/").Replace ("href=\"/", $"href=\"{webLog.urlBase}/")
-    item.ElementExtensions.Add ("encoded", "http://purl.org/rss/1.0/modules/content/", encoded)
+    item.ElementExtensions.Add ("encoded", Namespace.content, encoded)
     item.Authors.Add (SyndicationPerson (
         Name = (authors |> List.find (fun a -> a.name = WebLogUserId.toString post.authorId)).value))
     [ post.categoryIds
@@ -122,26 +150,25 @@ let private addEpisode webLog (feed : CustomFeed) (post : Post) (item : Syndicat
             |> ExplicitRating.toString
         with :? ArgumentException -> ExplicitRating.toString podcast.explicit
     
-    let encXml = XmlDocument ()
-    let encElt = encXml.CreateElement "enclosure"
-    encElt.SetAttribute ("url", epMediaUrl)
-    meta "length" |> Option.iter (fun it -> encElt.SetAttribute ("length", it.value))
-    epMediaType |> Option.iter (fun typ -> encElt.SetAttribute ("type", typ))
-    item.ElementExtensions.Add ("enclosure", "", encXml)
+    let xmlDoc    = XmlDocument ()
+    let enclosure = xmlDoc.CreateElement "enclosure"
+    enclosure.SetAttribute ("url", epMediaUrl)
+    meta "length" |> Option.iter (fun it  -> enclosure.SetAttribute ("length", it.value))
+    epMediaType   |> Option.iter (fun typ -> enclosure.SetAttribute ("type", typ))
+    item.ElementExtensions.Add enclosure
     
-    item.ElementExtensions.Add ("creator", "dc", podcast.displayedAuthor)
-    item.ElementExtensions.Add ("author", "itunes", podcast.displayedAuthor)
-    meta "subtitle" |> Option.iter (fun it -> item.ElementExtensions.Add ("subtitle", "itunes", it.value))
-    item.ElementExtensions.Add ("summary", "itunes", stripHtml post.text)
-    item.ElementExtensions.Add ("image", "itunes", epImageUrl)
-    item.ElementExtensions.Add ("explicit", "itunes", epExplicit)
-    meta "duration" |> Option.iter (fun it -> item.ElementExtensions.Add ("duration", "itunes", it.value))
+    item.ElementExtensions.Add ("creator",  Namespace.dc,     podcast.displayedAuthor)
+    item.ElementExtensions.Add ("author",   Namespace.iTunes, podcast.displayedAuthor)
+    item.ElementExtensions.Add ("summary",  Namespace.iTunes, stripHtml post.text)
+    item.ElementExtensions.Add ("image",    Namespace.iTunes, epImageUrl)
+    item.ElementExtensions.Add ("explicit", Namespace.iTunes, epExplicit)
+    meta "subtitle" |> Option.iter (fun it -> item.ElementExtensions.Add ("subtitle", Namespace.iTunes, it.value))
+    meta "duration" |> Option.iter (fun it -> item.ElementExtensions.Add ("duration", Namespace.iTunes, it.value))
     
     if post.metadata |> List.exists (fun it -> it.name = "chapter") then
         try
-            let chapXml = XmlDocument ()
-            let chapsElt = chapXml.CreateElement ("psc", "chapters", "")
-            chapsElt.SetAttribute ("version", "1.2")
+            let chapters = xmlDoc.CreateElement ("psc", "chapters", Namespace.psc)
+            chapters.SetAttribute ("version", "1.2")
             
             post.metadata
             |> List.filter (fun it -> it.name = "chapter")
@@ -149,13 +176,12 @@ let private addEpisode webLog (feed : CustomFeed) (post : Post) (item : Syndicat
                 TimeSpan.Parse (it.value.Split(" ")[0]), it.value.Substring (it.value.IndexOf(" ") + 1))
             |> List.sortBy fst
             |> List.iter (fun chap ->
-                let chapElt = chapXml.CreateElement ("psc", "chapter", "")
-                chapElt.SetAttribute ("start", (fst chap).ToString "hh:mm:ss")
-                chapElt.SetAttribute ("title", snd chap)
-                chapsElt.AppendChild chapElt |> ignore)
+                let chapter = xmlDoc.CreateElement ("psc", "chapter", Namespace.psc)
+                chapter.SetAttribute ("start", (fst chap).ToString "hh:mm:ss")
+                chapter.SetAttribute ("title", snd chap)
+                chapters.AppendChild chapter |> ignore)
             
-            chapXml.AppendChild chapsElt |> ignore
-            item.ElementExtensions.Add ("chapters", "psc", chapXml)
+            item.ElementExtensions.Add chapters
         with _ -> ()
     item
     
@@ -165,10 +191,12 @@ let private addNamespace (feed : SyndicationFeed) alias nsUrl =
 
 /// Add items to the top of the feed required for podcasts
 let private addPodcast webLog (rssFeed : SyndicationFeed) (feed : CustomFeed) =
-    let addChild (doc : XmlDocument) name prefix value =
-        let child = doc.CreateElement (name, prefix, "") |> doc.AppendChild
-        child.Value <- value
-        doc
+    let addChild (doc : XmlDocument) ns prefix name value (elt : XmlElement) =
+        let child =
+            if ns = "" then doc.CreateElement name else doc.CreateElement (prefix, name, ns)
+            |> elt.AppendChild
+        child.InnerText <- value
+        elt
     
     let podcast  = Option.get feed.podcast
     let feedUrl  = WebLog.absoluteUrl webLog feed.path
@@ -177,43 +205,42 @@ let private addPodcast webLog (rssFeed : SyndicationFeed) (feed : CustomFeed) =
         | Permalink link when link.StartsWith "http" -> link
         | Permalink _ -> WebLog.absoluteUrl webLog podcast.imageUrl
     
-    let categoryXml = XmlDocument ()
-    let catElt = categoryXml.CreateElement ("itunes", "category", "")
-    catElt.SetAttribute ("text", podcast.iTunesCategory)
-    podcast.iTunesSubcategory
-    |> Option.iter (fun subCat ->
-        let subCatElt = categoryXml.CreateElement ("itunes", "category", "")
-        subCatElt.SetAttribute ("text", subCat)
-        catElt.AppendChild subCatElt |> ignore)
-    categoryXml.AppendChild catElt |> ignore
+    let xmlDoc = XmlDocument ()
     
-    [ "dc",       "http://purl.org/dc/elements/1.1/"
-      "itunes",   "http://www.itunes.com/dtds/podcast-1.0.dtd"
-      "psc",      "http://podlove.org/simple-chapters/"
-      "rawvoice", "http://www.rawvoice.com/rawvoiceRssModule/"
-    ]
+    [ "dc", Namespace.dc; "itunes", Namespace.iTunes; "psc", Namespace.psc; "rawvoice", Namespace.rawVoice ]
     |> List.iter (fun (alias, nsUrl) -> addNamespace rssFeed alias nsUrl)
     
-    rssFeed.ElementExtensions.Add
-        ("image", "",
-            [ "title", podcast.title
-              "url",   imageUrl
-              "link",  feedUrl
-            ]
-            |> List.fold (fun doc (name, value) -> addChild doc name "" value) (XmlDocument ()))
-    rssFeed.ElementExtensions.Add ("summary", "itunes", podcast.summary)
-    rssFeed.ElementExtensions.Add ("author",  "itunes", podcast.displayedAuthor)
-    podcast.subtitle |> Option.iter (fun sub -> rssFeed.ElementExtensions.Add ("subtitle", "itunes", sub))
-    rssFeed.ElementExtensions.Add
-        ("owner", "itunes",
-            [ "name", podcast.displayedAuthor
-              "email", podcast.email
-            ]
-            |> List.fold (fun doc (name, value) -> addChild doc name "itunes" value) (XmlDocument ()))
-    rssFeed.ElementExtensions.Add ("image",     "itunes",   imageUrl)
-    rssFeed.ElementExtensions.Add ("category",  "itunes",   categoryXml)
-    rssFeed.ElementExtensions.Add ("explicit",  "itunes",   ExplicitRating.toString podcast.explicit)
-    rssFeed.ElementExtensions.Add ("subscribe", "rawvoice", feedUrl)
+    let categorization =
+        let it = xmlDoc.CreateElement ("itunes", "category", Namespace.iTunes)
+        it.SetAttribute ("text", podcast.iTunesCategory)
+        podcast.iTunesSubcategory
+        |> Option.iter (fun subCat ->
+            let subCatElt = xmlDoc.CreateElement ("itunes", "category", Namespace.iTunes)
+            subCatElt.SetAttribute ("text", subCat)
+            it.AppendChild subCatElt |> ignore)
+        it
+    let image = 
+        [ "title", podcast.title
+          "url",   imageUrl
+          "link",  feedUrl
+        ]
+        |> List.fold (fun elt (name, value) -> addChild xmlDoc "" "" name value elt) (xmlDoc.CreateElement "image")
+    let owner =
+        [ "name", podcast.displayedAuthor
+          "email", podcast.email
+        ]
+        |> List.fold (fun elt (name, value) -> addChild xmlDoc Namespace.iTunes "itunes" name value elt)
+                     (xmlDoc.CreateElement ("itunes", "owner", Namespace.iTunes))
+    
+    rssFeed.ElementExtensions.Add image
+    rssFeed.ElementExtensions.Add owner
+    rssFeed.ElementExtensions.Add categorization
+    rssFeed.ElementExtensions.Add ("summary",   Namespace.iTunes,   podcast.summary)
+    rssFeed.ElementExtensions.Add ("author",    Namespace.iTunes,   podcast.displayedAuthor)
+    rssFeed.ElementExtensions.Add ("image",     Namespace.iTunes,   imageUrl)
+    rssFeed.ElementExtensions.Add ("explicit",  Namespace.iTunes,   ExplicitRating.toString podcast.explicit)
+    rssFeed.ElementExtensions.Add ("subscribe", Namespace.rawVoice, feedUrl)
+    podcast.subtitle |> Option.iter (fun sub -> rssFeed.ElementExtensions.Add ("subtitle", Namespace.iTunes, sub))
 
 /// Get the feed's self reference and non-feed link
 let private selfAndLink webLog feedType =
@@ -227,22 +254,26 @@ let private selfAndLink webLog feedType =
 
 /// Create a feed with a known non-zero-length list of posts    
 let createFeed (feedType : FeedType) posts : HttpHandler = fun next ctx -> backgroundTask {
-    let  webLog  = ctx.WebLog
-    let  conn    = ctx.Conn
-    let! authors = Post.getAuthors     webLog posts conn
-    let! tagMaps = Post.getTagMappings webLog posts conn
-    let  cats    = CategoryCache.get ctx
-    let  podcast = match feedType with Custom (feed, _) when Option.isSome feed.podcast -> Some feed | _ -> None
+    let  webLog     = ctx.WebLog
+    let  conn       = ctx.Conn
+    let! authors    = Post.getAuthors     webLog posts conn
+    let! tagMaps    = Post.getTagMappings webLog posts conn
+    let  cats       = CategoryCache.get ctx
+    let  podcast    = match feedType with Custom (feed, _) when Option.isSome feed.podcast -> Some feed | _ -> None
+    let  self, link = selfAndLink webLog feedType
     
     let toItem post =
         let item = toFeedItem webLog authors cats tagMaps post
         match podcast with
         | Some feed when post.metadata |> List.exists (fun it -> it.name = "media") ->
             addEpisode webLog feed post item
+        | Some _ ->
+            warn "Feed" ctx $"[{webLog.name} {Permalink.toString self}] \"{stripHtml post.title}\" has no media"
+            item
         | _ -> item
         
     let feed = SyndicationFeed ()
-    addNamespace feed "content" "http://purl.org/rss/1.0/modules/content/"
+    addNamespace feed "content" Namespace.content
     
     feed.Title           <- TextSyndicationContent webLog.name
     feed.Description     <- TextSyndicationContent <| defaultArg webLog.subtitle webLog.name
@@ -253,7 +284,6 @@ let createFeed (feedType : FeedType) posts : HttpHandler = fun next ctx -> backg
     feed.Id              <- webLog.urlBase
     webLog.rss.copyright |> Option.iter (fun copy -> feed.Copyright <- TextSyndicationContent copy)
     
-    let self, link = selfAndLink webLog feedType
     feed.Links.Add (SyndicationLink (Uri (WebLog.absoluteUrl webLog self), "self", "", "application/rss+xml", 0L))
     feed.ElementExtensions.Add ("link", "", WebLog.absoluteUrl webLog link)
     

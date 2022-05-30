@@ -15,19 +15,21 @@ module CatchAll =
     let private deriveAction (ctx : HttpContext) : HttpHandler seq =
         let webLog   = ctx.WebLog
         let conn     = ctx.Conn
+        let debug    = debug "Routes.CatchAll" ctx
         let textLink =
             let _, extra = WebLog.hostAndPath webLog
             let url      = string ctx.Request.Path
             (if extra = "" then url else url.Substring extra.Length).ToLowerInvariant ()
         let await it = (Async.AwaitTask >> Async.RunSynchronously) it
         seq {
-            debug "Post" ctx (fun () -> $"Considering URL {textLink}")
+            debug (fun () -> $"Considering URL {textLink}")
             // Home page directory without the directory slash 
             if textLink = "" then yield redirectTo true (WebLog.relativeUrl webLog Permalink.empty)
             let permalink = Permalink (textLink.Substring 1)
             // Current post
             match Data.Post.findByPermalink permalink webLog.id conn |> await with
             | Some post ->
+                debug (fun () -> $"Found post by permalink")
                 let model = Post.preparePostList webLog [ post ] Post.ListType.SinglePost "" 1 1 ctx conn |> await
                 model.Add ("page_title", post.title)
                 yield fun next ctx -> themedView "single-post" next ctx model
@@ -35,31 +37,43 @@ module CatchAll =
             // Current page
             match Data.Page.findByPermalink permalink webLog.id conn |> await with
             | Some page ->
+                debug (fun () -> $"Found page by permalink")
                 yield fun next ctx ->
                     Hash.FromAnonymousObject {| page = DisplayPage.fromPage webLog page; page_title = page.title |}
                     |> themedView (defaultArg page.template "single-page") next ctx
             | None -> ()
             // RSS feed
             match Feed.deriveFeedType ctx textLink with
-            | Some (feedType, postCount) -> yield Feed.generate feedType postCount 
+            | Some (feedType, postCount) ->
+                debug (fun () -> $"Found RSS feed")
+                yield Feed.generate feedType postCount 
             | None -> ()
             // Post differing only by trailing slash
             let altLink = Permalink (if textLink.EndsWith "/" then textLink[..textLink.Length - 2] else $"{textLink}/")
             match Data.Post.findByPermalink altLink webLog.id conn |> await with
-            | Some post -> yield redirectTo true (WebLog.relativeUrl webLog post.permalink)
+            | Some post ->
+                debug (fun () -> $"Found post by trailing-slash-agnostic permalink")
+                yield redirectTo true (WebLog.relativeUrl webLog post.permalink)
             | None -> ()
             // Page differing only by trailing slash
             match Data.Page.findByPermalink altLink webLog.id conn |> await with
-            | Some page -> yield redirectTo true (WebLog.relativeUrl webLog page.permalink)
+            | Some page ->
+                debug (fun () -> $"Found page by trailing-slash-agnostic permalink")
+                yield redirectTo true (WebLog.relativeUrl webLog page.permalink)
             | None -> ()
             // Prior post
             match Data.Post.findCurrentPermalink [ permalink; altLink ] webLog.id conn |> await with
-            | Some link -> yield redirectTo true (WebLog.relativeUrl webLog link)
+            | Some link ->
+                debug (fun () -> $"Found post by prior permalink")
+                yield redirectTo true (WebLog.relativeUrl webLog link)
             | None -> ()
             // Prior page
             match Data.Page.findCurrentPermalink [ permalink; altLink ] webLog.id conn |> await with
-            | Some link -> yield redirectTo true (WebLog.relativeUrl webLog link)
+            | Some link ->
+                debug (fun () -> $"Found page by prior permalink")
+                yield redirectTo true (WebLog.relativeUrl webLog link)
             | None -> ()
+            debug (fun () -> $"No content found")
         }
 
     // GET {all-of-the-above}

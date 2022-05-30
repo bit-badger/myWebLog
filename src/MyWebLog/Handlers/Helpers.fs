@@ -176,8 +176,15 @@ let private isDebugEnabled (ctx : HttpContext) =
         debugEnabled.Value
 
 /// Log a debug message
-let debug name ctx (msg : unit -> string) =
+let debug (name : string) ctx msg =
     if isDebugEnabled ctx then
         let fac = ctx.RequestServices.GetRequiredService<ILoggerFactory> ()
         let log = fac.CreateLogger $"MyWebLog.Handlers.{name}"
         log.LogDebug (msg ())
+
+/// Log a warning message
+let warn (name : string) (ctx : HttpContext) msg =
+    let fac = ctx.RequestServices.GetRequiredService<ILoggerFactory> ()
+    let log = fac.CreateLogger $"MyWebLog.Handlers.{name}"
+    log.LogWarning msg
+    
