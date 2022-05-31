@@ -11,6 +11,7 @@
         <small class="home-lead">{{ post.published_on | date: "dddd, MMMM d, yyyy" }}</small><br>
         &nbsp;
         <a href="{{ post | relative_link }}"
+           id="{{ post.title | strip_html | downcase | replace: " ", "-" | replace: ":", "" }}"
            title="Permanent Link to &quot;{{ post.title | strip_html | escape }}&quot;">
           {{ post.title }}
         </a>

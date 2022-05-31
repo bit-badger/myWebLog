@@ -193,6 +193,7 @@ let home : HttpHandler = fun next ctx -> task {
             return!
                 Hash.FromAnonymousObject {|
                     page       = DisplayPage.fromPage webLog page
+                    categories = CategoryCache.get ctx
                     page_title = page.title
                     is_home    = true
                 |}

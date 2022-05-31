@@ -41,6 +41,7 @@ module CatchAll =
                 yield fun next ctx ->
                     Hash.FromAnonymousObject {|
                         page       = DisplayPage.fromPage webLog page
+                        categories = CategoryCache.get ctx
                         page_title = page.title
                         is_page    = true
                     |}
