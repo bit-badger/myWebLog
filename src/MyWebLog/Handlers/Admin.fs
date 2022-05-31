@@ -132,6 +132,9 @@ let listPages pageNbr : HttpHandler = fun next ctx -> task {
             {|  csrf       = csrfToken ctx
                 pages      = pages |> List.map (DisplayPage.fromPageMinimal webLog)
                 page_title = "Pages"
+                page_nbr   = pageNbr
+                prev_page  = if pageNbr = 2 then "" else $"/page/{pageNbr - 1}"
+                next_page  = $"/page/{pageNbr + 1}"
             |}
         |> viewForTheme "admin" "page-list" next ctx
 }
