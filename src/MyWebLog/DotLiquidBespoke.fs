@@ -149,7 +149,13 @@ type TagLinkFilter () =
         | None        -> tag.Replace (" ", "+")
         |> function tagUrl -> WebLog.relativeUrl (webLog ctx) (Permalink $"tag/{tagUrl}/")
 
-            
+
+/// A filter to generate a link for theme asset (image, stylesheet, script, etc.)
+type ThemeAssetFilter () =
+    static member ThemeAsset (ctx : Context, asset : string) =
+        $"/themes/{(webLog ctx).themePath}/{asset}"
+
+
 /// Create links for a user to log on or off, and a dashboard link if they are logged off
 type UserLinksTag () =
     inherit Tag ()

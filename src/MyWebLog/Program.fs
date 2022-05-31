@@ -211,7 +211,8 @@ let main args =
     
     // Set up DotLiquid
     [ typeof<AbsoluteLinkFilter>; typeof<CategoryLinkFilter>; typeof<EditPageLinkFilter>; typeof<EditPostLinkFilter>
-      typeof<NavLinkFilter>;      typeof<RelativeLinkFilter>; typeof<TagLinkFilter>;      typeof<ValueFilter>
+      typeof<NavLinkFilter>;      typeof<RelativeLinkFilter>; typeof<TagLinkFilter>;      typeof<ThemeAssetFilter>
+      typeof<ValueFilter>
     ]
     |> List.iter Template.RegisterFilter
     

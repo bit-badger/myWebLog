@@ -18,8 +18,8 @@
 <div class="app-info">
   <article class="content">
     <aside>
-      <img src="/themes/{{ web_log.theme_path }}/screenshots/{{ page.permalink | split: "/" | last }}.png"
-           alt="Screen shot of {{ page.title | escape }}">
+      {%- capture screen_url %}screenshots/{{ page.permalink | split: "/" | last }}.png{% endcapture -%}
+      <img src="{{ screen_url | theme_asset }}" alt="Screen shot of {{ page.title | escape }}">
     </aside>
     {{ page.text }}
     {%- assign curr_tech  = page.metadata | where: "name", "tech" -%}

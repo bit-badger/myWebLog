@@ -13,9 +13,9 @@
     </title>
     <link rel="preload" href="https://fonts.googleapis.com/css?family=Quicksand|Oswald" as="style">
     <link rel="preload" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" as="style">
-    <link rel="preload" href="/themes/{{ web_log.theme_path }}/style.css" as="style">
+    <link rel="preload" href="{{ "style.css" | theme_asset }}" as="style">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
-    <script src="/themes/{{ web_log.theme_path }}/djs.js"></script>
+    <script src="{{ "djs.js" | theme_asset }}"></script>
     {% page_head -%}
   </head>
   <body>
@@ -73,8 +73,8 @@
           <div class="football-panel">
             <span>
               <a href="https://utsports.com" style="background:none;padding:0;" target="_blank" rel="noopener">
-                <img src="/themes/{{ web_log.theme_path }}/tennessee.png" alt="T" title="Tennessee Sports"
-                     style="border:0;" width="75px">
+                <img src="{{ "tennessee.png" | theme_asset }}" alt="T" title="Tennessee Sports" style="border:0;"
+                     width="75px">
               </a>
             </span>
             <div>
@@ -92,7 +92,7 @@
           <div class="football-panel">
             <span>
               <a href="https://csurams.com" style="background:none;padding:0;" target="_blank" rel="noopener">
-                <img src="/themes/{{ web_log.theme_path }}/csurams.png" alt="CSU Rams Logo"
+                <img src="{{ "csurams.png" | theme_asset }}" alt="CSU Rams Logo"
                      title="Colorado State Sports" style="border:0;" height="75px" width="75px">
               </a>
             </span>

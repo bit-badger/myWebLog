@@ -11,7 +11,7 @@
     <header class="site-header">
       <div class="header-logo">
         <a href="{{ "" | relative_link }}">
-          <img src="/themes/{{ web_log.theme_path }}/bitbadger.png"
+          <img src="{{ "bitbadger.png" | theme_asset }}"
                alt="A cartoon badger looking at a computer screen, with his paw on a mouse"
                title="Bit Badger Solutions">
         </a>
@@ -20,10 +20,10 @@
       <div class="header-spacer"> &nbsp; </div>
       <div class="header-social">
         <a href="https://twitter.com/Bit_Badger" title="Bit_Badger on Twitter" target="_blank">
-          <img src="/themes/{{ web_log.theme_path }}/twitter.png" alt="Twitter">
+          <img src="{{ "twitter.png" | theme_asset }}" alt="Twitter">
         </a> &nbsp;
         <a href="https://www.facebook.com/bitbadger.solutions" title="Bit Badger Solutions on Facebook" target="_blank">
-          <img src="/themes/{{ web_log.theme_path }}/facebook.png" alt="Facebook">
+          <img src="{{ "facebook.png" | theme_asset }}" alt="Facebook">
         </a>
       </div>
     </header>
