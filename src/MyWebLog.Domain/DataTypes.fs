@@ -275,6 +275,9 @@ type WebLog =
         
         /// The RSS options for this web log
         rss : RssOptions
+        
+        /// Whether to automatically load htmx
+        autoHtmx : bool
     }
 
 /// Functions to support web logs
@@ -291,6 +294,7 @@ module WebLog =
           urlBase      = ""
           timeZone     = ""
           rss          = RssOptions.empty
+          autoHtmx     = false
         }
     
     /// Get the host (including scheme) and extra path from the URL base

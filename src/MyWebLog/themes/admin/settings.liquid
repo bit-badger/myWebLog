@@ -27,7 +27,7 @@
             <label for="postsPerPage">Posts per Page</label>
           </div>
         </div>
-        <div class="col-12 col-md-4 col-xl-3 offset-xl-1 pb-3">
+        <div class="col-12 col-md-4 col-xl-3 pb-3">
           <div class="form-floating">
             <select name="themePath" id="themePath" class="form-control" required>
               {% for theme in themes -%}
@@ -46,7 +46,7 @@
             <label for="timeZone">Time Zone</label>
           </div>
         </div>
-        <div class="col-12 col-md-4 col-xl-4 pb-3">
+        <div class="col-12 col-md-4 pb-3">
           <div class="form-floating">
             <select name="defaultPage" id="defaultPage" class="form-control" required>
               {% for pg in pages -%}
@@ -58,6 +58,16 @@
             </select>
             <label for="defaultPage">Default Page</label>
           </div>
+        </div>
+        <div class="col-12 col-md-4 col-xl-2">
+          <div class="form-check form-switch">
+            <input type="checkbox" name="autoHtmx" id="autoHtmx" class="form-check-input" value="true"
+                {%- if model.auto_htmx %} checked="checked"{% endif %}>
+            <label for="autoHtmx" class="form-check-label">Auto-Load htmx</label>
+          </div>
+          <span class="form-text fst-italic">
+            <a href="https://htmx.org" target="_blank" rel="noopener">What is this?</a>
+          </span>
         </div>
       </div>
       <div class="row pb-3">

@@ -139,7 +139,7 @@
         </a>
         &bull; Powered by <a href="https://github.com/bit-badger/myWebLog/tree/v2">myWebLog</a> &bull;
         {% if logged_on %}
-          <a href="{{ "admin" | relative_link }}">Dashboard</a>
+          <a href="{{ "admin/dashboard" | relative_link }}">Dashboard</a>
         {% else %}
           <a href="{{ "user/log-on" | relative_link }}">Log On</a>
         {%- endif %}

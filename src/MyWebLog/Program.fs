@@ -23,148 +23,17 @@ type WebLogMiddleware (next : RequestDelegate, log : ILogger<WebLogMiddleware>) 
             ctx.Response.StatusCode <- 404
     }
 
-
 open System
-open Microsoft.Extensions.DependencyInjection
-open RethinkDb.Driver.Net
-
-/// Create the default information for a new web log
-module NewWebLog =
-    
-    open System.IO
-    open RethinkDb.Driver.FSharp
-    
-    /// Create the web log information
-    let private createWebLog (args : string[]) (sp : IServiceProvider) = task {
-        
-        let conn = sp.GetRequiredService<IConnection> ()
-        
-        let timeZone =
-            let local = TimeZoneInfo.Local.Id
-            match TimeZoneInfo.Local.HasIanaId with
-            | true -> local
-            | false ->
-                match TimeZoneInfo.TryConvertWindowsIdToIanaId local with
-                | true, ianaId -> ianaId
-                | false, _ -> raise <| TimeZoneNotFoundException $"Cannot find IANA timezone for {local}"
-        
-        // Create the web log
-        let webLogId   = WebLogId.create ()
-        let userId     = WebLogUserId.create ()
-        let homePageId = PageId.create ()
-        
-        do! Data.WebLog.add
-                { WebLog.empty with
-                    id          = webLogId
-                    name        = args[2]
-                    urlBase     = args[1]
-                    defaultPage = PageId.toString homePageId
-                    timeZone    = timeZone
-                } conn
-        
-        // Create the admin user
-        let salt = Guid.NewGuid ()
-        
-        do! Data.WebLogUser.add 
-                { WebLogUser.empty with
-                    id                 = userId
-                    webLogId           = webLogId
-                    userName           = args[3]
-                    firstName          = "Admin"
-                    lastName           = "User"
-                    preferredName      = "Admin"
-                    passwordHash       = Handlers.User.hashedPassword args[4] args[3] salt
-                    salt               = salt
-                    authorizationLevel = Administrator
-                } conn
-
-        // Create the default home page
-        do! Data.Page.add
-                { Page.empty with
-                    id          = homePageId
-                    webLogId    = webLogId
-                    authorId    = userId
-                    title       = "Welcome to myWebLog!"
-                    permalink   = Permalink "welcome-to-myweblog.html"
-                    publishedOn = DateTime.UtcNow
-                    updatedOn   = DateTime.UtcNow
-                    text        = "<p>This is your default home page.</p>"
-                    revisions   = [
-                        { asOf = DateTime.UtcNow
-                          text = Html "<p>This is your default home page.</p>"
-                        }
-                    ]
-                } conn
-
-        printfn $"Successfully initialized database for {args[2]} with URL base {args[1]}"
-    }
-
-    /// Create a new web log
-    let create args sp = task {
-        match args |> Array.length with
-        | 5 -> return! createWebLog args sp
-        | _ ->
-            printfn "Usage: MyWebLog init [url] [name] [admin-email] [admin-pw]"
-            return! System.Threading.Tasks.Task.CompletedTask
-    }
-    
-    /// Import prior permalinks from a text files with lines in the format "[old] [new]"
-    let importPriorPermalinks urlBase file (sp : IServiceProvider) = task {
-        let conn = sp.GetRequiredService<IConnection> ()
-
-        match! Data.WebLog.findByHost urlBase conn with
-        | Some webLog ->
-            
-            let mapping =
-                File.ReadAllLines file
-                |> Seq.ofArray
-                |> Seq.map (fun it ->
-                    let parts = it.Split " "
-                    Permalink parts[0], Permalink parts[1])
-            
-            for old, current in mapping do
-                match! Data.Post.findByPermalink current webLog.id conn with
-                | Some post ->
-                    let! withLinks = rethink<Post> {
-                        withTable Data.Table.Post
-                        get post.id
-                        result conn
-                    }
-                    do! rethink {
-                        withTable Data.Table.Post
-                        get post.id
-                        update [ "priorPermalinks", old :: withLinks.priorPermalinks :> obj]
-                        write; ignoreResult conn
-                    }
-                    printfn $"{Permalink.toString old} -> {Permalink.toString current}"
-                | None -> printfn $"Cannot find current post for {Permalink.toString current}"
-            printfn "Done!"
-        | None -> printfn $"No web log found at {urlBase}"
-    }
-    
-    /// Import permalinks if all is well
-    let importPermalinks args sp = task {
-        match args |> Array.length with
-        | 3 -> return! importPriorPermalinks args[1] args[2] sp
-        | _ ->
-            printfn "Usage: MyWebLog import-permalinks [url] [file-name]"
-            return! System.Threading.Tasks.Task.CompletedTask
-    }
-
-
-open System.Collections.Generic
-open DotLiquid
-open DotLiquidBespoke
 open Giraffe
 open Giraffe.EndpointRouting
-open Microsoft.AspNetCore.Antiforgery
 open Microsoft.AspNetCore.Authentication.Cookies
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.HttpOverrides
 open Microsoft.Extensions.Configuration
-open MyWebLog.ViewModels
+open Microsoft.Extensions.DependencyInjection
 open RethinkDB.DistributedCache
 open RethinkDb.Driver.FSharp
+open RethinkDb.Driver.Net
 
 [<EntryPoint>]
 let main args =
@@ -210,36 +79,15 @@ let main args =
     let _ = builder.Services.AddGiraffe ()
     
     // Set up DotLiquid
-    [ typeof<AbsoluteLinkFilter>; typeof<CategoryLinkFilter>; typeof<EditPageLinkFilter>; typeof<EditPostLinkFilter>
-      typeof<NavLinkFilter>;      typeof<RelativeLinkFilter>; typeof<TagLinkFilter>;      typeof<ThemeAssetFilter>
-      typeof<ValueFilter>
-    ]
-    |> List.iter Template.RegisterFilter
-    
-    Template.RegisterTag<PageHeadTag>  "page_head"
-    Template.RegisterTag<UserLinksTag> "user_links"
-    
-    [   // Domain types
-        typeof<CustomFeed>; typeof<MetaItem>; typeof<Page>; typeof<RssOptions>; typeof<TagMap>; typeof<WebLog>
-        // View models
-        typeof<DashboardModel>;        typeof<DisplayCategory>;     typeof<DisplayCustomFeed>; typeof<DisplayPage>
-        typeof<EditCategoryModel>;     typeof<EditCustomFeedModel>; typeof<EditPageModel>;     typeof<EditPostModel>
-        typeof<EditRssModel>;          typeof<EditTagMapModel>;     typeof<EditUserModel>;     typeof<LogOnModel>
-        typeof<ManagePermalinksModel>; typeof<PostDisplay>;         typeof<PostListItem>;      typeof<SettingsModel>
-        typeof<UserMessage>
-        // Framework types
-        typeof<AntiforgeryTokenSet>; typeof<int option>;    typeof<KeyValuePair>; typeof<MetaItem list>
-        typeof<string list>;         typeof<string option>; typeof<TagMap list>
-    ]
-    |> List.iter (fun it -> Template.RegisterSafeType (it, [| "*" |]))
+    DotLiquidBespoke.register ()
 
     let app = builder.Build ()
     
     match args |> Array.tryHead with
     | Some it when it = "init" ->
-        NewWebLog.create args app.Services |> Async.AwaitTask |> Async.RunSynchronously
+        Maintenance.createWebLog args app.Services |> Async.AwaitTask |> Async.RunSynchronously
     | Some it when it = "import-permalinks" ->
-        NewWebLog.importPermalinks args app.Services |> Async.AwaitTask |> Async.RunSynchronously
+        Maintenance.importPermalinks args app.Services |> Async.AwaitTask |> Async.RunSynchronously
     | _ ->
         let _ = app.UseForwardedHeaders ()
         let _ = app.UseCookiePolicy (CookiePolicyOptions (MinimumSameSitePolicy = SameSiteMode.Strict))

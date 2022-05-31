@@ -676,7 +676,11 @@ type SettingsModel =
         
         /// The theme to use to display the web log
         themePath : string
+        
+        /// Whether to automatically load htmx
+        autoHtmx : bool
     }
+    
     /// Create a settings model from a web log
     static member fromWebLog (webLog : WebLog) =
         { name         = webLog.name
@@ -685,6 +689,19 @@ type SettingsModel =
           postsPerPage = webLog.postsPerPage
           timeZone     = webLog.timeZone
           themePath    = webLog.themePath
+          autoHtmx     = webLog.autoHtmx
+        }
+    
+    /// Update a web log with settings from the form
+    member this.update (webLog : WebLog) =
+        { webLog with
+            name         = this.name
+            subtitle     = if this.subtitle = "" then None else Some this.subtitle
+            defaultPage  = this.defaultPage
+            postsPerPage = this.postsPerPage
+            timeZone     = this.timeZone
+            themePath    = this.themePath
+            autoHtmx     = this.autoHtmx
         }
 
 

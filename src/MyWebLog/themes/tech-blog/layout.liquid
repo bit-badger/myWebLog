@@ -14,15 +14,21 @@
     {% page_head -%}
   </head>
   <body>
-    <header class="site-header">
+    <header class="site-header" id="top">
       <div class="header-logo">
-        <a href="{{ "" | relative_link }}">
+        <a href="{{ "" | relative_link }}" hx-boost="true" hx-target="#content" hx-swap="innerHTML show:#top:top"
+           hx-indicator="#loadOverlay">
           <img src="{{ "img/bitbadger.png" | theme_asset }}"
                alt="A cartoon badger looking at a computer screen, with his paw on a mouse"
                title="Bit Badger Solutions">
         </a>
       </div>
-      <div class="header-title"><a href="{{ "" | relative_link }}">The Bit Badger Blog</a></div>
+      <div class="header-title">
+        <a href="{{ "" | relative_link }}" hx-boost="true" hx-target="#content" hx-swap="innerHTML show:#top:top"
+           hx-indicator="#loadOverlay">
+          The Bit Badger Blog
+        </a>
+      </div>
       <div class="header-spacer">&nbsp;</div>
       <div class="header-social">
         <a href="{{ "feed.xml" | relative_link }}" title="Subscribe to The Bit Badger Blog via RSS">
@@ -36,8 +42,12 @@
         </a>
       </div>
     </header>
-    <div class="content-wrapper">
-      <main class="content" role="main">
+    <div class="content-wrapper" hx-boost="true" hx-target="#content" hx-swap="innerHTML show:#top:top"
+         hx-indicator="#loadOverlay">
+      <div class="load-overlay" id="loadOverlay">
+        <h1>Loading&hellip;</h1>
+      </div>
+      <main class="content" id="content" role="main">
         {{ content }}
       </main>
       <aside class="blog-sidebar">
@@ -77,5 +87,6 @@
         {%- endif %}
       </span>
     </footer>
+    {% page_foot %}
   </body>
 </html>

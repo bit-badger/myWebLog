@@ -291,19 +291,11 @@ let saveSettings : HttpHandler = fun next ctx -> task {
     let! model  = ctx.BindFormAsync<SettingsModel> ()
     match! Data.WebLog.findById webLog.id conn with
     | Some webLog ->
-        let updated =
-            { webLog with
-                name         = model.name
-                subtitle     = if model.subtitle = "" then None else Some model.subtitle
-                defaultPage  = model.defaultPage
-                postsPerPage = model.postsPerPage
-                timeZone     = model.timeZone
-                themePath    = model.themePath
-            }
-        do! Data.WebLog.updateSettings updated conn
+        let webLog = model.update webLog
+        do! Data.WebLog.updateSettings webLog conn
 
         // Update cache
-        WebLogCache.set updated
+        WebLogCache.set webLog
     
         do! addMessage ctx { UserMessage.success with message = "Web log settings saved successfully" }
         return! redirectToGet (WebLog.relativeUrl webLog (Permalink "admin")) next ctx

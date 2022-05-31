@@ -5,11 +5,16 @@ open System
 open System.IO
 open System.Web
 open DotLiquid
+open Giraffe.ViewEngine
 open MyWebLog.ViewModels
 
 /// Get the current web log from the DotLiquid context
 let webLog (ctx : Context) =
     ctx.Environments[0].["web_log"] :?> WebLog
+
+/// Does an asset exist for the current theme?
+let assetExists fileName (webLog : WebLog) =
+    File.Exists (Path.Combine ("wwwroot", "themes", webLog.themePath, fileName))
 
 /// Obtain the link from known types
 let permalink (ctx : Context) (item : obj) (linkFunc : WebLog -> Permalink -> string) =
@@ -72,9 +77,11 @@ type EditPostLinkFilter () =
 type NavLinkFilter () =
     static member NavLink (ctx : Context, url : string, text : string) =
         let webLog = webLog ctx
+        let _, path = WebLog.hostAndPath webLog
+        let path = if path = "" then path else $"{path.Substring 1}/"
         seq {
             "<li class=\"nav-item\"><a class=\"nav-link"
-            if url = string ctx.Environments[0].["current_page"] then " active"
+            if (string ctx.Environments[0].["current_page"]).StartsWith $"{path}{url}" then " active"
             "\" href=\""
             WebLog.relativeUrl webLog (Permalink url)
             "\">"
@@ -98,10 +105,9 @@ type PageHeadTag () =
         result.WriteLine $"""<meta name="generator" content="{context.Environments[0].["generator"]}">"""
         
         // Theme assets
-        let has fileName = File.Exists (Path.Combine ("wwwroot", "themes", webLog.themePath, fileName))
-        if has "style.css" then
+        if assetExists "style.css" webLog then
             result.WriteLine $"""{s}<link rel="stylesheet" href="/themes/{webLog.themePath}/style.css">"""
-        if has "favicon.ico" then
+        if assetExists "favicon.ico" webLog then
             result.WriteLine $"""{s}<link rel="icon" href="/themes/{webLog.themePath}/favicon.ico">"""
         
         // RSS feeds and canonical URLs
@@ -131,6 +137,22 @@ type PageHeadTag () =
             let page = context.Environments[0].["page"] :?> DisplayPage
             let url  = WebLog.absoluteUrl webLog (Permalink page.permalink)
             result.WriteLine $"""{s}<link rel="canonical" href="{url}">"""
+
+
+/// Create various items in the page header based on the state of the page being generated
+type PageFootTag () =
+    inherit Tag ()
+    
+    override this.Render (context : Context, result : TextWriter) =
+        let webLog = webLog context
+        // spacer
+        let s = "    "
+        
+        if webLog.autoHtmx then
+            result.WriteLine $"{s}{RenderView.AsString.htmlNode Htmx.Script.minified}"
+        
+        if assetExists "script.js" webLog then
+            result.WriteLine $"""{s}<script src="/themes/{webLog.themePath}/script.js"></script>"""
 
         
 /// A filter to generate a relative link
@@ -167,7 +189,7 @@ type UserLinksTag () =
             """<ul class="navbar-nav flex-grow-1 justify-content-end">"""
             match Convert.ToBoolean context.Environments[0].["logged_on"] with
             | true ->
-                $"""<li class="nav-item"><a class="nav-link" href="{link "admin"}">Dashboard</a></li>"""
+                $"""<li class="nav-item"><a class="nav-link" href="{link "admin/dashboard"}">Dashboard</a></li>"""
                 $"""<li class="nav-item"><a class="nav-link" href="{link "user/log-off"}">Log Off</a></li>"""
             | false ->
                 $"""<li class="nav-item"><a class="nav-link" href="{link "user/log-on"}">Log On</a></li>"""
@@ -184,3 +206,31 @@ type ValueFilter () =
         | None -> $"-- {name} not found --"
 
 
+open System.Collections.Generic
+open Microsoft.AspNetCore.Antiforgery
+
+/// Register custom filters/tags and safe types
+let register () =
+    [ typeof<AbsoluteLinkFilter>; typeof<CategoryLinkFilter>; typeof<EditPageLinkFilter>; typeof<EditPostLinkFilter>
+      typeof<NavLinkFilter>;      typeof<RelativeLinkFilter>; typeof<TagLinkFilter>;      typeof<ThemeAssetFilter>
+      typeof<ValueFilter>
+    ]
+    |> List.iter Template.RegisterFilter
+    
+    Template.RegisterTag<PageHeadTag>  "page_head"
+    Template.RegisterTag<PageFootTag>  "page_foot"
+    Template.RegisterTag<UserLinksTag> "user_links"
+    
+    [   // Domain types
+        typeof<CustomFeed>; typeof<MetaItem>; typeof<Page>; typeof<RssOptions>; typeof<TagMap>; typeof<WebLog>
+        // View models
+        typeof<DashboardModel>;        typeof<DisplayCategory>;     typeof<DisplayCustomFeed>; typeof<DisplayPage>
+        typeof<EditCategoryModel>;     typeof<EditCustomFeedModel>; typeof<EditPageModel>;     typeof<EditPostModel>
+        typeof<EditRssModel>;          typeof<EditTagMapModel>;     typeof<EditUserModel>;     typeof<LogOnModel>
+        typeof<ManagePermalinksModel>; typeof<PostDisplay>;         typeof<PostListItem>;      typeof<SettingsModel>
+        typeof<UserMessage>
+        // Framework types
+        typeof<AntiforgeryTokenSet>; typeof<int option>;    typeof<KeyValuePair>; typeof<MetaItem list>
+        typeof<string list>;         typeof<string option>; typeof<TagMap list>
+    ]
+    |> List.iter (fun it -> Template.RegisterSafeType (it, [| "*" |]))

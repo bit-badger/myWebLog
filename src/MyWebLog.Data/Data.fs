@@ -752,6 +752,7 @@ module WebLog =
                 "postsPerPage", webLog.postsPerPage
                 "timeZone",     webLog.timeZone
                 "themePath",    webLog.themePath
+                "autoHtmx",     webLog.autoHtmx
             ]
             write; withRetryDefault; ignoreResult
         }

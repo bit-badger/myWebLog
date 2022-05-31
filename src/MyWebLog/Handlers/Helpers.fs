@@ -79,6 +79,11 @@ let private deriveWebLogFromHash (hash : Hash) (ctx : HttpContext) =
     hash["web_log"] :?> WebLog
 
 open Giraffe
+open Giraffe.Htmx
+open Giraffe.ViewEngine
+
+/// htmx script tag
+let private htmxScript = RenderView.AsString.htmlNode Htmx.Script.minified
 
 /// Render a view for the specified theme, using the specified template, layout, and hash
 let viewForTheme theme template next ctx = fun (hash : Hash) -> task {
@@ -90,6 +95,7 @@ let viewForTheme theme template next ctx = fun (hash : Hash) -> task {
     hash.Add ("current_page", ctx.Request.Path.Value.Substring 1)
     hash.Add ("messages",     messages)
     hash.Add ("generator",    generator ctx)
+    hash.Add ("htmx_script",  htmxScript)
     
     do! commitSession ctx
     
@@ -101,7 +107,9 @@ let viewForTheme theme template next ctx = fun (hash : Hash) -> task {
     hash.Add ("content", contentTemplate.Render hash)
     
     // ...then render that content with its layout
-    let! layoutTemplate = TemplateCache.get theme "layout"
+    let  isHtmx         = ctx.Request.IsHtmx && not ctx.Request.IsHtmxRefresh
+    let  layout         = if isHtmx then "layout-partial" else "layout"
+    let! layoutTemplate = TemplateCache.get theme layout
     
     return! htmlString (layoutTemplate.Render hash) next ctx
 }

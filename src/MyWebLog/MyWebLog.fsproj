@@ -17,12 +17,15 @@
     <Compile Include="Handlers\User.fs" />
     <Compile Include="Handlers\Routes.fs" />
     <Compile Include="DotLiquidBespoke.fs" />
+    <Compile Include="Maintenance.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="DotLiquid" Version="2.2.656" />
     <PackageReference Include="Giraffe" Version="6.0.0" />
+    <PackageReference Include="Giraffe.Htmx" Version="1.7.0" />
+    <PackageReference Include="Giraffe.ViewEngine.Htmx" Version="1.7.0" />
     <PackageReference Include="RethinkDB.DistributedCache" Version="1.0.0-rc1" />
     <PackageReference Update="FSharp.Core" Version="6.0.4" />
     <PackageReference Include="System.ServiceModel.Syndication" Version="6.0.0" />

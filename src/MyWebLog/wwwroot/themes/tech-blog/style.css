@@ -204,6 +204,64 @@ li {
     margin-right: 1rem;
   }
 }
+.load-overlay {
+  position: fixed;
+  display: block;
+  width: 90%;
+  height: 0;
+  z-index: 2000;
+  background-color: rgba(0, 0, 0, .5);
+  border-radius: 1rem;
+  animation: fadeOut .25s ease-in-out;
+  overflow: hidden;
+}
+.load-overlay h1 {
+  color: white;
+  background-color: rgba(0, 0, 0, .75);
+  margin-left: auto;
+  margin-right: auto;
+  border-radius: 1rem;
+  width: 50%;
+  padding: 1rem;
+}
+.load-overlay.htmx-request {
+  display: block;
+  height: 80vh;
+  animation: fadeIn .25s ease-in-out;
+}
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+    height: 0;
+  }
+  100% {
+    opacity: 1;
+    height: 80vh;
+  }
+}
+@keyframes fadeOut {
+  0% {
+    opacity: 1;
+    height: 80vh;
+  }
+  99% {
+    opacity: 0;
+    height: 80vh;
+  }
+  100% {
+    opacity: 0;
+    height: 0;
+  }
+}
+@media all and (min-width: 68rem) {
+  .content {
+    width: 66rem;
+  }
+  .load-overlay {
+    width: 60rem;
+    left: 2rem;
+  }
+}
 .home-title {
   text-align: left;
   line-height: 2rem;

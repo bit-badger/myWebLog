@@ -1,14 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta name="viewport" content="width=device-width; initial-scale=1">
-    <meta name="generator" content="{{ generator }}">
     <title>{{ page_title | escape }} &laquo; Admin &laquo; {{ web_log.name | escape }}</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css"
-          integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
-    <link rel="stylesheet" href="/themes/admin/admin.css">
   </head>
-  <body hx-boost="true">
+  <body>
     <header>
       <nav class="navbar navbar-dark bg-dark navbar-expand-md justify-content-start px-2 position-fixed top-0 w-100">
         <div class="container-fluid">
@@ -63,22 +58,5 @@
         </div>
       </div>
     </footer>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"
-            integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM"
-            crossorigin="anonymous"></script>
-    {{ htmx_script }}
-    <script>
-      const cssLoaded = [...document.styleSheets].filter(it => it.href.indexOf("bootstrap.min.css") > -1).length > 0
-      if (!cssLoaded) {
-        const local = document.createElement("link")
-        local.rel = "stylesheet"
-        local.href = "/themes/admin/bootstrap.min.css"
-        document.getElementsByTagName("link")[0].prepend(local)
-      }
-      setTimeout(function () {
-        if (!bootstrap) document.write('<script src=\"/script/bootstrap.bundle.min.js\"><\/script>')
-      }, 2000)
-    </script>
-    <script src="/themes/admin/admin.js"></script>
   </body>
 </html>

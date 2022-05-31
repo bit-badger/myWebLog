@@ -95,11 +95,11 @@ let router : HttpHandler = choose [
     ]
     subRoute "/admin" (requireUser >=> choose [
         GET >=> choose [
-            route    "" >=> Admin.dashboard
             subRoute "/categor" (choose [
                 route  "ies"       >=> Admin.listCategories
                 routef "y/%s/edit"     Admin.editCategory
             ])
+            route    "/dashboard" >=> Admin.dashboard
             subRoute "/page" (choose [
                 route  "s"              >=> Admin.listPages 1
                 routef "s/page/%i"          Admin.listPages
