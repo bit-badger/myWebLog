@@ -2,10 +2,21 @@
 module MyWebLog.Handlers.Post
 
 open System
+open MyWebLog
 
 /// Parse a slug and page number from an "everything else" URL
-let private parseSlugAndPage (slugAndPage : string seq) =
-    let slugs   = (slugAndPage |> Seq.skip 1 |> Seq.head).Split "/" |> Array.filter (fun it -> it <> "")
+let private parseSlugAndPage webLog (slugAndPage : string seq) =
+    let fullPath = slugAndPage |> Seq.head
+    let slugPath = slugAndPage |> Seq.skip 1 |> Seq.head
+    let slugs, isFeed =
+        let feedName = $"/{webLog.rss.feedName}"
+        let notBlank = Array.filter (fun it -> it <> "")
+        if (   (webLog.rss.categoryEnabled && fullPath.StartsWith "/category/")
+            || (webLog.rss.tagEnabled      && fullPath.StartsWith "/tag/"     ))
+           && slugPath.EndsWith feedName then
+            notBlank (slugPath.Replace(feedName, "").Split "/"), true
+        else
+            notBlank (slugPath.Split "/"), false
     let pageIdx = Array.IndexOf (slugs, "page")
     let pageNbr =
         match pageIdx with
@@ -13,7 +24,7 @@ let private parseSlugAndPage (slugAndPage : string seq) =
         | idx when idx + 2 = slugs.Length -> Some (int slugs[pageIdx + 1])
         | _ -> None
     let slugParts = if pageIdx > 0 then Array.truncate pageIdx slugs else slugs
-    pageNbr, String.Join ("/", slugParts)
+    pageNbr, String.Join ("/", slugParts), isFeed
 
 /// The type of post list being prepared
 type ListType =
@@ -23,23 +34,6 @@ type ListType =
     | SinglePost
     | TagList
 
-open MyWebLog
-
-/// Get all authors for a list of posts as metadata items
-let getAuthors (webLog : WebLog) (posts : Post list) conn =
-    posts
-    |> List.map (fun p -> p.authorId)
-    |> List.distinct
-    |> Data.WebLogUser.findNames webLog.id conn
-
-/// Get all tag mappings for a list of posts as metadata items
-let getTagMappings (webLog : WebLog) (posts : Post list) =
-    posts
-    |> List.map (fun p -> p.tags)
-    |> List.concat
-    |> List.distinct
-    |> fun tags -> Data.TagMap.findMappingForTags tags webLog.id
-    
 open System.Threading.Tasks
 open DotLiquid
 open MyWebLog.ViewModels
@@ -91,7 +85,12 @@ let preparePostList webLog posts listType (url : string) pageNbr perPage ctx con
           olderLink  = olderLink
           olderName  = olderPost |> Option.map (fun p -> p.title)
         }
-    return Hash.FromAnonymousObject {| model = model; categories = CategoryCache.get ctx; tag_mappings = tagMappings |}
+    return Hash.FromAnonymousObject {|
+        model        = model
+        categories   = CategoryCache.get ctx
+        tag_mappings = tagMappings
+        is_post      = match listType with SinglePost -> true | _ -> false
+    |}
 }
 
 open Giraffe
@@ -117,27 +116,30 @@ let pageOfPosts pageNbr : HttpHandler = fun next ctx -> task {
 let pageOfCategorizedPosts slugAndPage : HttpHandler = fun next ctx -> task {
     let webLog = ctx.WebLog
     let conn   = ctx.Conn
-    match parseSlugAndPage slugAndPage with
-    | Some pageNbr, slug -> 
+    match parseSlugAndPage webLog slugAndPage with
+    | Some pageNbr, slug, isFeed ->
         let allCats = CategoryCache.get ctx
         let cat     = allCats |> Array.find (fun cat -> cat.slug = slug)
-        // Category pages include posts in subcategories
-        let catIds  =
-            allCats
-            |> Seq.ofArray
-            |> Seq.filter (fun c -> c.id = cat.id || Array.contains cat.name c.parentNames)
-            |> Seq.map (fun c -> CategoryId c.id)
-            |> List.ofSeq
-        match! Data.Post.findPageOfCategorizedPosts webLog.id catIds pageNbr webLog.postsPerPage conn with
-        | posts when List.length posts > 0 ->
-            let! hash    = preparePostList webLog posts CategoryList cat.slug pageNbr webLog.postsPerPage ctx conn
-            let  pgTitle = if pageNbr = 1 then "" else $""" <small class="archive-pg-nbr">(Page {pageNbr})</small>"""
-            hash.Add ("page_title", $"{cat.name}: Category Archive{pgTitle}")
-            hash.Add ("subtitle", cat.description.Value)
-            hash.Add ("is_category", true)
-            return! themedView "index" next ctx hash
-        | _ -> return! Error.notFound next ctx
-    | None, _ -> return! Error.notFound next ctx
+        if isFeed then
+            return! Feed.generate (Feed.CategoryFeed ((CategoryId cat.id), $"category/{slug}/{webLog.rss.feedName}"))
+                        (defaultArg webLog.rss.itemsInFeed webLog.postsPerPage) next ctx
+        else
+            let allCats = CategoryCache.get ctx
+            let cat     = allCats |> Array.find (fun cat -> cat.slug = slug)
+            // Category pages include posts in subcategories
+            match! Data.Post.findPageOfCategorizedPosts webLog.id (getCategoryIds slug ctx) pageNbr webLog.postsPerPage
+                       conn with
+            | posts when List.length posts > 0 ->
+                let! hash    = preparePostList webLog posts CategoryList cat.slug pageNbr webLog.postsPerPage ctx conn
+                let  pgTitle = if pageNbr = 1 then "" else $""" <small class="archive-pg-nbr">(Page {pageNbr})</small>"""
+                hash.Add ("page_title", $"{cat.name}: Category Archive{pgTitle}")
+                hash.Add ("subtitle", defaultArg cat.description "")
+                hash.Add ("is_category", true)
+                hash.Add ("is_category_home", (pageNbr = 1))
+                hash.Add ("slug", slug)
+                return! themedView "index" next ctx hash
+            | _ -> return! Error.notFound next ctx
+    | None, _, _ -> return! Error.notFound next ctx
 }
 
 open System.Web
@@ -147,33 +149,39 @@ open System.Web
 let pageOfTaggedPosts slugAndPage : HttpHandler = fun next ctx -> task {
     let webLog = ctx.WebLog
     let conn   = ctx.Conn
-    match parseSlugAndPage slugAndPage with
-    | Some pageNbr, rawTag -> 
+    match parseSlugAndPage webLog slugAndPage with
+    | Some pageNbr, rawTag, isFeed -> 
         let  urlTag = HttpUtility.UrlDecode rawTag
         let! tag    = backgroundTask {
             match! Data.TagMap.findByUrlValue urlTag webLog.id conn with
             | Some m -> return m.tag
             | None   -> return urlTag
         }
-        match! Data.Post.findPageOfTaggedPosts webLog.id tag pageNbr webLog.postsPerPage conn with
-        | posts when List.length posts > 0 ->
-            let! hash    = preparePostList webLog posts TagList rawTag pageNbr webLog.postsPerPage ctx conn
-            let  pgTitle = if pageNbr = 1 then "" else $""" <small class="archive-pg-nbr">(Page {pageNbr})</small>"""
-            hash.Add ("page_title", $"Posts Tagged &ldquo;{tag}&rdquo;{pgTitle}")
-            hash.Add ("is_tag", true)
-            return! themedView "index" next ctx hash
-        // Other systems use hyphens for spaces; redirect if this is an old tag link
-        | _ ->
-            let spacedTag = tag.Replace ("-", " ")
-            match! Data.Post.findPageOfTaggedPosts webLog.id spacedTag pageNbr 1 conn with
+        if isFeed then
+            return! Feed.generate (Feed.TagFeed (tag, $"tag/{rawTag}/{webLog.rss.feedName}"))
+                        (defaultArg webLog.rss.itemsInFeed webLog.postsPerPage) next ctx
+        else
+            match! Data.Post.findPageOfTaggedPosts webLog.id tag pageNbr webLog.postsPerPage conn with
             | posts when List.length posts > 0 ->
-                let endUrl = if pageNbr = 1 then "" else $"page/{pageNbr}"
-                return!
-                    redirectTo true
-                        (WebLog.relativeUrl webLog (Permalink $"""tag/{spacedTag.Replace (" ", "+")}/{endUrl}"""))
-                        next ctx
-            | _ -> return! Error.notFound next ctx
-    | None, _ -> return! Error.notFound next ctx
+                let! hash    = preparePostList webLog posts TagList rawTag pageNbr webLog.postsPerPage ctx conn
+                let  pgTitle = if pageNbr = 1 then "" else $""" <small class="archive-pg-nbr">(Page {pageNbr})</small>"""
+                hash.Add ("page_title", $"Posts Tagged &ldquo;{tag}&rdquo;{pgTitle}")
+                hash.Add ("is_tag", true)
+                hash.Add ("is_tag_home", (pageNbr = 1))
+                hash.Add ("slug", rawTag)
+                return! themedView "index" next ctx hash
+            // Other systems use hyphens for spaces; redirect if this is an old tag link
+            | _ ->
+                let spacedTag = tag.Replace ("-", " ")
+                match! Data.Post.findPageOfTaggedPosts webLog.id spacedTag pageNbr 1 conn with
+                | posts when List.length posts > 0 ->
+                    let endUrl = if pageNbr = 1 then "" else $"page/{pageNbr}"
+                    return!
+                        redirectTo true
+                            (WebLog.relativeUrl webLog (Permalink $"""tag/{spacedTag.Replace (" ", "+")}/{endUrl}"""))
+                            next ctx
+                | _ -> return! Error.notFound next ctx
+    | None, _, _ -> return! Error.notFound next ctx
 }
 
 // GET /

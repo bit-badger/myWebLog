@@ -33,28 +33,16 @@ let deriveFeedType (ctx : HttpContext) feedPath : (FeedType * int) option =
         debug (fun () -> "Found standard feed")
         Some (StandardFeed feedPath, postCount)
     | false ->
-        // Category feed
-        match CategoryCache.get ctx |> Array.tryFind (fun cat -> cat.slug = feedPath.Replace (name, "")) with
-        | Some cat ->
-            debug (fun () -> "Found category feed")
-            Some (CategoryFeed (CategoryId cat.id, feedPath), postCount)
+        // Category and tag feeds are handled by defined routes; check for custom feed
+        match webLog.rss.customFeeds
+              |> List.tryFind (fun it -> feedPath.EndsWith (Permalink.toString it.path)) with
+        | Some feed ->
+            debug (fun () -> "Found custom feed")
+            Some (Custom (feed, feedPath),
+                  feed.podcast |> Option.map (fun p -> p.itemsInFeed) |> Option.defaultValue postCount)
         | None ->
-            // Tag feed
-            match feedPath.StartsWith "/tag/" with
-            | true  ->
-                debug (fun () -> "Found tag feed")
-                Some (TagFeed (feedPath.Replace("/tag/", "").Replace(name, ""), feedPath), postCount)
-            | false ->
-                // Custom feed
-                match webLog.rss.customFeeds
-                      |> List.tryFind (fun it -> feedPath.EndsWith (Permalink.toString it.path)) with
-                | Some feed ->
-                    debug (fun () -> "Found custom feed")
-                    Some (Custom (feed, feedPath),
-                          feed.podcast |> Option.map (fun p -> p.itemsInFeed) |> Option.defaultValue postCount)
-                | None ->
-                    debug (fun () -> $"No matching feed found")
-                    None
+            debug (fun () -> $"No matching feed found")
+            None
 
 /// Determine the function to retrieve posts for the given feed
 let private getFeedPosts (webLog : WebLog) feedType =
@@ -252,12 +240,41 @@ let private selfAndLink webLog feedType =
     |> function
     | path -> Permalink path, Permalink (path.Replace ($"/{webLog.rss.feedName}", ""))
 
+/// Set the title and description of the feed based on its source
+let private setTitleAndDescription feedType (webLog : WebLog) (cats : DisplayCategory[]) (feed : SyndicationFeed) =
+    let cleanText opt def = TextSyndicationContent (stripHtml (defaultArg opt def))
+    match feedType with
+    | StandardFeed _ ->
+        feed.Title       <- cleanText None webLog.name
+        feed.Description <- cleanText webLog.subtitle webLog.name
+    | CategoryFeed (CategoryId catId, _) ->
+        let cat = cats |> Array.find (fun it -> it.id = catId)
+        feed.Title       <- cleanText None $"""{webLog.name} - "{stripHtml cat.name}" Category"""
+        feed.Description <- cleanText cat.description $"""Posts categorized under "{cat.name}" """
+    | TagFeed (tag, _) ->
+        feed.Title       <- cleanText None $"""{webLog.name} - "{tag}" Tag"""
+        feed.Description <- cleanText None $"""Posts with the "{tag}" tag"""
+    | Custom (custom, _) ->
+        match custom.podcast with
+        | Some podcast ->
+            feed.Title       <- cleanText None podcast.title
+            feed.Description <- cleanText podcast.subtitle podcast.title
+        | None ->
+            match custom.source with
+            | Category (CategoryId catId) ->
+                let cat = cats |> Array.find (fun it -> it.id = catId)
+                feed.Title       <- cleanText None $"""{webLog.name} - "{stripHtml cat.name}" Category"""
+                feed.Description <- cleanText cat.description $"""Posts categorized under "{cat.name}" """
+            | Tag tag ->
+                feed.Title       <- cleanText None $"""{webLog.name} - "{tag}" Tag"""
+                feed.Description <- cleanText None $"""Posts with the "{tag}" tag"""
+    
 /// Create a feed with a known non-zero-length list of posts    
 let createFeed (feedType : FeedType) posts : HttpHandler = fun next ctx -> backgroundTask {
     let  webLog     = ctx.WebLog
     let  conn       = ctx.Conn
-    let! authors    = Post.getAuthors     webLog posts conn
-    let! tagMaps    = Post.getTagMappings webLog posts conn
+    let! authors    = getAuthors     webLog posts conn
+    let! tagMaps    = getTagMappings webLog posts conn
     let  cats       = CategoryCache.get ctx
     let  podcast    = match feedType with Custom (feed, _) when Option.isSome feed.podcast -> Some feed | _ -> None
     let  self, link = selfAndLink webLog feedType
@@ -274,14 +291,13 @@ let createFeed (feedType : FeedType) posts : HttpHandler = fun next ctx -> backg
         
     let feed = SyndicationFeed ()
     addNamespace feed "content" Namespace.content
+    setTitleAndDescription feedType webLog cats feed
     
-    feed.Title           <- TextSyndicationContent webLog.name
-    feed.Description     <- TextSyndicationContent <| defaultArg webLog.subtitle webLog.name
     feed.LastUpdatedTime <- DateTimeOffset <| (List.head posts).updatedOn
     feed.Generator       <- generator ctx
     feed.Items           <- posts |> Seq.ofList |> Seq.map toItem
     feed.Language        <- "en"
-    feed.Id              <- webLog.urlBase
+    feed.Id              <- WebLog.absoluteUrl webLog link
     webLog.rss.copyright |> Option.iter (fun copy -> feed.Copyright <- TextSyndicationContent copy)
     
     feed.Links.Add (SyndicationLink (Uri (WebLog.absoluteUrl webLog self), "self", "", "application/rss+xml", 0L))

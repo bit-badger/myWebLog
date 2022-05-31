@@ -215,6 +215,7 @@ let main args =
     ]
     |> List.iter Template.RegisterFilter
     
+    Template.RegisterTag<PageHeadTag>  "page_head"
     Template.RegisterTag<UserLinksTag> "user_links"
     
     [   // Domain types

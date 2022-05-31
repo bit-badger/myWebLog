@@ -160,6 +160,32 @@ let templatesForTheme (ctx : HttpContext) (typ : string) =
     }
     |> Array.ofSeq
 
+/// Get all authors for a list of posts as metadata items
+let getAuthors (webLog : WebLog) (posts : Post list) conn =
+    posts
+    |> List.map (fun p -> p.authorId)
+    |> List.distinct
+    |> Data.WebLogUser.findNames webLog.id conn
+
+/// Get all tag mappings for a list of posts as metadata items
+let getTagMappings (webLog : WebLog) (posts : Post list) =
+    posts
+    |> List.map (fun p -> p.tags)
+    |> List.concat
+    |> List.distinct
+    |> fun tags -> Data.TagMap.findMappingForTags tags webLog.id
+
+/// Get all category IDs for the given slug (includes owned subcategories)   
+let getCategoryIds slug ctx =
+    let allCats = CategoryCache.get ctx
+    let cat     = allCats |> Array.find (fun cat -> cat.slug = slug)
+    // Category pages include posts in subcategories
+    allCats
+    |> Seq.ofArray
+    |> Seq.filter (fun c -> c.id = cat.id || Array.contains cat.name c.parentNames)
+    |> Seq.map (fun c -> CategoryId c.id)
+    |> List.ofSeq
+
 open Microsoft.Extensions.Logging
 
 /// Log level for debugging

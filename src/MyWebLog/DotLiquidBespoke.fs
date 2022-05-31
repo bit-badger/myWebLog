@@ -3,6 +3,7 @@ module MyWebLog.DotLiquidBespoke
 
 open System
 open System.IO
+open System.Web
 open DotLiquid
 open MyWebLog.ViewModels
 
@@ -22,10 +23,12 @@ let permalink (ctx : Context) (item : obj) (linkFunc : WebLog -> Permalink -> st
     | Some link -> linkFunc (webLog ctx) (Permalink link)
     | None      -> $"alert('unknown item type {item.GetType().Name}')"
 
+
 /// A filter to generate an absolute link
 type AbsoluteLinkFilter () =
     static member AbsoluteLink (ctx : Context, item : obj) =
         permalink ctx item WebLog.absoluteUrl
+
 
 /// A filter to generate a link with posts categorized under the given category
 type CategoryLinkFilter () =
@@ -50,6 +53,7 @@ type EditPageLinkFilter () =
         |> function
         | Some pageId -> WebLog.relativeUrl (webLog ctx) (Permalink $"admin/page/{pageId}/edit")
         | None        -> $"alert('unknown page object type {pageObj.GetType().Name}')"
+ 
     
 /// A filter to generate a link that will edit a post
 type EditPostLinkFilter () =
@@ -62,6 +66,7 @@ type EditPostLinkFilter () =
         |> function
         | Some postId -> WebLog.relativeUrl (webLog ctx) (Permalink $"admin/post/{postId}/edit")
         | None        -> $"alert('unknown post object type {postObj.GetType().Name}')"
+ 
     
 /// A filter to generate nav links, highlighting the active link (exact match)
 type NavLinkFilter () =
@@ -78,10 +83,61 @@ type NavLinkFilter () =
         }
         |> Seq.fold (+) ""
 
+
+/// Create various items in the page header based on the state of the page being generated
+type PageHeadTag () =
+    inherit Tag ()
+    
+    override this.Render (context : Context, result : TextWriter) =
+        let webLog = webLog context
+        // spacer
+        let s      = "    "
+        let getBool name =
+            context.Environments[0].[name] |> Option.ofObj |> Option.map Convert.ToBoolean |> Option.defaultValue false
+        
+        result.WriteLine $"""<meta name="generator" content="{context.Environments[0].["generator"]}">"""
+        
+        // Theme assets
+        let has fileName = File.Exists (Path.Combine ("wwwroot", "themes", webLog.themePath, fileName))
+        if has "style.css" then
+            result.WriteLine $"""{s}<link rel="stylesheet" href="/themes/{webLog.themePath}/style.css">"""
+        if has "favicon.ico" then
+            result.WriteLine $"""{s}<link rel="icon" href="/themes/{webLog.themePath}/favicon.ico">"""
+        
+        // RSS feeds and canonical URLs
+        let feedLink title url =
+            let escTitle = HttpUtility.HtmlAttributeEncode title
+            let relUrl   = WebLog.relativeUrl webLog (Permalink url)
+            $"""{s}<link rel="alternate" type="application/rss+xml" title="{escTitle}" href="{relUrl}">"""
+        
+        if webLog.rss.feedEnabled && getBool "is_home" then
+            result.WriteLine (feedLink webLog.name webLog.rss.feedName)
+            result.WriteLine $"""{s}<link rel="canonical" href="{WebLog.absoluteUrl webLog Permalink.empty}">"""
+        
+        if webLog.rss.categoryEnabled && getBool "is_category_home" then
+            let slug = context.Environments[0].["slug"] :?> string
+            result.WriteLine (feedLink webLog.name $"category/{slug}/{webLog.rss.feedName}")
+            
+        if webLog.rss.tagEnabled && getBool "is_tag_home" then
+            let slug = context.Environments[0].["slug"] :?> string
+            result.WriteLine (feedLink webLog.name $"tag/{slug}/{webLog.rss.feedName}")
+            
+        if getBool "is_post" then
+            let post = context.Environments[0].["model"] :?> PostDisplay
+            let url  = WebLog.absoluteUrl webLog (Permalink post.posts[0].permalink)
+            result.WriteLine $"""{s}<link rel="canonical" href="{url}">"""
+        
+        if getBool "is_page" then
+            let page = context.Environments[0].["page"] :?> DisplayPage
+            let url  = WebLog.absoluteUrl webLog (Permalink page.permalink)
+            result.WriteLine $"""{s}<link rel="canonical" href="{url}">"""
+
+        
 /// A filter to generate a relative link
 type RelativeLinkFilter () =
     static member RelativeLink (ctx : Context, item : obj) =
         permalink ctx item WebLog.relativeUrl
+
 
 /// A filter to generate a link with posts tagged with the given tag
 type TagLinkFilter () =
@@ -92,6 +148,7 @@ type TagLinkFilter () =
         | Some tagMap -> tagMap.urlValue
         | None        -> tag.Replace (" ", "+")
         |> function tagUrl -> WebLog.relativeUrl (webLog ctx) (Permalink $"tag/{tagUrl}/")
+
             
 /// Create links for a user to log on or off, and a dashboard link if they are logged off
 type UserLinksTag () =

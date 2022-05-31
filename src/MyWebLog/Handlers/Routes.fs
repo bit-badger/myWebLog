@@ -39,7 +39,11 @@ module CatchAll =
             | Some page ->
                 debug (fun () -> $"Found page by permalink")
                 yield fun next ctx ->
-                    Hash.FromAnonymousObject {| page = DisplayPage.fromPage webLog page; page_title = page.title |}
+                    Hash.FromAnonymousObject {|
+                        page       = DisplayPage.fromPage webLog page
+                        page_title = page.title
+                        is_page    = true
+                    |}
                     |> themedView (defaultArg page.template "single-page") next ctx
             | None -> ()
             // RSS feed

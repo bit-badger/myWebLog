@@ -4,25 +4,19 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="generator" content="{{ generator }}">
     <title>
-      {%- if is_home %}
+      {%- if is_home -%}
         {{ web_log.name }}{% if web_log.subtitle %} | {{ web_log.subtitle.value }}{% endif %}
-      {%- else %}
+      {%- else -%}
         {{ page_title | strip_html }}{% if page_title and page_title != "" %} &raquo; {% endif %}{{ web_log.name }}
-      {%- endif %}
+      {%- endif -%}
     </title>
     <link rel="preload" href="https://fonts.googleapis.com/css?family=Quicksand|Oswald" as="style">
     <link rel="preload" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" as="style">
     <link rel="preload" href="/themes/{{ web_log.theme_path }}/style.css" as="style">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
-    <link rel="stylesheet" href="/themes/{{ web_log.theme_path }}/style.css">
-    {%- if is_home %}
-      <link rel="alternate" type="application/rss+xml" title="{{ web_log.name | escape }}"
-            href="{{ "feed.xml" | relative_link }}">
-      <link rel="canonical" href="{{ "" | absolute_url }}">
-    {%- endif %}
     <script src="/themes/{{ web_log.theme_path }}/djs.js"></script>
+    {% page_head -%}
   </head>
   <body>
     <nav class="site-header" role="navigation">
