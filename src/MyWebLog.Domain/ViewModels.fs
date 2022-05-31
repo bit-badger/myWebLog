@@ -93,6 +93,7 @@ type DisplayPage =
         /// The metadata for the page
         metadata : MetaItem list
     }
+    
     /// Create a minimal display page (no text or metadata) from a database page
     static member fromPageMinimal webLog (page : Page) =
         let pageId = PageId.toString page.id
@@ -106,8 +107,10 @@ type DisplayPage =
           text           = ""
           metadata       = []
         }
+    
     /// Create a display page from a database page
     static member fromPage webLog (page : Page) =
+        let _, extra = WebLog.hostAndPath webLog
         let pageId = PageId.toString page.id
         { id             = pageId
           title          = page.title
@@ -116,7 +119,7 @@ type DisplayPage =
           updatedOn      = page.updatedOn
           showInPageList = page.showInPageList
           isDefault      = pageId = webLog.defaultPage
-          text           = page.text
+          text           = if extra = "" then page.text else page.text.Replace ("href=\"/", $"href=\"{extra}/")
           metadata       = page.metadata
         }
 
