@@ -118,20 +118,17 @@ let pageOfCategorizedPosts slugAndPage : HttpHandler = fun next ctx -> task {
     let conn   = ctx.Conn
     match parseSlugAndPage webLog slugAndPage with
     | Some pageNbr, slug, isFeed ->
-        let allCats = CategoryCache.get ctx
-        let cat     = allCats |> Array.find (fun cat -> cat.slug = slug)
-        if isFeed then
+        match CategoryCache.get ctx |> Array.tryFind (fun cat -> cat.slug = slug) with
+        | Some cat when isFeed ->
             return! Feed.generate (Feed.CategoryFeed ((CategoryId cat.id), $"category/{slug}/{webLog.rss.feedName}"))
                         (defaultArg webLog.rss.itemsInFeed webLog.postsPerPage) next ctx
-        else
-            let allCats = CategoryCache.get ctx
-            let cat     = allCats |> Array.find (fun cat -> cat.slug = slug)
+        | Some cat ->
             // Category pages include posts in subcategories
             match! Data.Post.findPageOfCategorizedPosts webLog.id (getCategoryIds slug ctx) pageNbr webLog.postsPerPage
                        conn with
             | posts when List.length posts > 0 ->
-                let! hash    = preparePostList webLog posts CategoryList cat.slug pageNbr webLog.postsPerPage ctx conn
-                let  pgTitle = if pageNbr = 1 then "" else $""" <small class="archive-pg-nbr">(Page {pageNbr})</small>"""
+                let! hash = preparePostList webLog posts CategoryList cat.slug pageNbr webLog.postsPerPage ctx conn
+                let pgTitle = if pageNbr = 1 then "" else $""" <small class="archive-pg-nbr">(Page {pageNbr})</small>"""
                 hash.Add ("page_title", $"{cat.name}: Category Archive{pgTitle}")
                 hash.Add ("subtitle", defaultArg cat.description "")
                 hash.Add ("is_category", true)
@@ -139,6 +136,7 @@ let pageOfCategorizedPosts slugAndPage : HttpHandler = fun next ctx -> task {
                 hash.Add ("slug", slug)
                 return! themedView "index" next ctx hash
             | _ -> return! Error.notFound next ctx
+        | None -> return! Error.notFound next ctx
     | None, _, _ -> return! Error.notFound next ctx
 }
 
