@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>
+      {%- if is_home -%}
+        {{ web_log.name }}{% if web_log.subtitle %} | {{ web_log.subtitle.value }}{% endif %}
+      {%- else -%}
+        {{ page_title | strip_html }}{% if page_title and page_title != "" %} &raquo; {% endif %}{{ web_log.name }}
+      {%- endif -%}
+    </title>
+  </head>
+  <body>
+    {{ content }}
+  </body>
+</html>

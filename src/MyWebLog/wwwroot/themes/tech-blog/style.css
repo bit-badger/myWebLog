@@ -40,7 +40,7 @@ acronym {
   border-bottom:dotted 1px black;
   text-decoration: none;
 }
-header, h1, h2, h3, footer a, .home-lead a, .highlight {
+.site-header, h1, h2, h3, .site-footer a, .home-lead a, .highlight {
   font-family: var(--heading-fonts);
 }
 h1 {
@@ -162,7 +162,7 @@ article.page .metadata {
 .strike {
   text-decoration: line-through;
 }
-footer {
+.site-footer {
 	padding: 20px 15px 10px 15px;
   display: flex;
   flex-direction: row;
@@ -175,7 +175,7 @@ footer {
   background-image: -moz-linear-gradient(top, var(--bkg-color), var(--edge-color));
   background-image: linear-gradient(to bottom, var(--bkg-color), var(--edge-color));
 }
-footer a:link, footer a:visited {
+.site-footer a:link, .site-footer a:visited {
 	color: black;
 }
 .alignleft {
@@ -232,7 +232,7 @@ li {
 @keyframes fadeIn {
   0% {
     opacity: 0;
-    height: 0;
+    height: 80vh;
   }
   100% {
     opacity: 1;
@@ -350,14 +350,20 @@ li {
 .entry-title {
   line-height: 1;
 }
-.entry-meta {
-  font-size: 1rem;
+.entry-header {
   text-align: center;
   font-weight: bold;
-  margin: 0 0 .5rem 0;
+  font-size: 1rem;
 }
 .entry-content {
   margin-top: 1.5rem;
+}
+.entry-footer {
+  font-size: 85%;
+  border-top: solid 1px rgba(0, 0, 0, .2);
+}
+.entry-header p, .entry-footer p {
+  margin: .5rem 0;
 }
 .cat-list-count {
   font-size: .8rem;

@@ -3,13 +3,14 @@
   <h1 class="entry-title">
     {{ post.title }}
   </h1>
-  <p class="entry-meta">
-    Posted by {{ model.authors | value: post.author_id }} on {{ post.published_on | date: "dddd, MMMM d, yyyy" }}
-    at {{ post.published_on | date: "h:mm tt" | downcase }}
-  </p>
+  <header class="entry-header">
+    <p>
+      Posted by {{ model.authors | value: post.author_id }} on {{ post.published_on | date: "dddd, MMMM d, yyyy" }}
+      at {{ post.published_on | date: "h:mm tt" | downcase }}
+    </p>
   {%- assign cat_count = post.category_ids | size -%}
   {%- if cat_count > 0 %}
-    <p class="entry-meta">
+    <p>
       <small>
         Categorized under
         {% for cat_id in post.category_ids -%}
@@ -20,23 +21,38 @@
       </small>
     </p>
   {%- endif %}
+  </header>
   <div class="entry-content">{{ post.text }}</div>
-  <div class="entry-footer">
+  <footer class="entry-footer">
     {%- assign tag_count = post.tags | size -%}
     {%- if tag_count > 0 %}
-      <span>
-        Tagged
+      <p>
+        Tagged:
         {% for tag in post.tags -%}
           <a href="{{ tag | tag_link }}" title="Tagged &ldquo;{{ tag | escape }}&rdquo;"
              rel="tag">{{ tag }}</a>{% unless forloop.last %}, {% endunless %}
         {%- endfor %}
-      </span> &bull;
+      </p>
     {%- endif %}
-    Bookmark the
-    <a href="{{ post | absolute_link }}" rel="bookmark"
-       title="Permanent link to &ldquo;{{ post.title | strip_html | escape }}&rdquo;">
-      permalink
-    </a>
-    {%- if logged_on %} &bull; <a href="{{ post | edit_post_link }}">Edit Post</a>{% endif %}
-  </div>
+    <p>
+      Bookmark:
+      <a href="{{ post | absolute_link }}" rel="bookmark"
+         title="Permanent link to &ldquo;{{ post.title | strip_html | escape }}&rdquo;">
+        the permalink
+      </a>
+    </p>
+    <p>{%- if logged_on %}Edit: <a href="{{ post | edit_post_link }}">this post</a>{% else %}&nbsp;{% endif %}</p>
+    {% if model.newer_link -%}
+      <p>
+        Next Newer Post:
+        <a href="{{ model.newer_link.value | relative_link }}">{{ model.newer_name.value }}</a>
+      </p>
+    {% endif %}
+    {% if model.older_link -%}
+      <p>
+        Next Older Post:
+        <a href="{{ model.older_link.value | relative_link }}">{{ model.older_name.value }}</a>
+      </p>
+    {%- endif -%}
+  </footer>
 </article>

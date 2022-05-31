@@ -18,7 +18,7 @@
     <script src="{{ "djs.js" | theme_asset }}"></script>
     {% page_head -%}
   </head>
-  <body>
+  <body hx-boost="true" hx-target="main" hx-indicator="#loadOverlay" hx-swap="innerHTML show:body:top">
     <nav class="site-header" role="navigation">
       <p><a class="nav-home" href="{{ "" | relative_link }}">{{ web_log.name }}</a></p>
       {%- if web_log.subtitle %}<p>{{ web_log.subtitle.value }}</p>{% endif -%}
@@ -31,7 +31,8 @@
       </p>
       <p class="mobile"><a href="#links">Site Links</a></p>
     </nav>
-    {{ content }}
+    <div class="load-overlay" id="loadOverlay"><h1>Loading...</h1></div>
+    <main>{{ content }}</main>
     <footer class="part-1" id="links">
       {%- for page in page_list %}
         <p class="mobile"><a href="{{ page | relative_link }}">{{ page.title }}</a></p>
@@ -128,7 +129,7 @@
                style="border-width:0;">
         </a>
       </div>
-      <div class="copy">
+      <div class="copy" hx-boost="false">
         &nbsp; Licensed by the
         <a rel="license noopener" href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank">
           Creative Commons Attribution-NonCommercial 4.0 International License
@@ -145,5 +146,6 @@
         {%- endif %}
       </div>
     </footer>
+    {% page_foot %}
   </body>
 </html>

@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Oswald|Raleway">
     {% page_head -%}
   </head>
-  <body>
+  <body hx-boost="true" hx-target="main" hx-indicator="#loadOverlay" hx-swap="innerHTML show:body:top">
     <header class="site-header">
       <div class="header-logo">
         <a href="{{ "" | relative_link }}">
@@ -27,8 +27,9 @@
         </a>
       </div>
     </header>
-    {{ content }}
-    <footer>
+    <div class="load-overlay" id="loadOverlay"><h1>Loading&hellip;</h1></div>
+    <main>{{ content }}</main>
+    <footer hx-boost="false">
       <div>
         <small>
           {% if logged_on -%}
@@ -43,5 +44,6 @@
         A <strong><a href="{{ "" | relative_link }}">Bit Badger Solutions</a></strong> original design
       </div>
     </footer>
+    {% page_foot %}
   </body>
 </html>

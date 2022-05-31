@@ -6,12 +6,14 @@
   --hdr-text-color: hsl(0, 0%, 100%);
   --hdr-bkg-color: hsl(0, 0%, 95%);
   --item-bkg-color: hsl(0, 0%, 100%);
+  --overlay-bkg-color: rgba(0, 0, 0, .5)
 }
 @media ( prefers-color-scheme: dark ) {
   :root {
     --text-color: rgb(210, 210, 210);
     --hdr-bkg-color: hsl(0, 0%, 7%);
     --item-bkg-color: hsl(0, 0%, 12%);
+    --overlay-bgk-color: rgba(255, 255, 255, .2)
   }
 }
 html {
@@ -22,9 +24,6 @@ body {
   font-size: 1.2rem;
   background-color: var(--bkg-color);
   margin: 0;
-  display: grid;
-  grid-template-columns: 1fr;
-  grid-template-rows: auto;
   color: var(--text-color);
 }
 a:link, a:visited {
@@ -62,6 +61,11 @@ sup {
 sub {
   vertical-align: baseline;
 }
+main {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: auto;
+}
 .content img {
   max-width: 100%;
   border-radius: 1rem;
@@ -91,6 +95,9 @@ sub {
   background-image: -webkit-linear-gradient(top, var(--accent-color), var(--bkg-color));
   background-image: -moz-linear-gradient(top, var(--accent-color), var(--bkg-color));
   background-image: linear-gradient(to bottom, var(--accent-color), var(--bkg-color));
+}
+.site-header p {
+  margin: 0;
 }
 .site-header p a.nav-home {
   font-family: Oswald, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
@@ -257,9 +264,60 @@ footer.part-3 {
   white-space: nowrap;
 }
 
+/* ----- OVERLAY ----- */
+.load-overlay {
+  position: fixed;
+  top: 4rem;
+  left: 1rem;
+  width: 50%;
+  height: 0;
+  z-index: 2000;
+  background-color: var(--overlay-bgk-color);
+  border-radius: 1rem;
+  animation: fadeOut .25s ease-in-out;
+  overflow: hidden;
+}
+.load-overlay h1 {
+  color: white;
+  background-color: rgba(0, 0, 0, .75);
+  margin: 1.5rem auto;
+  border-radius: 1rem;
+  width: 50%;
+  padding: 1rem;
+  text-align: center;
+}
+.load-overlay.htmx-request {
+  height: unset;
+  animation: fadeIn .25s ease-in-out;
+}
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+    height: unset;
+  }
+  100% {
+    opacity: 1;
+    height: unset;
+  }
+}
+@keyframes fadeOut {
+  0% {
+    opacity: 1;
+    height: unset;
+  }
+  99% {
+    opacity: 0;
+    height: unset;
+  }
+  100% {
+    opacity: 0;
+    height: 0;
+  }
+}
+
 /* ----- SCALE UP STYLES ----- */
 @media screen and ( min-width: 50rem ) {
-  body {
+  main {
     grid-template-columns: 1fr 16rem;
   }
   .desktop {
@@ -268,7 +326,14 @@ footer.part-3 {
   .mobile {
     display: none;
   }
-  .site-header, .single, footer {
+  .site-header p {
+    margin-inline-end: 1.2rem;
+    margin-bottom: 1rem;
+  }
+  .load-overlay {
+    width: 25%;
+  }
+  main > .single {
     grid-column: 1 / -1;
   }
   .sidebar {

@@ -298,7 +298,7 @@ let saveSettings : HttpHandler = fun next ctx -> task {
         WebLogCache.set webLog
     
         do! addMessage ctx { UserMessage.success with message = "Web log settings saved successfully" }
-        return! redirectToGet (WebLog.relativeUrl webLog (Permalink "admin")) next ctx
+        return! redirectToGet (WebLog.relativeUrl webLog (Permalink "admin/settings")) next ctx
     | None -> return! Error.notFound next ctx
 }
 
