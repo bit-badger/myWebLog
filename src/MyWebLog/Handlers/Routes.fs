@@ -54,7 +54,8 @@ module CatchAll =
                 yield Feed.generate feedType postCount 
             | None -> ()
             // Post differing only by trailing slash
-            let altLink = Permalink (if textLink.EndsWith "/" then textLink[..textLink.Length - 2] else $"{textLink}/")
+            let altLink =
+                Permalink (if textLink.EndsWith "/" then textLink[1..textLink.Length - 2] else $"{textLink[1..]}/")
             match Data.Post.findByPermalink altLink webLog.id conn |> await with
             | Some post ->
                 debug (fun () -> $"Found post by trailing-slash-agnostic permalink")
