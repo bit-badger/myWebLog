@@ -39,7 +39,7 @@
         {%- endfor %}
       </small><br>
     {%- endif %}
-    {%- if logged_on %}<small><a href="{{ post | edit_post_link }}">Edit Post</a></small>{% endif %}
+    {%- if logged_on %}<small><a hx-boost="false" href="{{ post | edit_post_link }}">Edit Post</a></small>{% endif %}
   </article>
 {%- endfor %}
 <div class="bottom-nav" role="navigation">

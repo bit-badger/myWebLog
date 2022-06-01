@@ -9,12 +9,12 @@
            title="{{ parts[0] }} on GitHub">
           View on GitHub
         </a>
-        {% if logged_on %} &bull; <a href="{{ page | edit_page_link }}">Edit Page</a>{% endif %}
+        {% if logged_on %} &bull; <a hx-boost="false" href="{{ page | edit_page_link }}">Edit Page</a>{% endif %}
       </small></small>
     {%- else -%}
       <small><small>
         <a href="." title="{{ parts[0] }} Home">{{ parts[0] }}</a>
-        {% if logged_on %} &bull; <a href="{{ page | edit_page_link }}">Edit</a>{% endif %}
+        {% if logged_on %} &bull; <a hx-boost="false" href="{{ page | edit_page_link }}">Edit</a>{% endif %}
       </small></small>
       <br>
       {{ parts[1] }}

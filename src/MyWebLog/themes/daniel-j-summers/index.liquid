@@ -25,7 +25,7 @@
         </span>
         {% if logged_on %}
           <span>
-            <a href="{{ post | edit_post_link }}"><i class="fa fa-pencil-square-o"></i> Edit Post</a>
+            <a hx-boost="false" href="{{ post | edit_post_link }}"><i class="fa fa-pencil-square-o"></i> Edit Post</a>
           </span>
         {% endif %}
       </h4>

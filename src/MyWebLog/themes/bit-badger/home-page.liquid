@@ -2,7 +2,7 @@
   <article class="content auto">
     {{ page.text }}
     {% if logged_on -%}
-      <p><small><a href="{{ page | edit_page_link }}">Edit This Page</a></small></p>
+      <p><small><a hx-boost="false" href="{{ page | edit_page_link }}">Edit This Page</a></small></p>
     {% endif %}
   </article>
   <aside class="app-sidebar">

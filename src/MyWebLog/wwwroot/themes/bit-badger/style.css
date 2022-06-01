@@ -286,6 +286,18 @@ blockquote {
   font-size: .75rem;
   padding-left: 1rem;
 }
+.collapse-panel {
+  max-height: 0;
+  transition: max-height .5s ease-in-out;
+  overflow: hidden;
+}
+.collapse-panel.shown {
+  max-height: 25rem;
+  overflow: auto;
+}
+.collapse-panel p:first-of-type {
+  margin-top: 0;
+}
 /* Footer */
 .project-footer {
   padding-top: 1rem;

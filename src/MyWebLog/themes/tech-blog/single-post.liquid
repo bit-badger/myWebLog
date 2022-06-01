@@ -41,7 +41,13 @@
         the permalink
       </a>
     </p>
-    <p>{%- if logged_on %}Edit: <a href="{{ post | edit_post_link }}">this post</a>{% else %}&nbsp;{% endif %}</p>
+    <p>
+      {%- if logged_on %}
+        Edit: <a hx-boost="false" href="{{ post | edit_post_link }}">this post</a>
+      {% else %}
+        &nbsp;
+      {% endif -%}
+    </p>
     {% if model.newer_link -%}
       <p>
         Next Newer Post:

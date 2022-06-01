@@ -15,7 +15,11 @@
       {% endif %}
       <span title="Author"><i class="fa fa-user"></i> {{ model.authors | value: post.author_id }}</span>
       {% if logged_on %}
-        <span><a href="{{ post | edit_post_link }}"><i class="fa fa-pencil-square-o"></i> Edit Post</a></span>
+        <span>
+          <a hx-boost="false" href="{{ post | edit_post_link }}">
+            <i class="fa fa-pencil-square-o"></i> Edit Post
+          </a>
+        </span>
       {% endif %}
     </h4>
     <div>{{ post.text }}</div>

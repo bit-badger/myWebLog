@@ -59,7 +59,7 @@
         <h3 onclick="toggle('techStack')">
           The Technology Stack<span id="techStackArrow" class="arrow">&#x25BC;</span>
         </h3>
-        <div id="techStack" style="display:none;">
+        <div id="techStack" class="collapse-panel hidden">
           {% if curr_count > 0 -%}
             {% if past_count > 0 -%}
               <p><small><strong>Current:</strong></small></p>
@@ -93,7 +93,7 @@
     {%- endif %}
     <p><br><a href="{{ "solutions" | relative_link }}">&laquo; Back to All Solutions</a></p>
     {% if logged_on -%}
-      <p><small><a href="{{ page | edit_page_link }}">Edit This Page</a></small></p>
+      <p><small><a hx-boost="false" href="{{ page | edit_page_link }}">Edit This Page</a></small></p>
     {% endif %}
   </article>
 </div>
@@ -101,11 +101,11 @@
   function toggle(id) {
     const section = document.getElementById(id)
     const arrow   = document.getElementById(`${id}Arrow`)
-    if (section.style.display === "none") {
-      section.style.display = "block"
+    if (section.className.indexOf("shown") === -1) {
+      section.className = section.className.replace(" hidden", " shown")
       arrow.innerHTML = "&#x25B2;"
     } else {
-      section.style.display = "none"
+      section.className = section.className.replace(" shown", " hidden")
       arrow.innerHTML = "&#x25BC;"
     }
   }
