@@ -102,10 +102,10 @@
     const section = document.getElementById(id)
     const arrow   = document.getElementById(`${id}Arrow`)
     if (section.className.indexOf("shown") === -1) {
-      section.className = section.className.replace(" hidden", " shown")
+      section.className = `${section.className} shown`
       arrow.innerHTML = "&#x25B2;"
     } else {
-      section.className = section.className.replace(" shown", " hidden")
+      section.className = section.className.replace(" shown", "")
       arrow.innerHTML = "&#x25BC;"
     }
   }
