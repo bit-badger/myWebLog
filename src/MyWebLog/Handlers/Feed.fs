@@ -45,14 +45,17 @@ let deriveFeedType (ctx : HttpContext) feedPath : (FeedType * int) option =
             None
 
 /// Determine the function to retrieve posts for the given feed
-let private getFeedPosts (webLog : WebLog) feedType =
+let private getFeedPosts (webLog : WebLog) feedType ctx =
+    let childIds catId =
+        let cat = CategoryCache.get ctx |> Array.find (fun c -> c.id = CategoryId.toString catId)
+        getCategoryIds cat.slug ctx
     match feedType with
     | StandardFeed _          -> Data.Post.findPageOfPublishedPosts webLog.id 1
-    | CategoryFeed (catId, _) -> Data.Post.findPageOfCategorizedPosts webLog.id [ catId ] 1
+    | CategoryFeed (catId, _) -> Data.Post.findPageOfCategorizedPosts webLog.id (childIds catId) 1
     | TagFeed      (tag,   _) -> Data.Post.findPageOfTaggedPosts webLog.id tag 1
     | Custom       (feed,  _) ->
         match feed.source with
-        | Category catId -> Data.Post.findPageOfCategorizedPosts webLog.id [ catId ] 1
+        | Category catId -> Data.Post.findPageOfCategorizedPosts webLog.id (childIds catId) 1
         | Tag      tag   -> Data.Post.findPageOfTaggedPosts webLog.id tag 1
 
 /// Strip HTML from a string
@@ -319,7 +322,7 @@ let createFeed (feedType : FeedType) posts : HttpHandler = fun next ctx -> backg
 
 // GET {any-prescribed-feed}
 let generate (feedType : FeedType) postCount : HttpHandler = fun next ctx -> backgroundTask {
-    match! getFeedPosts ctx.WebLog feedType postCount ctx.Conn with
+    match! getFeedPosts ctx.WebLog feedType ctx postCount ctx.Conn with
     | posts when List.length posts > 0 -> return! createFeed feedType posts next ctx
     | _ -> return! Error.notFound next ctx
 }
