@@ -160,6 +160,7 @@ let router : HttpHandler = choose [
     ])
     GET >=> routexp "/category/(.*)"  Post.pageOfCategorizedPosts
     GET >=> routef  "/page/%i"        Post.pageOfPosts
+    GET >=> routef  "/page/%i/"       Post.redirectToPageOfPosts       
     GET >=> routexp "/tag/(.*)"       Post.pageOfTaggedPosts
     subRoute "/user" (choose [
         GET >=> choose [

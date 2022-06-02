@@ -111,6 +111,10 @@ let pageOfPosts pageNbr : HttpHandler = fun next ctx -> task {
     return! themedView "index" next ctx hash
 }
 
+// GET /page/{pageNbr}/
+let redirectToPageOfPosts (pageNbr : int) : HttpHandler = fun next ctx ->
+    redirectTo true (WebLog.relativeUrl ctx.WebLog (Permalink $"page/{pageNbr}")) next ctx
+
 // GET /category/{slug}/
 // GET /category/{slug}/page/{pageNbr}
 let pageOfCategorizedPosts slugAndPage : HttpHandler = fun next ctx -> task {
