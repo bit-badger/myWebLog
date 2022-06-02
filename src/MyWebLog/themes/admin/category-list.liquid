@@ -1,54 +1,16 @@
 ﻿<h2 class="my-3">{{ page_title }}</h2>
 <article>
-  <a href="{{ "admin/category/new/edit" | relative_link }}" class="btn btn-primary btn-sm mb-3">Add a New Category</a>
-  <table class="table table-sm table-hover">
-    <thead>
-      <tr>
-        <th scope="col">Category</th>
-        <th scope="col">Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      {%- assign cat_count = categories | size -%}
-      {% if cat_count > 0 %}
-        {% for cat in categories -%}
-          <tr>
-            <td class="no-wrap">
-              {%- if cat.parent_names %}
-                <small class="text-muted">{% for name in cat.parent_names %}{{ name }} &rang; {% endfor %}</small>
-              {%- endif %}
-              {{ cat.name }}<br>
-              <small>
-                {%- if cat.post_count > 0 %}
-                  <a href="{{ cat | category_link }}" target="_blank">
-                    View {{ cat.post_count }} Post{% unless cat.post_count == 1 %}s{% endunless -%}
-                  </a>
-                  <span class="text-muted"> &bull; </span>
-                {%- endif %}
-                {%- capture cat_edit %}admin/category/{{ cat.id }}/edit{% endcapture -%}
-                <a href="{{ cat_edit | relative_link }}">Edit</a>
-                <span class="text-muted"> &bull; </span>
-                {%- capture cat_del %}admin/category/{{ cat.id }}/delete{% endcapture -%}
-                {%- capture cat_del_link %}{{ cat_del | relative_link }}{% endcapture -%}
-                <a href="{{ cat_del_link }}" class="text-danger"
-                   onclick="return Admin.deleteCategory('{{ cat.name }}', '{{ cat_del_link }}')">
-                  Delete
-                </a>
-              </small>
-            </td>
-            <td>
-              {%- if cat.description %}{{ cat.description.value }}{% else %}<em class="text-muted">none</em>{% endif %}
-            </td>
-          </tr>
-        {%- endfor %}
-      {%- else -%}
-        <tr>
-          <td colspan="2" class="text-muted fst-italic text-center">This web log has no categores defined</td>
-        </tr>
-      {%- endif %}
-    </tbody>
-  </table>
-  <form method="post" id="deleteForm">
-    <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
-  </form>
+  <a href="{{ "admin/category/new/edit" | relative_link }}" class="btn btn-primary btn-sm mb-3"
+     hx-target="#cat_new">
+    Add a New Category
+  </a>
+  <div class="container">
+    {%- assign cat_col  = "col-12 col-md-6 col-xl-5 col-xxl-4" -%}
+    {%- assign desc_col = "col-12 col-md-6 col-xl-7 col-xxl-8" -%}
+    <div class="row mwl-table-heading">
+      <div class="{{ cat_col }}">Category<span class="d-md-none">; Description</span></div>
+      <div class="{{ desc_col }} d-none d-md-inline-block">Description</div>
+    </div>
+  </div>
+  {{ category_list }}
 </article>

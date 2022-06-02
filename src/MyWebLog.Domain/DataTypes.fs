@@ -264,7 +264,7 @@ type WebLog =
         /// The number of posts to display on pages of posts
         postsPerPage : int
 
-        /// The path of the theme (within /views/themes)
+        /// The path of the theme (within /themes)
         themePath : string
 
         /// The URL base

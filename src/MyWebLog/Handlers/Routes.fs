@@ -98,6 +98,7 @@ let router : HttpHandler = choose [
         GET >=> choose [
             subRoute "/categor" (choose [
                 route  "ies"       >=> Admin.listCategories
+                route  "ies/bare"  >=> Admin.listCategoriesBare
                 routef "y/%s/edit"     Admin.editCategory
             ])
             route    "/dashboard" >=> Admin.dashboard
@@ -121,6 +122,7 @@ let router : HttpHandler = choose [
                 ])
                 subRoute "/tag-mapping" (choose [
                     route  "s"        >=> Admin.tagMappings
+                    route  "s/bare"   >=> Admin.tagMappingsBare
                     routef "/%s/edit"     Admin.editMapping
                 ])
             ])

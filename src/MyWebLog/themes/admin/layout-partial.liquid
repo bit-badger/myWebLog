@@ -34,21 +34,19 @@
         </div>
       </nav>
     </header>
-    <main class="mx-3">
-      {% if messages %}
-        <div class="messages mt-2">
-          {% for msg in messages %}
-            <div role="alert" class="alert alert-{{ msg.level }} alert-dismissible fade show">
-              {{ msg.message }}
-              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-              {% if msg.detail %}
-                <hr>
-                {{ msg.detail.value }}
-              {% endif %}
-            </div>
-          {% endfor %}
-        </div>
-      {% endif %}
+    <main class="mx-3 mt-3">
+      <div class="messages mt-2" id="msgContainer">
+        {% for msg in messages %}
+          <div role="alert" class="alert alert-{{ msg.level }} alert-dismissible fade show">
+            {{ msg.message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            {% if msg.detail %}
+              <hr>
+              {{ msg.detail.value }}
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
       {{ content }}
     </main>
     <footer class="position-fixed bottom-0 w-100">
@@ -58,5 +56,6 @@
         </div>
       </div>
     </footer>
+    <script>Admin.dismissSuccesses()</script>
   </body>
 </html>

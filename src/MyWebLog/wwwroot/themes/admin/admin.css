@@ -1,5 +1,6 @@
 ﻿:root {
   --dark-gray: #212529;
+  --light-accent: rgba(0, 0, 0, .075);
 }
 html {
   background-color: var(--dark-gray);
@@ -71,4 +72,16 @@ a.text-danger:link:hover, a.text-danger:visited:hover {
   background-color: var(--bs-danger);
   border-radius: 0.25rem;
   color: white !important;
+}
+.mwl-table-heading {
+  font-size: 1.1rem;
+  font-weight: bold;
+  border-bottom: solid 1px var(--bs-dark);
+}
+.mwl-table-detail {
+  border-bottom: solid 1px var(--light-accent);
+}
+.mwl-table-detail:hover {
+  background-color: var(--light-accent);
+  color: var(--dark-gray);
 }

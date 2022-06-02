@@ -85,8 +85,8 @@ open Giraffe.ViewEngine
 /// htmx script tag
 let private htmxScript = RenderView.AsString.htmlNode Htmx.Script.minified
 
-/// Render a view for the specified theme, using the specified template, layout, and hash
-let viewForTheme theme template next ctx = fun (hash : Hash) -> task {
+/// Populate the DotLiquid hash with standard information
+let private populateHash hash ctx = task {
     // Don't need the web log, but this adds it to the hash if the function is called directly
     let _ = deriveWebLogFromHash hash ctx
     let! messages = messages ctx
@@ -98,6 +98,11 @@ let viewForTheme theme template next ctx = fun (hash : Hash) -> task {
     hash.Add ("htmx_script",  htmxScript)
     
     do! commitSession ctx
+}
+
+/// Render a view for the specified theme, using the specified template, layout, and hash
+let viewForTheme theme template next ctx = fun (hash : Hash) -> task {
+    do! populateHash hash ctx
     
     // NOTE: DotLiquid does not support {% render %} or {% include %} in its templates, so we will do a 2-pass render;
     //       the net effect is a "layout" capability similar to Razor or Pug
@@ -108,10 +113,36 @@ let viewForTheme theme template next ctx = fun (hash : Hash) -> task {
     
     // ...then render that content with its layout
     let  isHtmx         = ctx.Request.IsHtmx && not ctx.Request.IsHtmxRefresh
-    let  layout         = if isHtmx then "layout-partial" else "layout"
-    let! layoutTemplate = TemplateCache.get theme layout
+    let! layoutTemplate = TemplateCache.get theme (if isHtmx then "layout-partial" else "layout")
     
     return! htmlString (layoutTemplate.Render hash) next ctx
+}
+
+/// Render a bare view for the specified theme, using the specified template and hash
+let bareForTheme theme template next ctx = fun (hash : Hash) -> task {
+    do! populateHash hash ctx
+    
+    // Bare templates are rendered with layout-bare
+    let! contentTemplate = TemplateCache.get theme template
+    hash.Add ("content", contentTemplate.Render hash)
+    
+    let! layoutTemplate = TemplateCache.get theme "layout-bare"
+    
+    // add messages as HTTP headers
+    let messages = hash["messages"] :?> UserMessage[]
+    let actions = seq {
+        yield!
+            messages
+            |> Array.map (fun m ->
+                match m.detail with
+                | Some detail -> $"{m.level}|||{m.message}|||{detail}"
+                | None -> $"{m.level}|||{m.message}"
+                |> setHttpHeader "X-Message")
+        withHxNoPush
+        htmlString (layoutTemplate.Render hash)
+        }
+    
+    return! (actions |> Seq.reduce (>=>)) next ctx
 }
 
 /// Return a view for the web log's default theme

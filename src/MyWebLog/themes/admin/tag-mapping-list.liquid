@@ -1,39 +1,14 @@
 ﻿<h2 class="my-3">{{ page_title }}</h2>
-<article class="container">
-  <a href="{{ "admin/settings/tag-mapping/new/edit" | relative_link }}" class="btn btn-primary btn-sm mb-3">
+<article>
+  <a href="{{ "admin/settings/tag-mapping/new/edit" | relative_link }}" class="btn btn-primary btn-sm mb-3"
+     hx-target="#tag_new">
     Add a New Tag Mapping
   </a>
-  <table class="table table-sm table-hover">
-    <thead>
-      <tr>
-        <th scope="col">Tag</th>
-        <th scope="col">URL Value</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for map in mappings -%}
-        {%- assign map_id = mapping_ids | value: map.tag -%}
-        <tr>
-          <td class="no-wrap">
-            {{ map.tag }}<br>
-            <small>
-              {%- capture map_edit %}admin/settings/tag-mapping/{{ map_id }}/edit{% endcapture -%}
-              <a href="{{ map_edit | relative_link }}">Edit</a>
-              <span class="text-muted"> &bull; </span>
-              {%- capture map_del %}admin/settings/tag-mapping/{{ map_id }}/delete{% endcapture -%}
-              {%- capture map_del_link %}{{ map_del | relative_link }}{% endcapture -%}
-              <a href="{{ map_del_link }}" class="text-danger"
-                 onclick="return Admin.deleteTagMapping('{{ map.tag }}', '{{ map_del_link }}')">
-                Delete
-              </a>
-            </small>
-          </td>
-          <td>{{ map.url_value }}</td>
-        </tr>
-      {%- endfor %}
-    </tbody>
-  </table>
-  <form method="post" id="deleteForm">
-    <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
-  </form>
+  <div class="container">
+    <div class="row mwl-table-heading">
+      <div class="col">Tag</div>
+      <div class="col">URL Value</div>
+    </div>
+  </div>
+  {{ tag_mapping_list }}
 </article>

@@ -1,27 +1,27 @@
-﻿<h2 class="my-3">{{ page_title }}</h2>
-<article>
-  <form action="{{ "admin/category/save" | relative_link }}" method="post">
+﻿<div class="col-12">
+  <h5 class="my-3">{{ page_title }}</h5>
+  <form hx-post="{{ "admin/category/save" | relative_link }}" method="post" class="container"
+        hx-target="#catList" hx-swap="outerHTML show:window:top">
     <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
     <input type="hidden" name="categoryId" value="{{ model.category_id }}">
-    <div class="container">
-      <div class="row mb-3">
-        <div class="col-6 col-lg-4 pb-3">
+      <div class="row">
+        <div class="col-12 col-sm-6 col-lg-4 col-xxl-3 offset-xxl-1 mb-3">
           <div class="form-floating">
-            <input type="text" name="name" id="name" class="form-control" placeholder="Name" autofocus required
-                   value="{{ model.name | escape }}">
+            <input type="text" name="name" id="name" class="form-control form-control-sm" placeholder="Name" autofocus
+                   required value="{{ model.name | escape }}">
             <label for="name">Name</label>
           </div>
         </div>
-        <div class="col-6 col-lg-4 pb-3">
+        <div class="col-12 col-sm-6 col-lg-4 col-xxl-3 mb-3">
           <div class="form-floating">
-            <input type="text" name="slug" id="slug" class="form-control" placeholder="Slug" required
+            <input type="text" name="slug" id="slug" class="form-control form-control-sm" placeholder="Slug" required
                    value="{{ model.slug | escape }}">
             <label for="slug">Slug</label>
           </div>
         </div>
-        <div class="col-12 col-lg-4 pb-3">
+        <div class="col-12 col-lg-4 col-xxl-3 offset-xxl-1 mb-3">
           <div class="form-floating">
-            <select name="parentId" id="parentId" class="form-control">
+            <select name="parentId" id="parentId" class="form-control form-control-sm">
               <option value=""{% if model.parent_id == "" %} selected="selected"{% endif %}>
                 &ndash; None &ndash;
               </option>
@@ -36,21 +36,19 @@
             <label for="parentId">Parent Category</label>
           </div>
         </div>
-      </div>
-      <div class="row mb-3">
-        <div class="col">
+        <div class="col-12 col-xl-10 offset-xl-1 mb-3">
           <div class="form-floating">
-            <input name="description" id="description" class="form-control"
+            <input name="description" id="description" class="form-control form-control-sm"
                    placeholder="A short description of this category" value="{{ model.description | escape }}">
             <label for="description">Description</label>
           </div>
         </div>
       </div>
       <div class="row mb-3">
-        <div class="col">
-          <button type="submit" class="btn btn-primary">Save Changes</button>
+        <div class="col text-center">
+          <button type="submit" class="btn btn-sm btn-primary">Save Changes</button>
+          <a href="{{ "admin/categories/bare" | relative_link }}" class="btn btn-sm btn-secondary ms-3">Cancel</a>
         </div>
       </div>
-    </div>
   </form>
-</article>
+</div>

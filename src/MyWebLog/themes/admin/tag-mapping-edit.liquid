@@ -1,35 +1,30 @@
-﻿<h2 class="my-3">{{ page_title }}</h2>
-<article>
-  <form action="{{ "admin/settings/tag-mapping/save" | relative_link }}" method="post">
-    <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
-    <input type="hidden" name="id" value="{{ model.id }}">
-    <div class="container">
-      <div class="row mb-3">
-        <div class="col">
-          <a href="{{ "admin/settings/tag-mappings" | relative_link }}">&laquo; Back to Tag Mappings</a>
-        </div>
-      </div>
-      <div class="row mb-3">
-        <div class="col-12 col-md-6 col-lg-4 offset-lg-2 pb-3">
-          <div class="form-floating">
-            <input type="text" name="tag" id="tag" class="form-control" placeholder="Tag" autofocus required
-                   value="{{ model.tag }}">
-            <label for="tag">Tag</label>
-          </div>
-        </div>
-        <div class="col-12 col-md-6 col-lg-4 pb-3">
-          <div class="form-floating">
-            <input type="text" name="urlValue" id="urlValue" class="form-control" placeholder="URL Value" required
-                   value="{{ model.url_value }}">
-            <label for="urlValue">URL Value</label>
-          </div>
-        </div>
-      </div>
-      <div class="row mb-3">
-        <div class="col text-center">
-          <button type="submit" class="btn btn-primary">Save Changes</button>
-        </div>
+﻿<h5 class="my-3">{{ page_title }}</h5>
+<form hx-post="{{ "admin/settings/tag-mapping/save" | relative_link }}" method="post" class="container"
+      hx-target="#tagList" hx-swap="outerHTML show:window:top">
+  <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
+  <input type="hidden" name="id" value="{{ model.id }}">
+  <div class="row mb-3">
+    <div class="col-6 col-lg-4 offset-lg-2">
+      <div class="form-floating">
+        <input type="text" name="tag" id="tag" class="form-control" placeholder="Tag" autofocus required
+               value="{{ model.tag }}">
+        <label for="tag">Tag</label>
       </div>
     </div>
-  </form>
-</article>
+    <div class="col-6 col-lg-4">
+      <div class="form-floating">
+        <input type="text" name="urlValue" id="urlValue" class="form-control" placeholder="URL Value" required
+               value="{{ model.url_value }}">
+        <label for="urlValue">URL Value</label>
+      </div>
+    </div>
+  </div>
+  <div class="row mb-3">
+    <div class="col text-center">
+      <button type="submit" class="btn btn-sm btn-primary">Save Changes</button>
+      <a href="{{ "admin/settings/tag-mappings/bare" | relative_link }}" class="btn btn-sm btn-secondary ms-3">
+        Cancel
+      </a>
+    </div>
+  </div>
+</form>

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta name="viewport" content="width=device-width; initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="generator" content="{{ generator }}">
     <title>{{ page_title | escape }} &laquo; Admin &laquo; {{ web_log.name | escape }}</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css"
@@ -39,21 +39,19 @@
         </div>
       </nav>
     </header>
-    <main class="mx-3">
-      {% if messages %}
-        <div class="messages mt-2">
-          {% for msg in messages %}
-            <div role="alert" class="alert alert-{{ msg.level }} alert-dismissible fade show">
-              {{ msg.message }}
-              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-              {% if msg.detail %}
-                <hr>
-                {{ msg.detail.value }}
-              {% endif %}
-            </div>
-          {% endfor %}
-        </div>
-      {% endif %}
+    <main class="mx-3 mt-3">
+      <div class="messages mt-2" id="msgContainer">
+        {% for msg in messages %}
+          <div role="alert" class="alert alert-{{ msg.level }} alert-dismissible fade show">
+            {{ msg.message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            {% if msg.detail %}
+              <hr>
+              {{ msg.detail.value }}
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
       {{ content }}
     </main>
     <footer class="position-fixed bottom-0 w-100">
@@ -80,5 +78,6 @@
       }, 2000)
     </script>
     <script src="/themes/admin/admin.js"></script>
+    <script>Admin.dismissSuccesses()</script>
   </body>
 </html>

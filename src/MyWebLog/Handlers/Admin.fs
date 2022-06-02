@@ -49,14 +49,27 @@ let dashboard : HttpHandler = fun next ctx -> task {
 
 // GET /admin/categories
 let listCategories : HttpHandler = fun next ctx -> task {
+    let! catListTemplate = TemplateCache.get "admin" "category-list-body"
+    let hash = Hash.FromAnonymousObject {|
+        web_log    = ctx.WebLog
+        categories = CategoryCache.get ctx
+        page_title = "Categories"
+        csrf       = csrfToken ctx
+    |}
+    hash.Add ("category_list", catListTemplate.Render hash)
+    return! viewForTheme "admin" "category-list" next ctx hash
+}
+
+// GET /admin/categories/bare
+let listCategoriesBare : HttpHandler = fun next ctx -> task {
     return!
         Hash.FromAnonymousObject {|
             categories = CategoryCache.get ctx
-            page_title = "Categories"
             csrf       = csrfToken ctx
         |}
-        |> viewForTheme "admin" "category-list" next ctx
+        |> bareForTheme "admin" "category-list-body" next ctx
 }
+
 
 // GET /admin/category/{id}/edit
 let editCategory catId : HttpHandler = fun next ctx -> task {
@@ -77,7 +90,7 @@ let editCategory catId : HttpHandler = fun next ctx -> task {
                 page_title = title
                 categories = CategoryCache.get ctx
             |}
-            |> viewForTheme "admin" "category-edit" next ctx
+            |> bareForTheme "admin" "category-edit" next ctx
     | None -> return! Error.notFound next ctx
 }
 
@@ -103,9 +116,7 @@ let saveCategory : HttpHandler = fun next ctx -> task {
         do! (match model.categoryId with "new" -> Data.Category.add | _ -> Data.Category.update) cat conn
         do! CategoryCache.update ctx
         do! addMessage ctx { UserMessage.success with message = "Category saved successfully" }
-        return!
-            redirectToGet (WebLog.relativeUrl webLog (Permalink $"admin/category/{CategoryId.toString cat.id}/edit"))
-                next ctx
+        return! listCategoriesBare next ctx
     | None -> return! Error.notFound next ctx
 }
 
@@ -117,7 +128,7 @@ let deleteCategory catId : HttpHandler = fun next ctx -> task {
         do! CategoryCache.update ctx
         do! addMessage ctx { UserMessage.success with message = "Category deleted successfully" }
     | false -> do! addMessage ctx { UserMessage.error with message = "Category not found; cannot delete" }
-    return! redirectToGet (WebLog.relativeUrl webLog (Permalink "admin/categories")) next ctx
+    return! listCategoriesBare next ctx
 }
 
 // -- PAGES --
@@ -304,20 +315,37 @@ let saveSettings : HttpHandler = fun next ctx -> task {
 
 // -- TAG MAPPINGS --
 
-// GET /admin/tag-mappings
-let tagMappings : HttpHandler = fun next ctx -> task {
+open Microsoft.AspNetCore.Http
+
+/// Get the hash necessary to render the tag mapping list
+let private tagMappingHash (ctx : HttpContext) = task {
     let! mappings = Data.TagMap.findByWebLogId ctx.WebLog.id ctx.Conn
-    return!
-        Hash.FromAnonymousObject
-            {|  csrf        = csrfToken ctx
-                mappings    = mappings
-                mapping_ids = mappings |> List.map (fun it -> { name = it.tag; value = TagMapId.toString it.id })
-                page_title  = "Tag Mappings"
-            |}
-        |> viewForTheme "admin" "tag-mapping-list" next ctx
+    return Hash.FromAnonymousObject {|
+        web_log     = ctx.WebLog
+        csrf        = csrfToken ctx
+        mappings    = mappings
+        mapping_ids = mappings |> List.map (fun it -> { name = it.tag; value = TagMapId.toString it.id })
+    |}
 }
 
-// GET /admin/tag-mapping/{id}/edit
+// GET /admin/settings/tag-mappings
+let tagMappings : HttpHandler = fun next ctx -> task {
+    let! hash         = tagMappingHash ctx
+    let! listTemplate = TemplateCache.get "admin" "tag-mapping-list-body"
+    
+    hash.Add ("tag_mapping_list", listTemplate.Render hash)
+    hash.Add ("page_title", "Tag Mappings")
+    
+    return! viewForTheme "admin" "tag-mapping-list" next ctx hash
+}
+
+// GET /admin/settings/tag-mappings/bare
+let tagMappingsBare : HttpHandler = fun next ctx -> task {
+    let! hash = tagMappingHash ctx
+    return! bareForTheme "admin" "tag-mapping-list-body" next ctx hash
+}
+
+// GET /admin/settings/tag-mapping/{id}/edit
 let editMapping tagMapId : HttpHandler = fun next ctx -> task {
     let isNew  = tagMapId = "new"
     let tagMap =
@@ -333,11 +361,11 @@ let editMapping tagMapId : HttpHandler = fun next ctx -> task {
                     model      = EditTagMapModel.fromMapping tm
                     page_title = if isNew then "Add Tag Mapping" else $"Mapping for {tm.tag} Tag" 
                 |}
-            |> viewForTheme "admin" "tag-mapping-edit" next ctx
+            |> bareForTheme "admin" "tag-mapping-edit" next ctx
     | None -> return! Error.notFound next ctx
 }
 
-// POST /admin/tag-mapping/save
+// POST /admin/settings/tag-mapping/save
 let saveMapping : HttpHandler = fun next ctx -> task {
     let  webLog = ctx.WebLog
     let  conn   = ctx.Conn
@@ -351,17 +379,15 @@ let saveMapping : HttpHandler = fun next ctx -> task {
     | Some tm ->
         do! Data.TagMap.save { tm with tag = model.tag.ToLower (); urlValue = model.urlValue.ToLower () } conn
         do! addMessage ctx { UserMessage.success with message = "Tag mapping saved successfully" }
-        return!
-            redirectToGet (WebLog.relativeUrl webLog (Permalink $"admin/tag-mapping/{TagMapId.toString tm.id}/edit"))
-                next ctx
+        return! tagMappingsBare next ctx
     | None -> return! Error.notFound next ctx
 }
 
-// POST /admin/tag-mapping/{id}/delete
+// POST /admin/settings/tag-mapping/{id}/delete
 let deleteMapping tagMapId : HttpHandler = fun next ctx -> task {
     let webLog = ctx.WebLog
     match! Data.TagMap.delete (TagMapId tagMapId) webLog.id ctx.Conn with
     | true  -> do! addMessage ctx { UserMessage.success with message = "Tag mapping deleted successfully" }
     | false -> do! addMessage ctx { UserMessage.error with message = "Tag mapping not found; nothing deleted" }
-    return! redirectToGet (WebLog.relativeUrl webLog (Permalink "admin/tag-mappings")) next ctx
+    return! tagMappingsBare next ctx
 }

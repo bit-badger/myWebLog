@@ -181,61 +181,51 @@
   },
 
   /**
-   * Confirm and delete an item
-   * @param name The name of the item to be deleted
-   * @param url The URL to which the form should be posted
+   * Show messages that may have come with an htmx response
+   * @param messages The messages from the response
    */
-  deleteItem(name, url) {
-    if (confirm(`Are you sure you want to delete the ${name}? This action cannot be undone.`)) {
-      const form = document.getElementById("deleteForm")
-      form.action = url
-      form.submit()
-    }
-    return false
-  },
-  
-  /**
-   * Confirm and delete a category
-   * @param name The name of the category to be deleted
-   * @param url The URL to which the form should be posted
-   */
-  deleteCategory(name, url) {
-    return this.deleteItem(`category "${name}"`, url)
-  },
-
-  /**
-   * Confirm and delete a custom RSS feed
-   * @param source The source for the feed to be deleted
-   * @param url The URL to which the form should be posted
-   */
-  deleteCustomFeed(source, url) {
-    return this.deleteItem(`custom RSS feed based on ${source}`, url)
+  showMessage(messages) {
+    const msgs = messages.split(", ")
+    msgs.forEach(msg => {
+      const parts = msg.split("|||")
+      if (parts.length < 2) return
+      
+      const msgDiv = document.createElement("div")
+      msgDiv.className = `alert alert-${parts[0]} alert-dismissible fade show`
+      msgDiv.setAttribute("role", "alert")
+      msgDiv.innerHTML = parts[1]
+      
+      const closeBtn = document.createElement("button")
+      closeBtn.type = "button"
+      closeBtn.className = "btn-close"
+      closeBtn.setAttribute("data-bs-dismiss", "alert")
+      closeBtn.setAttribute("aria-label", "Close")
+      msgDiv.appendChild(closeBtn)
+      
+      if (parts.length === 3) {
+        msgDiv.innerHTML += `<hr>${parts[2]}`
+      }
+      document.getElementById("msgContainer").appendChild(msgDiv)
+    })
   },
 
   /**
-   * Confirm and delete a page
-   * @param title The title of the page to be deleted
-   * @param url The URL to which the form should be posted
+   * Set all "success" alerts to close after 4 seconds
    */
-  deletePage(title, url) {
-    return this.deleteItem(`page "${title}"`, url)
-  },
-
-  /**
-   * Confirm and delete a post
-   * @param title The title of the post to be deleted
-   * @param url The URL to which the form should be posted
-   */
-  deletePost(title, url) {
-    return this.deleteItem(`post "${title}"`, url)
-  },
-
-  /**
-   * Confirm and delete a tag mapping
-   * @param tag The tag for which the mapping will be deleted
-   * @param url The URL to which the form should be posted
-   */
-  deleteTagMapping(tag, url) {
-    return this.deleteItem(`mapping for "${tag}"`, url)
+  dismissSuccesses() {
+    [...document.querySelectorAll(".alert-success")].forEach(alert => {
+      setTimeout(() => {
+        (bootstrap.Alert.getInstance(alert) ?? new bootstrap.Alert(alert)).close()
+      }, 4000)
+    })
   }
 }
+
+htmx.on("htmx:afterOnLoad", function (evt) {
+  const hdrs = evt.detail.xhr.getAllResponseHeaders()
+  // Show messages if there were any in the response
+  if (hdrs.indexOf("x-message") >= 0) {
+    Admin.showMessage(evt.detail.xhr.getResponseHeader("x-message"))
+    Admin.dismissSuccesses()
+  }
+})
