@@ -1,0 +1,147 @@
+{%- assign post = model.posts | first -%}
+<div class="content">
+  <article class="item">
+    <h1 class="item-heading">{{ post.title }}</h1>
+    {% assign media = post.meta | value: "media" %}
+    {%- unless media == "-- media not found --" %}
+      <aside class="podcast">
+        <p class="text-center"><strong>Listen While<br>You Read</strong></p>
+        <audio controls onplaying="awftw.countPlay('{{ media }}')">
+          <source src="https://files.bitbadger.solutions/devotions/{{ media }}">
+        </audio>
+        <p class="text-center">
+          <a class="dl" href="https://pdcst.click/c/awftw/files.bitbadger.solutions/devotions/{{ media }}" download>
+            <i class="fa fa-download" title="Download Audio"></i>
+          </a>
+        </p>
+      </aside>
+    {%- endunless %}
+    {{ post.text }}
+  </article>
+  <nav aria-label="pagination">
+    <div class="nav-previous">
+      {% if model.newer_link %}
+        <span class="post-nav">Previous Post</span><br>
+        <a class="post-nav-title" href="{{ model.newer_link.value }}">{{ model.newer_name.value }}</a>
+      {% endif %}
+    </div>
+    <div class="nav-next">
+      {% if model.older_link %}
+        <span class="post-nav">Next Post</span> <br>
+        <a class="post-nav-title" href="{{ model.older_link.value }}">{{ model.older_name.value }}</a>
+      {% endif %}
+    </div>
+  </nav>
+</div>
+<div class="sidebar post-sidebar">
+  <div class="item">
+    <h4 class="item-heading">Date</h4>
+    <div class="date-posted">
+      <i class="fa fa-calendar" title="Date" aria-hidden="true"></i>
+      {{ post.published_on | date: "dddd, MMMM d, yyyy" }}
+    </div>
+  </div>
+  {% comment %}
+  TODO: reading time?
+  <div class="item">
+    <h4 class="item-heading">Reading Time</h4>
+    <div class="text-center">
+      <i class="fa fa-clock-o" title="Clock" aria-hidden="true"></i>
+      #[= readingTime(page.content, 'minutes', 175)]
+    </div>
+  </div>
+  {% endcomment %}
+  {%- if post_ot_book_count > 0 or post_nt_book_count > 0 %}
+    <div class="item">
+      <h4 class="item-heading">Scripture</h4>
+      {%- if post_ot_book_count > 0 %}
+        <ul>
+          <li>
+            {%- assign cat_id = post_ot_books | first -%}
+            {%- assign cat = categories | where: "id", cat_id | first -%}
+            <span class=post-meta" style="white-space:nowrap;">
+              <i class="fa fa-book" title="Book" aria-hidden="true"></i>
+              <a href="{{ cat | category_link }}" title="References the {{ cat.name }}">{{ cat.name }}</a>
+            </span>
+            <ul>
+              {%- assign skipped_one = false -%}
+              {%- for cat_id in post_ot_books %}
+                {%- if skipped_one %}
+                  {% assign cat = categories | where: "id", cat_id | first %}
+                  <span class=post-meta" style="white-space:nowrap;">
+                    <i class="fa fa-book" title="Book" aria-hidden="true"></i>
+                    <a href="{{ cat | category_link }}" title="References the book of {{ cat.name }}">
+                      {{ cat.name }}
+                    </a>
+                  </span>
+                {%- else -%}
+                  {%- assign skipped_on = true -%}
+                {%- endif %}
+              {%- endfor %}
+            </ul>
+          </li>
+        </ul>
+      {%- endif %}
+      {%- if post_nt_book_count > 0 %}
+        <ul>
+          <li>
+            {%- assign cat_id = post_nt_books | first -%}
+            {%- assign cat = categories | where: "id", cat_id | first -%}
+            <span class=post-meta" style="white-space:nowrap;">
+              <i class="fa fa-book" title="Book" aria-hidden="true"></i>
+              <a href="{{ cat | category_link }}" title="References the {{ cat.name }}">{{ cat.name }}</a>
+            </span>
+            <ul>
+              {%- assign skipped_one = false -%}
+              {%- for cat_id in post_nt_books %}
+                {%- if skipped_one %}
+                  {% assign cat = categories | where: "id", cat_id | first %}
+                  <span class=post-meta" style="white-space:nowrap;">
+                    <i class="fa fa-book" title="Book" aria-hidden="true"></i>
+                    <a href="{{ cat | category_link }}" title="References the book of {{ cat.name }}">
+                      {{ cat.name }}
+                    </a>
+                  </span>
+                {%- else -%}
+                  {%- assign skipped_on = true -%}
+                {%- endif %}
+              {%- endfor %}
+            </ul>
+          </li>
+        </ul>
+      {%- endif %}
+    </div>
+  {%- endif %}
+  {%- if post_topic_count > 0 %}
+    <div class="item">
+      <h4 class="item-heading">Topics</h4>
+      <ul>
+        {%- for cat_id in post_topics %}
+          {%- assign cat = categories | where: "id", cat_id | first -%}
+          <li>
+            <span class="post-meta" style="white-space:nowrap;">
+              <i class="fa fa-folder-open-o" title="Category" aria-hidden="true"></i>
+              <a href="{{ cat | category_link }}" title="Categorized under {{ cat.name | escape }}">{{ cat.name }}</a>
+            </span>
+          </li>
+        {%- endfor %}
+      </ul>
+    </div>
+  {%- endif %}
+  {%- assign tag_count = post.tags | size -%}
+  {%- if tag_count > 0 %}
+    <div class="item">
+      <h4 class="item-heading">Tags</h4>
+      <ul>
+        {%- for tag in post.tags %}
+          <li>
+            <span class="post-meta" style="white-space:nowrap;">
+              <a href="{{ tag | tag_link }}" title="Tagged &ldquo;{{ tag }}&rdquo;">
+                <i class="fa fa-tag" aria-hidden="true"></i> {{ tag }}
+              </a>
+            </span>
+        {%- endfor %}
+      </ul>
+    </div>
+  {%- endif %}
+</div>

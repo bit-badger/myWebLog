@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>
+      {%- if is_home -%}
+        {{ web_log.name }}{% if web_log.subtitle %} | {{ web_log.subtitle.value }}{% endif %}
+      {%- else -%}
+        {{ page_title | strip_html }}{% if page_title and page_title != "" %} &raquo; {% endif %}{{ web_log.name }}
+      {%- endif -%}
+    </title>
+    <link rel="preload" href="https://fonts.googleapis.com/css?family=Quicksand|Federo|Istok+Web" as="style">
+    <link rel="preload" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" as="style">
+    <link rel="preload" href="{{ "style.css" | theme_asset }}" as="style">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+    {% page_head -%}
+  </head>
+  <body {% comment %} hx-boost="true" hx-target="main" hx-indicator="#loadOverlay" hx-swap="innerHTML show:body:top" {% endcomment %}>
+    <header class="site-header">
+      <p class="site-title"><a class="navbar-brand" href="{{ "" | relative_link }}">{{ web_log.name }}</a></p>
+      {%- if web_log.subtitle %}<p class="site-subtitle">{{ web_log.subtitle.value }}</p>{% endif -%}
+      <p class="site-page">
+        <a href="{{ "gods-simple-plan-of-salvation/" | relative_link }}">God&rsquo;s Simple Plan of Salvation</a>
+      </p>
+      <p class="site-page"><a href="{{ "podcast/" | relative_link }}">Podcast</a></p>
+    </header>
+    {% comment %}<div class="load-overlay" id="loadOverlay"><h1>Loading...</h1></div>{% endcomment %}
+    <main class="container">{{ content }}</main>
+    <footer class="part-1"></footer>
+    <footer class="page-footer">
+      Designed by
+      <a href="https://bitbadger.solutions" title="Building the site you need to ensure your success!" target="_blank"
+         rel="noopener">
+        Bit Badger Solutions
+      </a> &bull; Powered by
+      <a href="https://github.com/bit-badger/myWebLog/tree/v2" target="_blank" rel="noopener">myWebLog</a> &bull;
+      {% if logged_on %}
+        <a href="{{ "admin/dashboard" | relative_link }}">Dashboard</a>
+      {% else %}
+        <a href="{{ "user/log-on" | relative_link }}">Log On</a>
+      {%- endif %}
+    </footer>
+    {% page_foot %}
+  </body>
+</html>
