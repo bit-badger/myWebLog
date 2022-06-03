@@ -9,6 +9,7 @@ let private themes () =
     Directory.EnumerateDirectories "themes"
     |> Seq.map (fun it -> it.Split Path.DirectorySeparatorChar |> Array.last)
     |> Seq.filter (fun it -> it <> "admin")
+    |> Seq.sort
     |> Seq.map (fun it -> KeyValuePair.Create (it, it))
     |> Array.ofSeq
 

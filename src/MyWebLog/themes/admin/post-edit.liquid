@@ -1,6 +1,6 @@
 ﻿<h2 class="my-3">{{ page_title }}</h2>
 <article>
-  <form action="{{ "admin/post/save" | relative_link }}" method="post">
+  <form action="{{ "admin/post/save" | relative_link }}" method="post" hx-push-url="true">
     <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
     <input type="hidden" name="postId" value="{{ model.post_id }}">
     <div class="container">

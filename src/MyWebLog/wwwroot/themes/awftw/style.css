@@ -23,11 +23,16 @@
     --audio-bkg-color: hsl(0, 0%, 10%);
     --audio-text-color: hsl(0, 0%, 50%);
   }
-  blockquote.bible {
+  blockquote {
     background-color: var(--bkg-color);
     background-image: linear-gradient(hsl(0, 0%, 85%), hsl(0, 0%, 85%)), url('../img/paper.png') repeat;
     background-blend-mode: soft-light;
     color: hsl(0, 0%, 95%);
+  }
+  blockquote.standard {
+    background: unset;
+    color: unset;
+    border-top: none;
   }
   .ref {
     text-shadow: white 0 0 6px, white 0 0 6px, white 0 0 6px, white 0 0 6px;
@@ -176,20 +181,24 @@ hr.sidebar-sep {
   background-color: var(--accent-color);
 }
 blockquote {
-  margin: 1rem 2rem 1rem 1rem;
-  border-left: solid 3px var(--accent-color);
-  padding-left: 1rem;
-}
-blockquote.bible {
+  margin: 1rem 2rem;
+  /* from bible */
   padding: 11px;
-  margin-left: 2rem;
   border: 0;
   background: var(--bkg-color) url('img/paper.png') repeat;
   font-family: Quicksand, serif;
   border-top: solid 1px black;
   display: flow-root;
+  font-size: 1.2rem;
 }
-blockquote.bible cite {
+blockquote.standard {
+  margin: 1rem 2rem 1rem 1rem;
+  border-left: solid 3px var(--accent-color);
+}
+blockquote p.cite {
+  margin-bottom: 0;
+}
+blockquote cite {
   display: block;
   padding-right: 11px;
   text-align: right;
@@ -204,7 +213,7 @@ blockquote.bible cite {
 .ref {
   color: red;
 }
-blockquote.bible sup {
+blockquote sup {
   color: var(--superscript-color);
   padding-right: .35rem;
 }
@@ -214,13 +223,10 @@ blockquote.bible sup {
 .u {
   text-decoration: underline;
 }
-blockquote {
-  font-size: 1.2rem;
-}
-blockquote footer cite {
+blockquote.standard footer cite {
   font-style: normal;
 }
-blockquote footer cite::before {
+blockquote.standard footer cite::before {
   content: ", ";
 }
 cite {
@@ -270,9 +276,9 @@ h1 {
   margin-bottom: 1.2rem;
 }
 .item-heading {
-  margin: -.4rem;
-  margin-bottom: .4rem;
+  margin: -.4rem -.4rem .4rem -.4rem;
   border-bottom: solid 2px var(--link-color);
+  padding-top: .4rem;
   padding-bottom: .2rem;
   text-align: center;
   background-color: var(--heading-bkg-color);
