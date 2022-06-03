@@ -231,11 +231,14 @@ let edit postId : HttpHandler = fun next ctx -> task {
     }
     match result with
     | Some (title, post) ->
-        let! cats = Data.Category.findAllForView webLog.id conn
+        let! cats  = Data.Category.findAllForView webLog.id conn
+        let  model = EditPostModel.fromPost webLog post
         return!
             Hash.FromAnonymousObject {|
                 csrf       = csrfToken ctx
-                model      = EditPostModel.fromPost webLog post
+                model      = model
+                metadata   = Array.zip model.metaNames model.metaValues
+                             |> Array.mapi (fun idx (name, value) -> [| string idx; name; value |])
                 page_title = title
                 categories = cats
             |}

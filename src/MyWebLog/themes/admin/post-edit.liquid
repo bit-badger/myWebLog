@@ -55,8 +55,14 @@
               </button>
             </legend>
             <div id="metaItemContainer" class="collapse">
+              {%- assign has_media = model.metaNames | where: "episode_media_file" | size -%}
+              {%- unless has_media == 0 %}
+                <button class="btn btn-sm btn-secondary" onclick="Admin.addPodcastFields()" id="addPodcastFieldButton">
+                  Add Podcast Episode Fields
+                </button>
+              {%- endunless %}
               <div id="metaItems" class="container">
-                {%- for meta in model.metadata %}
+                {%- for meta in metadata %}
                   <div id="meta_{{ meta[0] }}" class="row mb-3">
                     <div class="col-1 text-center align-self-center">
                       <button type="button" class="btn btn-sm btn-danger" onclick="Admin.removeMetaItem({{ meta[0] }})">
@@ -82,7 +88,7 @@
               </div>
               <button type="button" class="btn btn-sm btn-secondary" onclick="Admin.addMetaItem()">Add an Item</button>
               <script>
-                document.addEventListener("DOMContentLoaded", () => Admin.setNextMetaIndex({{ model.metadata | size }}))
+                document.addEventListener("DOMContentLoaded", () => Admin.setNextMetaIndex({{ metadata | size }}))
               </script>
             </div>
           </fieldset>

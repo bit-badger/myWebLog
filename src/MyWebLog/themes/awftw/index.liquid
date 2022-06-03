@@ -33,8 +33,8 @@
         #[i.fa.fa-clock-o(title='Clock' aria-hidden='true')] #[= readingTime(post.content, 'minutes', 175)]
         {% endcomment %}
       </p>
-      {%- assign media = post.meta | value: "media" -%}
-      {%- unless media == "-- media not found --"  %}
+      {%- assign media = post.metadata | value: "episode_media_file" -%}
+      {%- unless media == "-- episode_media_file not found --"  %}
         <aside class="podcast">
           <p class="text-center"><strong>Listen While<br>You Read</strong></p>
           <audio controls onplaying="awftw.countPlay('{{ media }}')">

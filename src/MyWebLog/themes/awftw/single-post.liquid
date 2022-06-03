@@ -2,8 +2,8 @@
 <div class="content">
   <article class="item">
     <h1 class="item-heading">{{ post.title }}</h1>
-    {% assign media = post.meta | value: "media" %}
-    {%- unless media == "-- media not found --" %}
+    {% assign media = post.meta | value: "episode_media_file" %}
+    {%- unless media == "-- episode_media_file not found --" %}
       <aside class="podcast">
         <p class="text-center"><strong>Listen While<br>You Read</strong></p>
         <audio controls onplaying="awftw.countPlay('{{ media }}')">

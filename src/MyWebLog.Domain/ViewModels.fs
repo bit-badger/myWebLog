@@ -610,7 +610,7 @@ type PostListItem =
         tags : string list
         
         /// Metadata for the post
-        meta : MetaItem list
+        metadata : MetaItem list
     }
 
     /// Create a post list item from a post
@@ -627,7 +627,7 @@ type PostListItem =
           text        = if extra = "" then post.text else post.text.Replace ("href=\"/", $"href=\"{extra}/")
           categoryIds = post.categoryIds |> List.map CategoryId.toString
           tags        = post.tags
-          meta        = post.metadata
+          metadata    = post.metadata
         }
 
 

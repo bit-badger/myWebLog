@@ -22,73 +22,137 @@
   },
 
   /**
-   * Add a new row for metadata entry
+   * Create a metadata remove button
+   * @returns {HTMLDivElement} The column with the remove button
    */
-  addMetaItem() {
-    // Remove button
+  createMetaRemoveColumn() {
     const removeBtn = document.createElement("button")
     removeBtn.type      = "button"
     removeBtn.className = "btn btn-sm btn-danger"
     removeBtn.innerHTML = "&minus;"
     removeBtn.setAttribute("onclick", `Admin.removeMetaItem(${this.nextMetaIndex})`)
-    
+
     const removeCol = document.createElement("div")
     removeCol.className = "col-1 text-center align-self-center"
     removeCol.appendChild(removeBtn)
     
-    // Name
+    return removeCol
+  },
+  
+  /**
+   * Create a metadata name field
+   * @returns {HTMLInputElement} The name input element
+   */
+  createMetaNameField() {
     const nameField = document.createElement("input")
+    
     nameField.type        = "text"
     nameField.name        = "metaNames"
     nameField.id          = `metaNames_${this.nextMetaIndex}`
     nameField.className   = "form-control"
     nameField.placeholder = "Name"
     
+    return nameField
+  },
+
+  /**
+   * Create a metadata name column using the given name input field
+   * @param {HTMLInputElement} field The name field for the column
+   * @returns {HTMLDivElement} The name column
+   */
+  createMetaNameColumn(field) {
     const nameLabel = document.createElement("label")
-    nameLabel.htmlFor   = nameField.id
-    nameLabel.innerText = nameField.placeholder
-    
+    nameLabel.htmlFor   = field.id
+    nameLabel.innerText = field.placeholder
+
     const nameFloat = document.createElement("div")
     nameFloat.className = "form-floating"
-    nameFloat.appendChild(nameField)
+    nameFloat.appendChild(field)
     nameFloat.appendChild(nameLabel)
-    
+
     const nameCol = document.createElement("div")
     nameCol.className = "col-3"
     nameCol.appendChild(nameFloat)
+    
+    return nameCol
+  },
 
-    // Value
+  /**
+   * Create a metadata value field
+   * @returns {HTMLInputElement} The metadata value field
+   */
+  createMetaValueField() {
     const valueField = document.createElement("input")
+    
     valueField.type        = "text"
     valueField.name        = "metaValues"
     valueField.id          = `metaValues_${this.nextMetaIndex}`
     valueField.className   = "form-control"
     valueField.placeholder = "Value"
+    
+    return valueField
+  },
 
+  /**
+   * Create a metadata value column using the given input field
+   * @param {HTMLInputElement} field The metadata value input field
+   * @param {string|undefined} hintText Text to be added below the field
+   * @returns {HTMLDivElement} The value column
+   */
+  createMetaValueColumn(field, hintText) {
     const valueLabel = document.createElement("label")
-    valueLabel.htmlFor   = valueField.id
-    valueLabel.innerText = valueField.placeholder
+    valueLabel.htmlFor   = field.id
+    valueLabel.innerText = field.placeholder
 
     const valueFloat = document.createElement("div")
     valueFloat.className = "form-floating"
-    valueFloat.appendChild(valueField)
+    valueFloat.appendChild(field)
     valueFloat.appendChild(valueLabel)
 
+    if (hintText) {
+      const valueHint = document.createElement("div")
+      valueHint.className = "form-text"
+      valueHint.innerText = hintText
+      valueFloat.appendChild(valueHint)
+    }
+    
     const valueCol = document.createElement("div")
     valueCol.className = "col-8"
     valueCol.appendChild(valueFloat)
     
-    // Put it all together
+    return valueCol
+  },
+
+  /**
+   * Construct and add a metadata item row
+   * @param {HTMLDivElement} removeCol The column with the remove button
+   * @param {HTMLDivElement} nameCol The column with the name field
+   * @param {HTMLDivElement} valueCol The column with the value field
+   */
+  createMetaRow(removeCol, nameCol, valueCol) {
     const newRow = document.createElement("div")
     newRow.className = "row mb-3"
     newRow.id        = `meta_${this.nextMetaIndex}`
     newRow.appendChild(removeCol)
     newRow.appendChild(nameCol)
     newRow.appendChild(valueCol)
-    
+
     document.getElementById("metaItems").appendChild(newRow)
-    document.getElementById(nameField.id).focus()
     this.nextMetaIndex++
+  },
+  
+  /**
+   * Add a new row for metadata entry
+   */
+  addMetaItem() {
+    const nameField = this.createMetaNameField()
+    
+    this.createMetaRow(
+      this.createMetaRemoveColumn(),
+      this.createMetaNameColumn(nameField),
+      this.createMetaValueColumn(this.createMetaValueField(), undefined))
+    
+    document.getElementById(nameField.id).focus()
   },
 
   /**
@@ -137,6 +201,33 @@
     document.getElementById("permalinks").appendChild(newRow)
     document.getElementById(linkField.id).focus()
     this.nextPermalink++
+  },
+
+  /**
+   * Add podcast episode metadata fields
+   */
+  addPodcastFields() {
+    [ [ "episode_media_file",   true,  "required; relative URL will be appended to configured base media path" ],
+      [ "episode_media_length", true,  "required; file size in bytes" ],
+      [ "episode_duration",     false, "suggested; format is HH:MM:SS" ],
+      [ "episode_media_type",   false, "optional; blank uses podcast default" ],
+      [ "episode_image",        false, "optional; relative URLs are served from this web log" ],
+      [ "episode_subtitle",     false, "optional" ],
+      [ "episode_explicit",     false, "optional; blank uses podcast default"]
+    ].forEach(([fieldName, isRequired, hintText]) => {
+      const nameField = this.createMetaNameField()
+      nameField.value = fieldName
+      nameField.readOnly = true
+      
+      const valueField = this.createMetaValueField()
+      valueField.required = isRequired
+
+      this.createMetaRow(
+        this.createMetaRemoveColumn(),
+        this.createMetaNameColumn(nameField),
+        this.createMetaValueColumn(valueField, hintText))
+    })
+    document.getElementById("addPodcastFieldButton").remove()
   },
 
   /**

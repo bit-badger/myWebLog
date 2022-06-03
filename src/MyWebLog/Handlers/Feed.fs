@@ -122,21 +122,21 @@ let private addEpisode webLog (feed : CustomFeed) (post : Post) (item : Syndicat
     let meta name = post.metadata |> List.tryFind (fun it -> it.name = name)
     let value (item : MetaItem) = item.value
     let epMediaUrl =
-        match (meta >> Option.get >> value) "media" with
+        match (meta >> Option.get >> value) "episode_media_file" with
         | link when link.StartsWith "http" -> link
         | link -> WebLog.absoluteUrl webLog (Permalink link)
     let epMediaType =
-        match meta "mediaType", podcast.defaultMediaType with
+        match meta "episode_media_type", podcast.defaultMediaType with
         | Some epType, _ -> Some epType.value
         | None, Some defType -> Some defType
         | _ -> None
     let epImageUrl =
-        match defaultArg ((meta >> Option.map value) "image") (Permalink.toString podcast.imageUrl) with
+        match defaultArg ((meta >> Option.map value) "episode_image") (Permalink.toString podcast.imageUrl) with
         | link when link.StartsWith "http" -> link
         | link -> WebLog.absoluteUrl webLog (Permalink link)
     let epExplicit =
         try
-            (meta >> Option.map (value >> ExplicitRating.parse)) "explicit"
+            (meta >> Option.map (value >> ExplicitRating.parse)) "episode_explicit"
             |> Option.defaultValue podcast.explicit
             |> ExplicitRating.toString
         with :? ArgumentException -> ExplicitRating.toString podcast.explicit
@@ -144,8 +144,8 @@ let private addEpisode webLog (feed : CustomFeed) (post : Post) (item : Syndicat
     let xmlDoc    = XmlDocument ()
     let enclosure = xmlDoc.CreateElement "enclosure"
     enclosure.SetAttribute ("url", epMediaUrl)
-    meta "length" |> Option.iter (fun it  -> enclosure.SetAttribute ("length", it.value))
-    epMediaType   |> Option.iter (fun typ -> enclosure.SetAttribute ("type", typ))
+    meta "episode_media_length" |> Option.iter (fun it  -> enclosure.SetAttribute ("length", it.value))
+    epMediaType |> Option.iter (fun typ -> enclosure.SetAttribute ("type", typ))
     item.ElementExtensions.Add enclosure
     
     item.ElementExtensions.Add ("creator",  Namespace.dc,     podcast.displayedAuthor)
@@ -153,8 +153,10 @@ let private addEpisode webLog (feed : CustomFeed) (post : Post) (item : Syndicat
     item.ElementExtensions.Add ("summary",  Namespace.iTunes, stripHtml post.text)
     item.ElementExtensions.Add ("image",    Namespace.iTunes, epImageUrl)
     item.ElementExtensions.Add ("explicit", Namespace.iTunes, epExplicit)
-    meta "subtitle" |> Option.iter (fun it -> item.ElementExtensions.Add ("subtitle", Namespace.iTunes, it.value))
-    meta "duration" |> Option.iter (fun it -> item.ElementExtensions.Add ("duration", Namespace.iTunes, it.value))
+    meta "episode_subtitle"
+    |> Option.iter (fun it -> item.ElementExtensions.Add ("subtitle", Namespace.iTunes, it.value))
+    meta "episode_duration"
+    |> Option.iter (fun it -> item.ElementExtensions.Add ("duration", Namespace.iTunes, it.value))
     
     if post.metadata |> List.exists (fun it -> it.name = "chapter") then
         try
