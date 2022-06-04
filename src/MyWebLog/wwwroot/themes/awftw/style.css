@@ -108,7 +108,7 @@ h1, h2, h3, h4, p, ul {
   max-width: 1400px;
   margin: auto;
 }
-@media all and (max-width:78rem) {
+@media all and (max-width:81rem) {
   .container {
     flex-direction: column;
     align-items: center;
@@ -124,7 +124,7 @@ h1, h2, h3, h4, p, ul {
 }
 .sidebar {
   min-width: 10rem;
-  max-width: 18rem;
+  max-width: 20rem;
   font-size: 1rem;
   display: flex;
   flex-direction: column;
@@ -134,7 +134,7 @@ h1, h2, h3, h4, p, ul {
     padding: 0 .4rem;
   }
 }
-@media all and (max-width:78rem) {
+@media all and (max-width:81rem) {
   .sidebar {
     width: 100%;
     max-width: 60rem;
@@ -168,7 +168,7 @@ h1, h2, h3, h4, p, ul {
 .post-sidebar {
   margin-top: 4rem;
 }
-@media all and (max-width:78rem) {
+@media all and (max-width:81rem) {
   .post-sidebar {
     margin-top: 0;
   }
@@ -191,12 +191,19 @@ blockquote {
   display: flow-root;
   font-size: 1.2rem;
 }
+blockquote p:last-of-type {
+  margin-bottom: 0;
+}
+blockquote p:nth-last-of-type(2) {
+  margin-bottom: .5rem;
+}
+blockquote.standard p:nth-last-of-type(2) {
+  margin-bottom: inherit;
+}
 blockquote.standard {
   margin: 1rem 2rem 1rem 1rem;
   border-left: solid 3px var(--accent-color);
-}
-blockquote p.cite {
-  margin-bottom: 0;
+  font-family: inherit;
 }
 blockquote cite {
   display: block;
@@ -209,6 +216,9 @@ blockquote cite {
   position: relative;
   top: 5px;
   margin: 0 -11px -11px -12px;
+}
+blockquote cite::before {
+  content: "— ";
 }
 .ref {
   color: red;
@@ -223,11 +233,19 @@ blockquote sup {
 .u {
   text-decoration: underline;
 }
-blockquote.standard footer cite {
-  font-style: normal;
+blockquote.standard footer {
+  padding-top: 1rem;
 }
-blockquote.standard footer cite::before {
-  content: ", ";
+blockquote.standard footer cite {
+  font-style: italic;
+  background: unset;
+  display: inline;
+  text-align: left;
+  height: unset;
+  background: unset;
+  position: unset;
+  top: unset;
+  margin: inherit;
 }
 cite {
   font-size: 1rem;
@@ -288,13 +306,13 @@ h1 {
   color: var(--title-text-color);
 }
 .item-meta {
-  margin: -.4rem;
   margin-bottom: 1.2rem;
   font-size: 1rem;
   text-align: center;
 }
 .date-posted {
   padding: 0 1rem;
+  text-align: center;
 }
 .text-center {
   text-align: center;

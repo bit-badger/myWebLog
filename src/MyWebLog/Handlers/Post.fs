@@ -336,8 +336,10 @@ let save : HttpHandler = fun next ctx -> task {
         let post =
             match model.setPublished with
             | true ->
-                let dt = DateTime (model.pubOverride.Value.ToUniversalTime().Ticks, DateTimeKind.Utc)
-                printf $"**** DateKind = {dt.Kind}"
+                let dt =
+                    TimeZoneInfo.ConvertTimeToUtc
+                        (DateTime (model.pubOverride.Value.Ticks, DateTimeKind.Unspecified),
+                         TimeZoneInfo.FindSystemTimeZoneById webLog.timeZone)
                 match model.setUpdated with
                 | true ->
                     { post with

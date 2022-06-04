@@ -1,29 +1,20 @@
+{%- assign ot_books = "ZPSOFpd27EeFQvrTZE296Q|VERPK2rYN0G44bo7LjBSRw|fA6zV4ON002oMPoVUZs17Q|vLsJo3GL1ECOQbSIEMUaig|WZ933xSw6kmo7644X9mmXw|68f2_zVlekaaIZD_BX0sZg|WffJH3t68kuVUyNZXYSFYw|xNlTF35s_UulA7S-NTgcAA|0y4PDhOc7kiw9hp0RwaJCg|59ysY5363EaVCG_g7fUH5A|aBlyuIzm206LTKx-uYIGnA|YoQKqdkrbUivAeUf3DISow|WOAq8A9bB0a8TKmYAB7IdA|TsxpRv1lrUiNNeGGfIx6XA|rJkq5d_MyUGPgACkMm0iTw|F_X9vUdpAUy957_qSejcnw|5jvC66CtG06zRlkKuP1naw|su8Qq5KUwEyoDmssUQhjHQ|FtVxmNkn_EavFJY3jqodfA|oToPYf8OQkCBsB6J65j3SA|rKzSJptZjU6YAOy6nIhfbw|K2lHyseO6UWdHftwLswhgg|rpThtWd1HUuSeyHLIs7gpw|CD8jYdoi0kGyXTbsD6F0aA|ttObDyRHnUudsSNUsdQ8BA|fi4ORg0B90C-DeQGTrOaMA|6AW2cZfbAkWX5HT4XEGjig|Pf6Gllf9gU-IF9xDcmWd0g|7cDaYscN6kmKsgwuiwPt9Q|WG_j96GOH0KzGORwKL8YVA|p7wi1sNiGUWhUa1tqRhS8Q|CgIcCoHtpUiCshdHe8wMoA|V1PTu4Xoq0eUnniYIb8Mkw|1h1LTN1XyU-qWIPHVY398A|t34QuaRN6kOWizvKNPtdSg|Tw5oe-kzfkiqCc6_4AVskQ|At7RBOfiN0aWMKln0Dkreg|JiUy9RgUZUOrjeMdBpln9g|hc7roSimX0mukJPTe6clWA|kTbX-fYdFk6TJ8Tikec-AQ" | split: "|" -%}
+{%- assign nt_books = "Ksr4Dto97Um5NxhLpoRk5A|w-4_O87lYE-9_nrIXOuIHw|oJ_dgZir80mv2hat1rK4Qg|9QCQnNlevES8cYwHZWzrJw|DbkcRuTlnUyPXPPQso3L6g|CJZtcewtvUKqJH-rIUoR6g|xMRsXDsvDUiylTlFq6Tv-w|RmItBW75JUG7Iish-KRw1g|lKSYua82uE-YeMAzxqfrMg|Bopzxr31bkWJrFqO6o1oxg|KhiJGiHzvkiHXvkk9fEUOg|vFCY7egZskyaH-0jwDdQTQ|uxYuSzlDzU-AYGK-uo3RTg|VANy1bANREmh2DLujlaKGQ|CyO7saVd8kWHwzs3MaLe5w|71tayZrmnk6E8E-z8IWeIw|5H2xaOfutEyeZ755pY0mmA|uPHRl846Xk-SG-HEmITW-w|DF4Ub1Vqg0GSBIGWYJgCGw|-LfywKHkMEqRb1WVNSkcxg|AgO2o_kbG0GVTNVNT0233A|R6oXNiKgIkqjGhp-42inxg|WI1S5jo5-kOb5bgoNSb8Hg|MVsyPrQ8iUa_M6DJ4IR0CQ|6iDQYEk4yUa6B_-z49KYHA|MznlCejhZUqq_rxf4xrmwg|kG4B-4Pt6ECSxm14f3FWiA|T9GJpphYiUGYVgw7lmkmDA" | split: "|" -%}
+{%- assign series_ids = "fpgE1kmfr0-xNBMbxUWxMA|FP7IiNghSEeZLBW21kkAgw|ca1OWFTvMU2H-lHpjsm5MQ|aK4djQBz_UCObjyPq5At_A" | split: "|" -%}
+{%- assign series_details = "FP7IiNghSEeZLBW21kkAgw,Advent Readings,2019/advent-readings.html|aK4djQBz_UCObjyPq5At_A,Twisted Scripture,2017/twisted-scripture.html|ca1OWFTvMU2H-lHpjsm5MQ,The &ldquo;3:16&rdquo;s of the New Testament,2007/the-316s-of-the-new-testament.html" | split: "|" -%}
 <div class="content">
-  {% if is_category or is_tag %}
+  {%- if is_category or is_tag %}
     <h1 class="index-title">{{ page_title }}</h1>
-    <!--
-    TODO: Convert this to Liquid
-    if page.tag || page.category
-    h1.index-title
-    if page.category
-    if oldTestamentBooks.indexOf(page.category) >= 0 || newTestamentBooks.indexOf(page.category) >= 0
-    | Posts referencing the
-    if page.category !== 'Old Testament' && page.category !== 'New Testament'
-    = ' book of'
-    = ' ' + page.category
-    else
-    | Posts categorized &ldquo;#{page.category}&rdquo;
-    else
-    | Posts tagged &ldquo;#{page.tag}&rdquo;
-    if 1 !== page.current
-    small &nbsp; &nbsp; (page #{page.current})
-    -->
-  {% endif %}
+    {%- if is_category %}
+      {%- assign cat = categories | where: "slug", slug | first -%}
+      {%- if cat.description %}<h2 class="index-title">{{ cat.description.value }}</h2>{% endif -%}
+    {%- endif %}
+  {%- endif %}
   {% for post in model.posts %}
     <article class="item">
       <h1 class="item-heading">
         <a href="{{ post.permalink | relative_link }}"
-           title="Permanent Link to &ldquo;{{ post.title | strip_html | escape }}&rdquo;">
+           title="Permanent Link to &ldquo;{{ post.title | strip_html | escape_once }}&rdquo;">
           {{ post.title }}
         </a>
       </h1>
@@ -67,116 +58,101 @@
   </div>
   <div class="item">
     <h4 class="item-heading">Series</h4>
-    <h4 class="text-center">Advent Readings</h4>
-    <p class="text-center">
-      <a href="{{ "2019/advent-readings.html" | relative_link }}"
-         title="Advent Readings &bull; A Word from the Word">
-        About the Series
-      </a> &bull;
-      <a href=" {{ "category/series/advent-readings/" | relative_link }}">Read All</a>
-      <small class="count">(-{% comment %} TODO: count
-        #{catCount('series/advent-readings')})
-      {% endcomment %})</small>
-    </p>
-    <hr class="sidebar-sep">
-    <h4 class="text-center">Twisted Scripture</h4>
-    <p class="text-center">
-      <a href="{{ "2017/twisted-scripture.html" | relative_link }}"
-         title="Twisted Scripture &bull; A Word from the Word">
-        About the Series
-      </a> &bull;
-      <a href="{{ "category/series/twisted-scripture/" | relative_link }}">Read All</a>
-      <small class="count">(-{% comment %} TODO: count
-        #{catCount('series/twisted-scripture')})
-      {% endcomment %})</small>
-    </p>
-    <hr class="sidebar-sep">
-    <h4 class="text-center">The &ldquo;3:16s&rdquo; of the New Testament</h4>
-    <p class="text-center">
-      <a href="{{ "2007/the-316s-of-the-new-testament.html" | relative_link }}"
-         title="The &ldquo;3:16s&rdquo; of the New Testament &bull; A Word from the Word">
-        About the Series
-      </a> &bull;
-      <a href="{{ "category/series/the-3-16-s-of-the-new-testament/" | relative_link }}">Read All</a>
-      <small class="count">(-{% comment %} TODO: count
-        #{catCount('series/the-3-16-s-of-the-new-testament')})
-      {% endcomment %})</small>
-    </p>
+    {%- for series in series_details %}
+      {% assign parts = series | split: "," %}
+      {% assign cat = categories | where: "id", parts[0] | first %}
+      <h4 class="text-center">{{ cat.name }}</h4>
+      <p class="text-center">
+        <a href="{{ parts[2] | relative_link }}"
+           title="About the series &ldquo;{{ cat.name | escape_once }}&rdquo; &bull; A Word from the Word">
+          About the Series
+        </a> &bull;
+        <a href="{{ cat | category_link }}">Read All</a> <small class="count">({{ cat.post_count }})</small>
+      </p>
+      {% unless forloop.last %}<hr class="sidebar-sep">{% endunless %}
+    {% endfor %}
   </div>
-  {% comment %}
-  TODO: group categories by Old Testament / New Testament / Topics
-        (may work better once the categories are loaded and we can hard-code IDs
-  {% endcomment %}
   <div class="item">
     <h4 class="item-heading">Books</h4>
     <p>Each devotion is categorized under the books of the Bible which are referenced within it.</p>
     <hr class="sidebar-sep">
     <h4 class="text-center">Old Testament</h4>
     <p class="text-center">
-      <a href="{{ "category/old-testament/" | relative_link }}"
-         title="Devotions referencing the Old Testament">
+      {%- assign cat_id = ot_books | first -%}
+      {%- assign cat = categories | where: "id", cat_id | first -%}
+      <a href="{{ cat | category_link }}"
+         {%- if cat.description %} title="{{ cat.description.value | escape_once }}"{% endif %}>
         See All
-      </a> <small class="count">(-{% comment %} TODO: count
-        #{catCount('old-testament')})
-      {% endcomment %})</small>
+      </a> <small class="count">({{ cat.post_count }})</small>
     </p>
     <ul>
+      {%- assign first_time = true -%}
       {% for cat_id in ot_books -%}
-        {%- assign cat = categories | where: "id", cat_id | first -%}
-        <li>
-          {% if cat.post_count == 0 -%}
-            <span title="Devotions referencing the book of {{ cat.name }}">{{ cat.name }}</span>
-            <small class="count">(0)</small>
-          {%- else -%}
-            <a href="{{ cat | category_link }}"
-               title="Devotions referencing the book of {{ cat.name}}">
-              {{ cat.name }}
-            </a> <small class="count">({{ cat.post_count }})</small>
-          {%- endif %}
-        </li>
+        {%- if first_time -%}
+          {%- assign first_time = false -%}
+        {%- else %}
+          {%- assign cat = categories | where: "id", cat_id | first -%}
+          <li>
+            {% if cat.post_count == 0 -%}
+              <span{% if cat.description %} title="{{ cat.description.value | escape_once }}"{% endif %}>
+                {{ cat.name }}
+              </span> <small class="count">(0)</small>
+            {%- else -%}
+              <a href="{{ cat | category_link }}"
+                 {%- if cat.description %} title="{{ cat.description.value | escape_once }}"{% endif %}>
+                {{ cat.name }}
+              </a> <small class="count">({{ cat.post_count }})</small>
+            {%- endif %}
+          </li>
+        {%- endif %}
       {%- endfor %}
     </ul>
     <hr class="sidebar-sep">
     <h4 class="text-center">New Testament</h4>
     <p class="text-center">
-      <a href="{{ "category/new-testament/" | relative_link }}"
-         title="Devotions referencing the New Testament">
+      {%- assign cat_id = nt_books | first -%}
+      {%- assign cat = categories | where: "id", cat_id | first -%}
+      <a href="{{ cat | category_link }}"
+         {%- if cat.description %} title="{{ cat.description.value | escape_once }}"{% endif %}>
         See All
-      </a> <small class="count">(-{% comment %} TODO: count
-        #{catCount('new-testament')})
-        {% endcomment %})</small>
+      </a> <small class="count">({{ cat.post_count }})</small>
     </p>
     <ul>
-      {% for cat_id in nt_books -%}
-        {%- assign cat = categories | where: "id", cat_id | first -%}
-        <li>
-          {% if cat.post_count == 0 %}
-            <span title="Devotions referencing the book of {{ cat.name }}">{{ cat.name }}</span>
-            <small class="count">(0)</small>
-          {% else %}
-            <a href="{{ cat | category_link }}"
-               title="Devotions referencing the book of {{ cat.name }}">
-              {{ cat.name }}
-            </a> <small class="count">({{ cat.post_count }})</small>
-          {% endif %}
-        </li>
+      {%- assign first_time = true -%}
+      {%- for cat_id in nt_books -%}
+        {%- if first_time -%}
+          {%- assign first_time = false -%}
+        {%- else %}
+          {%- assign cat = categories | where: "id", cat_id | first -%}
+          <li>
+            {% if cat.post_count == 0 -%}
+              <span{% if cat.description %} title="{{ cat.description.value | escape_once }}"{% endif %}>
+                {{ cat.name }}
+              </span> <small class="count">(0)</small>
+            {%- else -%}
+              <a href="{{ cat | category_link }}"
+              {%- if cat.description %} title="{{ cat.description.value | escape_once }}"{% endif %}>
+                {{ cat.name }}
+              </a> <small class="count">({{ cat.post_count }})</small>
+            {%- endif %}
+          </li>
+        {% endif %}
       {% endfor %}
     </ul>
   </div>
   <div class="item">
-    {% comment %}
-    - var topics = cats.filter(excludeBooks).filter(cat => !cat.slug.startsWith('series')).sort((a, b) => a.name.localeCompare(b.name))
-    {% endcomment %}
     <h4 class="item-heading">Topics</h4>
     <ul>
-      {% for cat_id in topics %}
-        {%- assign cat = categories | where: "id", cat_id | first -%}
-        <li>
-          <a href="{{ cat | category_link }}"
-             title="Devotions about {{ cat.name | escape }}">
-            {{ cat.name }}
-          </a> <small class="count">({{ cat.post_count }})</small>
-        </li>
+      {%- for cat in categories -%}
+        {%- unless ot_books contains cat.id or nt_books contains cat.id or series_ids contains cat.id -%}
+          <li>
+            {%- for it in cat.parent_names %} &nbsp; {% endfor -%}
+            <a href="{{ cat | category_link }}"
+               {%- if cat.description %} title="{{ cat.description.value | escape_once }}"{% endif %}>
+              {{ cat.name }}
+            </a> <small class="count">({{ cat.post_count }})</small>
+          </li>
+        {% endunless %}
       {% endfor %}
     </ul>
   </div>

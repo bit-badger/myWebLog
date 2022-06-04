@@ -55,8 +55,7 @@
               </button>
             </legend>
             <div id="metaItemContainer" class="collapse">
-              {%- assign has_media = model.metaNames | where: "episode_media_file" | size -%}
-              {%- unless has_media == 0 %}
+              {%- unless model.meta_names contains "episode_media_file" %}
                 <button class="btn btn-sm btn-secondary" onclick="Admin.addPodcastFields()" id="addPodcastFieldButton">
                   Add Podcast Episode Fields
                 </button>
