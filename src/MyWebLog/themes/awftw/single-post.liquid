@@ -5,6 +5,7 @@
 <div class="content">
   <article class="item">
     <h1 class="item-heading">{{ post.title }}</h1>
+    {%- if logged_on %}<p class="item-meta"><a href="{{ post | edit_post_link }}">Edit Post</a></p>{% endif %}
     {% assign media = post.metadata | value: "episode_media_file" %}
     {%- unless media == "-- episode_media_file not found --" %}
       <aside class="podcast">
@@ -44,16 +45,6 @@
       {{ post.published_on | date: "dddd, MMMM d, yyyy" }}
     </div>
   </div>
-  {% comment %}
-  TODO: reading time?
-  <div class="item">
-    <h4 class="item-heading">Reading Time</h4>
-    <div class="text-center">
-      <i class="fa fa-clock-o" title="Clock" aria-hidden="true"></i>
-      #[= readingTime(page.content, 'minutes', 175)]
-    </div>
-  </div>
-  {% endcomment %}
   {%- assign has_ot = false -%}
   {%- for ot_id in ot_books -%}
     {%- if post.category_ids contains ot_id %}{% assign has_ot = true %}{% endif -%}

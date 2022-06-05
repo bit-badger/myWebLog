@@ -312,10 +312,15 @@ module WebLog =
         let _, leadPath = hostAndPath webLog
         $"{leadPath}/{Permalink.toString permalink}"
     
-    /// Convert a date/time to the web log's local date/time
+    /// Convert a UTC date/time to the web log's local date/time
     let localTime webLog (date : DateTime) =
-        let tz = TimeZoneInfo.FindSystemTimeZoneById webLog.timeZone
-        TimeZoneInfo.ConvertTimeFromUtc (DateTime (date.Ticks, DateTimeKind.Utc), tz)
+        TimeZoneInfo.ConvertTimeFromUtc
+            (DateTime (date.Ticks, DateTimeKind.Utc), TimeZoneInfo.FindSystemTimeZoneById webLog.timeZone) 
+
+    /// Convert a date/time in the web log's local date/time to UTC
+    let utcTime webLog (date : DateTime) =
+        TimeZoneInfo.ConvertTimeToUtc
+            (DateTime (date.Ticks, DateTimeKind.Unspecified), TimeZoneInfo.FindSystemTimeZoneById webLog.timeZone)
 
 
 /// A user of the web log

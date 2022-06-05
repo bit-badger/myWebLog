@@ -65,7 +65,10 @@ module PageListCache =
     let update (ctx : HttpContext) = backgroundTask {
         let  webLog = ctx.WebLog
         let! pages  = Data.Page.findListed webLog.id ctx.Conn
-        _cache[webLog.urlBase] <- pages |> List.map (DisplayPage.fromPage webLog) |> Array.ofList
+        _cache[webLog.urlBase] <-
+            pages
+            |> List.map (fun pg -> DisplayPage.fromPage webLog { pg with text = "" })
+            |> Array.ofList
     }
 
 

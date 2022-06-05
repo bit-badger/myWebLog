@@ -67,6 +67,9 @@ h1, h2, h3, h4, p, ul {
   margin-top: 0;
   margin-bottom: 1rem;
 }
+sup {
+  vertical-align: text-top;
+}
 .site-header {
   display: flex;
   flex-flow: row wrap;
@@ -200,9 +203,10 @@ blockquote p:nth-last-of-type(2) {
 blockquote.standard p:nth-last-of-type(2) {
   margin-bottom: inherit;
 }
-blockquote.standard {
+blockquote.standard, blockquote blockquote {
   margin: 1rem 2rem 1rem 1rem;
   border-left: solid 3px var(--accent-color);
+  border-top: unset;
   font-family: inherit;
 }
 blockquote cite {
@@ -225,7 +229,7 @@ blockquote cite::before {
 }
 blockquote sup {
   color: var(--superscript-color);
-  padding-right: .35rem;
+  padding-right: .25rem;
 }
 .lord, .sc {
   font-variant: small-caps;
@@ -337,4 +341,9 @@ aside.podcast p {
 a.dl:link,
 a.dl:visited {
   color: var(--audio-text-color);
+}
+@media all and (max-width: 40rem) {
+  blockquote {
+    margin: 2rem 0;
+  }
 }

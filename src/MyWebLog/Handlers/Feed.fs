@@ -95,9 +95,18 @@ let private toFeedItem webLog (authors : MetaItem list) (cats : DisplayCategory[
         Content         = TextSyndicationContent.CreatePlaintextContent plainText)
     item.AddPermalink (Uri item.Id)
     
+    let xmlDoc = XmlDocument ()
+    
     let encoded =
-        post.text.Replace("src=\"/", $"src=\"{webLog.urlBase}/").Replace ("href=\"/", $"href=\"{webLog.urlBase}/")
-    item.ElementExtensions.Add ("encoded", Namespace.content, encoded)
+        let txt =
+            post.text
+                .Replace("src=\"/", $"src=\"{webLog.urlBase}/")
+                .Replace ("href=\"/", $"href=\"{webLog.urlBase}/")
+        let it  = xmlDoc.CreateElement ("content", "encoded", Namespace.content)
+        let _   = it.AppendChild (xmlDoc.CreateCDataSection txt)
+        it
+    item.ElementExtensions.Add encoded
+        
     item.Authors.Add (SyndicationPerson (
         Name = (authors |> List.find (fun a -> a.name = WebLogUserId.toString post.authorId)).value))
     [ post.categoryIds
@@ -124,6 +133,7 @@ let private addEpisode webLog (feed : CustomFeed) (post : Post) (item : Syndicat
     let epMediaUrl =
         match (meta >> Option.get >> value) "episode_media_file" with
         | link when link.StartsWith "http" -> link
+        | link when Option.isSome podcast.mediaBaseUrl -> $"{podcast.mediaBaseUrl.Value}{link}"
         | link -> WebLog.absoluteUrl webLog (Permalink link)
     let epMediaType =
         match meta "episode_media_type", podcast.defaultMediaType with
@@ -142,16 +152,22 @@ let private addEpisode webLog (feed : CustomFeed) (post : Post) (item : Syndicat
         with :? ArgumentException -> ExplicitRating.toString podcast.explicit
     
     let xmlDoc    = XmlDocument ()
-    let enclosure = xmlDoc.CreateElement "enclosure"
-    enclosure.SetAttribute ("url", epMediaUrl)
-    meta "episode_media_length" |> Option.iter (fun it  -> enclosure.SetAttribute ("length", it.value))
-    epMediaType |> Option.iter (fun typ -> enclosure.SetAttribute ("type", typ))
+    let enclosure =
+        let it = xmlDoc.CreateElement "enclosure"
+        it.SetAttribute ("url", epMediaUrl)
+        meta "episode_media_length" |> Option.iter (fun len -> it.SetAttribute ("length", len.value))
+        epMediaType |> Option.iter (fun typ -> it.SetAttribute ("type", typ))
+        it
+    let image =
+        let it = xmlDoc.CreateElement ("itunes", "image", Namespace.iTunes)
+        it.SetAttribute ("href", epImageUrl)
+        it
+        
     item.ElementExtensions.Add enclosure
-    
+    item.ElementExtensions.Add image
     item.ElementExtensions.Add ("creator",  Namespace.dc,     podcast.displayedAuthor)
     item.ElementExtensions.Add ("author",   Namespace.iTunes, podcast.displayedAuthor)
     item.ElementExtensions.Add ("summary",  Namespace.iTunes, stripHtml post.text)
-    item.ElementExtensions.Add ("image",    Namespace.iTunes, epImageUrl)
     item.ElementExtensions.Add ("explicit", Namespace.iTunes, epExplicit)
     meta "episode_subtitle"
     |> Option.iter (fun it -> item.ElementExtensions.Add ("subtitle", Namespace.iTunes, it.value))
@@ -218,21 +234,30 @@ let private addPodcast webLog (rssFeed : SyndicationFeed) (feed : CustomFeed) =
           "link",  feedUrl
         ]
         |> List.fold (fun elt (name, value) -> addChild xmlDoc "" "" name value elt) (xmlDoc.CreateElement "image")
+    let iTunesImage =
+        let it = xmlDoc.CreateElement ("itunes", "image", Namespace.iTunes)
+        it.SetAttribute ("href", imageUrl)
+        it
     let owner =
         [ "name", podcast.displayedAuthor
           "email", podcast.email
         ]
         |> List.fold (fun elt (name, value) -> addChild xmlDoc Namespace.iTunes "itunes" name value elt)
                      (xmlDoc.CreateElement ("itunes", "owner", Namespace.iTunes))
+    let rawVoice =
+        let it = xmlDoc.CreateElement ("rawvoice", "subscribe", Namespace.rawVoice)
+        it.SetAttribute ("feed", feedUrl)
+        it.SetAttribute ("itunes", "")
+        it
     
     rssFeed.ElementExtensions.Add image
     rssFeed.ElementExtensions.Add owner
     rssFeed.ElementExtensions.Add categorization
+    rssFeed.ElementExtensions.Add iTunesImage
+    rssFeed.ElementExtensions.Add rawVoice
     rssFeed.ElementExtensions.Add ("summary",   Namespace.iTunes,   podcast.summary)
     rssFeed.ElementExtensions.Add ("author",    Namespace.iTunes,   podcast.displayedAuthor)
-    rssFeed.ElementExtensions.Add ("image",     Namespace.iTunes,   imageUrl)
     rssFeed.ElementExtensions.Add ("explicit",  Namespace.iTunes,   ExplicitRating.toString podcast.explicit)
-    rssFeed.ElementExtensions.Add ("subscribe", Namespace.rawVoice, feedUrl)
     podcast.subtitle |> Option.iter (fun sub -> rssFeed.ElementExtensions.Add ("subtitle", Namespace.iTunes, sub))
 
 /// Get the feed's self reference and non-feed link
@@ -241,9 +266,10 @@ let private selfAndLink webLog feedType =
     | StandardFeed     path  -> path
     | CategoryFeed (_, path) -> path
     | TagFeed      (_, path) -> path
+    // TODO: get defined path for custom feed
     | Custom       (_, path) -> path
     |> function
-    | path -> Permalink path, Permalink (path.Replace ($"/{webLog.rss.feedName}", ""))
+    | path -> Permalink path[1..], Permalink (path.Replace ($"/{webLog.rss.feedName}", ""))
 
 /// Set the title and description of the feed based on its source
 let private setTitleAndDescription feedType (webLog : WebLog) (cats : DisplayCategory[]) (feed : SyndicationFeed) =
@@ -287,7 +313,7 @@ let createFeed (feedType : FeedType) posts : HttpHandler = fun next ctx -> backg
     let toItem post =
         let item = toFeedItem webLog authors cats tagMaps post
         match podcast with
-        | Some feed when post.metadata |> List.exists (fun it -> it.name = "media") ->
+        | Some feed when post.metadata |> List.exists (fun it -> it.name = "episode_media_file") ->
             addEpisode webLog feed post item
         | Some _ ->
             warn "Feed" ctx $"[{webLog.name} {Permalink.toString self}] \"{stripHtml post.title}\" has no media"
@@ -298,7 +324,7 @@ let createFeed (feedType : FeedType) posts : HttpHandler = fun next ctx -> backg
     addNamespace feed "content" Namespace.content
     setTitleAndDescription feedType webLog cats feed
     
-    feed.LastUpdatedTime <- DateTimeOffset <| (List.head posts).updatedOn
+    feed.LastUpdatedTime <- (List.head posts).updatedOn |> DateTimeOffset
     feed.Generator       <- generator ctx
     feed.Items           <- posts |> Seq.ofList |> Seq.map toItem
     feed.Language        <- "en"

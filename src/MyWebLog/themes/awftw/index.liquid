@@ -19,10 +19,8 @@
         </a>
       </h1>
       <p class="item-meta">
-        <i class="fa fa-calendar" title="Date"></i> {{ post.published_on | date: "dddd, MMMM d, yyyy" }} &nbsp;
-        {% comment %} TODO: reading time?
-        #[i.fa.fa-clock-o(title='Clock' aria-hidden='true')] #[= readingTime(post.content, 'minutes', 175)]
-        {% endcomment %}
+        <i class="fa fa-calendar" title="Date"></i> {{ post.published_on | date: "dddd, MMMM d, yyyy" }}
+        {% if logged_on %} &bull; <a href="{{ post | edit_post_link }}">Edit Post</a>{% endif %}
       </p>
       {%- assign media = post.metadata | value: "episode_media_file" -%}
       {%- unless media == "-- episode_media_file not found --"  %}
