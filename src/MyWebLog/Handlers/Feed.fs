@@ -3,6 +3,7 @@ module MyWebLog.Handlers.Feed
 
 open System
 open System.IO
+open System.Net
 open System.ServiceModel.Syndication
 open System.Text.RegularExpressions
 open System.Xml
@@ -59,7 +60,7 @@ let private getFeedPosts (webLog : WebLog) feedType ctx =
         | Tag      tag   -> Data.Post.findPageOfTaggedPosts webLog.id tag 1
 
 /// Strip HTML from a string
-let private stripHtml text = Regex.Replace (text, "<(.|\n)*?>", "")
+let private stripHtml text = WebUtility.HtmlDecode <| Regex.Replace (text, "<(.|\n)*?>", "")
 
 /// XML namespaces for building RSS feeds
 [<RequireQualifiedAccess>]
@@ -84,9 +85,8 @@ module private Namespace =
 let private toFeedItem webLog (authors : MetaItem list) (cats : DisplayCategory[]) (tagMaps : TagMap list)
             (post : Post) =
     let plainText =
-        match stripHtml post.text with
-        | txt when txt.Length < 255 -> txt
-        | txt -> $"{txt.Substring (0, 252)}..."
+        let endingP = post.text.IndexOf "</p>"
+        stripHtml <| if endingP >= 0 then post.text[..(endingP - 1)] else post.text
     let item = SyndicationItem (
         Id              = WebLog.absoluteUrl webLog post.permalink,
         Title           = TextSyndicationContent.CreateHtmlContent post.title,
@@ -167,7 +167,6 @@ let private addEpisode webLog (feed : CustomFeed) (post : Post) (item : Syndicat
     item.ElementExtensions.Add image
     item.ElementExtensions.Add ("creator",  Namespace.dc,     podcast.displayedAuthor)
     item.ElementExtensions.Add ("author",   Namespace.iTunes, podcast.displayedAuthor)
-    item.ElementExtensions.Add ("summary",  Namespace.iTunes, stripHtml post.text)
     item.ElementExtensions.Add ("explicit", Namespace.iTunes, epExplicit)
     meta "episode_subtitle"
     |> Option.iter (fun it -> item.ElementExtensions.Add ("subtitle", Namespace.iTunes, it.value))
@@ -261,15 +260,17 @@ let private addPodcast webLog (rssFeed : SyndicationFeed) (feed : CustomFeed) =
     podcast.subtitle |> Option.iter (fun sub -> rssFeed.ElementExtensions.Add ("subtitle", Namespace.iTunes, sub))
 
 /// Get the feed's self reference and non-feed link
-let private selfAndLink webLog feedType =
+let private selfAndLink webLog feedType ctx =
+    let withoutFeed (it : string) = Permalink (it.Replace ($"/{webLog.rss.feedName}", ""))
     match feedType with
-    | StandardFeed     path  -> path
-    | CategoryFeed (_, path) -> path
-    | TagFeed      (_, path) -> path
-    // TODO: get defined path for custom feed
-    | Custom       (_, path) -> path
-    |> function
-    | path -> Permalink path[1..], Permalink (path.Replace ($"/{webLog.rss.feedName}", ""))
+    | StandardFeed     path
+    | CategoryFeed (_, path)
+    | TagFeed      (_, path) -> Permalink path[1..], withoutFeed path
+    | Custom (feed, _) ->
+        match feed.source with
+        | Category (CategoryId catId) ->
+            feed.path, Permalink $"category/{(CategoryCache.get ctx |> Array.find (fun c -> c.id = catId)).slug}"
+        | Tag tag -> feed.path, Permalink $"""tag/{tag.Replace(" ", "+")}/""" 
 
 /// Set the title and description of the feed based on its source
 let private setTitleAndDescription feedType (webLog : WebLog) (cats : DisplayCategory[]) (feed : SyndicationFeed) =
@@ -308,7 +309,7 @@ let createFeed (feedType : FeedType) posts : HttpHandler = fun next ctx -> backg
     let! tagMaps    = getTagMappings webLog posts conn
     let  cats       = CategoryCache.get ctx
     let  podcast    = match feedType with Custom (feed, _) when Option.isSome feed.podcast -> Some feed | _ -> None
-    let  self, link = selfAndLink webLog feedType
+    let  self, link = selfAndLink webLog feedType ctx
     
     let toItem post =
         let item = toFeedItem webLog authors cats tagMaps post

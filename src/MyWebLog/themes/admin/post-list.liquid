@@ -42,6 +42,10 @@
             </span>
           </div>
           <div class="{{ title_col }}">
+            {%- assign media = post.metadata | value: "episode_media_file" -%}
+            {%- unless media == "-- episode_media_file not found --" -%}
+              <span class="badge bg-success float-end text-uppercase">Episode</span>
+            {%- endunless -%}
             {{ post.title }}<br>
             <small>
               <a href="{{ post | relative_link }}" target="_blank">View Post</a>
