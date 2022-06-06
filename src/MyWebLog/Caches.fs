@@ -96,11 +96,16 @@ module CategoryCache =
 /// Cache for parsed templates
 module TemplateCache =
     
-    open DotLiquid
+    open System
     open System.IO
+    open System.Text.RegularExpressions
+    open DotLiquid
     
     /// Cache of parsed templates
     let private _cache = ConcurrentDictionary<string, Template> ()
+    
+    /// Custom include parameter pattern
+    let private hasInclude = Regex ("""{% include_template \"(.*)\" %}""", RegexOptions.None, TimeSpan.FromSeconds 2)
     
     /// Get a template for the given theme and template nate
     let get (theme : string) (templateName : string) = backgroundTask {
@@ -109,7 +114,12 @@ module TemplateCache =
         | true -> ()
         | false ->
             let! file = File.ReadAllTextAsync $"{templatePath}.liquid"
-            _cache[templatePath] <- Template.Parse (file, SyntaxCompatibility.DotLiquid22)
+            let mutable text = file
+            while hasInclude.IsMatch text do
+                let  child = hasInclude.Match text
+                let! file  = File.ReadAllTextAsync $"themes/{theme}/{child.Groups[1].Value}.liquid"
+                text <- text.Replace (child.Value, file)
+            _cache[templatePath] <- Template.Parse (text, SyntaxCompatibility.DotLiquid22)
         return _cache[templatePath]
     }
 
