@@ -246,6 +246,47 @@ module TagMap =
         }
 
 
+/// A theme
+type Theme =
+    {   /// The ID / path of the theme
+        id : ThemeId
+        
+        /// A long name of the theme
+        name : string
+        
+        /// The version of the theme
+        version : string
+        
+        /// The templates for this theme
+        templates: ThemeTemplate list
+    }
+
+/// Functions to support themes
+module Theme =
+    
+    /// An empty theme
+    let empty =
+        { id        = ThemeId ""
+          name      = ""
+          version   = ""
+          templates = []
+        }
+
+
+/// A theme asset (a file served as part of a theme, at /themes/[theme]/[asset-path])
+type ThemeAsset =
+    {
+        /// The ID of the asset (consists of theme and path)
+        id : ThemeAssetId
+        
+        /// The updated date (set from the file date from the ZIP archive)
+        updatedOn : DateTime
+        
+        /// The data for the asset
+        data : byte[]
+    }
+
+
 /// A web log
 [<CLIMutable; NoComparison; NoEquality>]
 type WebLog =

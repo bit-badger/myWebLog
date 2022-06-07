@@ -76,6 +76,20 @@ type TagMapIdConverter () =
     override _.ReadJson (reader : JsonReader, _ : Type, _ : TagMapId, _ : bool, _ : JsonSerializer) =
         (string >> TagMapId) reader.Value
 
+type ThemeAssetIdConverter () =
+    inherit JsonConverter<ThemeAssetId> ()
+    override _.WriteJson (writer : JsonWriter, value : ThemeAssetId, _ : JsonSerializer) =
+        writer.WriteValue (ThemeAssetId.toString value)
+    override _.ReadJson (reader : JsonReader, _ : Type, _ : ThemeAssetId, _ : bool, _ : JsonSerializer) =
+        (string >> ThemeAssetId.ofString) reader.Value
+
+type ThemeIdConverter () =
+    inherit JsonConverter<ThemeId> ()
+    override _.WriteJson (writer : JsonWriter, value : ThemeId, _ : JsonSerializer) =
+        writer.WriteValue (ThemeId.toString value)
+    override _.ReadJson (reader : JsonReader, _ : Type, _ : ThemeId, _ : bool, _ : JsonSerializer) =
+        (string >> ThemeId) reader.Value
+    
 type WebLogIdConverter () =
     inherit JsonConverter<WebLogId> ()
     override _.WriteJson (writer : JsonWriter, value : WebLogId, _ : JsonSerializer) =
@@ -106,6 +120,8 @@ let all () : JsonConverter seq =
         PageIdConverter           ()
         PostIdConverter           ()
         TagMapIdConverter         ()
+        ThemeAssetIdConverter     ()
+        ThemeIdConverter          ()
         WebLogIdConverter         ()
         WebLogUserIdConverter     ()
         // Handles DUs with no associated data, as well as option fields

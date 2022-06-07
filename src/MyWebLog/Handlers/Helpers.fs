@@ -108,12 +108,12 @@ let viewForTheme theme template next ctx = fun (hash : Hash) -> task {
     //       the net effect is a "layout" capability similar to Razor or Pug
     
     // Render view content...
-    let! contentTemplate = TemplateCache.get theme template
+    let! contentTemplate = TemplateCache.get theme template ctx.Conn
     hash.Add ("content", contentTemplate.Render hash)
     
     // ...then render that content with its layout
     let  isHtmx         = ctx.Request.IsHtmx && not ctx.Request.IsHtmxRefresh
-    let! layoutTemplate = TemplateCache.get theme (if isHtmx then "layout-partial" else "layout")
+    let! layoutTemplate = TemplateCache.get theme (if isHtmx then "layout-partial" else "layout") ctx.Conn
     
     return! htmlString (layoutTemplate.Render hash) next ctx
 }
@@ -123,10 +123,10 @@ let bareForTheme theme template next ctx = fun (hash : Hash) -> task {
     do! populateHash hash ctx
     
     // Bare templates are rendered with layout-bare
-    let! contentTemplate = TemplateCache.get theme template
+    let! contentTemplate = TemplateCache.get theme template ctx.Conn
     hash.Add ("content", contentTemplate.Render hash)
     
-    let! layoutTemplate = TemplateCache.get theme "layout-bare"
+    let! layoutTemplate = TemplateCache.get theme "layout-bare" ctx.Conn
     
     // add messages as HTTP headers
     let messages = hash["messages"] :?> UserMessage[]

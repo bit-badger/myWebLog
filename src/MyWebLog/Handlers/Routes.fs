@@ -2,13 +2,13 @@
 module MyWebLog.Handlers.Routes
 
 open Giraffe
+open Microsoft.AspNetCore.Http
 open MyWebLog
 
 /// Module to resolve routes that do not match any other known route (web blog content) 
 module CatchAll =
     
     open DotLiquid
-    open Microsoft.AspNetCore.Http
     open MyWebLog.ViewModels
     
     /// Sequence where the first returned value is the proper handler for the link
@@ -89,6 +89,48 @@ module CatchAll =
         | None -> return! Error.notFound next ctx
     }
 
+
+/// Serve theme assets
+module Asset =
+    
+    open System
+    open Microsoft.AspNetCore.Http.Headers
+    open Microsoft.AspNetCore.StaticFiles
+    open Microsoft.Net.Http.Headers
+    
+    /// Determine if the asset has been modified since the date/time specified by the If-Modified-Since header
+    let private checkModified asset (ctx : HttpContext) : HttpHandler option =
+        match ctx.Request.Headers.IfModifiedSince with
+        | it when it.Count < 1 -> None
+        | it ->
+            if asset.updatedOn > DateTime.Parse it[0] then
+                None
+            else
+                Some (setStatusCode 304 >=> setBodyFromString "Not Modified")
+    
+    /// An instance of ASP.NET Core's file extension to MIME type converter
+    let private mimeMap = FileExtensionContentTypeProvider ()
+    
+    // GET /theme/{theme}/{**path}
+    let serveAsset (urlParts : string seq) : HttpHandler = fun next ctx -> task {
+        let path = urlParts |> Seq.skip 1 |> Seq.head
+        match! Data.ThemeAsset.findById (ThemeAssetId.ofString path) ctx.Conn with
+        | Some asset ->
+            match checkModified asset ctx with
+            | Some threeOhFour -> return! threeOhFour next ctx
+            | None ->
+                let mimeType =
+                    match mimeMap.TryGetContentType path with
+                    | true,  typ -> typ
+                    | false, _   -> "application/octet-stream"
+                let headers = ResponseHeaders ctx.Response.Headers
+                headers.LastModified <- Some (DateTimeOffset asset.updatedOn) |> Option.toNullable
+                headers.ContentType  <- MediaTypeHeaderValue mimeType
+                return! setBody asset.data next ctx
+        | None -> return! Error.notFound next ctx
+    }
+
+
 /// The primary myWebLog router
 let router : HttpHandler = choose [
     GET >=> choose [
@@ -126,7 +168,8 @@ let router : HttpHandler = choose [
                     routef "/%s/edit"     Admin.editMapping
                 ])
             ])
-            route    "/user/edit" >=> User.edit
+            route    "/theme/update" >=> Admin.themeUpdatePage
+            route    "/user/edit"    >=> User.edit
         ]
         POST >=> validateCsrf >=> choose [
             subRoute "/category" (choose [
@@ -155,15 +198,17 @@ let router : HttpHandler = choose [
                     routef "/%s/delete"     Admin.deleteMapping
                 ])
             ])
-            route    "/user/save" >=> User.save
+            route    "/theme/update" >=> Admin.updateTheme
+            route    "/user/save"    >=> User.save
         ]
     ])
-    GET >=> routexp "/category/(.*)"  Post.pageOfCategorizedPosts
-    GET >=> routef  "/page/%i"        Post.pageOfPosts
-    GET >=> routef  "/page/%i/"       Post.redirectToPageOfPosts       
-    GET >=> routexp "/tag/(.*)"       Post.pageOfTaggedPosts
+    GET_HEAD >=> routexp "/category/(.*)"  Post.pageOfCategorizedPosts
+    GET_HEAD >=> routef  "/page/%i"        Post.pageOfPosts
+    GET_HEAD >=> routef  "/page/%i/"       Post.redirectToPageOfPosts       
+    GET_HEAD >=> routexp "/tag/(.*)"       Post.pageOfTaggedPosts
+    GET_HEAD >=> routexp "/themes/(.*)"    Asset.serveAsset
     subRoute "/user" (choose [
-        GET >=> choose [
+        GET_HEAD >=> choose [
             route "/log-on"  >=> User.logOn None
             route "/log-off" >=> User.logOff
         ]
@@ -171,7 +216,7 @@ let router : HttpHandler = choose [
             route "/log-on" >=> User.doLogOn
         ]
     ])
-    GET >=> CatchAll.route
+    GET_HEAD >=> CatchAll.route
     Error.notFound
 ]
 

@@ -1,8 +1,0 @@
-<article class="content auto">
-  <h1>{{ page.title }}</h1>
-  {{ page.text }}
-  <p><br><a href="{{ "" | relative_link }}" title="Home">&laquo; Home</a></p>
-  {% if logged_on -%}
-    <p><small><a hx-boost="false" href="{{ page | edit_page_link }}">Edit This Page</a></small></p>
-  {% endif %}
-</article>

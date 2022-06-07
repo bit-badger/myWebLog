@@ -37,7 +37,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include=".\themes\**" CopyToOutputDirectory="Always" />
     <None Include=".\wwwroot\**" CopyToOutputDirectory="Always" />
   </ItemGroup>
 

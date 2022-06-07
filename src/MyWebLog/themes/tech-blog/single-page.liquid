@@ -1,7 +1,0 @@
-<article class="auto">
-  <h1 class="entry-title">{{ page.title }}</h1>
-  <div class="entry-content">{{ page.text }}</div>
-  {%- if logged_on %}
-    <p><small><a hx-boost="false" href="{{ page | edit_page_link }}">Edit Page</a></small></p>
-  {% endif -%}
-</article>

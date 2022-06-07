@@ -373,6 +373,39 @@ module TagMapId =
     let create () = TagMapId (newId ())
 
 
+/// An identifier for a theme (represents its path)
+type ThemeId = ThemeId of string
+
+/// Functions to support theme IDs
+module ThemeId =
+    let toString = function ThemeId ti -> ti
+
+
+/// An identifier for a theme asset
+type ThemeAssetId = ThemeAssetId of ThemeId * string
+
+/// Functions to support theme asset IDs
+module ThemeAssetId =
+    
+    /// Convert a theme asset ID into a path string
+    let toString =  function ThemeAssetId (ThemeId theme, asset) -> $"{theme}/{asset}"
+    
+    /// Convert a string into a theme asset ID
+    let ofString (it : string) =
+        let themeIdx = it.IndexOf "/"
+        ThemeAssetId (ThemeId it[..(themeIdx - 1)], it[(themeIdx + 1)..])
+
+
+/// A template for a theme
+type ThemeTemplate =
+    {   /// The name of the template
+        name : string
+        
+        /// The text of the template
+        text : string
+    }
+
+
 /// An identifier for a web log
 type WebLogId = WebLogId of string
 

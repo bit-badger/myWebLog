@@ -97,7 +97,6 @@ module CategoryCache =
 module TemplateCache =
     
     open System
-    open System.IO
     open System.Text.RegularExpressions
     open DotLiquid
     
@@ -107,19 +106,28 @@ module TemplateCache =
     /// Custom include parameter pattern
     let private hasInclude = Regex ("""{% include_template \"(.*)\" %}""", RegexOptions.None, TimeSpan.FromSeconds 2)
     
-    /// Get a template for the given theme and template nate
-    let get (theme : string) (templateName : string) = backgroundTask {
-        let templatePath = $"themes/{theme}/{templateName}"
+    /// Get a template for the given theme and template name
+    let get (themeId : string) (templateName : string) conn = backgroundTask {
+        let templatePath = $"{themeId}/{templateName}"
         match _cache.ContainsKey templatePath with
         | true -> ()
         | false ->
-            let! file = File.ReadAllTextAsync $"{templatePath}.liquid"
-            let mutable text = file
-            while hasInclude.IsMatch text do
-                let  child = hasInclude.Match text
-                let! file  = File.ReadAllTextAsync $"themes/{theme}/{child.Groups[1].Value}.liquid"
-                text <- text.Replace (child.Value, file)
-            _cache[templatePath] <- Template.Parse (text, SyntaxCompatibility.DotLiquid22)
+            match! Data.Theme.findById (ThemeId themeId) conn with
+            | Some theme ->
+                let mutable text = (theme.templates |> List.find (fun t -> t.name = templateName)).text
+                while hasInclude.IsMatch text do
+                    let child = hasInclude.Match text
+                    let childText  = (theme.templates |> List.find (fun t -> t.name = child.Groups[1].Value)).text
+                    text <- text.Replace (child.Value, childText)
+                _cache[templatePath] <- Template.Parse (text, SyntaxCompatibility.DotLiquid22)
+            | None -> ()
         return _cache[templatePath]
     }
+    
+    /// Invalidate all template cache entries for the given theme ID
+    let invalidateTheme (themeId : string) =
+        _cache.Keys
+        |> Seq.filter (fun key -> key.StartsWith themeId)
+        |> List.ofSeq
+        |> List.iter (fun key -> match _cache.TryRemove key with _, _ -> ())
 

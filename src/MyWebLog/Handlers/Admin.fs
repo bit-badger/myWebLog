@@ -50,7 +50,7 @@ let dashboard : HttpHandler = fun next ctx -> task {
 
 // GET /admin/categories
 let listCategories : HttpHandler = fun next ctx -> task {
-    let! catListTemplate = TemplateCache.get "admin" "category-list-body"
+    let! catListTemplate = TemplateCache.get "admin" "category-list-body" ctx.Conn
     let hash = Hash.FromAnonymousObject {|
         web_log    = ctx.WebLog
         categories = CategoryCache.get ctx
@@ -271,49 +271,6 @@ let savePage : HttpHandler = fun next ctx -> task {
     | None -> return! Error.notFound next ctx
 }
 
-// -- WEB LOG SETTINGS --
-
-// GET /admin/settings
-let settings : HttpHandler = fun next ctx -> task {
-    let  webLog   = ctx.WebLog
-    let! allPages = Data.Page.findAll webLog.id ctx.Conn
-    return!
-        Hash.FromAnonymousObject
-            {|  csrf  = csrfToken ctx
-                model = SettingsModel.fromWebLog webLog
-                pages =
-                    seq {
-                        KeyValuePair.Create ("posts", "- First Page of Posts -")
-                        yield! allPages
-                               |> List.sortBy (fun p -> p.title.ToLower ())
-                               |> List.map (fun p -> KeyValuePair.Create (PageId.toString p.id, p.title))
-                    }
-                    |> Array.ofSeq
-                themes     = themes ()
-                web_log    = webLog
-                page_title = "Web Log Settings"
-            |}
-        |> viewForTheme "admin" "settings" next ctx
-}
-
-// POST /admin/settings
-let saveSettings : HttpHandler = fun next ctx -> task {
-    let  webLog = ctx.WebLog
-    let  conn   = ctx.Conn
-    let! model  = ctx.BindFormAsync<SettingsModel> ()
-    match! Data.WebLog.findById webLog.id conn with
-    | Some webLog ->
-        let webLog = model.update webLog
-        do! Data.WebLog.updateSettings webLog conn
-
-        // Update cache
-        WebLogCache.set webLog
-    
-        do! addMessage ctx { UserMessage.success with message = "Web log settings saved successfully" }
-        return! redirectToGet (WebLog.relativeUrl webLog (Permalink "admin/settings")) next ctx
-    | None -> return! Error.notFound next ctx
-}
-
 // -- TAG MAPPINGS --
 
 open Microsoft.AspNetCore.Http
@@ -332,7 +289,7 @@ let private tagMappingHash (ctx : HttpContext) = task {
 // GET /admin/settings/tag-mappings
 let tagMappings : HttpHandler = fun next ctx -> task {
     let! hash         = tagMappingHash ctx
-    let! listTemplate = TemplateCache.get "admin" "tag-mapping-list-body"
+    let! listTemplate = TemplateCache.get "admin" "tag-mapping-list-body" ctx.Conn
     
     hash.Add ("tag_mapping_list", listTemplate.Render hash)
     hash.Add ("page_title", "Tag Mappings")
@@ -391,4 +348,157 @@ let deleteMapping tagMapId : HttpHandler = fun next ctx -> task {
     | true  -> do! addMessage ctx { UserMessage.success with message = "Tag mapping deleted successfully" }
     | false -> do! addMessage ctx { UserMessage.error with message = "Tag mapping not found; nothing deleted" }
     return! tagMappingsBare next ctx
+}
+
+// -- THEMES --
+
+open System.IO.Compression
+open System.Text.RegularExpressions
+
+// GET /admin/theme/update
+let themeUpdatePage : HttpHandler = fun next ctx -> task {
+    return!
+        Hash.FromAnonymousObject {|
+            csrf       = csrfToken ctx
+            page_title = "Upload Theme"
+        |}
+        |> viewForTheme "admin" "upload-theme" next ctx
+}
+
+/// Update the name and version for a theme based on the version.txt file, if present
+let private updateNameAndVersion (theme : Theme) (zip : ZipArchive) = backgroundTask {
+    let now () = DateTime.UtcNow.ToString "yyyyMMdd.HHmm"
+    match zip.Entries |> Seq.filter (fun it -> it.FullName = "version.txt") |> Seq.tryHead with
+    | Some versionItem ->
+        use versionFile = new StreamReader(versionItem.Open ())
+        let! versionText = versionFile.ReadToEndAsync ()
+        let parts = versionText.Trim().Replace("\r", "").Split "\n"
+        let displayName = if parts[0] > "" then parts[0] else ThemeId.toString theme.id
+        let version = if parts.Length > 1 && parts[1] > "" then parts[1] else now ()
+        return { theme with name = displayName; version = version }
+    | None ->
+        return { theme with name = ThemeId.toString theme.id; version = now () }
+}
+
+/// Delete all theme assets, and remove templates from theme
+let private checkForCleanLoad (theme : Theme) cleanLoad conn = backgroundTask {
+    if cleanLoad then
+        do! Data.ThemeAsset.deleteByTheme theme.id conn
+        return { theme with templates = [] }
+    else
+        return theme
+}
+
+/// Update the theme with all templates from the ZIP archive
+let private updateTemplates (theme : Theme) (zip : ZipArchive) = backgroundTask {
+    let tasks =
+        zip.Entries
+        |> Seq.filter (fun it -> it.Name.EndsWith ".liquid")
+        |> Seq.map (fun templateItem -> backgroundTask {
+            use templateFile = new StreamReader (templateItem.Open ())
+            let! template = templateFile.ReadToEndAsync ()
+            return { name = templateItem.Name.Replace (".liquid", ""); text = template }
+        })
+    let! templates = Task.WhenAll tasks
+    return
+        templates
+        |> Array.fold (fun t template ->
+            { t with templates = template :: (t.templates |> List.filter (fun it -> it.name <> template.name)) })
+            theme
+}
+
+/// Update theme assets from the ZIP archive
+let private updateAssets themeId (zip : ZipArchive) conn = backgroundTask {
+    for asset in zip.Entries |> Seq.filter (fun it -> it.FullName.StartsWith "wwwroot") do
+        let assetName = asset.FullName.Replace ("wwwroot/", "")
+        if assetName <> "" && not (assetName.EndsWith "/") then
+            use stream = new MemoryStream ()
+            do! asset.Open().CopyToAsync stream
+            do! Data.ThemeAsset.save
+                    { id        = ThemeAssetId (themeId, assetName)
+                      updatedOn = asset.LastWriteTime.DateTime
+                      data      = stream.ToArray ()
+                    } conn
+}
+
+/// Load a theme from the given stream, which should contain a ZIP archive
+let loadThemeFromZip themeName file clean conn = backgroundTask {
+    use  zip     = new ZipArchive (file, ZipArchiveMode.Read)
+    let  themeId = ThemeId themeName
+    let! theme   = backgroundTask {
+        match! Data.Theme.findById themeId conn with
+        | Some t -> return t
+        | None   -> return { Theme.empty with id = themeId }
+    }
+    let! theme = updateNameAndVersion theme   zip
+    let! theme = checkForCleanLoad    theme   clean conn
+    let! theme = updateTemplates      theme   zip
+    do!          updateAssets         themeId zip   conn
+    do! Data.Theme.save theme conn
+}
+
+// POST /admin/theme/update
+let updateTheme : HttpHandler = fun next ctx -> task {
+    if ctx.Request.HasFormContentType && ctx.Request.Form.Files.Count > 0 then
+        let themeFile = Seq.head ctx.Request.Form.Files
+        let themeName = themeFile.FileName.Split(".").[0].ToLowerInvariant().Replace (" ", "-")
+        // TODO: add restriction for admin theme based on role
+        if Regex.IsMatch (themeName, """^[a-z0-9\-]+$""") then
+            use stream = new MemoryStream ()
+            do! themeFile.CopyToAsync stream
+            do! loadThemeFromZip themeName stream true ctx.Conn
+            do! addMessage ctx { UserMessage.success with message = "Theme updated successfully" }
+            return! redirectToGet (WebLog.relativeUrl ctx.WebLog (Permalink "admin/dashboard")) next ctx
+        else
+            do! addMessage ctx { UserMessage.error with message = $"Theme name {themeName} is invalid" }
+            return! redirectToGet (WebLog.relativeUrl ctx.WebLog (Permalink "admin/theme/update")) next ctx
+    else
+        return! RequestErrors.BAD_REQUEST "Bad request" next ctx
+}
+
+// -- WEB LOG SETTINGS --
+
+// GET /admin/settings
+let settings : HttpHandler = fun next ctx -> task {
+    let  webLog   = ctx.WebLog
+    let! allPages = Data.Page.findAll webLog.id ctx.Conn
+    let! themes   = Data.Theme.list ctx.Conn
+    return!
+        Hash.FromAnonymousObject
+            {|  csrf  = csrfToken ctx
+                model = SettingsModel.fromWebLog webLog
+                pages =
+                    seq {
+                        KeyValuePair.Create ("posts", "- First Page of Posts -")
+                        yield! allPages
+                               |> List.sortBy (fun p -> p.title.ToLower ())
+                               |> List.map (fun p -> KeyValuePair.Create (PageId.toString p.id, p.title))
+                    }
+                    |> Array.ofSeq
+                themes     = themes
+                             |> Seq.ofList
+                             |> Seq.map (fun it -> KeyValuePair.Create (ThemeId.toString it.id, $"{it.name} (v{it.version})"))
+                             |> Array.ofSeq
+                web_log    = webLog
+                page_title = "Web Log Settings"
+            |}
+        |> viewForTheme "admin" "settings" next ctx
+}
+
+// POST /admin/settings
+let saveSettings : HttpHandler = fun next ctx -> task {
+    let  webLog = ctx.WebLog
+    let  conn   = ctx.Conn
+    let! model  = ctx.BindFormAsync<SettingsModel> ()
+    match! Data.WebLog.findById webLog.id conn with
+    | Some webLog ->
+        let webLog = model.update webLog
+        do! Data.WebLog.updateSettings webLog conn
+
+        // Update cache
+        WebLogCache.set webLog
+    
+        do! addMessage ctx { UserMessage.success with message = "Web log settings saved successfully" }
+        return! redirectToGet (WebLog.relativeUrl webLog (Permalink "admin/settings")) next ctx
+    | None -> return! Error.notFound next ctx
 }

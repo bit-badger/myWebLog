@@ -20,6 +20,12 @@ module Table =
     /// The tag map table
     let TagMap = "TagMap"
     
+    /// The theme table
+    let Theme = "Theme"
+    
+    /// The theme asset table
+    let ThemeAsset = "ThemeAsset"
+    
     /// The web log table
     let WebLog = "WebLog"
 
@@ -27,7 +33,7 @@ module Table =
     let WebLogUser = "WebLogUser"
 
     /// A list of all tables
-    let all = [ Category; Comment; Page; Post; TagMap; WebLog; WebLogUser ]
+    let all = [ Category; Comment; Page; Post; TagMap; Theme; ThemeAsset; WebLog; WebLogUser ]
 
 
 /// Functions to assist with retrieving data
@@ -693,6 +699,68 @@ module TagMap =
             withTable Table.TagMap
             get tagMap.id
             replace tagMap
+            write; withRetryDefault; ignoreResult
+        }
+
+
+/// Functions to manipulate themes
+module Theme =
+    
+    /// Get all themes
+    let list =
+        rethink<Theme list> {
+            withTable Table.Theme
+            filter (fun row -> row["id"].Ne "admin" :> obj)
+            without [ "templates" ]
+            orderBy "id"
+            result; withRetryDefault
+        }
+    
+    /// Retrieve a theme by its ID
+    let findById (themeId : ThemeId) =
+        rethink<Theme> {
+            withTable Table.Theme
+            get themeId
+            resultOption; withRetryOptionDefault
+        }
+    
+    /// Save a theme
+    let save (theme : Theme) =
+        rethink {
+            withTable Table.Theme
+            get theme.id
+            replace theme
+            write; withRetryDefault; ignoreResult
+        }
+
+
+/// Functions to manipulate theme assets
+module ThemeAsset =
+    
+    /// Delete all assets for a theme
+    let deleteByTheme themeId =
+        let keyPrefix = $"^{ThemeId.toString themeId}/"
+        rethink {
+            withTable Table.ThemeAsset
+            filter (fun row -> row["id"].Match keyPrefix :> obj)
+            delete
+            write; withRetryDefault; ignoreResult
+        }
+    
+    /// Find a theme asset by its ID
+    let findById (assetId : ThemeAssetId) =
+        rethink<ThemeAsset> {
+            withTable Table.ThemeAsset
+            get assetId
+            resultOption; withRetryOptionDefault
+        }
+    
+    /// Save a theme assed
+    let save (asset : ThemeAsset) =
+        rethink {
+            withTable Table.ThemeAsset
+            get asset.id
+            replace asset
             write; withRetryDefault; ignoreResult
         }
 
