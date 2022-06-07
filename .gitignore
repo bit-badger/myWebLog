@@ -253,9 +253,11 @@ paket-files/
 .idea/
 *.sln.iml
 
-# Personal themes used to test initial release
-src/MyWebLog/views/themes/daniel-j-summers
-src/MyWebLog/views/themes/daniels-weekly-devotions
-src/MyWebLog/views/themes/djs-consulting
+# Zipped myWebLog themes
+**/*.zip
+
+# Files used for testing
+src/MyWebLog/wwwroot/img/daniel-j-summers
+src/MyWebLog/wwwroot/img/bit-badger
 
 .ionide
