@@ -63,6 +63,7 @@ let main args =
             let! conn = rethinkCfg.CreateConnectionAsync ()
             do! Data.Startup.ensureDb rethinkCfg (loggerFac.CreateLogger (nameof Data.Startup)) conn
             do! WebLogCache.fill conn
+            do! ThemeAssetCache.fill conn
             return conn
         } |> Async.AwaitTask |> Async.RunSynchronously
     let _ = builder.Services.AddSingleton<IConnection> conn

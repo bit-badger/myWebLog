@@ -131,3 +131,27 @@ module TemplateCache =
         |> List.ofSeq
         |> List.iter (fun key -> match _cache.TryRemove key with _, _ -> ())
 
+
+/// A cache of asset names by themes
+module ThemeAssetCache =
+    
+    /// A list of asset names for each theme
+    let private _cache = ConcurrentDictionary<ThemeId, string list> ()
+    
+    /// Retrieve the assets for the given theme ID
+    let get themeId = _cache[themeId]
+    
+    /// Refresh the list of assets for the given theme
+    let refreshTheme themeId conn = backgroundTask {
+        let! assets = Data.ThemeAsset.findByThemeId themeId conn
+        _cache[themeId] <- assets |> List.map (fun a -> match a.id with ThemeAssetId (_, path) -> path)
+    }
+    
+    /// Fill the theme asset cache
+    let fill conn = backgroundTask {
+        let! assets = Data.ThemeAsset.all conn
+        for asset in assets do
+            let (ThemeAssetId (themeId, path)) = asset.id
+            if not (_cache.ContainsKey themeId) then _cache[themeId] <- []
+            _cache[themeId] <- path :: _cache[themeId]
+    }

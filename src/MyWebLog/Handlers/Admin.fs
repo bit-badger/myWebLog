@@ -444,9 +444,11 @@ let updateTheme : HttpHandler = fun next ctx -> task {
         let themeName = themeFile.FileName.Split(".").[0].ToLowerInvariant().Replace (" ", "-")
         // TODO: add restriction for admin theme based on role
         if Regex.IsMatch (themeName, """^[a-z0-9\-]+$""") then
+            let conn   = ctx.Conn
             use stream = new MemoryStream ()
             do! themeFile.CopyToAsync stream
-            do! loadThemeFromZip themeName stream true ctx.Conn
+            do! loadThemeFromZip themeName stream true conn
+            do! ThemeAssetCache.refreshTheme (ThemeId themeName) conn
             do! addMessage ctx { UserMessage.success with message = "Theme updated successfully" }
             return! redirectToGet (WebLog.relativeUrl ctx.WebLog (Permalink "admin/dashboard")) next ctx
         else

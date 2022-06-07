@@ -14,7 +14,7 @@ let webLog (ctx : Context) =
 
 /// Does an asset exist for the current theme?
 let assetExists fileName (webLog : WebLog) =
-    File.Exists (Path.Combine ("wwwroot", "themes", webLog.themePath, fileName))
+    ThemeAssetCache.get (ThemeId webLog.themePath) |> List.exists (fun it -> it = fileName)
 
 /// Obtain the link from known types
 let permalink (ctx : Context) (item : obj) (linkFunc : WebLog -> Permalink -> string) =

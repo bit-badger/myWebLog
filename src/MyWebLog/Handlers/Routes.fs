@@ -126,6 +126,10 @@ module Asset =
                 let headers = ResponseHeaders ctx.Response.Headers
                 headers.LastModified <- Some (DateTimeOffset asset.updatedOn) |> Option.toNullable
                 headers.ContentType  <- MediaTypeHeaderValue mimeType
+                headers.CacheControl <-
+                    let hdr = CacheControlHeaderValue()
+                    hdr.MaxAge <- Some (TimeSpan.FromDays 30) |> Option.toNullable
+                    hdr
                 return! setBody asset.data next ctx
         | None -> return! Error.notFound next ctx
     }

@@ -737,12 +737,26 @@ module Theme =
 /// Functions to manipulate theme assets
 module ThemeAsset =
     
+    open RethinkDb.Driver.Ast
+    
+    /// Match the ID by its prefix (the theme ID)
+    let private matchById themeId =
+        let keyPrefix = $"^{ThemeId.toString themeId}/"
+        fun (row : ReqlExpr) -> row["id"].Match keyPrefix :> obj
+    
+    /// List all theme assets (excludes data)
+    let all =
+        rethink<ThemeAsset list> {
+            withTable Table.ThemeAsset
+            without [ "data" ]
+            result; withRetryDefault
+        }
+    
     /// Delete all assets for a theme
     let deleteByTheme themeId =
-        let keyPrefix = $"^{ThemeId.toString themeId}/"
         rethink {
             withTable Table.ThemeAsset
-            filter (fun row -> row["id"].Match keyPrefix :> obj)
+            filter (matchById themeId)
             delete
             write; withRetryDefault; ignoreResult
         }
@@ -755,7 +769,16 @@ module ThemeAsset =
             resultOption; withRetryOptionDefault
         }
     
-    /// Save a theme assed
+    /// List all assets for a theme (data excluded)
+    let findByThemeId (themeId : ThemeId) =
+        rethink<ThemeAsset list> {
+            withTable Table.ThemeAsset
+            filter (matchById themeId)
+            without [ "data" ]
+            result; withRetryDefault
+        }
+    
+    /// Save a theme asset
     let save (asset : ThemeAsset) =
         rethink {
             withTable Table.ThemeAsset
