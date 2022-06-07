@@ -85,10 +85,9 @@ let main args =
     let app = builder.Build ()
     
     match args |> Array.tryHead with
-    | Some it when it = "init" ->
-        Maintenance.createWebLog args app.Services |> Async.AwaitTask |> Async.RunSynchronously
-    | Some it when it = "import-permalinks" ->
-        Maintenance.importPermalinks args app.Services |> Async.AwaitTask |> Async.RunSynchronously
+    | Some it when it = "init"         -> Maintenance.createWebLog args app.Services
+    | Some it when it = "import-links" -> Maintenance.importLinks  args app.Services
+    | Some it when it = "load-theme"   -> Maintenance.loadTheme    args app.Services
     | _ ->
         let _ = app.UseForwardedHeaders ()
         let _ = app.UseCookiePolicy (CookiePolicyOptions (MinimumSameSitePolicy = SameSiteMode.Strict))
@@ -99,7 +98,7 @@ let main args =
         let _ = app.UseSession ()
         let _ = app.UseGiraffe Handlers.Routes.endpoint
 
-        app.Run()
-
+        System.Threading.Tasks.Task.FromResult (app.Run ())
+    |> Async.AwaitTask |> Async.RunSynchronously
+    
     0 // Exit code
-

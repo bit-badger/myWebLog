@@ -421,6 +421,11 @@ let private updateAssets themeId (zip : ZipArchive) conn = backgroundTask {
                     } conn
 }
 
+/// Get the theme name from the file name given
+let getThemeName (fileName : string) =
+    let themeName = fileName.Split(".").[0].ToLowerInvariant().Replace (" ", "-")
+    if Regex.IsMatch (themeName, """^[a-z0-9\-]+$""") then Some themeName else None
+
 /// Load a theme from the given stream, which should contain a ZIP archive
 let loadThemeFromZip themeName file clean conn = backgroundTask {
     use  zip     = new ZipArchive (file, ZipArchiveMode.Read)
@@ -441,9 +446,9 @@ let loadThemeFromZip themeName file clean conn = backgroundTask {
 let updateTheme : HttpHandler = fun next ctx -> task {
     if ctx.Request.HasFormContentType && ctx.Request.Form.Files.Count > 0 then
         let themeFile = Seq.head ctx.Request.Form.Files
-        let themeName = themeFile.FileName.Split(".").[0].ToLowerInvariant().Replace (" ", "-")
-        // TODO: add restriction for admin theme based on role
-        if Regex.IsMatch (themeName, """^[a-z0-9\-]+$""") then
+        match getThemeName themeFile.FileName with
+        | Some themeName ->
+            // TODO: add restriction for admin theme based on role
             let conn   = ctx.Conn
             use stream = new MemoryStream ()
             do! themeFile.CopyToAsync stream
@@ -451,8 +456,8 @@ let updateTheme : HttpHandler = fun next ctx -> task {
             do! ThemeAssetCache.refreshTheme (ThemeId themeName) conn
             do! addMessage ctx { UserMessage.success with message = "Theme updated successfully" }
             return! redirectToGet (WebLog.relativeUrl ctx.WebLog (Permalink "admin/dashboard")) next ctx
-        else
-            do! addMessage ctx { UserMessage.error with message = $"Theme name {themeName} is invalid" }
+        | None ->
+            do! addMessage ctx { UserMessage.error with message = $"Theme file name {themeFile.FileName} is invalid" }
             return! redirectToGet (WebLog.relativeUrl ctx.WebLog (Permalink "admin/theme/update")) next ctx
     else
         return! RequestErrors.BAD_REQUEST "Bad request" next ctx

@@ -1,12 +1,10 @@
 module MyWebLog.Maintenance
 
 open System
-open Microsoft.Extensions.DependencyInjection
-open RethinkDb.Driver.Net
-
-    
 open System.IO
+open Microsoft.Extensions.DependencyInjection
 open RethinkDb.Driver.FSharp
+open RethinkDb.Driver.Net
 
 /// Create the web log information
 let private doCreateWebLog (args : string[]) (sp : IServiceProvider) = task {
@@ -76,10 +74,8 @@ let private doCreateWebLog (args : string[]) (sp : IServiceProvider) = task {
 /// Create a new web log
 let createWebLog args sp = task {
     match args |> Array.length with
-    | 5 -> return! doCreateWebLog args sp
-    | _ ->
-        printfn "Usage: MyWebLog init [url] [name] [admin-email] [admin-pw]"
-        return! System.Threading.Tasks.Task.CompletedTask
+    | 5 -> do! doCreateWebLog args sp
+    | _ -> printfn "Usage: MyWebLog init [url] [name] [admin-email] [admin-pw]"
 }
 
 /// Import prior permalinks from a text files with lines in the format "[old] [new]"
@@ -117,10 +113,27 @@ let importPriorPermalinks urlBase file (sp : IServiceProvider) = task {
 }
 
 /// Import permalinks if all is well
-let importPermalinks args sp = task {
+let importLinks args sp = task {
     match args |> Array.length with
-    | 3 -> return! importPriorPermalinks args[1] args[2] sp
-    | _ ->
-        printfn "Usage: MyWebLog import-permalinks [url] [file-name]"
-        return! System.Threading.Tasks.Task.CompletedTask
+    | 3 -> do! importPriorPermalinks args[1] args[2] sp
+    | _ -> printfn "Usage: MyWebLog import-links [url] [file-name]"
+}
+
+/// Load a theme from the given ZIP file
+let loadTheme (args : string[]) (sp : IServiceProvider) = task {
+    if args.Length > 1 then
+        match Handlers.Admin.getThemeName args[1] with
+        | Some themeName ->
+            let conn   = sp.GetRequiredService<IConnection> ()
+            let clean  = if args.Length > 2 then bool.Parse args[2] else true
+            use stream = File.Open (args[1], FileMode.Open)
+            use copy = new MemoryStream ()
+            do! stream.CopyToAsync copy
+            do! Handlers.Admin.loadThemeFromZip themeName copy clean conn
+            printfn $"Theme {themeName} loaded successfully"
+        | None ->
+            printfn $"Theme file name {args[1]} is invalid"
+    else
+        printfn "Usage: MyWebLog load-theme [theme-zip-file-name] [*clean-load]"
+        printfn "         * optional, defaults to true"
 }
