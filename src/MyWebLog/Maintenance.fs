@@ -122,7 +122,11 @@ let importLinks args sp = task {
 /// Load a theme from the given ZIP file
 let loadTheme (args : string[]) (sp : IServiceProvider) = task {
     if args.Length > 1 then
-        match Handlers.Admin.getThemeName args[1] with
+        let fileName =
+            match args[1].LastIndexOf Path.DirectorySeparatorChar with
+            | -1 -> args[1]
+            | it -> args[1][(it + 1)..]
+        match Handlers.Admin.getThemeName fileName with
         | Some themeName ->
             let conn   = sp.GetRequiredService<IConnection> ()
             let clean  = if args.Length > 2 then bool.Parse args[2] else true

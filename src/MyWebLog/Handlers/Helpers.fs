@@ -185,19 +185,20 @@ open System.Collections.Generic
 open System.IO
 
 /// Get the templates available for the current web log's theme (in a key/value pair list)
-let templatesForTheme (ctx : HttpContext) (typ : string) =
-    seq {
-        KeyValuePair.Create ("", $"- Default (single-{typ}) -")
-        yield!
-            Path.Combine ("themes", ctx.WebLog.themePath)
-            |> Directory.EnumerateFiles
-            |> Seq.filter (fun it -> it.EndsWith $"{typ}.liquid")
-            |> Seq.map (fun it ->
-                let parts    = it.Split Path.DirectorySeparatorChar
-                let template = parts[parts.Length - 1].Replace (".liquid", "")
-                KeyValuePair.Create (template, template))
-    }
-    |> Array.ofSeq
+let templatesForTheme (ctx : HttpContext) (typ : string) = backgroundTask {
+    match! Data.Theme.findByIdWithoutText (ThemeId ctx.WebLog.themePath) ctx.Conn with
+    | Some theme ->
+        return seq {
+            KeyValuePair.Create ("", $"- Default (single-{typ}) -")
+            yield!
+                theme.templates
+                |> Seq.ofList
+                |> Seq.filter (fun it -> it.name.EndsWith $"-{typ}" && it.name <> $"single-{typ}")
+                |> Seq.map (fun it -> KeyValuePair.Create (it.name, it.name))
+        }
+        |> Array.ofSeq
+    | None -> return [| KeyValuePair.Create ("", $"- Default (single-{typ}) -") |]
+}
 
 /// Get all authors for a list of posts as metadata items
 let getAuthors (webLog : WebLog) (posts : Post list) conn =

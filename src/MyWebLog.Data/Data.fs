@@ -724,6 +724,15 @@ module Theme =
             resultOption; withRetryOptionDefault
         }
     
+    /// Retrieve a theme by its ID, excluding the text of templates
+    let findByIdWithoutText (themeId : ThemeId) =
+        rethink<Theme> {
+            withTable Table.Theme
+            get themeId
+            merge (fun row -> r.HashMap ("templates", row["templates"].Without [| "text" |]))
+            resultOption; withRetryOptionDefault
+        }
+    
     /// Save a theme
     let save (theme : Theme) =
         rethink {

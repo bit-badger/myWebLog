@@ -163,7 +163,8 @@ let editPage pgId : HttpHandler = fun next ctx -> task {
     }
     match result with
     | Some (title, page) ->
-        let model = EditPageModel.fromPage page
+        let  model     = EditPageModel.fromPage page
+        let! templates = templatesForTheme ctx "page"
         return!
             Hash.FromAnonymousObject {|
                 csrf       = csrfToken ctx
@@ -171,7 +172,7 @@ let editPage pgId : HttpHandler = fun next ctx -> task {
                 metadata   = Array.zip model.metaNames model.metaValues
                              |> Array.mapi (fun idx (name, value) -> [| string idx; name; value |])
                 page_title = title
-                templates  = templatesForTheme ctx "page"
+                templates  = templates
             |}
             |> viewForTheme "admin" "page-edit" next ctx
     | None -> return! Error.notFound next ctx
