@@ -178,6 +178,9 @@ type Post =
         /// The instant on which the post was last updated
         updatedOn : DateTime
 
+        /// The template to use in displaying the post
+        template : string option
+        
         /// The text of the post in HTML (ready to display) format
         text : string
 
@@ -211,6 +214,7 @@ module Post =
           publishedOn     = None
           updatedOn       = DateTime.MinValue
           text            = ""
+          template        = None
           categoryIds     = []
           tags            = []
           metadata        = []

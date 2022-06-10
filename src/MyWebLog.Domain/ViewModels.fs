@@ -376,6 +376,9 @@ type EditPostModel =
         /// The tags for the post
         tags : string
         
+        /// The template used to display the post
+        template : string
+        
         /// The category IDs for the post
         categoryIds : string[]
         
@@ -413,6 +416,7 @@ type EditPostModel =
           source       = MarkupText.sourceType latest.text
           text         = MarkupText.text       latest.text
           tags         = String.Join (", ", post.tags)
+          template     = defaultArg post.template ""
           categoryIds  = post.categoryIds |> List.map CategoryId.toString |> Array.ofList
           status       = PostStatus.toString post.status
           doPublish    = false

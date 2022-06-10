@@ -32,7 +32,7 @@ module CatchAll =
                 debug (fun () -> $"Found post by permalink")
                 let model = Post.preparePostList webLog [ post ] Post.ListType.SinglePost "" 1 1 ctx conn |> await
                 model.Add ("page_title", post.title)
-                yield fun next ctx -> themedView "single-post" next ctx model
+                yield fun next ctx -> themedView (defaultArg post.template "single-post") next ctx model
             | None -> ()
             // Current page
             match Data.Page.findByPermalink permalink webLog.id conn |> await with

@@ -231,8 +231,9 @@ let edit postId : HttpHandler = fun next ctx -> task {
     }
     match result with
     | Some (title, post) ->
-        let! cats  = Data.Category.findAllForView webLog.id conn
-        let  model = EditPostModel.fromPost webLog post
+        let! cats      = Data.Category.findAllForView webLog.id conn
+        let! templates = templatesForTheme ctx "post"
+        let  model     = EditPostModel.fromPost webLog post
         return!
             Hash.FromAnonymousObject {|
                 csrf       = csrfToken ctx
@@ -240,6 +241,7 @@ let edit postId : HttpHandler = fun next ctx -> task {
                 metadata   = Array.zip model.metaNames model.metaValues
                              |> Array.mapi (fun idx (name, value) -> [| string idx; name; value |])
                 page_title = title
+                templates  = templates
                 categories = cats
             |}
             |> viewForTheme "admin" "post-edit" next ctx
@@ -322,6 +324,7 @@ let save : HttpHandler = fun next ctx -> task {
                               |> Seq.filter (fun it -> it <> "")
                               |> Seq.sort
                               |> List.ofSeq
+                template    = match model.template.Trim () with "" -> None | tmpl -> Some tmpl
                 categoryIds = model.categoryIds |> Array.map CategoryId |> List.ofArray
                 status      = if model.doPublish then Published else post.status
                 metadata    = Seq.zip model.metaNames model.metaValues
