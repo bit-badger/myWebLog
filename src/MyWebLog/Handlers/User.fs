@@ -42,7 +42,7 @@ open MyWebLog
 let doLogOn : HttpHandler = fun next ctx -> task {
     let! model  = ctx.BindFormAsync<LogOnModel> ()
     let  webLog = ctx.WebLog
-    match! Data.WebLogUser.findByEmail model.emailAddress webLog.id ctx.Conn with 
+    match! ctx.Data.WebLogUser.findByEmail model.emailAddress webLog.id with 
     | Some user when user.passwordHash = hashedPassword model.password user.userName user.salt ->
         let claims = seq {
             Claim (ClaimTypes.NameIdentifier, WebLogUserId.toString user.id)
@@ -79,7 +79,7 @@ let private showEdit (hash : Hash) : HttpHandler = fun next ctx -> task {
 
 // GET /admin/user/edit
 let edit : HttpHandler = fun next ctx -> task {
-    match! Data.WebLogUser.findById (userId ctx) ctx.Conn with
+    match! ctx.Data.WebLogUser.findById (userId ctx) ctx.WebLog.id with
     | Some user -> return! showEdit (Hash.FromAnonymousObject {| model = EditUserModel.fromUser user |}) next ctx
     | None -> return! Error.notFound next ctx
 }
@@ -88,8 +88,8 @@ let edit : HttpHandler = fun next ctx -> task {
 let save : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
     let! model = ctx.BindFormAsync<EditUserModel> ()
     if model.newPassword = model.newPasswordConfirm then
-        let conn = ctx.Conn
-        match! Data.WebLogUser.findById (userId ctx) conn with
+        let data = ctx.Data
+        match! data.WebLogUser.findById (userId ctx) ctx.WebLog.id with
         | Some user ->
             let pw, salt =
                 if model.newPassword = "" then
@@ -105,7 +105,7 @@ let save : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
                     passwordHash  = pw
                     salt          = salt
                 }
-            do! Data.WebLogUser.update user conn
+            do! data.WebLogUser.update user
             let pwMsg = if model.newPassword = "" then "" else " and updated your password"
             do! addMessage ctx { UserMessage.success with message = $"Saved your information{pwMsg} successfully" }
             return! redirectToGet (WebLog.relativeUrl ctx.WebLog (Permalink "admin/user/edit")) next ctx

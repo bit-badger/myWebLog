@@ -14,7 +14,7 @@ module CatchAll =
     /// Sequence where the first returned value is the proper handler for the link
     let private deriveAction (ctx : HttpContext) : HttpHandler seq =
         let webLog   = ctx.WebLog
-        let conn     = ctx.Conn
+        let data     = ctx.Data
         let debug    = debug "Routes.CatchAll" ctx
         let textLink =
             let _, extra = WebLog.hostAndPath webLog
@@ -27,15 +27,15 @@ module CatchAll =
             if textLink = "" then yield redirectTo true (WebLog.relativeUrl webLog Permalink.empty)
             let permalink = Permalink (textLink.Substring 1)
             // Current post
-            match Data.Post.findByPermalink permalink webLog.id conn |> await with
+            match data.Post.findByPermalink permalink webLog.id |> await with
             | Some post ->
                 debug (fun () -> $"Found post by permalink")
-                let model = Post.preparePostList webLog [ post ] Post.ListType.SinglePost "" 1 1 ctx conn |> await
+                let model = Post.preparePostList webLog [ post ] Post.ListType.SinglePost "" 1 1 ctx data |> await
                 model.Add ("page_title", post.title)
                 yield fun next ctx -> themedView (defaultArg post.template "single-post") next ctx model
             | None -> ()
             // Current page
-            match Data.Page.findByPermalink permalink webLog.id conn |> await with
+            match data.Page.findByPermalink permalink webLog.id |> await with
             | Some page ->
                 debug (fun () -> $"Found page by permalink")
                 yield fun next ctx ->
@@ -56,25 +56,25 @@ module CatchAll =
             // Post differing only by trailing slash
             let altLink =
                 Permalink (if textLink.EndsWith "/" then textLink[1..textLink.Length - 2] else $"{textLink[1..]}/")
-            match Data.Post.findByPermalink altLink webLog.id conn |> await with
+            match data.Post.findByPermalink altLink webLog.id |> await with
             | Some post ->
                 debug (fun () -> $"Found post by trailing-slash-agnostic permalink")
                 yield redirectTo true (WebLog.relativeUrl webLog post.permalink)
             | None -> ()
             // Page differing only by trailing slash
-            match Data.Page.findByPermalink altLink webLog.id conn |> await with
+            match data.Page.findByPermalink altLink webLog.id |> await with
             | Some page ->
                 debug (fun () -> $"Found page by trailing-slash-agnostic permalink")
                 yield redirectTo true (WebLog.relativeUrl webLog page.permalink)
             | None -> ()
             // Prior post
-            match Data.Post.findCurrentPermalink [ permalink; altLink ] webLog.id conn |> await with
+            match data.Post.findCurrentPermalink [ permalink; altLink ] webLog.id |> await with
             | Some link ->
                 debug (fun () -> $"Found post by prior permalink")
                 yield redirectTo true (WebLog.relativeUrl webLog link)
             | None -> ()
             // Prior page
-            match Data.Page.findCurrentPermalink [ permalink; altLink ] webLog.id conn |> await with
+            match data.Page.findCurrentPermalink [ permalink; altLink ] webLog.id |> await with
             | Some link ->
                 debug (fun () -> $"Found page by prior permalink")
                 yield redirectTo true (WebLog.relativeUrl webLog link)
@@ -114,7 +114,7 @@ module Asset =
     // GET /theme/{theme}/{**path}
     let serveAsset (urlParts : string seq) : HttpHandler = fun next ctx -> task {
         let path = urlParts |> Seq.skip 1 |> Seq.head
-        match! Data.ThemeAsset.findById (ThemeAssetId.ofString path) ctx.Conn with
+        match! ctx.Data.ThemeAsset.findById (ThemeAssetId.ofString path) with
         | Some asset ->
             match checkModified asset ctx with
             | Some threeOhFour -> return! threeOhFour next ctx

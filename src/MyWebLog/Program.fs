@@ -23,17 +23,43 @@ type WebLogMiddleware (next : RequestDelegate, log : ILogger<WebLogMiddleware>) 
             ctx.Response.StatusCode <- 404
     }
 
+
 open System
+open Microsoft.Extensions.DependencyInjection
+open MyWebLog.Data
+
+/// Logic to obtain a data connection and implementation based on configured values
+module DataImplementation =
+    
+    open LiteDB
+    open Microsoft.Extensions.Configuration
+    open MyWebLog.Converters
+    open RethinkDb.Driver.FSharp
+    open RethinkDb.Driver.Net
+
+    /// Get the configured data implementation
+    let get (sp : IServiceProvider) : IData option =
+        let config = sp.GetRequiredService<IConfiguration> ()
+        let isNotNull it = (isNull >> not) it
+        if isNotNull (config.GetSection "RethinkDB") then
+            Json.all () |> Seq.iter Converter.Serializer.Converters.Add 
+            let rethinkCfg = DataConfig.FromConfiguration (config.GetSection "RethinkDB")
+            let conn       = rethinkCfg.CreateConnectionAsync () |> Async.AwaitTask |> Async.RunSynchronously
+            Some (upcast RethinkDbData (conn, rethinkCfg, sp.GetRequiredService<ILogger<RethinkDbData>> ()))
+        elif isNotNull (config.GetConnectionString "LiteDB") then
+            Bson.registerAll ()
+            let db = new LiteDatabase (config.GetConnectionString "LiteDB")
+            Some (upcast LiteDbData db)
+        else
+            None
+
+
 open Giraffe
 open Giraffe.EndpointRouting
 open Microsoft.AspNetCore.Authentication.Cookies
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.HttpOverrides
-open Microsoft.Extensions.Configuration
-open Microsoft.Extensions.DependencyInjection
 open RethinkDB.DistributedCache
-open RethinkDb.Driver.FSharp
-open RethinkDb.Driver.Net
 
 [<EntryPoint>]
 let main args =
@@ -52,25 +78,32 @@ let main args =
     let _ = builder.Services.AddAuthorization ()
     let _ = builder.Services.AddAntiforgery ()
     
-    // Configure RethinkDB's connection
-    JsonConverters.all () |> Seq.iter Converter.Serializer.Converters.Add 
-    let sp         = builder.Services.BuildServiceProvider ()
-    let config     = sp.GetRequiredService<IConfiguration> ()
-    let loggerFac  = sp.GetRequiredService<ILoggerFactory> ()
-    let rethinkCfg = DataConfig.FromConfiguration (config.GetSection "RethinkDB")
-    let conn =
+    let sp = builder.Services.BuildServiceProvider ()
+    match DataImplementation.get sp with
+    | Some data ->
         task {
-            let! conn = rethinkCfg.CreateConnectionAsync ()
-            do! Data.Startup.ensureDb rethinkCfg (loggerFac.CreateLogger (nameof Data.Startup)) conn
-            do! WebLogCache.fill conn
-            do! ThemeAssetCache.fill conn
-            return conn
+            do! data.startUp ()
+            do! WebLogCache.fill data
+            do! ThemeAssetCache.fill data
         } |> Async.AwaitTask |> Async.RunSynchronously
-    let _ = builder.Services.AddSingleton<IConnection> conn
+        builder.Services.AddSingleton<IData> data |> ignore
+        
+        // Define distributed cache implementation based on data implementation
+        match data with
+        | :? RethinkDbData as rethink ->
+            builder.Services.AddDistributedRethinkDBCache (fun opts ->
+                opts.TableName  <- "Session"
+                opts.Connection <- rethink.Conn)
+            |> ignore
+        | :? LiteDbData ->
+            let log = sp.GetRequiredService<ILoggerFactory> ()
+            let logger = log.CreateLogger "MyWebLog.StartUp"
+            logger.LogWarning "Session caching is not yet implemented via LiteDB; using memory cache for sessions"
+            builder.Services.AddDistributedMemoryCache () |> ignore
+        | _ -> ()
+    | None ->
+        invalidOp "There is no data configuration present; please add a RethinkDB section or LiteDB connection string"
     
-    let _ = builder.Services.AddDistributedRethinkDBCache (fun opts ->
-        opts.TableName  <- "Session"
-        opts.Connection <- conn)
     let _ = builder.Services.AddSession(fun opts ->
         opts.IdleTimeout        <- TimeSpan.FromMinutes 60
         opts.Cookie.HttpOnly    <- true

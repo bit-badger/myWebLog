@@ -108,12 +108,12 @@ let viewForTheme theme template next ctx = fun (hash : Hash) -> task {
     //       the net effect is a "layout" capability similar to Razor or Pug
     
     // Render view content...
-    let! contentTemplate = TemplateCache.get theme template ctx.Conn
+    let! contentTemplate = TemplateCache.get theme template ctx.Data
     hash.Add ("content", contentTemplate.Render hash)
     
     // ...then render that content with its layout
     let  isHtmx         = ctx.Request.IsHtmx && not ctx.Request.IsHtmxRefresh
-    let! layoutTemplate = TemplateCache.get theme (if isHtmx then "layout-partial" else "layout") ctx.Conn
+    let! layoutTemplate = TemplateCache.get theme (if isHtmx then "layout-partial" else "layout") ctx.Data
     
     return! htmlString (layoutTemplate.Render hash) next ctx
 }
@@ -123,10 +123,10 @@ let bareForTheme theme template next ctx = fun (hash : Hash) -> task {
     do! populateHash hash ctx
     
     // Bare templates are rendered with layout-bare
-    let! contentTemplate = TemplateCache.get theme template ctx.Conn
+    let! contentTemplate = TemplateCache.get theme template ctx.Data
     hash.Add ("content", contentTemplate.Render hash)
     
-    let! layoutTemplate = TemplateCache.get theme "layout-bare" ctx.Conn
+    let! layoutTemplate = TemplateCache.get theme "layout-bare" ctx.Data
     
     // add messages as HTTP headers
     let messages = hash["messages"] :?> UserMessage[]
@@ -182,11 +182,11 @@ let validateCsrf : HttpHandler = fun next ctx -> task {
 let requireUser : HttpHandler = requiresAuthentication Error.notAuthorized
 
 open System.Collections.Generic
-open System.IO
+open MyWebLog.Data
 
 /// Get the templates available for the current web log's theme (in a key/value pair list)
 let templatesForTheme (ctx : HttpContext) (typ : string) = backgroundTask {
-    match! Data.Theme.findByIdWithoutText (ThemeId ctx.WebLog.themePath) ctx.Conn with
+    match! ctx.Data.Theme.findByIdWithoutText (ThemeId ctx.WebLog.themePath) with
     | Some theme ->
         return seq {
             KeyValuePair.Create ("", $"- Default (single-{typ}) -")
@@ -201,19 +201,19 @@ let templatesForTheme (ctx : HttpContext) (typ : string) = backgroundTask {
 }
 
 /// Get all authors for a list of posts as metadata items
-let getAuthors (webLog : WebLog) (posts : Post list) conn =
+let getAuthors (webLog : WebLog) (posts : Post list) (data : IData) =
     posts
     |> List.map (fun p -> p.authorId)
     |> List.distinct
-    |> Data.WebLogUser.findNames webLog.id conn
+    |> data.WebLogUser.findNames webLog.id
 
 /// Get all tag mappings for a list of posts as metadata items
-let getTagMappings (webLog : WebLog) (posts : Post list) =
+let getTagMappings (webLog : WebLog) (posts : Post list) (data : IData) =
     posts
     |> List.map (fun p -> p.tags)
     |> List.concat
     |> List.distinct
-    |> fun tags -> Data.TagMap.findMappingForTags tags webLog.id
+    |> fun tags -> data.TagMap.findMappingForTags tags webLog.id
 
 /// Get all category IDs for the given slug (includes owned subcategories)   
 let getCategoryIds slug ctx =

@@ -36,12 +36,13 @@ type ListType =
 
 open System.Threading.Tasks
 open DotLiquid
+open MyWebLog.Data
 open MyWebLog.ViewModels
 
 /// Convert a list of posts into items ready to be displayed
-let preparePostList webLog posts listType (url : string) pageNbr perPage ctx conn = task {
-    let! authors     = getAuthors     webLog posts conn
-    let! tagMappings = getTagMappings webLog posts conn
+let preparePostList webLog posts listType (url : string) pageNbr perPage ctx (data : IData) = task {
+    let! authors     = getAuthors     webLog posts data
+    let! tagMappings = getTagMappings webLog posts data
     let  relUrl it   = Some <| WebLog.relativeUrl webLog (Permalink it)
     let  postItems   =
         posts
@@ -54,7 +55,7 @@ let preparePostList webLog posts listType (url : string) pageNbr perPage ctx con
         | SinglePost ->
             let post     = List.head posts
             let dateTime = defaultArg post.publishedOn post.updatedOn
-            Data.Post.findSurroundingPosts webLog.id dateTime conn
+            data.Post.findSurroundingPosts webLog.id dateTime
         | _ -> Task.FromResult (None, None)
     let newerLink =
         match listType, pageNbr with
@@ -98,9 +99,9 @@ open Giraffe
 // GET /page/{pageNbr}
 let pageOfPosts pageNbr : HttpHandler = fun next ctx -> task {
     let  webLog = ctx.WebLog
-    let  conn   = ctx.Conn
-    let! posts  = Data.Post.findPageOfPublishedPosts webLog.id pageNbr webLog.postsPerPage conn
-    let! hash   = preparePostList webLog posts PostList "" pageNbr webLog.postsPerPage ctx conn
+    let  data   = ctx.Data
+    let! posts  = data.Post.findPageOfPublishedPosts webLog.id pageNbr webLog.postsPerPage
+    let! hash   = preparePostList webLog posts PostList "" pageNbr webLog.postsPerPage ctx data
     let  title  =
         match pageNbr, webLog.defaultPage with
         | 1, "posts" -> None
@@ -119,7 +120,7 @@ let redirectToPageOfPosts (pageNbr : int) : HttpHandler = fun next ctx ->
 // GET /category/{slug}/page/{pageNbr}
 let pageOfCategorizedPosts slugAndPage : HttpHandler = fun next ctx -> task {
     let webLog = ctx.WebLog
-    let conn   = ctx.Conn
+    let data   = ctx.Data
     match parseSlugAndPage webLog slugAndPage with
     | Some pageNbr, slug, isFeed ->
         match CategoryCache.get ctx |> Array.tryFind (fun cat -> cat.slug = slug) with
@@ -128,10 +129,10 @@ let pageOfCategorizedPosts slugAndPage : HttpHandler = fun next ctx -> task {
                         (defaultArg webLog.rss.itemsInFeed webLog.postsPerPage) next ctx
         | Some cat ->
             // Category pages include posts in subcategories
-            match! Data.Post.findPageOfCategorizedPosts webLog.id (getCategoryIds slug ctx) pageNbr webLog.postsPerPage
-                       conn with
+            match! data.Post.findPageOfCategorizedPosts webLog.id (getCategoryIds slug ctx) pageNbr webLog.postsPerPage
+                with
             | posts when List.length posts > 0 ->
-                let! hash = preparePostList webLog posts CategoryList cat.slug pageNbr webLog.postsPerPage ctx conn
+                let! hash = preparePostList webLog posts CategoryList cat.slug pageNbr webLog.postsPerPage ctx data
                 let pgTitle = if pageNbr = 1 then "" else $""" <small class="archive-pg-nbr">(Page {pageNbr})</small>"""
                 hash.Add ("page_title", $"{cat.name}: Category Archive{pgTitle}")
                 hash.Add ("subtitle", defaultArg cat.description "")
@@ -150,12 +151,12 @@ open System.Web
 // GET /tag/{tag}/page/{pageNbr}
 let pageOfTaggedPosts slugAndPage : HttpHandler = fun next ctx -> task {
     let webLog = ctx.WebLog
-    let conn   = ctx.Conn
+    let data   = ctx.Data
     match parseSlugAndPage webLog slugAndPage with
     | Some pageNbr, rawTag, isFeed -> 
         let  urlTag = HttpUtility.UrlDecode rawTag
         let! tag    = backgroundTask {
-            match! Data.TagMap.findByUrlValue urlTag webLog.id conn with
+            match! data.TagMap.findByUrlValue urlTag webLog.id with
             | Some m -> return m.tag
             | None   -> return urlTag
         }
@@ -163,9 +164,9 @@ let pageOfTaggedPosts slugAndPage : HttpHandler = fun next ctx -> task {
             return! Feed.generate (Feed.TagFeed (tag, $"tag/{rawTag}/{webLog.rss.feedName}"))
                         (defaultArg webLog.rss.itemsInFeed webLog.postsPerPage) next ctx
         else
-            match! Data.Post.findPageOfTaggedPosts webLog.id tag pageNbr webLog.postsPerPage conn with
+            match! data.Post.findPageOfTaggedPosts webLog.id tag pageNbr webLog.postsPerPage with
             | posts when List.length posts > 0 ->
-                let! hash    = preparePostList webLog posts TagList rawTag pageNbr webLog.postsPerPage ctx conn
+                let! hash    = preparePostList webLog posts TagList rawTag pageNbr webLog.postsPerPage ctx data
                 let  pgTitle = if pageNbr = 1 then "" else $""" <small class="archive-pg-nbr">(Page {pageNbr})</small>"""
                 hash.Add ("page_title", $"Posts Tagged &ldquo;{tag}&rdquo;{pgTitle}")
                 hash.Add ("is_tag", true)
@@ -175,7 +176,7 @@ let pageOfTaggedPosts slugAndPage : HttpHandler = fun next ctx -> task {
             // Other systems use hyphens for spaces; redirect if this is an old tag link
             | _ ->
                 let spacedTag = tag.Replace ("-", " ")
-                match! Data.Post.findPageOfTaggedPosts webLog.id spacedTag pageNbr 1 conn with
+                match! data.Post.findPageOfTaggedPosts webLog.id spacedTag pageNbr 1 with
                 | posts when List.length posts > 0 ->
                     let endUrl = if pageNbr = 1 then "" else $"page/{pageNbr}"
                     return!
@@ -192,7 +193,7 @@ let home : HttpHandler = fun next ctx -> task {
     match webLog.defaultPage with
     | "posts" -> return! pageOfPosts 1 next ctx
     | pageId ->
-        match! Data.Page.findById (PageId pageId) webLog.id ctx.Conn with
+        match! ctx.Data.Page.findById (PageId pageId) webLog.id with
         | Some page ->
             return!
                 Hash.FromAnonymousObject {|
@@ -209,9 +210,9 @@ let home : HttpHandler = fun next ctx -> task {
 // GET /admin/posts/page/{pageNbr}
 let all pageNbr : HttpHandler = fun next ctx -> task {
     let  webLog = ctx.WebLog
-    let  conn   = ctx.Conn
-    let! posts  = Data.Post.findPageOfPosts webLog.id pageNbr 25 conn
-    let! hash   = preparePostList webLog posts AdminList "" pageNbr 25 ctx conn
+    let  data   = ctx.Data
+    let! posts  = data.Post.findPageOfPosts webLog.id pageNbr 25
+    let! hash   = preparePostList webLog posts AdminList "" pageNbr 25 ctx data
     hash.Add ("page_title", "Posts")
     hash.Add ("csrf", csrfToken ctx)
     return! viewForTheme "admin" "post-list" next ctx hash
@@ -220,18 +221,18 @@ let all pageNbr : HttpHandler = fun next ctx -> task {
 // GET /admin/post/{id}/edit
 let edit postId : HttpHandler = fun next ctx -> task {
     let  webLog = ctx.WebLog
-    let  conn   = ctx.Conn
+    let  data   = ctx.Data
     let! result = task {
         match postId with
         | "new" -> return Some ("Write a New Post", { Post.empty with id = PostId "new" })
         | _ ->
-            match! Data.Post.findByFullId (PostId postId) webLog.id conn with
+            match! data.Post.findFullById (PostId postId) webLog.id with
             | Some post -> return Some ("Edit Post", post)
             | None -> return None
     }
     match result with
     | Some (title, post) ->
-        let! cats      = Data.Category.findAllForView webLog.id conn
+        let! cats      = data.Category.findAllForView webLog.id
         let! templates = templatesForTheme ctx "post"
         let  model     = EditPostModel.fromPost webLog post
         return!
@@ -250,7 +251,7 @@ let edit postId : HttpHandler = fun next ctx -> task {
 
 // GET /admin/post/{id}/permalinks
 let editPermalinks postId : HttpHandler = fun next ctx -> task {
-    match! Data.Post.findByFullId (PostId postId) ctx.WebLog.id ctx.Conn with
+    match! ctx.Data.Post.findFullById (PostId postId) ctx.WebLog.id with
     | Some post ->
         return!
             Hash.FromAnonymousObject {|
@@ -267,7 +268,7 @@ let savePermalinks : HttpHandler = fun next ctx -> task {
     let  webLog = ctx.WebLog
     let! model  = ctx.BindFormAsync<ManagePermalinksModel> ()
     let  links  = model.prior |> Array.map Permalink |> List.ofArray
-    match! Data.Post.updatePriorPermalinks (PostId model.id) webLog.id links ctx.Conn with
+    match! ctx.Data.Post.updatePriorPermalinks (PostId model.id) webLog.id links with
     | true ->
         do! addMessage ctx { UserMessage.success with message = "Post permalinks saved successfully" }
         return! redirectToGet (WebLog.relativeUrl webLog (Permalink $"admin/post/{model.id}/permalinks")) next ctx
@@ -277,7 +278,7 @@ let savePermalinks : HttpHandler = fun next ctx -> task {
 // POST /admin/post/{id}/delete
 let delete postId : HttpHandler = fun next ctx -> task {
     let webLog = ctx.WebLog
-    match! Data.Post.delete (PostId postId) webLog.id ctx.Conn with
+    match! ctx.Data.Post.delete (PostId postId) webLog.id with
     | true  -> do! addMessage ctx { UserMessage.success with message = "Post deleted successfully" }
     | false -> do! addMessage ctx { UserMessage.error with message = "Post not found; nothing deleted" }
     return! redirectToGet (WebLog.relativeUrl webLog (Permalink "admin/posts")) next ctx
@@ -289,7 +290,7 @@ let delete postId : HttpHandler = fun next ctx -> task {
 let save : HttpHandler = fun next ctx -> task {
     let! model  = ctx.BindFormAsync<EditPostModel> ()
     let  webLog = ctx.WebLog
-    let  conn   = ctx.Conn
+    let  data   = ctx.Data
     let  now    = DateTime.UtcNow
     let! pst    = task {
         match model.postId with
@@ -300,7 +301,7 @@ let save : HttpHandler = fun next ctx -> task {
                     webLogId  = webLog.id
                     authorId  = userId ctx
                 }
-        | postId -> return! Data.Post.findByFullId (PostId postId) webLog.id conn
+        | postId -> return! data.Post.findFullById (PostId postId) webLog.id
     }
     match pst with
     | Some post ->
@@ -349,7 +350,7 @@ let save : HttpHandler = fun next ctx -> task {
                     }
                 | false -> { post with publishedOn = Some dt }
             | false -> post
-        do! (if model.postId = "new" then Data.Post.add else Data.Post.update) post conn
+        do! (if model.postId = "new" then data.Post.add else data.Post.update) post
         // If the post was published or its categories changed, refresh the category cache
         if model.doPublish
            || not (pst.Value.categoryIds

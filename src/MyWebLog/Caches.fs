@@ -1,20 +1,20 @@
 ﻿namespace MyWebLog
 
 open Microsoft.AspNetCore.Http
+open MyWebLog.Data
 
 /// Extension properties on HTTP context for web log
 [<AutoOpen>]
 module Extensions =
     
     open Microsoft.Extensions.DependencyInjection
-    open RethinkDb.Driver.Net
     
     type HttpContext with
         /// The web log for the current request
         member this.WebLog = this.Items["webLog"] :?> WebLog
         
-        /// The RethinkDB data connection
-        member this.Conn = this.RequestServices.GetRequiredService<IConnection> ()
+        /// The data implementation
+        member this.Data = this.RequestServices.GetRequiredService<IData> ()
 
         
 open System.Collections.Concurrent
@@ -41,8 +41,8 @@ module WebLogCache =
         _cache <- webLog :: (_cache |> List.filter (fun wl -> wl.id <> webLog.id))
     
     /// Fill the web log cache from the database
-    let fill conn = backgroundTask {
-        let! webLogs = Data.WebLog.all conn
+    let fill (data : IData) = backgroundTask {
+        let! webLogs = data.WebLog.all ()
         _cache <- webLogs
     }
 
@@ -64,7 +64,7 @@ module PageListCache =
     /// Update the pages for the current web log
     let update (ctx : HttpContext) = backgroundTask {
         let  webLog = ctx.WebLog
-        let! pages  = Data.Page.findListed webLog.id ctx.Conn
+        let! pages  = ctx.Data.Page.findListed webLog.id
         _cache[webLog.urlBase] <-
             pages
             |> List.map (fun pg -> DisplayPage.fromPage webLog { pg with text = "" })
@@ -88,7 +88,7 @@ module CategoryCache =
     
     /// Update the cache with fresh data
     let update (ctx : HttpContext) = backgroundTask {
-        let! cats = Data.Category.findAllForView ctx.WebLog.id ctx.Conn
+        let! cats = ctx.Data.Category.findAllForView ctx.WebLog.id
         _cache[ctx.WebLog.urlBase] <- cats
     }
 
@@ -107,12 +107,12 @@ module TemplateCache =
     let private hasInclude = Regex ("""{% include_template \"(.*)\" %}""", RegexOptions.None, TimeSpan.FromSeconds 2)
     
     /// Get a template for the given theme and template name
-    let get (themeId : string) (templateName : string) conn = backgroundTask {
+    let get (themeId : string) (templateName : string) (data : IData) = backgroundTask {
         let templatePath = $"{themeId}/{templateName}"
         match _cache.ContainsKey templatePath with
         | true -> ()
         | false ->
-            match! Data.Theme.findById (ThemeId themeId) conn with
+            match! data.Theme.findById (ThemeId themeId) with
             | Some theme ->
                 let mutable text = (theme.templates |> List.find (fun t -> t.name = templateName)).text
                 while hasInclude.IsMatch text do
@@ -142,14 +142,14 @@ module ThemeAssetCache =
     let get themeId = _cache[themeId]
     
     /// Refresh the list of assets for the given theme
-    let refreshTheme themeId conn = backgroundTask {
-        let! assets = Data.ThemeAsset.findByThemeId themeId conn
+    let refreshTheme themeId (data : IData) = backgroundTask {
+        let! assets = data.ThemeAsset.findByTheme themeId
         _cache[themeId] <- assets |> List.map (fun a -> match a.id with ThemeAssetId (_, path) -> path)
     }
     
     /// Fill the theme asset cache
-    let fill conn = backgroundTask {
-        let! assets = Data.ThemeAsset.all conn
+    let fill (data : IData) = backgroundTask {
+        let! assets = data.ThemeAsset.all ()
         for asset in assets do
             let (ThemeAssetId (themeId, path)) = asset.id
             if not (_cache.ContainsKey themeId) then _cache[themeId] <- []

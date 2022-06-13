@@ -46,18 +46,19 @@ let deriveFeedType (ctx : HttpContext) feedPath : (FeedType * int) option =
             None
 
 /// Determine the function to retrieve posts for the given feed
-let private getFeedPosts (webLog : WebLog) feedType ctx =
+let private getFeedPosts ctx feedType =
     let childIds catId =
         let cat = CategoryCache.get ctx |> Array.find (fun c -> c.id = CategoryId.toString catId)
         getCategoryIds cat.slug ctx
+    let data = ctx.Data
     match feedType with
-    | StandardFeed _          -> Data.Post.findPageOfPublishedPosts webLog.id 1
-    | CategoryFeed (catId, _) -> Data.Post.findPageOfCategorizedPosts webLog.id (childIds catId) 1
-    | TagFeed      (tag,   _) -> Data.Post.findPageOfTaggedPosts webLog.id tag 1
+    | StandardFeed _          -> data.Post.findPageOfPublishedPosts ctx.WebLog.id 1
+    | CategoryFeed (catId, _) -> data.Post.findPageOfCategorizedPosts ctx.WebLog.id (childIds catId) 1
+    | TagFeed      (tag,   _) -> data.Post.findPageOfTaggedPosts ctx.WebLog.id tag 1
     | Custom       (feed,  _) ->
         match feed.source with
-        | Category catId -> Data.Post.findPageOfCategorizedPosts webLog.id (childIds catId) 1
-        | Tag      tag   -> Data.Post.findPageOfTaggedPosts webLog.id tag 1
+        | Category catId -> data.Post.findPageOfCategorizedPosts ctx.WebLog.id (childIds catId) 1
+        | Tag      tag   -> data.Post.findPageOfTaggedPosts ctx.WebLog.id tag 1
 
 /// Strip HTML from a string
 let private stripHtml text = WebUtility.HtmlDecode <| Regex.Replace (text, "<(.|\n)*?>", "")
@@ -304,9 +305,9 @@ let private setTitleAndDescription feedType (webLog : WebLog) (cats : DisplayCat
 /// Create a feed with a known non-zero-length list of posts    
 let createFeed (feedType : FeedType) posts : HttpHandler = fun next ctx -> backgroundTask {
     let  webLog     = ctx.WebLog
-    let  conn       = ctx.Conn
-    let! authors    = getAuthors     webLog posts conn
-    let! tagMaps    = getTagMappings webLog posts conn
+    let  data       = ctx.Data
+    let! authors    = getAuthors     webLog posts data
+    let! tagMaps    = getTagMappings webLog posts data
     let  cats       = CategoryCache.get ctx
     let  podcast    = match feedType with Custom (feed, _) when Option.isSome feed.podcast -> Some feed | _ -> None
     let  self, link = selfAndLink webLog feedType ctx
@@ -351,7 +352,7 @@ let createFeed (feedType : FeedType) posts : HttpHandler = fun next ctx -> backg
 
 // GET {any-prescribed-feed}
 let generate (feedType : FeedType) postCount : HttpHandler = fun next ctx -> backgroundTask {
-    match! getFeedPosts ctx.WebLog feedType ctx postCount ctx.Conn with
+    match! getFeedPosts ctx feedType postCount with
     | posts when List.length posts > 0 -> return! createFeed feedType posts next ctx
     | _ -> return! Error.notFound next ctx
 }
@@ -378,12 +379,12 @@ let editSettings : HttpHandler = fun next ctx -> task {
 
 // POST: /admin/rss/settings
 let saveSettings : HttpHandler = fun next ctx -> task {
-    let  conn  = ctx.Conn
+    let  data  = ctx.Data
     let! model = ctx.BindFormAsync<EditRssModel> ()
-    match! Data.WebLog.findById ctx.WebLog.id conn with
+    match! data.WebLog.findById ctx.WebLog.id with
     | Some webLog ->
         let webLog = { webLog with rss = model.updateOptions webLog.rss }
-        do! Data.WebLog.updateRssOptions webLog conn
+        do! data.WebLog.updateRssOptions webLog
         WebLogCache.set webLog
         do! addMessage ctx { UserMessage.success with message = "RSS settings updated successfully" }
         return! redirectToGet (WebLog.relativeUrl webLog (Permalink "admin/settings/rss")) next ctx
@@ -410,8 +411,8 @@ let editCustomFeed feedId : HttpHandler = fun next ctx -> task {
 
 // POST: /admin/rss/save
 let saveCustomFeed : HttpHandler = fun next ctx -> task {
-    let conn = ctx.Conn
-    match! Data.WebLog.findById ctx.WebLog.id conn with
+    let data = ctx.Data
+    match! data.WebLog.findById ctx.WebLog.id with
     | Some webLog ->
         let! model = ctx.BindFormAsync<EditCustomFeedModel> ()
         let theFeed =
@@ -422,7 +423,7 @@ let saveCustomFeed : HttpHandler = fun next ctx -> task {
         | Some feed ->
             let feeds = model.updateFeed feed :: (webLog.rss.customFeeds |> List.filter (fun it -> it.id <> feed.id))
             let webLog = { webLog with rss = { webLog.rss with customFeeds = feeds } }
-            do! Data.WebLog.updateRssOptions webLog conn
+            do! data.WebLog.updateRssOptions webLog
             WebLogCache.set webLog
             do! addMessage ctx {
                 UserMessage.success with
@@ -436,8 +437,8 @@ let saveCustomFeed : HttpHandler = fun next ctx -> task {
 
 // POST /admin/rss/{id}/delete
 let deleteCustomFeed feedId : HttpHandler = fun next ctx -> task {
-    let conn = ctx.Conn
-    match! Data.WebLog.findById ctx.WebLog.id conn with
+    let data = ctx.Data
+    match! data.WebLog.findById ctx.WebLog.id with
     | Some webLog ->
         let customId = CustomFeedId feedId
         if webLog.rss.customFeeds |> List.exists (fun f -> f.id = customId) then
@@ -448,7 +449,7 @@ let deleteCustomFeed feedId : HttpHandler = fun next ctx -> task {
                     customFeeds = webLog.rss.customFeeds |> List.filter (fun f -> f.id <> customId)
                 }
             }
-            do! Data.WebLog.updateRssOptions webLog conn
+            do! data.WebLog.updateRssOptions webLog
             WebLogCache.set webLog
             do! addMessage ctx { UserMessage.success with message = "Custom feed deleted successfully" }
         else
