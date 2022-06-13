@@ -264,7 +264,7 @@ open Microsoft.AspNetCore.Http
 
 /// Get the hash necessary to render the tag mapping list
 let private tagMappingHash (ctx : HttpContext) = task {
-    let! mappings = ctx.Data.TagMap.all ctx.WebLog.id
+    let! mappings = ctx.Data.TagMap.findByWebLog ctx.WebLog.id
     return Hash.FromAnonymousObject {|
         web_log     = ctx.WebLog
         csrf        = csrfToken ctx

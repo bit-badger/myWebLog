@@ -3,7 +3,6 @@ namespace MyWebLog.Data
 open LiteDB
 open MyWebLog
 open System.Threading.Tasks
-open MyWebLog.Converters
 open MyWebLog.Data
 
 /// Functions to assist with retrieving data
@@ -156,6 +155,10 @@ type LiteDbData (db : LiteDatabase) =
                     Collection.Category.FindById (CategoryIdMapping.toBson catId)
                     |> verifyWebLog webLogId (fun c -> c.webLogId)
                 
+                member _.findByWebLog webLogId =
+                    Collection.Category.Find (fun c -> c.webLogId = webLogId)
+                    |> toList
+                
                 member this.delete catId webLogId = backgroundTask {
                     match! this.findById catId webLogId with
                     | Some _ ->
@@ -234,6 +237,10 @@ type LiteDbData (db : LiteDatabase) =
                     return result |> Option.map (fun pg -> pg.permalink)
                 }
                 
+                member _.findFullByWebLog webLogId =
+                    Collection.Page.Find (fun p -> p.webLogId = webLogId)
+                    |> toList
+                
                 member _.findListed webLogId =
                     Collection.Page.Find (fun p -> p.webLogId = webLogId && p.showInPageList)
                     |> Seq.map pageWithoutText
@@ -300,6 +307,10 @@ type LiteDbData (db : LiteDatabase) =
                     return result |> Option.map (fun post -> post.permalink)
                 }
 
+                member _.findFullByWebLog webLogId =
+                    Collection.Post.Find (fun p -> p.webLogId = webLogId)
+                    |> toList
+
                 member _.findPageOfCategorizedPosts webLogId categoryIds pageNbr postsPerPage =
                     Collection.Post.Find (fun p ->
                         p.webLogId = webLogId
@@ -361,11 +372,6 @@ type LiteDbData (db : LiteDatabase) =
         member _.TagMap = {
             new ITagMapData with
                 
-                member _.all webLogId =
-                    Collection.TagMap.Find (fun tm -> tm.webLogId = webLogId)
-                    |> Seq.sortBy (fun tm -> tm.tag)
-                    |> toList
-                
                 member _.findById tagMapId webLogId =
                     Collection.TagMap.FindById (TagMapIdMapping.toBson tagMapId)
                     |> verifyWebLog webLogId (fun tm -> tm.webLogId)
@@ -382,6 +388,11 @@ type LiteDbData (db : LiteDatabase) =
                 member _.findByUrlValue urlValue webLogId =
                     Collection.TagMap.Find (fun tm -> tm.webLogId = webLogId && tm.urlValue = urlValue)
                     |> tryFirst
+                
+                member _.findByWebLog webLogId =
+                    Collection.TagMap.Find (fun tm -> tm.webLogId = webLogId)
+                    |> Seq.sortBy (fun tm -> tm.tag)
+                    |> toList
                 
                 member _.findMappingForTags tags webLogId =
                     Collection.TagMap.Find (fun tm -> tm.webLogId = webLogId && tags |> List.contains tm.tag)
@@ -445,6 +456,11 @@ type LiteDbData (db : LiteDatabase) =
                     |> Seq.map (fun ta -> { ta with data = [||] })
                     |> toList
                 
+                member _.findByThemeWithData themeId =
+                    Collection.ThemeAsset.Find (fun ta ->
+                        (ThemeAssetId.toString ta.id).StartsWith (ThemeId.toString themeId))
+                    |> toList
+                
                 member _.save asset = backgroundTask {
                     let _ = Collection.ThemeAsset.Upsert asset
                     do! checkpoint ()
@@ -498,6 +514,10 @@ type LiteDbData (db : LiteDatabase) =
                 member _.findById userId webLogId =
                     Collection.WebLogUser.FindById (WebLogUserIdMapping.toBson userId)
                     |> verifyWebLog webLogId (fun u -> u.webLogId)
+                
+                member _.findByWebLog webLogId =
+                    Collection.WebLogUser.Find (fun wlu -> wlu.webLogId = webLogId)
+                    |> toList
                 
                 member _.findNames webLogId userIds =
                     Collection.WebLogUser.Find (fun wlu -> userIds |> List.contains wlu.id)

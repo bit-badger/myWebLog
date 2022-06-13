@@ -135,6 +135,9 @@ let loadTheme (args : string[]) (sp : IServiceProvider) = task {
 /// Back up a web log's data
 module Backup =
     
+    open MyWebLog.Converters
+    open Newtonsoft.Json
+
     /// A theme asset, with the data base-64 encoded
     type EncodedAsset =
         {   /// The ID of the theme asset
@@ -154,6 +157,14 @@ module Backup =
               data      = Convert.ToBase64String asset.data
             }
     
+        /// Create a theme asset from an encoded theme asset
+        static member fromAsset (asset : EncodedAsset) : ThemeAsset =
+            { id        = asset.id
+              updatedOn = asset.updatedOn
+              data      = Convert.FromBase64String asset.data
+            }
+    
+        
     /// A unified archive for a web log
     type Archive =
         {   /// The web log to which this archive belongs
@@ -181,7 +192,63 @@ module Backup =
             posts : Post list
         }
     
-    let inline await f = (Async.AwaitTask >> Async.RunSynchronously) f
-    
     // TODO: finish implementation; paused for LiteDB data capability development, will work with both
+    
+    /// Create a JSON serializer (uses RethinkDB data implementation's JSON converters)
+    let private getSerializer () =
+        let serializer = JsonSerializer.CreateDefault ()
+        Json.all () |> Seq.iter serializer.Converters.Add
+        serializer
+    
+    /// Create a backup archive
+    let createBackup webLog (fileName : string) (data : IData) = task {
+        // Create the data structure
+        let  themeId    = ThemeId webLog.themePath
+        let! theme      = data.Theme.findById themeId
+        let! assets     = data.ThemeAsset.findByThemeWithData themeId
+        let! users      = data.WebLogUser.findByWebLog webLog.id
+        let! categories = data.Category.findByWebLog webLog.id
+        let! tagMaps    = data.TagMap.findByWebLog webLog.id
+        let! pages      = data.Page.findFullByWebLog webLog.id
+        let! posts      = data.Post.findFullByWebLog webLog.id
+        let archive = {
+            webLog      = webLog
+            users       = users
+            theme       = Option.get theme
+            assets      = assets |> List.map EncodedAsset.fromAsset
+            categories  = categories
+            tagMappings = tagMaps
+            pages       = pages |> List.map (fun p -> { p with revisions = List.truncate 1 p.revisions })
+            posts       = posts |> List.map (fun p -> { p with revisions = List.truncate 1 p.revisions })
+        }
+        
+        // Write the structure to the backup file
+        if File.Exists fileName then File.Delete fileName
+        let serializer = getSerializer ()
+        use writer = new StreamWriter (fileName)
+        serializer.Serialize (writer, archive)
+        writer.Close ()
+        
+        printfn "Backup Stats:"
+        printfn $" - Users: {archive.users |> List.length}"
+        printfn $" - Categories: {archive.categories |> List.length}"
+        printfn $" - Tag Maps: {archive.tagMappings |> List.length}"
+        printfn $" - Pages: {archive.pages |> List.length}"
+        printfn $" - Posts: {archive.posts |> List.length}"
+        printfn ""
+    }
+    
+    /// Generate a backup archive
+    let generateBackup (args : string[]) (sp : IServiceProvider) = task {
+        if args.Length = 3 then
+            let data = sp.GetRequiredService<IData> ()
+            match! data.WebLog.findByHost args[1] with
+            | Some webLog ->
+                let fileName = if args[2].EndsWith ".json" then args[2] else $"{args[1]}.json"
+                do! createBackup webLog fileName data
+                printfn $"Backup created for {args[1]}"
+            | None -> printfn $"Error: no web log found for {args[1]}"
+        else
+            printfn "Usage: MyWebLog backup [url-base] [backup-file-name]"
+    }
     

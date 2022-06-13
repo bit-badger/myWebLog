@@ -26,6 +26,9 @@ type ICategoryData =
     /// Find a category by its ID
     abstract member findById : CategoryId -> WebLogId -> Task<Category option>
     
+    /// Find all categories for the given web log
+    abstract member findByWebLog : WebLogId -> Task<Category list>
+    
     /// Update a category (slug, name, description, and parent ID)
     abstract member update : Category -> Task<unit>
 
@@ -59,6 +62,9 @@ type IPageData =
     
     /// Find a page by its ID (including revisions and prior permalinks)
     abstract member findFullById : PageId -> WebLogId -> Task<Page option>
+    
+    /// Find all pages for the given web log (including revisions and prior permalinks)
+    abstract member findFullByWebLog : WebLogId -> Task<Page list>
     
     /// Find pages marked as "show in page list" for the given web log (excluding text, revisions, and prior permalinks)
     abstract member findListed : WebLogId -> Task<Page list>
@@ -94,6 +100,9 @@ type IPostData =
     /// Find a post by its ID (including revisions and prior permalinks)
     abstract member findFullById : PostId -> WebLogId -> Task<Post option>
     
+    /// Find all posts for the given web log (including revisions and prior permalinks)
+    abstract member findFullByWebLog : WebLogId -> Task<Post list>
+    
     /// Find posts to be displayed on a category list page (excluding revisions and prior permalinks)
     abstract member findPageOfCategorizedPosts :
         WebLogId -> CategoryId list -> pageNbr : int -> postsPerPage : int -> Task<Post list>
@@ -121,9 +130,6 @@ type IPostData =
 /// Functions to manipulate tag mappings
 type ITagMapData =
     
-    /// Retrieve all tag mappings for the given web log
-    abstract member all : WebLogId -> Task<TagMap list>
-    
     /// Delete a tag mapping
     abstract member delete : TagMapId -> WebLogId -> Task<bool>
     
@@ -132,6 +138,9 @@ type ITagMapData =
     
     /// Find a tag mapping by its URL value
     abstract member findByUrlValue : string -> WebLogId -> Task<TagMap option>
+    
+    /// Retrieve all tag mappings for the given web log
+    abstract member findByWebLog : WebLogId -> Task<TagMap list>
     
     /// Find tag mappings for the given tags
     abstract member findMappingForTags : tags : string list -> WebLogId -> Task<TagMap list>
@@ -171,6 +180,9 @@ type IThemeAssetData =
     /// Find all assets for the given theme (excludes data)
     abstract member findByTheme : ThemeId -> Task<ThemeAsset list>
     
+    /// Find all assets for the given theme (includes data)
+    abstract member findByThemeWithData : ThemeId -> Task<ThemeAsset list>
+    
     /// Save a theme asset (insert or update)
     abstract member save : ThemeAsset -> Task<unit>
 
@@ -208,6 +220,9 @@ type IWebLogUserData =
     
     /// Find a web log user by their ID
     abstract member findById : WebLogUserId -> WebLogId -> Task<WebLogUser option>
+    
+    /// Find all web log users for the given web log
+    abstract member findByWebLog : WebLogId -> Task<WebLogUser list>
     
     /// Get a user ID -> name dictionary for the given user IDs
     abstract member findNames : WebLogId -> WebLogUserId list -> Task<MetaItem list>

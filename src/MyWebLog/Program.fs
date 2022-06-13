@@ -62,7 +62,7 @@ open Microsoft.AspNetCore.HttpOverrides
 open RethinkDB.DistributedCache
 
 [<EntryPoint>]
-let main args =
+let rec main args =
 
     let builder = WebApplication.CreateBuilder(args)
     let _ = builder.Services.Configure<ForwardedHeadersOptions>(fun (opts : ForwardedHeadersOptions) ->
@@ -118,9 +118,10 @@ let main args =
     let app = builder.Build ()
     
     match args |> Array.tryHead with
-    | Some it when it = "init"         -> Maintenance.createWebLog args app.Services
-    | Some it when it = "import-links" -> Maintenance.importLinks  args app.Services
-    | Some it when it = "load-theme"   -> Maintenance.loadTheme    args app.Services
+    | Some it when it = "init"         -> Maintenance.createWebLog          args app.Services
+    | Some it when it = "import-links" -> Maintenance.importLinks           args app.Services
+    | Some it when it = "load-theme"   -> Maintenance.loadTheme             args app.Services
+    | Some it when it = "backup"       -> Maintenance.Backup.generateBackup args app.Services
     | _ ->
         let _ = app.UseForwardedHeaders ()
         let _ = app.UseCookiePolicy (CookiePolicyOptions (MinimumSameSitePolicy = SameSiteMode.Strict))
