@@ -27,7 +27,7 @@
     <PackageReference Include="Giraffe.Htmx" Version="1.7.0" />
     <PackageReference Include="Giraffe.ViewEngine.Htmx" Version="1.7.0" />
     <PackageReference Include="RethinkDB.DistributedCache" Version="1.0.0-rc1" />
-    <PackageReference Update="FSharp.Core" Version="6.0.4" />
+    <PackageReference Update="FSharp.Core" Version="6.0.5" />
     <PackageReference Include="System.ServiceModel.Syndication" Version="6.0.0" />
   </ItemGroup>
 

@@ -135,6 +135,7 @@ let loadTheme (args : string[]) (sp : IServiceProvider) = task {
 /// Back up a web log's data
 module Backup =
     
+    open System.Threading.Tasks
     open MyWebLog.Converters
     open Newtonsoft.Json
 
@@ -192,16 +193,37 @@ module Backup =
             posts : Post list
         }
     
-    // TODO: finish implementation; paused for LiteDB data capability development, will work with both
-    
     /// Create a JSON serializer (uses RethinkDB data implementation's JSON converters)
-    let private getSerializer () =
+    let private getSerializer prettyOutput =
         let serializer = JsonSerializer.CreateDefault ()
         Json.all () |> Seq.iter serializer.Converters.Add
+        if prettyOutput then serializer.Formatting <- Formatting.Indented
         serializer
     
+    /// Display statistics for a backup archive
+    let private displayStats (msg : string) (webLog : WebLog) archive =
+
+        let userCount     = List.length archive.users
+        let assetCount    = List.length archive.assets
+        let categoryCount = List.length archive.categories
+        let tagMapCount   = List.length archive.tagMappings
+        let pageCount     = List.length archive.pages
+        let postCount     = List.length archive.posts
+        
+        // Create a pluralized output based on the count
+        let plural count ifOne ifMany =
+            if count = 1 then ifOne else ifMany
+            
+        printfn $"""{msg.Replace ("{{NAME}}", webLog.name)}"""
+        printfn $""" - The theme "{archive.theme.name}" with {assetCount} asset{plural assetCount "" "s"}"""
+        printfn $""" - {userCount} user{plural userCount "" "s"}"""
+        printfn $""" - {categoryCount} categor{plural categoryCount "y" "ies"}"""
+        printfn $""" - {tagMapCount} tag mapping{plural tagMapCount "" "s"}"""
+        printfn $""" - {pageCount} page{plural pageCount "" "s"}"""
+        printfn $""" - {postCount} post{plural postCount "" "s"}"""
+
     /// Create a backup archive
-    let createBackup webLog (fileName : string) (data : IData) = task {
+    let private createBackup webLog (fileName : string) prettyOutput (data : IData) = task {
         // Create the data structure
         let  themeId    = ThemeId webLog.themePath
         let! theme      = data.Theme.findById themeId
@@ -211,7 +233,7 @@ module Backup =
         let! tagMaps    = data.TagMap.findByWebLog webLog.id
         let! pages      = data.Page.findFullByWebLog webLog.id
         let! posts      = data.Post.findFullByWebLog webLog.id
-        let archive = {
+        let  archive    = {
             webLog      = webLog
             users       = users
             theme       = Option.get theme
@@ -224,31 +246,124 @@ module Backup =
         
         // Write the structure to the backup file
         if File.Exists fileName then File.Delete fileName
-        let serializer = getSerializer ()
+        let serializer = getSerializer prettyOutput
         use writer = new StreamWriter (fileName)
         serializer.Serialize (writer, archive)
         writer.Close ()
         
-        printfn "Backup Stats:"
-        printfn $" - Users: {archive.users |> List.length}"
-        printfn $" - Categories: {archive.categories |> List.length}"
-        printfn $" - Tag Maps: {archive.tagMappings |> List.length}"
-        printfn $" - Pages: {archive.pages |> List.length}"
-        printfn $" - Posts: {archive.posts |> List.length}"
-        printfn ""
+        displayStats "{{NAME}} backup contains:" webLog archive
     }
     
+    let private doRestore archive newUrlBase (data : IData) = task {
+        let! restore = task {
+            match! data.WebLog.findById archive.webLog.id with
+            | Some webLog when defaultArg newUrlBase webLog.urlBase = webLog.urlBase ->
+                do! data.WebLog.delete webLog.id
+                return archive
+            | Some _ ->
+                // Err'body gets new IDs...
+                let newWebLogId = WebLogId.create ()
+                let newCatIds   = archive.categories  |> List.map (fun cat  -> cat.id,  CategoryId.create   ()) |> dict
+                let newMapIds   = archive.tagMappings |> List.map (fun tm   -> tm.id,   TagMapId.create     ()) |> dict
+                let newPageIds  = archive.pages       |> List.map (fun page -> page.id, PageId.create       ()) |> dict
+                let newPostIds  = archive.posts       |> List.map (fun post -> post.id, PostId.create       ()) |> dict
+                let newUserIds  = archive.users       |> List.map (fun user -> user.id, WebLogUserId.create ()) |> dict
+                return
+                    { archive with
+                        webLog      = { archive.webLog with id = newWebLogId; urlBase = Option.get newUrlBase }
+                        users       = archive.users
+                                      |> List.map (fun u -> { u with id = newUserIds[u.id]; webLogId = newWebLogId })
+                        categories  = archive.categories
+                                      |> List.map (fun c -> { c with id = newCatIds[c.id]; webLogId = newWebLogId })
+                        tagMappings = archive.tagMappings
+                                      |> List.map (fun tm -> { tm with id = newMapIds[tm.id]; webLogId = newWebLogId })
+                        pages       = archive.pages
+                                      |> List.map (fun page ->
+                                          { page with
+                                              id       = newPageIds[page.id]
+                                              webLogId = newWebLogId
+                                              authorId = newUserIds[page.authorId]
+                                          })
+                        posts       = archive.posts
+                                      |> List.map (fun post ->
+                                          { post with
+                                              id          = newPostIds[post.id]
+                                              webLogId    = newWebLogId
+                                              authorId    = newUserIds[post.authorId]
+                                              categoryIds = post.categoryIds |> List.map (fun c -> newCatIds[c])
+                                          })
+                    }
+            | None ->
+                return
+                    { archive with
+                        webLog = { archive.webLog with urlBase = defaultArg newUrlBase archive.webLog.urlBase }
+                    }
+        }
+        
+        // Restore web log data
+        do! data.WebLog.add         restore.webLog
+        do! data.WebLogUser.restore restore.users
+        do! data.TagMap.restore     restore.tagMappings
+        do! data.Category.restore   restore.categories
+        do! data.Page.restore       restore.pages
+        do! data.Post.restore       restore.posts
+        // TODO: comments not yet implemented
+        
+        // Restore theme and assets (one at a time, as assets can be large)
+        do! data.Theme.save restore.theme
+        let! _ = restore.assets |> List.map (EncodedAsset.fromAsset >> data.ThemeAsset.save) |> Task.WhenAll
+        
+        displayStats "Restored for {{NAME}}" restore.webLog restore
+    }
+    
+    /// Decide whether to restore a backup
+    let private restoreBackup (fileName : string) newUrlBase promptForOverwrite data = task {
+        
+        let serializer = getSerializer false
+        use stream     = new FileStream (fileName, FileMode.Open)
+        use reader     = new StreamReader (stream)
+        use jsonReader = new JsonTextReader (reader)
+        let archive    = serializer.Deserialize<Archive> jsonReader
+        
+        let mutable doOverwrite = not promptForOverwrite
+        if promptForOverwrite then
+            printfn "** WARNING: Restoring a web log will delete existing data for that web log"
+            printfn "            (unless restoring to a different URL base), and will overwrite the"
+            printfn "            theme in either case."
+            printfn ""
+            printf  "Continue? [Y/n] "
+            doOverwrite <- not ((Console.ReadKey ()).Key = ConsoleKey.N)
+        
+        if doOverwrite then
+            do! doRestore archive newUrlBase data
+        else
+            printfn $"{archive.webLog.name} backup restoration canceled"
+    }
+        
     /// Generate a backup archive
     let generateBackup (args : string[]) (sp : IServiceProvider) = task {
-        if args.Length = 3 then
+        if args.Length = 3 || args.Length = 4 then
             let data = sp.GetRequiredService<IData> ()
             match! data.WebLog.findByHost args[1] with
             | Some webLog ->
-                let fileName = if args[2].EndsWith ".json" then args[2] else $"{args[1]}.json"
-                do! createBackup webLog fileName data
-                printfn $"Backup created for {args[1]}"
+                let fileName     = if args[2].EndsWith ".json" then args[2] else $"{args[2]}.json"
+                let prettyOutput = args.Length = 4 && args[3] = "pretty"
+                do! createBackup webLog fileName prettyOutput data
             | None -> printfn $"Error: no web log found for {args[1]}"
         else
-            printfn "Usage: MyWebLog backup [url-base] [backup-file-name]"
+            printfn """Usage: MyWebLog backup [url-base] [backup-file-name] [*"pretty"]"""
+            printfn """         * optional - default is non-pretty JSON output"""
+    }
+    
+    /// Restore a backup archive
+    let restoreFromBackup (args : string[]) (sp : IServiceProvider) = task {
+        if args.Length = 2 || args.Length = 3 then
+            let data       = sp.GetRequiredService<IData> ()
+            let newUrlBase = if args.Length = 3 then Some args[2] else None
+            do! restoreBackup args[1] newUrlBase (args[0] <> "do-restore") data
+        else
+            printfn "Usage: MyWebLog restore [backup-file-name] [*url-base]"
+            printfn "         * optional - will restore to original URL base if omitted"
+            printfn "       (use do-restore to skip confirmation prompt)"
     }
     

@@ -175,6 +175,11 @@ type LiteDbData (db : LiteDatabase) =
                     | None -> return false
                 }
                 
+                member _.restore cats = backgroundTask {
+                    let _ = Collection.Category.InsertBulk cats
+                    do! checkpoint ()
+                }
+                
                 member _.update cat = backgroundTask {
                     let _ = Collection.Category.Update cat
                     do! checkpoint ()
@@ -253,13 +258,16 @@ type LiteDbData (db : LiteDatabase) =
                     |> Seq.sortBy pageSort
                     |> toPagedList pageNbr 25
                 
-                /// Update a page
+                member _.restore pages = backgroundTask {
+                    let _ = Collection.Page.InsertBulk pages
+                    do! checkpoint ()
+                }
+                
                 member _.update page = backgroundTask {
                     let _ = Collection.Page.Update page
                     do! checkpoint ()
                 }
                 
-                /// Update prior permalinks for a page
                 member this.updatePriorPermalinks pageId webLogId permalinks = backgroundTask {
                     match! this.findFullById pageId webLogId with
                     | Some page ->
@@ -355,6 +363,11 @@ type LiteDbData (db : LiteDatabase) =
                     return older, newer
                 }
                 
+                member _.restore posts = backgroundTask {
+                    let _ = Collection.Post.InsertBulk posts
+                    do! checkpoint ()
+                }
+                
                 member _.update post = backgroundTask {
                     let _ = Collection.Post.Update post
                     do! checkpoint ()
@@ -397,6 +410,11 @@ type LiteDbData (db : LiteDatabase) =
                 member _.findMappingForTags tags webLogId =
                     Collection.TagMap.Find (fun tm -> tm.webLogId = webLogId && tags |> List.contains tm.tag)
                     |> toList
+                
+                member _.restore tagMaps = backgroundTask {
+                    let _ = Collection.TagMap.InsertBulk tagMaps
+                    do! checkpoint ()
+                }
                 
                 member _.save tagMap = backgroundTask {
                     let _ = Collection.TagMap.Upsert tagMap
@@ -479,6 +497,18 @@ type LiteDbData (db : LiteDatabase) =
                     Collection.WebLog.FindAll ()
                     |> toList
                 
+                member _.delete webLogId = backgroundTask {
+                    let forWebLog = BsonExpression.Create $"$.webLogId = '{WebLogId.toString webLogId}'"
+                    let _ = Collection.Comment.DeleteMany    forWebLog
+                    let _ = Collection.Post.DeleteMany       forWebLog
+                    let _ = Collection.Page.DeleteMany       forWebLog
+                    let _ = Collection.Category.DeleteMany   forWebLog
+                    let _ = Collection.TagMap.DeleteMany     forWebLog
+                    let _ = Collection.WebLogUser.DeleteMany forWebLog
+                    let _ = Collection.WebLog.Delete (WebLogIdMapping.toBson webLogId)
+                    do! checkpoint ()
+                }
+                
                 member _.findByHost url =
                     Collection.WebLog.Find (fun wl -> wl.urlBase = url)
                     |> tryFirst
@@ -523,6 +553,11 @@ type LiteDbData (db : LiteDatabase) =
                     Collection.WebLogUser.Find (fun wlu -> userIds |> List.contains wlu.id)
                     |> Seq.map (fun u -> { name = WebLogUserId.toString u.id; value = WebLogUser.displayName u })
                     |> toList
+                
+                member _.restore users = backgroundTask {
+                    let _ = Collection.WebLogUser.InsertBulk users
+                    do! checkpoint ()
+                }
                 
                 member _.update user = backgroundTask {
                     let _ = Collection.WebLogUser.Update user

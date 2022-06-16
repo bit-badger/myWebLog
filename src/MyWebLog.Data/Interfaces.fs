@@ -29,6 +29,9 @@ type ICategoryData =
     /// Find all categories for the given web log
     abstract member findByWebLog : WebLogId -> Task<Category list>
     
+    /// Restore categories from a backup
+    abstract member restore : Category list -> Task<unit>
+    
     /// Update a category (slug, name, description, and parent ID)
     abstract member update : Category -> Task<unit>
 
@@ -71,6 +74,9 @@ type IPageData =
     
     /// Find a page of pages (displayed in admin section) (excluding revisions and prior permalinks)
     abstract member findPageOfPages : WebLogId -> pageNbr : int -> Task<Page list>
+    
+    /// Restore pages from a backup
+    abstract member restore : Page list -> Task<unit>
     
     /// Update a page
     abstract member update : Page -> Task<unit>
@@ -120,6 +126,9 @@ type IPostData =
     /// Find the next older and newer post for the given published date/time (excluding revisions and prior permalinks)
     abstract member findSurroundingPosts : WebLogId -> publishedOn : DateTime -> Task<Post option * Post option>
     
+    /// Restore posts from a backup
+    abstract member restore : Post list -> Task<unit>
+    
     /// Update a post
     abstract member update : Post -> Task<unit>
     
@@ -144,6 +153,9 @@ type ITagMapData =
     
     /// Find tag mappings for the given tags
     abstract member findMappingForTags : tags : string list -> WebLogId -> Task<TagMap list>
+    
+    /// Restore tag mappings from a backup
+    abstract member restore : TagMap list -> Task<unit>
     
     /// Save a tag mapping (insert or update)
     abstract member save : TagMap -> Task<unit>
@@ -196,6 +208,9 @@ type IWebLogData =
     /// Retrieve all web logs
     abstract member all : unit -> Task<WebLog list>
     
+    /// Delete a web log, including categories, tag mappings, posts/comments, and pages
+    abstract member delete : WebLogId -> Task<unit>
+    
     /// Find a web log by its host (URL base)
     abstract member findByHost : string -> Task<WebLog option>
     
@@ -226,6 +241,9 @@ type IWebLogUserData =
     
     /// Get a user ID -> name dictionary for the given user IDs
     abstract member findNames : WebLogId -> WebLogUserId list -> Task<MetaItem list>
+    
+    /// Restore users from a backup
+    abstract member restore : WebLogUser list -> Task<unit>
     
     /// Update a web log user
     abstract member update : WebLogUser -> Task<unit>

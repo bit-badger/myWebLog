@@ -13,7 +13,7 @@
 
   <ItemGroup>
     <PackageReference Include="Markdig" Version="0.30.2" />
-    <PackageReference Update="FSharp.Core" Version="6.0.4" />
+    <PackageReference Update="FSharp.Core" Version="6.0.5" />
     <PackageReference Include="Markdown.ColorCode" Version="1.0.1" />
   </ItemGroup>
 
