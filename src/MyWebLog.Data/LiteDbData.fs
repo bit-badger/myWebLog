@@ -459,8 +459,11 @@ type LiteDbData (db : LiteDatabase) =
                     |> toList
                 
                 member _.deleteByTheme themeId = backgroundTask {
-                    let _ = Collection.ThemeAsset.DeleteMany (fun ta ->
-                        (ThemeAssetId.toString ta.id).StartsWith (ThemeId.toString themeId))
+                    (ThemeId.toString
+                     >> sprintf "$.id LIKE '%s%%'"
+                     >> BsonExpression.Create
+                     >> Collection.ThemeAsset.DeleteMany) themeId
+                    |> ignore
                     do! checkpoint ()
                 }
                 

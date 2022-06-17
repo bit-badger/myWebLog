@@ -41,7 +41,7 @@ module DataImplementation =
     let get (sp : IServiceProvider) : IData option =
         let config = sp.GetRequiredService<IConfiguration> ()
         let isNotNull it = (isNull >> not) it
-        if isNotNull (config.GetSection "RethinkDB") then
+        if isNotNull (config.GetSection "RethinkDB").Value then
             Json.all () |> Seq.iter Converter.Serializer.Converters.Add 
             let rethinkCfg = DataConfig.FromConfiguration (config.GetSection "RethinkDB")
             let conn       = rethinkCfg.CreateConnectionAsync () |> Async.AwaitTask |> Async.RunSynchronously
@@ -118,10 +118,11 @@ let rec main args =
     let app = builder.Build ()
     
     match args |> Array.tryHead with
-    | Some it when it = "init"         -> Maintenance.createWebLog          args app.Services
-    | Some it when it = "import-links" -> Maintenance.importLinks           args app.Services
-    | Some it when it = "load-theme"   -> Maintenance.loadTheme             args app.Services
-    | Some it when it = "backup"       -> Maintenance.Backup.generateBackup args app.Services
+    | Some it when it = "init"         -> Maintenance.createWebLog             args app.Services
+    | Some it when it = "import-links" -> Maintenance.importLinks              args app.Services
+    | Some it when it = "load-theme"   -> Maintenance.loadTheme                args app.Services
+    | Some it when it = "backup"       -> Maintenance.Backup.generateBackup    args app.Services
+    | Some it when it = "restore"      -> Maintenance.Backup.restoreFromBackup args app.Services    
     | _ ->
         let _ = app.UseForwardedHeaders ()
         let _ = app.UseCookiePolicy (CookiePolicyOptions (MinimumSameSitePolicy = SameSiteMode.Strict))

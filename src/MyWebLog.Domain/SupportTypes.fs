@@ -53,6 +53,20 @@ type CommentStatus =
     /// The comment was unsolicited and unwelcome
     | Spam
 
+/// Functions to support post comment statuses
+module CommentStatus =
+    
+    /// Convert a comment status to a string
+    let toString = function Approved -> "Approved" | Pending -> "Pending" | Spam -> "Spam"
+    
+    /// Parse a string into a comment status
+    let parse value =
+        match value with
+        | "Approved" -> Approved
+        | "Pending"  -> Pending
+        | "Spam"     -> Spam
+        | it         -> invalidOp $"{it} is not a valid post status"
+
 
 open Markdig
 open Markdown.ColorCode
@@ -169,6 +183,13 @@ module PostStatus =
     
     /// Convert a post status to a string
     let toString = function Draft -> "Draft" | Published -> "Published"
+    
+    /// Parse a string into a post status
+    let parse value =
+        match value with
+        | "Draft" -> Draft
+        | "Published" -> Published
+        | it          -> invalidOp $"{it} is not a valid post status"
 
 
 /// An identifier for a post
@@ -319,6 +340,7 @@ module CustomFeed =
 
 
 /// Really Simple Syndication (RSS) options for this web log
+[<CLIMutable; NoComparison; NoEquality>]
 type RssOptions =
     {   /// Whether the site feed of posts is enabled
         feedEnabled : bool
@@ -428,6 +450,19 @@ type AuthorizationLevel =
     | Administrator
     /// <summary>The user is a known user of a web log</summary>
     | User
+
+/// Functions to support authorization levels 
+module AuthorizationLevel =
+    
+    /// Convert an authorization level to a string
+    let toString = function Administrator -> "Administrator" | User -> "User"
+    
+    /// Parse a string into an authorization level
+    let parse value =
+        match value with
+        | "Administrator" -> Administrator
+        | "User"          -> User
+        | it              -> invalidOp $"{it} is not a valid authorization level"
 
 
 /// An identifier for a web log user

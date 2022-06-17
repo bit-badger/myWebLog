@@ -140,6 +140,10 @@ module Bson =
     
     open LiteDB
     
+    module AuthorizationLevelMapping =
+        let fromBson (value : BsonValue) = AuthorizationLevel.parse value.AsString
+        let toBson (value : AuthorizationLevel) : BsonValue = AuthorizationLevel.toString value
+    
     module CategoryIdMapping =
         let fromBson (value : BsonValue) = CategoryId value.AsString
         let toBson (value : CategoryId) : BsonValue = CategoryId.toString value
@@ -147,6 +151,10 @@ module Bson =
     module CommentIdMapping =
         let fromBson (value : BsonValue) = CommentId value.AsString
         let toBson (value : CommentId) : BsonValue = CommentId.toString value
+    
+    module CommentStatusMapping =
+        let fromBson (value : BsonValue) = CommentStatus.parse value.AsString
+        let toBson (value : CommentStatus) : BsonValue = CommentStatus.toString value
     
     module CustomFeedIdMapping =
         let fromBson (value : BsonValue) = CustomFeedId value.AsString
@@ -181,9 +189,9 @@ module Bson =
         let intToBson (value : int option) : BsonValue = match value with Some nbr -> nbr | None -> BsonValue.Null
         
         let podcastOptionsFromBson (value : BsonValue) =
-            if value.IsNull then None else Some (value.RawValue :?> PodcastOptions)
+            if value.IsNull then None else Some (BsonMapper.Global.ToObject<PodcastOptions> value.AsDocument)
         let podcastOptionsToBson (value : PodcastOptions option) : BsonValue =
-            match value with Some opts -> BsonValue opts | None -> BsonValue.Null
+            match value with Some opts -> BsonMapper.Global.ToDocument opts | None -> BsonValue.Null
         
         let stringFromBson (value : BsonValue) = if value.IsNull then None else Some value.AsString
         let stringToBson (value : string option) : BsonValue = match value with Some str -> str | None -> BsonValue.Null
@@ -191,7 +199,7 @@ module Bson =
     module PermalinkMapping =
         let fromBson (value : BsonValue) = Permalink value.AsString
         let toBson (value : Permalink) : BsonValue = Permalink.toString value
-        
+    
     module PageIdMapping =
         let fromBson (value : BsonValue) = PageId value.AsString
         let toBson (value : PageId) : BsonValue = PageId.toString value
@@ -199,6 +207,10 @@ module Bson =
     module PostIdMapping =
         let fromBson (value : BsonValue) = PostId value.AsString
         let toBson (value : PostId) : BsonValue = PostId.toString value
+    
+    module PostStatusMapping =
+        let fromBson (value : BsonValue) = PostStatus.parse value.AsString
+        let toBson (value : PostStatus) : BsonValue = PostStatus.toString value
     
     module TagMapIdMapping =
         let fromBson (value : BsonValue) = TagMapId value.AsString
@@ -223,20 +235,23 @@ module Bson =
     /// Register all BSON mappings
     let registerAll () =
         let g = BsonMapper.Global
-        g.RegisterType<CategoryId>       (CategoryIdMapping.toBson,       CategoryIdMapping.fromBson)
-        g.RegisterType<CommentId>        (CommentIdMapping.toBson,        CommentIdMapping.fromBson)
-        g.RegisterType<CustomFeedId>     (CustomFeedIdMapping.toBson,     CustomFeedIdMapping.fromBson)
-        g.RegisterType<CustomFeedSource> (CustomFeedSourceMapping.toBson, CustomFeedSourceMapping.fromBson)
-        g.RegisterType<ExplicitRating>   (ExplicitRatingMapping.toBson,   ExplicitRatingMapping.fromBson)
-        g.RegisterType<MarkupText>       (MarkupTextMapping.toBson,       MarkupTextMapping.fromBson)
-        g.RegisterType<Permalink>        (PermalinkMapping.toBson,        PermalinkMapping.fromBson)
-        g.RegisterType<PageId>           (PageIdMapping.toBson,           PageIdMapping.fromBson)
-        g.RegisterType<PostId>           (PostIdMapping.toBson,           PostIdMapping.fromBson)
-        g.RegisterType<TagMapId>         (TagMapIdMapping.toBson,         TagMapIdMapping.fromBson)
-        g.RegisterType<ThemeAssetId>     (ThemeAssetIdMapping.toBson,     ThemeAssetIdMapping.fromBson)
-        g.RegisterType<ThemeId>          (ThemeIdMapping.toBson,          ThemeIdMapping.fromBson)
-        g.RegisterType<WebLogId>         (WebLogIdMapping.toBson,         WebLogIdMapping.fromBson)
-        g.RegisterType<WebLogUserId>     (WebLogUserIdMapping.toBson,     WebLogUserIdMapping.fromBson)
+        g.RegisterType<AuthorizationLevel> (AuthorizationLevelMapping.toBson, AuthorizationLevelMapping.fromBson)
+        g.RegisterType<CategoryId>         (CategoryIdMapping.toBson,         CategoryIdMapping.fromBson)
+        g.RegisterType<CommentId>          (CommentIdMapping.toBson,          CommentIdMapping.fromBson)
+        g.RegisterType<CommentStatus>      (CommentStatusMapping.toBson,      CommentStatusMapping.fromBson)
+        g.RegisterType<CustomFeedId>       (CustomFeedIdMapping.toBson,       CustomFeedIdMapping.fromBson)
+        g.RegisterType<CustomFeedSource>   (CustomFeedSourceMapping.toBson,   CustomFeedSourceMapping.fromBson)
+        g.RegisterType<ExplicitRating>     (ExplicitRatingMapping.toBson,     ExplicitRatingMapping.fromBson)
+        g.RegisterType<MarkupText>         (MarkupTextMapping.toBson,         MarkupTextMapping.fromBson)
+        g.RegisterType<Permalink>          (PermalinkMapping.toBson,          PermalinkMapping.fromBson)
+        g.RegisterType<PageId>             (PageIdMapping.toBson,             PageIdMapping.fromBson)
+        g.RegisterType<PostId>             (PostIdMapping.toBson,             PostIdMapping.fromBson)
+        g.RegisterType<PostStatus>         (PostStatusMapping.toBson,         PostStatusMapping.fromBson)
+        g.RegisterType<TagMapId>           (TagMapIdMapping.toBson,           TagMapIdMapping.fromBson)
+        g.RegisterType<ThemeAssetId>       (ThemeAssetIdMapping.toBson,       ThemeAssetIdMapping.fromBson)
+        g.RegisterType<ThemeId>            (ThemeIdMapping.toBson,            ThemeIdMapping.fromBson)
+        g.RegisterType<WebLogId>           (WebLogIdMapping.toBson,           WebLogIdMapping.fromBson)
+        g.RegisterType<WebLogUserId>       (WebLogUserIdMapping.toBson,       WebLogUserIdMapping.fromBson)
         
         g.RegisterType<CategoryId     option> (OptionMapping.categoryIdToBson,     OptionMapping.categoryIdFromBson)
         g.RegisterType<CommentId      option> (OptionMapping.commentIdToBson,      OptionMapping.commentIdFromBson)

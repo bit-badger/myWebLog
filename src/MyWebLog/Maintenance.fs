@@ -214,6 +214,7 @@ module Backup =
         let plural count ifOne ifMany =
             if count = 1 then ifOne else ifMany
             
+        printfn ""
         printfn $"""{msg.Replace ("{{NAME}}", webLog.name)}"""
         printfn $""" - The theme "{archive.theme.name}" with {assetCount} asset{plural assetCount "" "s"}"""
         printfn $""" - {userCount} user{plural userCount "" "s"}"""
@@ -225,14 +226,26 @@ module Backup =
     /// Create a backup archive
     let private createBackup webLog (fileName : string) prettyOutput (data : IData) = task {
         // Create the data structure
-        let  themeId    = ThemeId webLog.themePath
-        let! theme      = data.Theme.findById themeId
-        let! assets     = data.ThemeAsset.findByThemeWithData themeId
-        let! users      = data.WebLogUser.findByWebLog webLog.id
+        let themeId = ThemeId webLog.themePath
+        
+        printfn "- Exporting theme..."
+        let! theme  = data.Theme.findById themeId
+        let! assets = data.ThemeAsset.findByThemeWithData themeId
+        
+        printfn "- Exporting users..."
+        let! users = data.WebLogUser.findByWebLog webLog.id
+        
+        printfn "- Exporting categories and tag mappings..."
         let! categories = data.Category.findByWebLog webLog.id
         let! tagMaps    = data.TagMap.findByWebLog webLog.id
-        let! pages      = data.Page.findFullByWebLog webLog.id
-        let! posts      = data.Post.findFullByWebLog webLog.id
+        
+        printfn "- Exporting pages..."
+        let! pages = data.Page.findFullByWebLog webLog.id
+        
+        printfn "- Exporting posts..."
+        let! posts = data.Post.findFullByWebLog webLog.id
+        
+        printfn "- Writing archive..."
         let  archive    = {
             webLog      = webLog
             users       = users
@@ -301,19 +314,32 @@ module Backup =
         }
         
         // Restore web log data
-        do! data.WebLog.add         restore.webLog
+        
+        printfn ""
+        printfn "- Restoring web log..."
+        do! data.WebLog.add restore.webLog
+        
+        printfn "- Restoring users..."
         do! data.WebLogUser.restore restore.users
-        do! data.TagMap.restore     restore.tagMappings
-        do! data.Category.restore   restore.categories
-        do! data.Page.restore       restore.pages
-        do! data.Post.restore       restore.posts
+        
+        printfn "- Restoring categories and tag mappings..."
+        do! data.TagMap.restore   restore.tagMappings
+        do! data.Category.restore restore.categories
+        
+        printfn "- Restoring pages..."
+        do! data.Page.restore restore.pages
+        
+        printfn "- Restoring posts..."
+        do! data.Post.restore restore.posts
+        
         // TODO: comments not yet implemented
         
         // Restore theme and assets (one at a time, as assets can be large)
+        printfn "- Importing theme..."
         do! data.Theme.save restore.theme
         let! _ = restore.assets |> List.map (EncodedAsset.fromAsset >> data.ThemeAsset.save) |> Task.WhenAll
         
-        displayStats "Restored for {{NAME}}" restore.webLog restore
+        displayStats "Restored for {{NAME}}:" restore.webLog restore
     }
     
     /// Decide whether to restore a backup
