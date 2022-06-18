@@ -280,7 +280,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                 member _.all webLogId = rethink<Page list> {
                     withTable Table.Page
                     getAll [ webLogId ] (nameof webLogId)
-                    without [ "text"; "revisions"; "priorPermalinks" ]
+                    without [ "text"; "metadata"; "revisions"; "priorPermalinks" ]
                     orderByFunc (fun row -> row["title"].Downcase () :> obj)
                     result; withRetryDefault conn
                 }
@@ -370,7 +370,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                 member _.findPageOfPages webLogId pageNbr = rethink<Page list> {
                     withTable Table.Page
                     getAll [ webLogId ] (nameof webLogId)
-                    without [ "priorPermalinks"; "revisions" ]
+                    without [ "metadata"; "priorPermalinks"; "revisions" ]
                     orderByFunc (fun row -> row["title"].Downcase ())
                     skip ((pageNbr - 1) * 25)
                     limit 25

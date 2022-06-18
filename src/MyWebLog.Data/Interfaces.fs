@@ -42,7 +42,7 @@ type IPageData =
     /// Add a page
     abstract member add : Page -> Task<unit>
     
-    /// Get all pages for the web log (excluding text, revisions, and prior permalinks)
+    /// Get all pages for the web log (excluding meta items, text, revisions, and prior permalinks)
     abstract member all : WebLogId -> Task<Page list>
     
     /// Count all pages for the given web log
@@ -72,7 +72,7 @@ type IPageData =
     /// Find pages marked as "show in page list" for the given web log (excluding text, revisions, and prior permalinks)
     abstract member findListed : WebLogId -> Task<Page list>
     
-    /// Find a page of pages (displayed in admin section) (excluding revisions and prior permalinks)
+    /// Find a page of pages (displayed in admin section) (excluding meta items, revisions and prior permalinks)
     abstract member findPageOfPages : WebLogId -> pageNbr : int -> Task<Page list>
     
     /// Restore pages from a backup
