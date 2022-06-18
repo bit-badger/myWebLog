@@ -11,6 +11,7 @@
 
 	<ItemGroup>
 		<PackageReference Include="LiteDB" Version="5.0.12" />
+		<PackageReference Include="Microsoft.Data.Sqlite" Version="6.0.6" />
 		<PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="6.0.0" />
 		<PackageReference Include="Microsoft.FSharpLu.Json" Version="0.11.7" />
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
@@ -25,6 +26,7 @@
 		<Compile Include="Utils.fs" />
 		<Compile Include="RethinkDbData.fs" />
 		<Compile Include="LiteDbData.fs" />
+		<Compile Include="SQLiteData.fs" />
 	</ItemGroup>
 
 </Project>
