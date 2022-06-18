@@ -1,4 +1,4 @@
-namespace MyWebLog.Data
+namespace MyWebLog.Dataa
 
 open LiteDB
 open MyWebLog
