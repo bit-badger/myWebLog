@@ -1,14 +1,15 @@
 namespace MyWebLog.Data
 
 open System
+open System.IO
 open System.Threading.Tasks
 open Microsoft.Data.Sqlite
 open MyWebLog
 open MyWebLog.ViewModels
 
+/// Helper functions for the SQLite data implementation
 [<AutoOpen>]
 module private SqliteHelpers =
-    do ()
     
     /// Run a command that returns a count
     let count (cmd : SqliteCommand) = backgroundTask {
@@ -49,12 +50,22 @@ module private SqliteHelpers =
         /// Get a date/time value from a data reader
         let getDateTime col (rdr : SqliteDataReader) = rdr.GetDateTime (rdr.GetOrdinal col)
         
+        /// Get an int value from a data reader
+        let getInt col (rdr : SqliteDataReader) = rdr.GetInt32 (rdr.GetOrdinal col)
+        
+        /// Get a BLOB stream value from a data reader
+        let getStream col (rdr : SqliteDataReader) = rdr.GetStream (rdr.GetOrdinal col)
+        
         /// Get a string value from a data reader
         let getString col (rdr : SqliteDataReader) = rdr.GetString (rdr.GetOrdinal col)
         
         /// Get a possibly null date/time value from a data reader
         let tryDateTime col (rdr : SqliteDataReader) =
             if rdr.IsDBNull (rdr.GetOrdinal col) then None else Some (getDateTime col rdr)
+        
+        /// Get a possibly null int value from a data reader
+        let tryInt col (rdr : SqliteDataReader) =
+            if rdr.IsDBNull (rdr.GetOrdinal col) then None else Some (getInt col rdr)
         
         /// Get a possibly null string value from a data reader
         let tryString col (rdr : SqliteDataReader) =
@@ -71,6 +82,31 @@ module private SqliteHelpers =
               slug        = getString "slug" rdr
               description = tryString "description" rdr
               parentId    = tryString "parent_id" rdr |> Option.map CategoryId
+            }
+        
+        /// Create a custom feed from the current row in the given data reader
+        let toCustomFeed (rdr : SqliteDataReader) : CustomFeed =
+            { id      = CustomFeedId (getString "id" rdr)
+              source  = CustomFeedSource.parse (getString "source" rdr)
+              path    = Permalink (getString "path" rdr)
+              podcast =
+                  if rdr.IsDBNull (rdr.GetOrdinal "title") then
+                      None
+                  else
+                      Some {
+                          title             = getString "title" rdr
+                          subtitle          = tryString "subtitle" rdr
+                          itemsInFeed       = getInt "items_in_feed" rdr
+                          summary           = getString "summary" rdr
+                          displayedAuthor   = getString "displayed_author" rdr
+                          email             = getString "email" rdr
+                          imageUrl          = Permalink (getString "image_url" rdr)
+                          iTunesCategory    = getString "itunes_category" rdr
+                          iTunesSubcategory = tryString "itunes_subcategory" rdr
+                          explicit          = ExplicitRating.parse (getString "explicit" rdr)
+                          defaultMediaType  = tryString "default_media_type" rdr
+                          mediaBaseUrl      = tryString "media_base_url" rdr
+                      }
             }
         
         /// Create a meta item from the current row in the given data reader
@@ -118,21 +154,68 @@ module private SqliteHelpers =
               text = MarkupText.parse (getString "revision_text" rdr)
             }
         
+        /// Create a tag mapping from the current row in the given data reader
+        let toTagMap (rdr : SqliteDataReader) : TagMap =
+            { id       = TagMapId (getString "id" rdr)
+              webLogId = WebLogId (getString "web_log_id" rdr)
+              tag      = getString "tag" rdr
+              urlValue = getString "url_value" rdr
+            }
         
+        /// Create a theme from the current row in the given data reader (excludes templates)
+        let toTheme (rdr : SqliteDataReader) : Theme =
+            { Theme.empty with
+                id      = ThemeId (getString "id" rdr)
+                name    = getString "name" rdr
+                version = getString "version" rdr
+            }
+        
+        /// Create a theme asset from the current row in the given data reader
+        let toThemeAsset includeData (rdr : SqliteDataReader) : ThemeAsset =
+            let assetData =
+                if includeData then
+                    use dataStream = new MemoryStream ()
+                    use blobStream = getStream "data" rdr
+                    blobStream.CopyTo dataStream
+                    dataStream.ToArray ()
+                else
+                    [||]
+            { id        = ThemeAssetId (ThemeId (getString "id" rdr), getString "path" rdr)
+              updatedOn = getDateTime "updated_on" rdr
+              data      = assetData
+            }
+        
+        /// Create a theme template from the current row in the given data reader
+        let toThemeTemplate (rdr : SqliteDataReader) : ThemeTemplate =
+            { name = getString "name" rdr
+              text = getString "template" rdr
+            }
+        
+        /// Create a web log from the current row in the given data reader
+        let toWebLog (rdr : SqliteDataReader) : WebLog =
+            { id           = WebLogId (getString "id" rdr)
+              name         = getString "name" rdr
+              subtitle     = tryString "subtitle" rdr
+              defaultPage  = getString "default_page" rdr
+              postsPerPage = getInt "posts_per_page" rdr
+              themePath    = getString "theme_id" rdr
+              urlBase      = getString "url_base" rdr
+              timeZone     = getString "time_zone" rdr
+              autoHtmx     = getBoolean "auto_htmx" rdr
+              rss          = {
+                  feedEnabled     = getBoolean "feed_enabled" rdr
+                  feedName        = getString "feed_name" rdr
+                  itemsInFeed     = tryInt "items_in_feed" rdr
+                  categoryEnabled = getBoolean "category_enabled" rdr
+                  tagEnabled      = getBoolean "tag_enabled" rdr
+                  copyright       = tryString "copyright" rdr
+                  customFeeds     = []
+              }
+            }
+
+
+/// SQLite myWebLog data implementation        
 type SQLiteData (conn : SqliteConnection) =
-    
-//    /// Shorthand for accessing the collections in the LiteDB database
-//    let Collection = {|
-//        Category   = db.GetCollection<Category>   "Category"
-//        Comment    = db.GetCollection<Comment>    "Comment"
-//        Page       = db.GetCollection<Page>       "Page"
-//        Post       = db.GetCollection<Post>       "Post"
-//        TagMap     = db.GetCollection<TagMap>     "TagMap"
-//        Theme      = db.GetCollection<Theme>      "Theme"
-//        ThemeAsset = db.GetCollection<ThemeAsset> "ThemeAsset"
-//        WebLog     = db.GetCollection<WebLog>     "WebLog"
-//        WebLogUser = db.GetCollection<WebLogUser> "WebLogUser"
-//    |}
     
     /// Add parameters for category INSERT or UPDATE statements
     let addCategoryParameters (cmd : SqliteCommand) (cat : Category) =
@@ -176,6 +259,33 @@ type SQLiteData (conn : SqliteConnection) =
             match post.template with Some t -> t :> obj | None -> DBNull.Value)
           cmd.Parameters.AddWithValue ("@text", post.text)
         ] |> ignore
+    
+    /// Add parameters for web log INSERT or web log/RSS options UPDATE statements
+    let addWebLogRssParameters (cmd : SqliteCommand) (webLog : WebLog) =
+        [ cmd.Parameters.AddWithValue ("@feedEnabled", webLog.rss.feedEnabled)
+          cmd.Parameters.AddWithValue ("@feedName", webLog.rss.feedName)
+          cmd.Parameters.AddWithValue ("@itemsInFeed",
+            match webLog.rss.itemsInFeed with Some it -> it :> obj | None -> DBNull.Value)
+          cmd.Parameters.AddWithValue ("@categoryEnabled", webLog.rss.categoryEnabled)
+          cmd.Parameters.AddWithValue ("@tagEnabled", webLog.rss.tagEnabled)
+          cmd.Parameters.AddWithValue ("@copyright",
+            match webLog.rss.copyright with Some c -> c :> obj | None -> DBNull.Value)
+        ] |> ignore
+    
+    /// Add parameters for web log INSERT or UPDATE statements
+    let addWebLogParameters (cmd : SqliteCommand) (webLog : WebLog) =
+        [ cmd.Parameters.AddWithValue ("@id", WebLogId.toString webLog.id)
+          cmd.Parameters.AddWithValue ("@name", webLog.name)
+          cmd.Parameters.AddWithValue ("@subtitle",
+            match webLog.subtitle with Some s -> s :> obj | None -> DBNull.Value)
+          cmd.Parameters.AddWithValue ("@defaultPage", webLog.defaultPage)
+          cmd.Parameters.AddWithValue ("@postsPerPage", webLog.postsPerPage)
+          cmd.Parameters.AddWithValue ("@themeId", webLog.themePath)
+          cmd.Parameters.AddWithValue ("@urlBase", webLog.urlBase)
+          cmd.Parameters.AddWithValue ("@timeZone", webLog.timeZone)
+          cmd.Parameters.AddWithValue ("@autoHtmx", webLog.autoHtmx)
+        ] |> ignore
+        addWebLogRssParameters cmd webLog
     
     /// Add a web log ID parameter
     let addWebLogId (cmd : SqliteCommand) webLogId =
@@ -333,13 +443,9 @@ type SQLiteData (conn : SqliteConnection) =
         return { post with revisions = toList Map.toRevision revRdr }
     }
     
-    /// Return a post with no revisions or prior permalinks
-    let postWithoutRevisions (post : Post) =
-        { post with revisions = []; priorPermalinks = [] }
-    
     /// Return a post with no revisions, prior permalinks, or text
-    let postWithoutText post =
-        { postWithoutRevisions post with text = "" }
+    let postWithoutText rdr =
+        { Map.toPost rdr with text = "" }
     
     /// Update a post's assigned categories
     let updatePostCategories postId oldCats newCats = backgroundTask {
@@ -473,7 +579,18 @@ type SQLiteData (conn : SqliteConnection) =
             |> ignore
     }
     
-    
+    /// Append custom feeds to a web log
+    let appendCustomFeeds (webLog : WebLog) = backgroundTask {
+        use cmd = conn.CreateCommand ()
+        cmd.CommandText <-
+            """SELECT f.*, p.*
+                 FROM web_log_feed f
+                      LEFT JOIN web_log_feed_podcast p ON p.feed_id = f.id
+                WHERE f.web_log_id = @webLogId"""
+        addWebLogId cmd webLog.id
+        use! rdr = cmd.ExecuteReaderAsync ()
+        return { webLog with rss = { webLog.rss with customFeeds = toList Map.toCustomFeed rdr } }
+    }
     
     
     /// The connection for this instance
@@ -935,47 +1052,131 @@ type SQLiteData (conn : SqliteConnection) =
                     return List.ofArray posts
                 }
 
-                member _.findPageOfCategorizedPosts webLogId categoryIds pageNbr postsPerPage =
-                    Collection.Post.Find (fun p ->
-                        p.webLogId = webLogId
-                        && p.status = Published
-                        && p.categoryIds |> List.exists (fun cId -> categoryIds |> List.contains cId))
-                    |> Seq.map postWithoutRevisions
-                    |> Seq.sortByDescending (fun p -> p.publishedOn)
-                    |> toPagedList pageNbr postsPerPage
+                member _.findPageOfCategorizedPosts webLogId categoryIds pageNbr postsPerPage = backgroundTask {
+                    use cmd = conn.CreateCommand ()
+                    cmd.CommandText <-
+                        """SELECT p.*
+                             FROM post p
+                                  INNER JOIN post_category pc ON pc.post_id = p.id
+                            WHERE p.web_log_id = @webLogId
+                              AND p.status     = @status
+                              AND pc.category_id IN ("""
+                    categoryIds
+                    |> List.iteri (fun idx catId ->
+                        if idx > 0 then cmd.CommandText <- $"{cmd.CommandText}, "
+                        cmd.CommandText <- $"{cmd.CommandText}@catId{idx}"
+                        cmd.Parameters.AddWithValue ($"@catId{idx}", CategoryId.toString catId) |> ignore)
+                    cmd.CommandText <-
+                        $"""{cmd.CommandText})
+                            ORDER BY published_on DESC
+                            LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"""
+                    addWebLogId cmd webLogId
+                    cmd.Parameters.AddWithValue ("@status", PostStatus.toString Published) |> ignore
+                    use! rdr = cmd.ExecuteReaderAsync ()
+                    let! posts =
+                        toList Map.toPost rdr
+                        |> List.map (fun post -> backgroundTask { return! appendPostCategoryTagAndMeta post })
+                        |> Task.WhenAll
+                    return List.ofArray posts
+                }
                 
-                member _.findPageOfPosts webLogId pageNbr postsPerPage =
-                    Collection.Post.Find (fun p -> p.webLogId = webLogId)
-                    |> Seq.map postWithoutText
-                    |> Seq.sortByDescending (fun p -> defaultArg p.publishedOn p.updatedOn)
-                    |> toPagedList pageNbr postsPerPage
+                member _.findPageOfPosts webLogId pageNbr postsPerPage = backgroundTask {
+                    use cmd = conn.CreateCommand ()
+                    cmd.CommandText <-
+                        $"""SELECT p.*
+                              FROM post p
+                             WHERE p.web_log_id = @webLogId
+                             ORDER BY published_on DESC NULLS FIRST, updated_on
+                             LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"""
+                    addWebLogId cmd webLogId
+                    use! rdr = cmd.ExecuteReaderAsync ()
+                    let! posts =
+                        toList postWithoutText rdr
+                        |> List.map (fun post -> backgroundTask { return! appendPostCategoryTagAndMeta post })
+                        |> Task.WhenAll
+                    return List.ofArray posts
+                }
 
-                member _.findPageOfPublishedPosts webLogId pageNbr postsPerPage =
-                    Collection.Post.Find (fun p -> p.webLogId = webLogId && p.status = Published)
-                    |> Seq.map postWithoutRevisions
-                    |> Seq.sortByDescending (fun p -> p.publishedOn)
-                    |> toPagedList pageNbr postsPerPage
+                member _.findPageOfPublishedPosts webLogId pageNbr postsPerPage = backgroundTask {
+                    use cmd = conn.CreateCommand ()
+                    cmd.CommandText <-
+                        $"""SELECT p.*
+                              FROM post p
+                             WHERE p.web_log_id = @webLogId
+                               AND p.status     = @status
+                             ORDER BY published_on DESC
+                             LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"""
+                    addWebLogId cmd webLogId
+                    cmd.Parameters.AddWithValue ("@status", PostStatus.toString Published) |> ignore
+                    use! rdr = cmd.ExecuteReaderAsync ()
+                    let! posts =
+                        toList Map.toPost rdr
+                        |> List.map (fun post -> backgroundTask { return! appendPostCategoryTagAndMeta post })
+                        |> Task.WhenAll
+                    return List.ofArray posts
+                }
                 
-                member _.findPageOfTaggedPosts webLogId tag pageNbr postsPerPage =
-                    Collection.Post.Find (fun p ->
-                        p.webLogId = webLogId && p.status = Published && p.tags |> List.contains tag)
-                    |> Seq.map postWithoutRevisions
-                    |> Seq.sortByDescending (fun p -> p.publishedOn)
-                    |> toPagedList pageNbr postsPerPage
+                member _.findPageOfTaggedPosts webLogId tag pageNbr postsPerPage = backgroundTask {
+                    use cmd = conn.CreateCommand ()
+                    cmd.CommandText <-
+                        $"""SELECT p.*
+                              FROM post p
+                                   INNER JOIN post_tag pt ON pt.post_id = p.id
+                             WHERE p.web_log_id = @webLogId
+                               AND p.status     = @status
+                               AND pt.tag       = @tag
+                             ORDER BY published_on DESC
+                             LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"""
+                    addWebLogId cmd webLogId
+                    [ cmd.Parameters.AddWithValue ("@status", PostStatus.toString Published)
+                      cmd.Parameters.AddWithValue ("@tag", tag)
+                    ] |> ignore
+                    use! rdr = cmd.ExecuteReaderAsync ()
+                    let! posts =
+                        toList Map.toPost rdr
+                        |> List.map (fun post -> backgroundTask { return! appendPostCategoryTagAndMeta post })
+                        |> Task.WhenAll
+                    return List.ofArray posts
+                }
                 
                 member _.findSurroundingPosts webLogId publishedOn = backgroundTask {
-                    let! older =
-                        Collection.Post.Find (fun p ->
-                            p.webLogId = webLogId && p.status = Published && p.publishedOn.Value < publishedOn)
-                        |> Seq.map postWithoutText
-                        |> Seq.sortByDescending (fun p -> p.publishedOn)
-                        |> tryFirst
-                    let! newer =
-                        Collection.Post.Find (fun p ->
-                            p.webLogId = webLogId && p.status = Published && p.publishedOn.Value > publishedOn)
-                        |> Seq.map postWithoutText
-                        |> Seq.sortBy (fun p -> p.publishedOn)
-                        |> tryFirst
+                    use cmd = conn.CreateCommand ()
+                    cmd.CommandText <-
+                        """SELECT *
+                             FROM post
+                            WHERE web_log_id   = @webLogId
+                              AND status       = @status
+                              AND published_on < @publishedOn
+                            ORDER BY published_on DESC
+                            LIMIT 1"""
+                    addWebLogId cmd webLogId
+                    [ cmd.Parameters.AddWithValue ("@status", PostStatus.toString Published)
+                      cmd.Parameters.AddWithValue ("@publishedOn", publishedOn)
+                    ] |> ignore
+                    use! oldRdr = cmd.ExecuteReaderAsync ()
+                    let! older = backgroundTask {
+                        if oldRdr.Read () then
+                            let! post = appendPostCategoryTagAndMeta (postWithoutText oldRdr)
+                            return Some post
+                        else
+                            return None
+                    }
+                    cmd.CommandText <-
+                        """SELECT *
+                             FROM post
+                            WHERE web_log_id   = @webLogId
+                              AND status       = @status
+                              AND published_on > @publishedOn
+                            ORDER BY published_on
+                            LIMIT 1"""
+                    use! newRdr = cmd.ExecuteReaderAsync ()
+                    let! newer = backgroundTask {
+                        if newRdr.Read () then
+                            let! post = appendPostCategoryTagAndMeta (postWithoutText oldRdr)
+                            return Some post
+                        else
+                            return None
+                    }
                     return older, newer
                 }
                 
@@ -1022,55 +1223,108 @@ type SQLiteData (conn : SqliteConnection) =
         member _.TagMap = {
             new ITagMapData with
                 
-                member _.findById tagMapId webLogId =
-                    Collection.TagMap.FindById (TagMapIdMapping.toBson tagMapId)
-                    //|> verifyWebLog webLogId (fun tm -> tm.webLogId)
+                member _.findById tagMapId webLogId = backgroundTask {
+                    use cmd = conn.CreateCommand ()
+                    cmd.CommandText <- "SELECT * FROM tag_map WHERE id = @id"
+                    cmd.Parameters.AddWithValue ("@id", TagMapId.toString tagMapId) |> ignore
+                    use! rdr = cmd.ExecuteReaderAsync ()
+                    return verifyWebLog<TagMap> webLogId (fun tm -> tm.webLogId) Map.toTagMap rdr
+                }
                 
                 member this.delete tagMapId webLogId = backgroundTask {
                     match! this.findById tagMapId webLogId with
                     | Some _ ->
-                        let _ = Collection.TagMap.Delete (TagMapIdMapping.toBson tagMapId)
-                        do! checkpoint ()
+                        use cmd = conn.CreateCommand ()
+                        cmd.CommandText <- "DELETE FROM tag_map WHERE id = @id"
+                        cmd.Parameters.AddWithValue ("@id", TagMapId.toString tagMapId) |> ignore
+                        do! write cmd
                         return true
                     | None -> return false
                 }
                 
-                member _.findByUrlValue urlValue webLogId =
-                    Collection.TagMap.Find (fun tm -> tm.webLogId = webLogId && tm.urlValue = urlValue)
-                    |> tryFirst
-                
-                member _.findByWebLog webLogId =
-                    Collection.TagMap.Find (fun tm -> tm.webLogId = webLogId)
-                    |> Seq.sortBy (fun tm -> tm.tag)
-                    |> toList
-                
-                member _.findMappingForTags tags webLogId =
-                    Collection.TagMap.Find (fun tm -> tm.webLogId = webLogId && tags |> List.contains tm.tag)
-                    |> toList
-                
-                member _.restore tagMaps = backgroundTask {
-                    let _ = Collection.TagMap.InsertBulk tagMaps
-                    do! checkpoint ()
+                member _.findByUrlValue urlValue webLogId = backgroundTask {
+                    use cmd = conn.CreateCommand ()
+                    cmd.CommandText <- "SELECT * FROM tag_map WHERE web_log_id = @webLogId AND url_value = @urlValue"
+                    addWebLogId cmd webLogId
+                    cmd.Parameters.AddWithValue ("@urlValue", urlValue) |> ignore
+                    use! rdr = cmd.ExecuteReaderAsync ()
+                    return if rdr.Read () then Some (Map.toTagMap rdr) else None
                 }
                 
-                member _.save tagMap = backgroundTask {
-                    let _ = Collection.TagMap.Upsert tagMap
-                    do! checkpoint ()
+                member _.findByWebLog webLogId = backgroundTask {
+                    use cmd = conn.CreateCommand ()
+                    cmd.CommandText <- "SELECT * FROM tag_map WHERE web_log_id = @webLogId ORDER BY tag"
+                    addWebLogId cmd webLogId
+                    use! rdr = cmd.ExecuteReaderAsync ()
+                    return toList Map.toTagMap rdr
+                }
+                
+                member _.findMappingForTags tags webLogId = backgroundTask {
+                    use cmd = conn.CreateCommand ()
+                    cmd.CommandText <-
+                        """SELECT *
+                             FROM tag_map
+                            WHERE web_log_id = @webLogId
+                              AND tag IN ("""
+                    tags
+                    |> List.iteri (fun idx tag ->
+                        if idx > 0 then cmd.CommandText <- $"{cmd.CommandText}, "
+                        cmd.CommandText <- $"{cmd.CommandText}@tag{idx}"
+                        cmd.Parameters.AddWithValue ($"@tag{idx}", tag) |> ignore)
+                    cmd.CommandText <- $"{cmd.CommandText})"
+                    addWebLogId cmd webLogId
+                    use! rdr = cmd.ExecuteReaderAsync ()
+                    return toList Map.toTagMap rdr
+                }
+                
+                member this.save tagMap = backgroundTask {
+                    use cmd = conn.CreateCommand ()
+                    match! this.findById tagMap.id tagMap.webLogId with
+                    | Some _ ->
+                        cmd.CommandText <-
+                            """UPDATE tag_map
+                                  SET tag       = @tag,
+                                      url_value = @urlValue
+                                WHERE id = @id
+                                  AND web_log_id = @webLogId"""
+                    | None -> cmd.CommandText <- "INSERT INTO tag_map VALUES (@id, @webLogId, @tag, @urlValue)"
+                    addWebLogId cmd tagMap.webLogId
+                    [ cmd.Parameters.AddWithValue ("@id", TagMapId.toString tagMap.id)
+                      cmd.Parameters.AddWithValue ("@tag", tagMap.tag)
+                      cmd.Parameters.AddWithValue ("@urlValue", tagMap.urlValue)
+                    ] |> ignore
+                    do! write cmd
+                }
+                
+                member this.restore tagMaps = backgroundTask {
+                    for tagMap in tagMaps do
+                        do! this.save tagMap
                 }
         }
         
         member _.Theme = {
             new IThemeData with
                 
-                member _.all () =
-                    Collection.Theme.Find (fun t -> t.id <> ThemeId "admin")
-                    |> Seq.map (fun t -> { t with templates = [] })
-                    |> Seq.sortBy (fun t -> t.id)
-                    |> toList
+                member _.all () = backgroundTask {
+                    use cmd = conn.CreateCommand ()
+                    cmd.CommandText <- "SELECT * FROM theme WHERE id <> 'admin' ORDER BY id"
+                    use! rdr = cmd.ExecuteReaderAsync ()
+                    return toList Map.toTheme rdr
+                }
                 
-                member _.findById themeId =
-                    Collection.Theme.FindById (ThemeIdMapping.toBson themeId)
-                    |> toOption
+                member _.findById themeId = backgroundTask {
+                    use cmd = conn.CreateCommand ()
+                    cmd.CommandText <- "SELECT * FROM theme WHERE id = @id"
+                    cmd.Parameters.AddWithValue ("@id", ThemeId.toString themeId) |> ignore
+                    use! rdr = cmd.ExecuteReaderAsync ()
+                    if rdr.Read () then
+                        let theme = Map.toTheme rdr
+                        cmd.CommandText <- "SELECT * FROM theme_template WHERE theme_id = @id"
+                        use! templateRdr = cmd.ExecuteReaderAsync ()
+                        return Some { theme with templates = toList Map.toThemeTemplate templateRdr }
+                    else
+                        return None
+                }
                 
                 member this.findByIdWithoutText themeId = backgroundTask {
                     match! this.findById themeId with
@@ -1081,47 +1335,143 @@ type SQLiteData (conn : SqliteConnection) =
                     | None -> return None
                 }
                 
-                member _.save theme = backgroundTask {
-                    let _ = Collection.Theme.Upsert theme
-                    do! checkpoint ()
+                member this.save theme = backgroundTask {
+                    use cmd = conn.CreateCommand ()
+                    let! oldTheme = this.findById theme.id
+                    cmd.CommandText <-
+                        match oldTheme with
+                        | Some _ -> "UPDATE theme SET name = @name, version = @version WHERE id = @id"
+                        | None -> "INSERT INTO theme (@id, @name, @version)"
+                    [ cmd.Parameters.AddWithValue ("@id", ThemeId.toString theme.id)
+                      cmd.Parameters.AddWithValue ("@name", theme.name)
+                      cmd.Parameters.AddWithValue ("@version", theme.version)
+                    ] |> ignore
+                    do! write cmd
+                    
+                    let toDelete, toAdd =
+                        diffLists (oldTheme |> Option.map (fun t -> t.templates) |> Option.defaultValue [])
+                                  theme.templates (fun t -> t.name)
+                    let toUpdate =
+                        theme.templates
+                        |> List.filter (fun t ->
+                            not (toDelete |> List.exists (fun d -> d.name = t.name))
+                            && not (toAdd |> List.exists (fun a -> a.name = t.name)))
+                    cmd.CommandText <-
+                        "UPDATE theme_template SET template = @template WHERE theme_id = @themeId AND name = @name"
+                    toUpdate
+                    |> List.map (fun template -> backgroundTask {
+                        cmd.Parameters.Clear ()
+                        [ cmd.Parameters.AddWithValue ("@themeId", ThemeId.toString theme.id)
+                          cmd.Parameters.AddWithValue ("@name", template.name)
+                          cmd.Parameters.AddWithValue ("@template", template.text)
+                        ] |> ignore
+                        do! write cmd
+                    })
+                    |> Task.WhenAll
+                    |> ignore
+                    cmd.CommandText <- "INSERT INTO theme_template (@themeId, @name, @template)"
+                    toAdd
+                    |> List.map (fun template -> backgroundTask {
+                        cmd.Parameters.Clear ()
+                        [ cmd.Parameters.AddWithValue ("@themeId", ThemeId.toString theme.id)
+                          cmd.Parameters.AddWithValue ("@name", template.name)
+                          cmd.Parameters.AddWithValue ("@template", template.text)
+                        ] |> ignore
+                        do! write cmd
+                    })
+                    |> Task.WhenAll
+                    |> ignore
+                    cmd.CommandText <- "DELETE FROM theme_template WHERE theme_id = @themeId AND name = @name"
+                    toDelete
+                    |> List.map (fun template -> backgroundTask {
+                        cmd.Parameters.Clear ()
+                        [ cmd.Parameters.AddWithValue ("@themeId", ThemeId.toString theme.id)
+                          cmd.Parameters.AddWithValue ("@name", template.name)
+                        ] |> ignore
+                        do! write cmd
+                    })
+                    |> Task.WhenAll
+                    |> ignore
                 }
         }
         
         member _.ThemeAsset = {
             new IThemeAssetData with
                 
-                member _.all () =
-                    Collection.ThemeAsset.FindAll ()
-                    |> Seq.map (fun ta -> { ta with data = [||] })
-                    |> toList
-                
-                member _.deleteByTheme themeId = backgroundTask {
-                    (ThemeId.toString
-                     >> sprintf "$.id LIKE '%s%%'"
-                     >> BsonExpression.Create
-                     >> Collection.ThemeAsset.DeleteMany) themeId
-                    |> ignore
-                    do! checkpoint ()
+                member _.all () = backgroundTask {
+                    use cmd = conn.CreateCommand ()
+                    cmd.CommandText <- "SELECT theme_id, path, updated_on FROM theme_asset"
+                    use! rdr = cmd.ExecuteReaderAsync ()
+                    return toList (Map.toThemeAsset false) rdr
                 }
                 
-                member _.findById assetId =
-                    Collection.ThemeAsset.FindById (ThemeAssetIdMapping.toBson assetId)
-                    |> toOption
+                member _.deleteByTheme themeId = backgroundTask {
+                    use cmd = conn.CreateCommand ()
+                    cmd.CommandText <- "DELETE FROM theme_asset WHERE theme_id = @themeId"
+                    cmd.Parameters.AddWithValue ("@themeId", ThemeId.toString themeId) |> ignore
+                    do! write cmd
+                }
                 
-                member _.findByTheme themeId =
-                    Collection.ThemeAsset.Find (fun ta ->
-                        (ThemeAssetId.toString ta.id).StartsWith (ThemeId.toString themeId))
-                    |> Seq.map (fun ta -> { ta with data = [||] })
-                    |> toList
+                member _.findById assetId = backgroundTask {
+                    use cmd = conn.CreateCommand ()
+                    cmd.CommandText <- "SELECT *, ROWID FROM theme_asset WHERE theme_id = @themeId AND path = @path"
+                    let (ThemeAssetId (ThemeId themeId, path)) = assetId
+                    [ cmd.Parameters.AddWithValue ("@themeId", themeId)
+                      cmd.Parameters.AddWithValue ("@path", path)
+                    ] |> ignore
+                    use! rdr = cmd.ExecuteReaderAsync ()
+                    return if rdr.Read () then Some (Map.toThemeAsset true rdr) else None
+                }
                 
-                member _.findByThemeWithData themeId =
-                    Collection.ThemeAsset.Find (fun ta ->
-                        (ThemeAssetId.toString ta.id).StartsWith (ThemeId.toString themeId))
-                    |> toList
+                member _.findByTheme themeId = backgroundTask {
+                    use cmd = conn.CreateCommand ()
+                    cmd.CommandText <- "SELECT theme_id, path, updated_on FROM theme_asset WHERE theme_id = @themeId"
+                    cmd.Parameters.AddWithValue ("@themeId", ThemeId.toString themeId) |> ignore
+                    use! rdr = cmd.ExecuteReaderAsync ()
+                    return toList (Map.toThemeAsset false) rdr
+                }
+                
+                member _.findByThemeWithData themeId = backgroundTask {
+                    use cmd = conn.CreateCommand ()
+                    cmd.CommandText <- "SELECT *, ROWID FROM theme_asset WHERE theme_id = @themeId"
+                    cmd.Parameters.AddWithValue ("@themeId", ThemeId.toString themeId) |> ignore
+                    use! rdr = cmd.ExecuteReaderAsync ()
+                    return toList (Map.toThemeAsset true) rdr
+                }
                 
                 member _.save asset = backgroundTask {
-                    let _ = Collection.ThemeAsset.Upsert asset
-                    do! checkpoint ()
+                    use sideCmd = conn.CreateCommand ()
+                    sideCmd.CommandText <-
+                        "SELECT COUNT(path) FROM theme_asset WHERE theme_id = @themeId AND path = @path"
+                    let (ThemeAssetId (ThemeId themeId, path)) = asset.id
+                    [ sideCmd.Parameters.AddWithValue ("@themeId", themeId)
+                      sideCmd.Parameters.AddWithValue ("@path", path)
+                    ] |> ignore
+                    let! exists = count sideCmd
+                    
+                    use cmd = conn.CreateCommand ()
+                    cmd.CommandText <-
+                        if exists = 1 then
+                            """UPDATE theme_asset
+                                  SET updated_on = @updatedOn,
+                                      data       = ZEROBLOB(@dataLength)
+                                WHERE theme_id = @themeId
+                                  AND path     = @path"""
+                        else
+                            "INSERT INTO theme_asset VALUES (@themeId, @path, @updatedOn, ZEROBLOB(@dataLength))"
+                    [ cmd.Parameters.AddWithValue ("@themeId", themeId)
+                      cmd.Parameters.AddWithValue ("@path", path)
+                      cmd.Parameters.AddWithValue ("@updatedOn", asset.updatedOn)
+                      cmd.Parameters.AddWithValue ("@dataLength", asset.data.Length)
+                    ] |> ignore
+                    do! write cmd
+                    
+                    sideCmd.CommandText <- "SELECT ROWID FROM theme_asset WHERE theme_id = @themeId AND path = @path"
+                    let! rowId = sideCmd.ExecuteScalarAsync ()
+                    
+                    use dataStream = new MemoryStream (asset.data)
+                    use blobStream = new SqliteBlob (conn, "theme_asset", "data", rowId :?> int64)
+                    do! dataStream.CopyToAsync blobStream
                 }
         }
         
@@ -1129,43 +1479,117 @@ type SQLiteData (conn : SqliteConnection) =
             new IWebLogData with
                 
                 member _.add webLog = backgroundTask {
-                    let _ = Collection.WebLog.Insert webLog
-                    do! checkpoint ()
+                    use cmd = conn.CreateCommand ()
+                    cmd.CommandText <-
+                        """INSERT INTO web_log
+                           VALUES (@id, @name, @subtitle, @defaultPage, @postsPerPage, @themeId, @urlBase, @timeZone,
+                                   @autoHtmx, @feedEnabled, @feedName, @itemsInFeed, @categoryEnabled, @tagEnabled,
+                                   @copyright)"""
+                    addWebLogParameters cmd webLog
+                    do! write cmd
                 }
                 
-                member _.all () =
-                    Collection.WebLog.FindAll ()
-                    |> toList
+                member _.all () = backgroundTask {
+                    use cmd = conn.CreateCommand ()
+                    cmd.CommandText <- "SELECT * FROM web_log"
+                    use! rdr = cmd.ExecuteReaderAsync ()
+                    let! webLogs =
+                        toList Map.toWebLog rdr
+                        |> List.map (fun webLog -> backgroundTask { return! appendCustomFeeds webLog })
+                        |> Task.WhenAll
+                    return List.ofArray webLogs
+                }
                 
                 member _.delete webLogId = backgroundTask {
-                    let forWebLog = BsonExpression.Create $"$.webLogId = '{WebLogId.toString webLogId}'"
-                    let _ = Collection.Comment.DeleteMany    forWebLog
-                    let _ = Collection.Post.DeleteMany       forWebLog
-                    let _ = Collection.Page.DeleteMany       forWebLog
-                    let _ = Collection.Category.DeleteMany   forWebLog
-                    let _ = Collection.TagMap.DeleteMany     forWebLog
-                    let _ = Collection.WebLogUser.DeleteMany forWebLog
-                    let _ = Collection.WebLog.Delete (WebLogIdMapping.toBson webLogId)
-                    do! checkpoint ()
+                    use cmd = conn.CreateCommand ()
+                    addWebLogId cmd webLogId
+                    let subQuery table = $"(SELECT id FROM {table} WHERE web_log_id = @webLogId)"
+                    let postSubQuery = subQuery "post"
+                    let pageSubQuery = subQuery "page"
+                    [ $"DELETE FROM post_comment WHERE post_id IN {postSubQuery}"
+                      $"DELETE FROM post_revision WHERE post_id IN {postSubQuery}"
+                      $"DELETE FROM post_tag WHERE post_id IN {postSubQuery}"
+                      $"DELETE FROM post_category WHERE post_id IN {postSubQuery}"
+                      $"DELETE FROM post_meta WHERE post_id IN {postSubQuery}"
+                      "DELETE FROM post WHERE web_log_id = @webLogId"
+                      $"DELETE FROM page_revision WHERE page_id IN {pageSubQuery}"
+                      $"DELETE FROM page_meta WHERE page_id IN {pageSubQuery}"
+                      "DELETE FROM page WHERE web_log_id = @webLogId"
+                      "DELETE FROM category WHERE web_log_id = @webLogId"
+                      "DELETE FROM tag_map WHERE web_log_id = @webLogId"
+                      "DELETE FROM web_log_user WHERE web_log_id = @webLogId"
+                      $"""DELETE FROM web_log_feed_podcast WHERE feed_id IN {subQuery "web_log_feed"}"""
+                      "DELETE FROM web_log_feed WHERE web_log_id = @webLogId"
+                      "DELETE FROM web_log WHERE id = @webLogId"
+                    ]
+                    |> List.map (fun query -> backgroundTask {
+                        cmd.CommandText <- query
+                        do! write cmd
+                    })
+                    |> Task.WhenAll
+                    |> ignore
                 }
                 
-                member _.findByHost url =
-                    Collection.WebLog.Find (fun wl -> wl.urlBase = url)
-                    |> tryFirst
+                member _.findByHost url = backgroundTask {
+                    use cmd = conn.CreateCommand ()
+                    cmd.CommandText <- "SELECT * FROM web_log WHERE url_base = @urlBase"
+                    cmd.Parameters.AddWithValue ("@urlBase", url) |> ignore
+                    use! rdr = cmd.ExecuteReaderAsync ()
+                    if rdr.Read () then
+                        let! webLog = appendCustomFeeds (Map.toWebLog rdr)
+                        return Some webLog
+                    else
+                        return None
+                }
 
-                member _.findById webLogId =
-                    Collection.WebLog.FindById (WebLogIdMapping.toBson webLogId)
-                    |> toOption
+                member _.findById webLogId = backgroundTask {
+                    use cmd = conn.CreateCommand ()
+                    cmd.CommandText <- "SELECT * FROM web_log WHERE id = @webLogId"
+                    addWebLogId cmd webLogId
+                    use! rdr = cmd.ExecuteReaderAsync ()
+                    if rdr.Read () then
+                        let! webLog = appendCustomFeeds (Map.toWebLog rdr)
+                        return Some webLog
+                    else
+                        return None
+                }
                 
                 member _.updateSettings webLog = backgroundTask {
-                    let _ = Collection.WebLog.Update webLog
-                    do! checkpoint ()
+                    use cmd = conn.CreateCommand ()
+                    cmd.CommandText <-
+                        """UPDATE web_log
+                              SET name             = @name,
+                                  subtitle         = @subtitle,
+                                  default_page     = @defaultPage,
+                                  posts_per_page   = @postsPerPage,
+                                  theme_id         = @themeId,
+                                  url_base         = @urlBase,
+                                  time_zone        = @timeZone,
+                                  auto_htmx        = @autoHtmx,
+                                  feed_enabled     = @feedEnabled,
+                                  feed_name        = @feedName
+                                  items_in_feed    = @itemsInFeed,
+                                  category_enabled = @categoryEnabled,
+                                  tag_enabled      = @tagEnabled,
+                                  copyright        = @copyright
+                            WHERE id = @id"""
+                    addWebLogParameters cmd webLog
+                    do! write cmd
                 }
                 
                 member this.updateRssOptions webLog = backgroundTask {
-                    match! this.findById webLog.id with
-                    | Some wl -> do! this.updateSettings { wl with rss = webLog.rss }
-                    | None -> ()
+                    use cmd = conn.CreateCommand ()
+                    cmd.CommandText <-
+                        """UPDATE web_log
+                              SET feed_enabled     = @feedEnabled,
+                                  feed_name        = @feedName
+                                  items_in_feed    = @itemsInFeed,
+                                  category_enabled = @categoryEnabled,
+                                  tag_enabled      = @tagEnabled,
+                                  copyright        = @copyright
+                            WHERE id = @id"""
+                    addWebLogRssParameters cmd webLog
+                    do! write cmd
                 }
         }
         
@@ -1236,7 +1660,7 @@ type SQLiteData (conn : SqliteConnection) =
                         theme_id    TEXT NOT NULL REFERENCES theme (id),
                         path        TEXT NOT NULL,
                         updated_on  TEXT NOT NULL,
-                        data        BINARY NOT NULL,
+                        data        BLOB NOT NULL,
                         PRIMARY KEY (theme_id, path))"""
                 do! write cmd
             
@@ -1245,18 +1669,14 @@ type SQLiteData (conn : SqliteConnection) =
                 use cmd = conn.CreateCommand ()
                 cmd.CommandText <-
                     """CREATE TABLE web_log (
-                        id            TEXT PRIMARY KEY,
-                        name          TEXT NOT NULL,
-                        subtitle      TEXT,
-                        default_page  TEXT NOT NULL,
-                        theme_id      TEXT NOT NULL REFERENCES theme (id),
-                        url_base      TEXT NOT NULL,
-                        time_zone     TEXT NOT NULL,
-                        auto_htmx     INTEGER NOT NULL DEFAULT 0)"""
-                do! write cmd
-                cmd.CommandText <-
-                    """CREATE TABLE web_log_rss (
-                        web_log_id        TEXT PRIMARY KEY REFERENCES web_log (id),
+                        id                TEXT PRIMARY KEY,
+                        name              TEXT NOT NULL,
+                        subtitle          TEXT,
+                        default_page      TEXT NOT NULL,
+                        theme_id          TEXT NOT NULL REFERENCES theme (id),
+                        url_base          TEXT NOT NULL,
+                        time_zone         TEXT NOT NULL,
+                        auto_htmx         INTEGER NOT NULL DEFAULT 0,
                         feed_enabled      INTEGER NOT NULL DEFAULT 0,
                         feed_name         TEXT NOT NULL,
                         items_in_feed     INTEGER,
