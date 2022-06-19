@@ -50,6 +50,9 @@ module private SqliteHelpers =
         /// Get a date/time value from a data reader
         let getDateTime col (rdr : SqliteDataReader) = rdr.GetDateTime (rdr.GetOrdinal col)
         
+        /// Get a Guid value from a data reader
+        let getGuid col (rdr : SqliteDataReader) = rdr.GetGuid (rdr.GetOrdinal col)
+        
         /// Get an int value from a data reader
         let getInt col (rdr : SqliteDataReader) = rdr.GetInt32 (rdr.GetOrdinal col)
         
@@ -212,6 +215,20 @@ module private SqliteHelpers =
                   customFeeds     = []
               }
             }
+        
+        /// Create a web log user from the current row in the given data reader
+        let toWebLogUser (rdr : SqliteDataReader) : WebLogUser =
+            { id                 = WebLogUserId (getString "id" rdr)
+              webLogId           = WebLogId (getString "webLogId" rdr)
+              userName           = getString "user_name" rdr
+              firstName          = getString "first_name" rdr
+              lastName           = getString "last_name" rdr
+              preferredName      = getString "preferred_name" rdr
+              passwordHash       = getString "password_hash" rdr
+              salt               = getGuid "salt" rdr
+              url                = tryString "url" rdr
+              authorizationLevel = AuthorizationLevel.parse (getString "authorization_level" rdr)
+            }
 
 
 /// SQLite myWebLog data implementation        
@@ -286,6 +303,20 @@ type SQLiteData (conn : SqliteConnection) =
           cmd.Parameters.AddWithValue ("@autoHtmx", webLog.autoHtmx)
         ] |> ignore
         addWebLogRssParameters cmd webLog
+    
+    /// Add parameters for web log user INSERT or UPDATE statements
+    let addWebLogUserParameters (cmd : SqliteCommand) (user : WebLogUser) =
+        [ cmd.Parameters.AddWithValue ("@id", WebLogUserId.toString user.id)
+          cmd.Parameters.AddWithValue ("@webLogId", WebLogId.toString user.webLogId)
+          cmd.Parameters.AddWithValue ("@userName", user.userName)
+          cmd.Parameters.AddWithValue ("@firstName", user.firstName)
+          cmd.Parameters.AddWithValue ("@lastName", user.lastName)
+          cmd.Parameters.AddWithValue ("@preferredName", user.preferredName)
+          cmd.Parameters.AddWithValue ("@passwordHash", user.passwordHash)
+          cmd.Parameters.AddWithValue ("@salt", user.salt)
+          cmd.Parameters.AddWithValue ("@url", match user.url with Some u -> u :> obj | None -> DBNull.Value)
+          cmd.Parameters.AddWithValue ("@authorizationLevel", AuthorizationLevel.toString user.authorizationLevel)
+        ] |> ignore
     
     /// Add a web log ID parameter
     let addWebLogId (cmd : SqliteCommand) webLogId =
@@ -473,28 +504,30 @@ type SQLiteData (conn : SqliteConnection) =
             |> ignore
     }
     
+    /// Run a command for the given post and tag
+    let runPostCategoryCommand postId (cmd : SqliteCommand) (tag : string) = backgroundTask {
+        cmd.Parameters.Clear ()
+        [ cmd.Parameters.AddWithValue ("@postId", PostId.toString postId)
+          cmd.Parameters.AddWithValue ("@tag", tag)
+        ] |> ignore
+        do! write cmd
+    }
+    
     /// Update a post's assigned categories
-    let updatePostTags postId oldTags newTags = backgroundTask {
+    let updatePostTags postId (oldTags : string list) newTags = backgroundTask {
         let toDelete, toAdd = diffLists oldTags newTags id
         if List.isEmpty toDelete && List.isEmpty toAdd then
             return ()
         else
             use cmd = conn.CreateCommand ()
-            let runCmd tag = backgroundTask {
-                cmd.Parameters.Clear ()
-                [ cmd.Parameters.AddWithValue ("@postId", PostId.toString postId)
-                  cmd.Parameters.AddWithValue ("@tag", tag)
-                ] |> ignore
-                do! write cmd
-            }
             cmd.CommandText <- "DELETE FROM post_tag WHERE post_id = @postId AND tag = @tag" 
             toDelete
-            |> List.map runCmd
+            |> List.map (runPostCategoryCommand postId cmd)
             |> Task.WhenAll
             |> ignore
             cmd.CommandText <- "INSERT INTO post_tag VALUES (@postId, @tag)"
             toAdd
-            |> List.map runCmd
+            |> List.map (runPostCategoryCommand postId cmd)
             |> Task.WhenAll
             |> ignore
     }
@@ -590,6 +623,15 @@ type SQLiteData (conn : SqliteConnection) =
         addWebLogId cmd webLog.id
         use! rdr = cmd.ExecuteReaderAsync ()
         return { webLog with rss = { webLog.rss with customFeeds = toList Map.toCustomFeed rdr } }
+    }
+    
+    /// Determine if the given table exists
+    let tableExists (table : string) = backgroundTask {
+        use cmd = conn.CreateCommand ()
+        cmd.CommandText <- "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = @table"
+        cmd.Parameters.AddWithValue ("@table", table) |> ignore
+        let! count = cmd.ExecuteScalarAsync ()
+        return (count :?> int) = 1
     }
     
     
@@ -1597,48 +1639,83 @@ type SQLiteData (conn : SqliteConnection) =
             new IWebLogUserData with
                 
                 member _.add user = backgroundTask {
-                    let _ = Collection.WebLogUser.Insert user
-                    do! checkpoint ()
+                    use cmd = conn.CreateCommand ()
+                    cmd.CommandText <-
+                        """INSERT INTO web_log_user
+                           VALUES (@id, @webLogId, @userName, @firstName, @lastName, @preferredName, @passwordHash,
+                                   @salt, @url, @authorizationLevel)"""
+                    addWebLogUserParameters cmd user
+                    do! write cmd
                 }
                 
-                member _.findByEmail email webLogId =
-                    Collection.WebLogUser.Find (fun wlu -> wlu.webLogId = webLogId && wlu.userName = email)
-                    |> tryFirst
+                member _.findByEmail email webLogId = backgroundTask {
+                    use cmd = conn.CreateCommand ()
+                    cmd.CommandText <-
+                        "SELECT * FROM web_log_user WHERE web_log_id = @webLogId AND user_name = @userName"
+                    addWebLogId cmd webLogId
+                    cmd.Parameters.AddWithValue ("@userName", email) |> ignore
+                    use! rdr = cmd.ExecuteReaderAsync ()
+                    return if rdr.Read () then Some (Map.toWebLogUser rdr) else None
+                }
                 
-                member _.findById userId webLogId =
-                    Collection.WebLogUser.FindById (WebLogUserIdMapping.toBson userId)
-                    // |> verifyWebLog webLogId (fun u -> u.webLogId)
+                member _.findById userId webLogId = backgroundTask {
+                    use cmd = conn.CreateCommand ()
+                    cmd.CommandText <- "SELECT * FROM web_log_user WHERE id = @id"
+                    cmd.Parameters.AddWithValue ("@id", WebLogUserId.toString userId) |> ignore
+                    use! rdr = cmd.ExecuteReaderAsync ()
+                    return verifyWebLog<WebLogUser> webLogId (fun u -> u.webLogId) Map.toWebLogUser rdr 
+                }
                 
-                member _.findByWebLog webLogId =
-                    Collection.WebLogUser.Find (fun wlu -> wlu.webLogId = webLogId)
-                    |> toList
+                member _.findByWebLog webLogId = backgroundTask {
+                    use cmd = conn.CreateCommand ()
+                    cmd.CommandText <- "SELECT * FROM web_log_user WHERE web_log_id = @webLogId"
+                    addWebLogId cmd webLogId
+                    use! rdr = cmd.ExecuteReaderAsync ()
+                    return toList Map.toWebLogUser rdr
+                }
                 
-                member _.findNames webLogId userIds =
-                    Collection.WebLogUser.Find (fun wlu -> userIds |> List.contains wlu.id)
-                    |> Seq.map (fun u -> { name = WebLogUserId.toString u.id; value = WebLogUser.displayName u })
-                    |> toList
+                member _.findNames webLogId userIds = backgroundTask {
+                    use cmd = conn.CreateCommand ()
+                    cmd.CommandText <- "SELECT * FROM web_log_user WHERE web_log_id = @webLogId AND id IN ("
+                    userIds
+                    |> List.iteri (fun idx userId ->
+                        if idx > 0 then cmd.CommandText <- $"{cmd.CommandText}, "
+                        cmd.CommandText <- $"{cmd.CommandText}@id{idx}"
+                        cmd.Parameters.AddWithValue ($"@id{idx}", WebLogUserId.toString userId) |> ignore)
+                    cmd.CommandText <- $"{cmd.CommandText})"
+                    addWebLogId cmd webLogId
+                    use! rdr = cmd.ExecuteReaderAsync ()
+                    return
+                        toList Map.toWebLogUser rdr
+                        |> List.map (fun u -> { name = WebLogUserId.toString u.id; value = WebLogUser.displayName u })
+                }
                 
-                member _.restore users = backgroundTask {
-                    let _ = Collection.WebLogUser.InsertBulk users
-                    do! checkpoint ()
+                member this.restore users = backgroundTask {
+                    for user in users do
+                        do! this.add user
                 }
                 
                 member _.update user = backgroundTask {
-                    let _ = Collection.WebLogUser.Update user
-                    do! checkpoint ()
+                    use cmd = conn.CreateCommand ()
+                    cmd.CommandText <-
+                        """UPDATE web_log_user
+                              SET user_name           = @userName,
+                                  first_name          = @firstName,
+                                  last_name           = @lastName,
+                                  preferred_name      = @preferredName,
+                                  password_hash       = @passwordHash,
+                                  salt                = @salt,
+                                  url                 = @url,
+                                  authorization_level = @authorizationLevel
+                            WHERE id         = @id
+                              AND web_log_id = @webLogId"""
+                    addWebLogUserParameters cmd user
+                    do! write cmd
                 }
         }
         
         member _.startUp () = backgroundTask {
 
-            let tableExists table = backgroundTask {
-                use cmd = conn.CreateCommand ()
-                cmd.CommandText <- "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = @table"
-                cmd.Parameters.AddWithValue ("@table", table) |> ignore
-                let! count = cmd.ExecuteScalarAsync ()
-                return (count :?> int) = 1
-            }
-            
             let! exists = tableExists "theme"
             if not exists then
                 use cmd = conn.CreateCommand ()
@@ -1846,4 +1923,3 @@ type SQLiteData (conn : SqliteConnection) =
                         url_value   TEXT NOT NULL)"""
                 do! write cmd
         }
-

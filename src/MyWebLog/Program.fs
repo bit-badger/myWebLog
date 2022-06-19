@@ -1,4 +1,6 @@
 ﻿open Microsoft.AspNetCore.Http
+open Microsoft.Data.Sqlite
+open Microsoft.Extensions.Configuration
 open Microsoft.Extensions.Logging
 open MyWebLog
 
@@ -31,8 +33,6 @@ open MyWebLog.Data
 /// Logic to obtain a data connection and implementation based on configured values
 module DataImplementation =
     
-    open LiteDB
-    open Microsoft.Extensions.Configuration
     open MyWebLog.Converters
     open RethinkDb.Driver.FSharp
     open RethinkDb.Driver.Net
@@ -46,10 +46,9 @@ module DataImplementation =
             let rethinkCfg = DataConfig.FromConfiguration (config.GetSection "RethinkDB")
             let conn       = rethinkCfg.CreateConnectionAsync () |> Async.AwaitTask |> Async.RunSynchronously
             Some (upcast RethinkDbData (conn, rethinkCfg, sp.GetRequiredService<ILogger<RethinkDbData>> ()))
-        elif isNotNull (config.GetConnectionString "LiteDB") then
-            Bson.registerAll ()
-            let db = new LiteDatabase (config.GetConnectionString "LiteDB")
-            Some (upcast LiteDbData db)
+        elif isNotNull (config.GetConnectionString "SQLite") then
+            let conn = new SqliteConnection (config.GetConnectionString "SQLite")
+            Some (upcast SQLiteData conn)
         else
             None
 
@@ -86,19 +85,26 @@ let rec main args =
             do! WebLogCache.fill data
             do! ThemeAssetCache.fill data
         } |> Async.AwaitTask |> Async.RunSynchronously
-        builder.Services.AddSingleton<IData> data |> ignore
         
         // Define distributed cache implementation based on data implementation
         match data with
         | :? RethinkDbData as rethink ->
+            // A RethinkDB connection is designed to work as a singleton
+            builder.Services.AddSingleton<IData> data |> ignore
             builder.Services.AddDistributedRethinkDBCache (fun opts ->
                 opts.TableName  <- "Session"
                 opts.Connection <- rethink.Conn)
             |> ignore
-        | :? LiteDbData ->
+        | :? SQLiteData ->
+            // ADO.NET connections are designed to work as per-request instantiation
+            builder.Services.AddScoped<SqliteConnection> (fun sp ->
+                let cfg = sp.GetRequiredService<IConfiguration> ()
+                new SqliteConnection (cfg.GetConnectionString "SQLite"))
+            |> ignore
+            builder.Services.AddScoped<IData, SQLiteData> () |> ignore
             let log = sp.GetRequiredService<ILoggerFactory> ()
             let logger = log.CreateLogger "MyWebLog.StartUp"
-            logger.LogWarning "Session caching is not yet implemented via LiteDB; using memory cache for sessions"
+            logger.LogWarning "Session caching is not yet implemented via SQLite; using memory cache for sessions"
             builder.Services.AddDistributedMemoryCache () |> ignore
         | _ -> ()
     | None ->
@@ -108,8 +114,6 @@ let rec main args =
         opts.IdleTimeout        <- TimeSpan.FromMinutes 60
         opts.Cookie.HttpOnly    <- true
         opts.Cookie.IsEssential <- true)
-    
-    // this needs to be after the session... maybe?
     let _ = builder.Services.AddGiraffe ()
     
     // Set up DotLiquid
