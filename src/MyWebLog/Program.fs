@@ -40,14 +40,14 @@ module DataImplementation =
     /// Get the configured data implementation
     let get (sp : IServiceProvider) : IData option =
         let config = sp.GetRequiredService<IConfiguration> ()
-        let isNotNull it = (isNull >> not) it
-        if isNotNull (config.GetSection "RethinkDB").Value then
+        if (config.GetSection "RethinkDB").Exists () then
             Json.all () |> Seq.iter Converter.Serializer.Converters.Add 
             let rethinkCfg = DataConfig.FromConfiguration (config.GetSection "RethinkDB")
             let conn       = rethinkCfg.CreateConnectionAsync () |> Async.AwaitTask |> Async.RunSynchronously
             Some (upcast RethinkDbData (conn, rethinkCfg, sp.GetRequiredService<ILogger<RethinkDbData>> ()))
-        elif isNotNull (config.GetConnectionString "SQLite") then
+        elif (config.GetConnectionString >> isNull >> not) "SQLite" then
             let conn = new SqliteConnection (config.GetConnectionString "SQLite")
+            SQLiteData.setUpConnection conn |> Async.AwaitTask |> Async.RunSynchronously
             Some (upcast SQLiteData conn)
         else
             None
@@ -98,8 +98,10 @@ let rec main args =
         | :? SQLiteData ->
             // ADO.NET connections are designed to work as per-request instantiation
             builder.Services.AddScoped<SqliteConnection> (fun sp ->
-                let cfg = sp.GetRequiredService<IConfiguration> ()
-                new SqliteConnection (cfg.GetConnectionString "SQLite"))
+                let cfg  = sp.GetRequiredService<IConfiguration> ()
+                let conn = new SqliteConnection (cfg.GetConnectionString "SQLite")
+                SQLiteData.setUpConnection conn |> Async.AwaitTask |> Async.RunSynchronously
+                conn)
             |> ignore
             builder.Services.AddScoped<IData, SQLiteData> () |> ignore
             let log = sp.GetRequiredService<ILoggerFactory> ()

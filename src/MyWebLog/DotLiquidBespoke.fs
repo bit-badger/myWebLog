@@ -91,6 +91,13 @@ type NavLinkFilter () =
         |> Seq.fold (+) ""
 
 
+/// A filter to generate a link for theme asset (image, stylesheet, script, etc.)
+type ThemeAssetFilter () =
+    static member ThemeAsset (ctx : Context, asset : string) =
+        let webLog = webLog ctx
+        WebLog.relativeUrl webLog (Permalink $"themes/{webLog.themePath}/{asset}")
+
+
 /// Create various items in the page header based on the state of the page being generated
 type PageHeadTag () =
     inherit Tag ()
@@ -106,9 +113,9 @@ type PageHeadTag () =
         
         // Theme assets
         if assetExists "style.css" webLog then
-            result.WriteLine $"""{s}<link rel="stylesheet" href="/themes/{webLog.themePath}/style.css">"""
+            result.WriteLine $"""{s}<link rel="stylesheet" href="{ThemeAssetFilter.ThemeAsset (context, "style.css")}">"""
         if assetExists "favicon.ico" webLog then
-            result.WriteLine $"""{s}<link rel="icon" href="/themes/{webLog.themePath}/favicon.ico">"""
+            result.WriteLine $"""{s}<link rel="icon" href="{ThemeAssetFilter.ThemeAsset (context, "favicon.ico")}">"""
         
         // RSS feeds and canonical URLs
         let feedLink title url =
@@ -152,7 +159,7 @@ type PageFootTag () =
             result.WriteLine $"{s}{RenderView.AsString.htmlNode Htmx.Script.minified}"
         
         if assetExists "script.js" webLog then
-            result.WriteLine $"""{s}<script src="/themes/{webLog.themePath}/script.js"></script>"""
+            result.WriteLine $"""{s}<script src="{ThemeAssetFilter.ThemeAsset (context, "script.js")}"></script>"""
 
         
 /// A filter to generate a relative link
@@ -170,12 +177,6 @@ type TagLinkFilter () =
         | Some tagMap -> tagMap.urlValue
         | None        -> tag.Replace (" ", "+")
         |> function tagUrl -> WebLog.relativeUrl (webLog ctx) (Permalink $"tag/{tagUrl}/")
-
-
-/// A filter to generate a link for theme asset (image, stylesheet, script, etc.)
-type ThemeAssetFilter () =
-    static member ThemeAsset (ctx : Context, asset : string) =
-        $"/themes/{(webLog ctx).themePath}/{asset}"
 
 
 /// Create links for a user to log on or off, and a dashboard link if they are logged off

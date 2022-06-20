@@ -14,7 +14,7 @@ module private SqliteHelpers =
     /// Run a command that returns a count
     let count (cmd : SqliteCommand) = backgroundTask {
         let! it = cmd.ExecuteScalarAsync ()
-        return it :?> int
+        return int (it :?> int64)
     }
     
     /// Get lists of items removed from and added to the given lists
@@ -148,7 +148,7 @@ module private SqliteHelpers =
                 publishedOn    = tryDateTime "published_on" rdr
                 updatedOn      = getDateTime "updated_on" rdr
                 template       = tryString "template" rdr
-                text           = getString "page_text" rdr
+                text           = getString "post_text" rdr
             }
         
         /// Create a revision from the current row in the given data reader
@@ -183,7 +183,7 @@ module private SqliteHelpers =
                     dataStream.ToArray ()
                 else
                     [||]
-            { id        = ThemeAssetId (ThemeId (getString "id" rdr), getString "path" rdr)
+            { id        = ThemeAssetId (ThemeId (getString "theme_id" rdr), getString "path" rdr)
               updatedOn = getDateTime "updated_on" rdr
               data      = assetData
             }
@@ -219,7 +219,7 @@ module private SqliteHelpers =
         /// Create a web log user from the current row in the given data reader
         let toWebLogUser (rdr : SqliteDataReader) : WebLogUser =
             { id                 = WebLogUserId (getString "id" rdr)
-              webLogId           = WebLogId (getString "webLogId" rdr)
+              webLogId           = WebLogId (getString "web_log_id" rdr)
               userName           = getString "user_name" rdr
               firstName          = getString "first_name" rdr
               lastName           = getString "last_name" rdr
@@ -229,6 +229,9 @@ module private SqliteHelpers =
               url                = tryString "url" rdr
               authorizationLevel = AuthorizationLevel.parse (getString "authorization_level" rdr)
             }
+    
+    /// Add a possibly-missing parameter, substituting null for None
+    let maybe<'T> (it : 'T option) : obj = match it with Some x -> x :> obj | None -> DBNull.Value
 
 
 /// SQLite myWebLog data implementation        
@@ -240,10 +243,8 @@ type SQLiteData (conn : SqliteConnection) =
           cmd.Parameters.AddWithValue ("@webLogId", WebLogId.toString cat.webLogId)
           cmd.Parameters.AddWithValue ("@name", cat.name)
           cmd.Parameters.AddWithValue ("@slug", cat.slug)
-          cmd.Parameters.AddWithValue ("@description",
-            match cat.description with Some d -> d :> obj | None -> DBNull.Value)
-          cmd.Parameters.AddWithValue ("@parentId",
-            match cat.parentId with Some (CategoryId parentId) -> parentId :> obj | None -> DBNull.Value)
+          cmd.Parameters.AddWithValue ("@description", maybe cat.description)
+          cmd.Parameters.AddWithValue ("@parentId", maybe (cat.parentId |> Option.map CategoryId.toString))
         ] |> ignore
     
     /// Add parameters for page INSERT or UPDATE statements
@@ -256,8 +257,7 @@ type SQLiteData (conn : SqliteConnection) =
           cmd.Parameters.AddWithValue ("@publishedOn", page.publishedOn)
           cmd.Parameters.AddWithValue ("@updatedOn", page.updatedOn)
           cmd.Parameters.AddWithValue ("@showInPageList", page.showInPageList)
-          cmd.Parameters.AddWithValue ("@template",
-            match page.template with Some t -> t :> obj | None -> DBNull.Value)
+          cmd.Parameters.AddWithValue ("@template", maybe page.template)
           cmd.Parameters.AddWithValue ("@text", page.text)
         ] |> ignore
     
@@ -269,11 +269,9 @@ type SQLiteData (conn : SqliteConnection) =
           cmd.Parameters.AddWithValue ("@status", PostStatus.toString post.status)
           cmd.Parameters.AddWithValue ("@title", post.title)
           cmd.Parameters.AddWithValue ("@permalink", Permalink.toString post.permalink)
-          cmd.Parameters.AddWithValue ("@publishedOn",
-            match post.publishedOn with Some p -> p :> obj | None -> DBNull.Value)
+          cmd.Parameters.AddWithValue ("@publishedOn", maybe post.publishedOn)
           cmd.Parameters.AddWithValue ("@updatedOn", post.updatedOn)
-          cmd.Parameters.AddWithValue ("@template",
-            match post.template with Some t -> t :> obj | None -> DBNull.Value)
+          cmd.Parameters.AddWithValue ("@template", maybe post.template)
           cmd.Parameters.AddWithValue ("@text", post.text)
         ] |> ignore
     
@@ -281,20 +279,17 @@ type SQLiteData (conn : SqliteConnection) =
     let addWebLogRssParameters (cmd : SqliteCommand) (webLog : WebLog) =
         [ cmd.Parameters.AddWithValue ("@feedEnabled", webLog.rss.feedEnabled)
           cmd.Parameters.AddWithValue ("@feedName", webLog.rss.feedName)
-          cmd.Parameters.AddWithValue ("@itemsInFeed",
-            match webLog.rss.itemsInFeed with Some it -> it :> obj | None -> DBNull.Value)
+          cmd.Parameters.AddWithValue ("@itemsInFeed", maybe webLog.rss.itemsInFeed)
           cmd.Parameters.AddWithValue ("@categoryEnabled", webLog.rss.categoryEnabled)
           cmd.Parameters.AddWithValue ("@tagEnabled", webLog.rss.tagEnabled)
-          cmd.Parameters.AddWithValue ("@copyright",
-            match webLog.rss.copyright with Some c -> c :> obj | None -> DBNull.Value)
+          cmd.Parameters.AddWithValue ("@copyright", maybe webLog.rss.copyright)
         ] |> ignore
     
     /// Add parameters for web log INSERT or UPDATE statements
     let addWebLogParameters (cmd : SqliteCommand) (webLog : WebLog) =
         [ cmd.Parameters.AddWithValue ("@id", WebLogId.toString webLog.id)
           cmd.Parameters.AddWithValue ("@name", webLog.name)
-          cmd.Parameters.AddWithValue ("@subtitle",
-            match webLog.subtitle with Some s -> s :> obj | None -> DBNull.Value)
+          cmd.Parameters.AddWithValue ("@subtitle", maybe webLog.subtitle)
           cmd.Parameters.AddWithValue ("@defaultPage", webLog.defaultPage)
           cmd.Parameters.AddWithValue ("@postsPerPage", webLog.postsPerPage)
           cmd.Parameters.AddWithValue ("@themeId", webLog.themePath)
@@ -314,7 +309,7 @@ type SQLiteData (conn : SqliteConnection) =
           cmd.Parameters.AddWithValue ("@preferredName", user.preferredName)
           cmd.Parameters.AddWithValue ("@passwordHash", user.passwordHash)
           cmd.Parameters.AddWithValue ("@salt", user.salt)
-          cmd.Parameters.AddWithValue ("@url", match user.url with Some u -> u :> obj | None -> DBNull.Value)
+          cmd.Parameters.AddWithValue ("@url", maybe user.url)
           cmd.Parameters.AddWithValue ("@authorizationLevel", AuthorizationLevel.toString user.authorizationLevel)
         ] |> ignore
     
@@ -336,14 +331,16 @@ type SQLiteData (conn : SqliteConnection) =
     /// Append revisions and permalinks to a page
     let appendPageRevisionsAndPermalinks (page : Page) = backgroundTask {
         use cmd = conn.CreateCommand ()
-        cmd.CommandText <- "SELECT permalink FROM page_permalink WHERE page_id = @pageId"
         cmd.Parameters.AddWithValue ("@pageId", PageId.toString page.id) |> ignore
-        use! linkRdr = cmd.ExecuteReaderAsync ()
-        let page = { page with priorPermalinks = toList Map.toPermalink linkRdr }
+        
+        cmd.CommandText <- "SELECT permalink FROM page_permalink WHERE page_id = @pageId"
+        use! rdr = cmd.ExecuteReaderAsync ()
+        let page = { page with priorPermalinks = toList Map.toPermalink rdr }
+        do! rdr.CloseAsync ()
         
         cmd.CommandText <- "SELECT as_of, revision_text FROM page_revision WHERE page_id = @pageId ORDER BY as_of DESC"
-        use! revRdr = cmd.ExecuteReaderAsync ()
-        return { page with revisions = toList Map.toRevision revRdr }
+        use! rdr = cmd.ExecuteReaderAsync ()
+        return { page with revisions = toList Map.toRevision rdr }
     }
     
     /// Return a page with no text (or meta items, prior permalinks, or revisions)
@@ -369,12 +366,13 @@ type SQLiteData (conn : SqliteConnection) =
             return ()
         else
             use cmd = conn.CreateCommand ()
+            [ cmd.Parameters.AddWithValue ("@pageId", PageId.toString pageId)
+              cmd.Parameters.Add ("@name", SqliteType.Text)
+              cmd.Parameters.Add ("@value", SqliteType.Text)
+            ] |> ignore
             let runCmd (item : MetaItem) = backgroundTask {
-                cmd.Parameters.Clear ()
-                [ cmd.Parameters.AddWithValue ("@pageId", PageId.toString pageId)
-                  cmd.Parameters.AddWithValue ("@name", item.name)
-                  cmd.Parameters.AddWithValue ("@value", item.value)
-                ] |> ignore
+                cmd.Parameters["@name" ].Value <- item.name
+                cmd.Parameters["@value"].Value <- item.value
                 do! write cmd
             }
             cmd.CommandText <- "DELETE FROM page_meta WHERE page_id = @pageId AND name = @name AND value = @value" 
@@ -396,11 +394,11 @@ type SQLiteData (conn : SqliteConnection) =
             return ()
         else
             use cmd = conn.CreateCommand ()
+            [ cmd.Parameters.AddWithValue ("@pageId", PageId.toString pageId)
+              cmd.Parameters.Add ("@link", SqliteType.Text)
+            ] |> ignore
             let runCmd link = backgroundTask {
-                cmd.Parameters.Clear ()
-                [ cmd.Parameters.AddWithValue ("@pageId", PageId.toString pageId)
-                  cmd.Parameters.AddWithValue ("@link", Permalink.toString link)
-                ] |> ignore
+                cmd.Parameters["@link"].Value <- Permalink.toString link
                 do! write cmd
             }
             cmd.CommandText <- "DELETE FROM page_permalink WHERE page_id = @pageId AND permalink = @link" 
@@ -447,14 +445,17 @@ type SQLiteData (conn : SqliteConnection) =
     /// Append category IDs, tags, and meta items to a post
     let appendPostCategoryTagAndMeta (post : Post) = backgroundTask {
         use cmd = conn.CreateCommand ()
-        cmd.CommandText <- "SELECT category_id AS id FROM post_category WHERE post_id = @id"
         cmd.Parameters.AddWithValue ("@id", PostId.toString post.id) |> ignore
-        use! catRdr = cmd.ExecuteReaderAsync ()
-        let post = { post with categoryIds = toList Map.toCategoryId catRdr }
+        
+        cmd.CommandText <- "SELECT category_id AS id FROM post_category WHERE post_id = @id"
+        use! rdr = cmd.ExecuteReaderAsync ()
+        let post = { post with categoryIds = toList Map.toCategoryId rdr }
+        do! rdr.CloseAsync ()
         
         cmd.CommandText <- "SELECT tag FROM post_tag WHERE post_id = @id"
-        use! tagRdr = cmd.ExecuteReaderAsync ()
-        let post = { post with tags = toList (Map.getString "tag") tagRdr }
+        use! rdr = cmd.ExecuteReaderAsync ()
+        let post = { post with tags = toList (Map.getString "tag") rdr }
+        do! rdr.CloseAsync ()
         
         cmd.CommandText <- "SELECT name, value FROM post_meta WHERE post_id = @id"
         use! rdr = cmd.ExecuteReaderAsync ()
@@ -464,14 +465,16 @@ type SQLiteData (conn : SqliteConnection) =
     /// Append revisions and permalinks to a post
     let appendPostRevisionsAndPermalinks (post : Post) = backgroundTask {
         use cmd = conn.CreateCommand ()
-        cmd.CommandText <- "SELECT permalink FROM post_permalink WHERE post_id = @postId"
         cmd.Parameters.AddWithValue ("@postId", PostId.toString post.id) |> ignore
-        use! linkRdr = cmd.ExecuteReaderAsync ()
-        let post = { post with priorPermalinks = toList Map.toPermalink linkRdr }
+        
+        cmd.CommandText <- "SELECT permalink FROM post_permalink WHERE post_id = @postId"
+        use! rdr = cmd.ExecuteReaderAsync ()
+        let post = { post with priorPermalinks = toList Map.toPermalink rdr }
+        do! rdr.CloseAsync ()
         
         cmd.CommandText <- "SELECT as_of, revision_text FROM post_revision WHERE post_id = @postId ORDER BY as_of DESC"
-        use! revRdr = cmd.ExecuteReaderAsync ()
-        return { post with revisions = toList Map.toRevision revRdr }
+        use! rdr = cmd.ExecuteReaderAsync ()
+        return { post with revisions = toList Map.toRevision rdr }
     }
     
     /// Return a post with no revisions, prior permalinks, or text
@@ -485,11 +488,11 @@ type SQLiteData (conn : SqliteConnection) =
             return ()
         else
             use cmd = conn.CreateCommand ()
+            [ cmd.Parameters.AddWithValue ("@postId", PostId.toString postId)
+              cmd.Parameters.Add ("@categoryId", SqliteType.Text)
+            ] |> ignore
             let runCmd catId = backgroundTask {
-                cmd.Parameters.Clear ()
-                [ cmd.Parameters.AddWithValue ("@postId", PostId.toString postId)
-                  cmd.Parameters.AddWithValue ("@categoryId", CategoryId.toString catId)
-                ] |> ignore
+                cmd.Parameters["@categoryId"].Value <- CategoryId.toString catId
                 do! write cmd
             }
             cmd.CommandText <- "DELETE FROM post_category WHERE post_id = @postId AND category_id = @categoryId" 
@@ -504,14 +507,6 @@ type SQLiteData (conn : SqliteConnection) =
             |> ignore
     }
     
-    /// Run a command for the given post and tag
-    let runPostCategoryCommand postId (cmd : SqliteCommand) (tag : string) = backgroundTask {
-        cmd.Parameters.Clear ()
-        [ cmd.Parameters.AddWithValue ("@postId", PostId.toString postId)
-          cmd.Parameters.AddWithValue ("@tag", tag)
-        ] |> ignore
-        do! write cmd
-    }
     
     /// Update a post's assigned categories
     let updatePostTags postId (oldTags : string list) newTags = backgroundTask {
@@ -520,14 +515,21 @@ type SQLiteData (conn : SqliteConnection) =
             return ()
         else
             use cmd = conn.CreateCommand ()
+            [ cmd.Parameters.AddWithValue ("@postId", PostId.toString postId)
+              cmd.Parameters.Add ("@tag", SqliteType.Text)
+            ] |> ignore
+            let runCmd (tag : string) = backgroundTask {
+                cmd.Parameters["@tag"].Value <- tag
+                do! write cmd
+            }
             cmd.CommandText <- "DELETE FROM post_tag WHERE post_id = @postId AND tag = @tag" 
             toDelete
-            |> List.map (runPostCategoryCommand postId cmd)
+            |> List.map runCmd
             |> Task.WhenAll
             |> ignore
             cmd.CommandText <- "INSERT INTO post_tag VALUES (@postId, @tag)"
             toAdd
-            |> List.map (runPostCategoryCommand postId cmd)
+            |> List.map runCmd
             |> Task.WhenAll
             |> ignore
     }
@@ -539,12 +541,13 @@ type SQLiteData (conn : SqliteConnection) =
             return ()
         else
             use cmd = conn.CreateCommand ()
+            [ cmd.Parameters.AddWithValue ("@postId", PostId.toString postId)
+              cmd.Parameters.Add ("@name", SqliteType.Text)
+              cmd.Parameters.Add ("@value", SqliteType.Text)
+            ] |> ignore
             let runCmd (item : MetaItem) = backgroundTask {
-                cmd.Parameters.Clear ()
-                [ cmd.Parameters.AddWithValue ("@postId", PostId.toString postId)
-                  cmd.Parameters.AddWithValue ("@name", item.name)
-                  cmd.Parameters.AddWithValue ("@value", item.value)
-                ] |> ignore
+                cmd.Parameters["@name" ].Value <- item.name
+                cmd.Parameters["@value"].Value <- item.value
                 do! write cmd
             }
             cmd.CommandText <- "DELETE FROM post_meta WHERE post_id = @postId AND name = @name AND value = @value" 
@@ -566,11 +569,11 @@ type SQLiteData (conn : SqliteConnection) =
             return ()
         else
             use cmd = conn.CreateCommand ()
+            [ cmd.Parameters.AddWithValue ("@postId", PostId.toString postId)
+              cmd.Parameters.Add ("@link", SqliteType.Text)
+            ] |> ignore
             let runCmd link = backgroundTask {
-                cmd.Parameters.Clear ()
-                [ cmd.Parameters.AddWithValue ("@postId", PostId.toString postId)
-                  cmd.Parameters.AddWithValue ("@link", Permalink.toString link)
-                ] |> ignore
+                cmd.Parameters["@link"].Value <- Permalink.toString link
                 do! write cmd
             }
             cmd.CommandText <- "DELETE FROM post_permalink WHERE post_id = @postId AND permalink = @link" 
@@ -630,13 +633,22 @@ type SQLiteData (conn : SqliteConnection) =
         use cmd = conn.CreateCommand ()
         cmd.CommandText <- "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = @table"
         cmd.Parameters.AddWithValue ("@table", table) |> ignore
-        let! count = cmd.ExecuteScalarAsync ()
-        return (count :?> int) = 1
+        let! count = count cmd
+        return count = 1
     }
     
     
     /// The connection for this instance
     member _.Conn = conn
+    
+    /// Make a SQLite connection ready to execute commends
+    static member setUpConnection (conn : SqliteConnection) = backgroundTask {
+        do! conn.OpenAsync ()
+        use cmd = conn.CreateCommand ()
+        cmd.CommandText <- "PRAGMA foreign_keys = TRUE"
+        let! _ = cmd.ExecuteNonQueryAsync ()
+        ()
+    }
     
     interface IData with
     
@@ -646,7 +658,11 @@ type SQLiteData (conn : SqliteConnection) =
                 member _.add cat = backgroundTask {
                     use cmd = conn.CreateCommand ()
                     cmd.CommandText <-
-                        "INSERT INTO category VALUES (@id, @webLogId, @name, @slug, @description, @parentId)"
+                        """INSERT INTO category (
+                               id, web_log_id, name, slug, description, parent_id
+                           ) VALUES (
+                               @id, @webLogId, @name, @slug, @description, @parentId
+                           )"""
                     addCategoryParameters cmd cat
                     let! _ = cmd.ExecuteNonQueryAsync ()
                     ()
@@ -679,7 +695,7 @@ type SQLiteData (conn : SqliteConnection) =
                         }
                         |> Seq.sortBy (fun cat -> cat.name.ToLowerInvariant ())
                         |> List.ofSeq
-                    if not rdr.IsClosed then do! rdr.CloseAsync ()
+                    do! rdr.CloseAsync ()
                     let  ordered = Utils.orderByHierarchy cats None None []
                     let! counts  =
                         ordered
@@ -756,14 +772,9 @@ type SQLiteData (conn : SqliteConnection) =
                     | None -> return false
                 }
                 
-                member _.restore cats = backgroundTask {
-                    use cmd = conn.CreateCommand ()
-                    cmd.CommandText <-
-                        "INSERT INTO category VALUES (@id, @webLogId, @name, @slug, @description, @parentId)"
+                member this.restore cats = backgroundTask {
                     for cat in cats do
-                        cmd.Parameters.Clear ()
-                        addCategoryParameters cmd cat
-                        do! write cmd
+                        do! this.add cat
                 }
                 
                 member _.update cat = backgroundTask {
@@ -788,9 +799,13 @@ type SQLiteData (conn : SqliteConnection) =
                     use cmd = conn.CreateCommand ()
                     // The page itself
                     cmd.CommandText <-
-                        """INSERT INTO page
-                           VALUES (@id, @webLogId, @authorId, @title, @permalink, @publishedOn, @updatedOn,
-                                   @showInPageList, @template, @text)"""
+                        """INSERT INTO page (
+                               id, web_log_id, author_id, title, permalink, published_on, updated_on, show_in_page_list,
+                               template, page_text
+                           ) VALUES (
+                               @id, @webLogId, @authorId, @title, @permalink, @publishedOn, @updatedOn, @showInPageList,
+                               @template, @text
+                           )"""
                     addPageParameters cmd page
                     do! write cmd
                     do! updatePageMeta       page.id [] page.metadata
@@ -849,8 +864,8 @@ type SQLiteData (conn : SqliteConnection) =
                     match! this.findById pageId webLogId with
                     | Some _ ->
                         use cmd = conn.CreateCommand ()
-                        cmd.CommandText <- "DELETE FROM page_revision WHERE page_id = @id"
                         cmd.Parameters.AddWithValue ("@id", PageId.toString pageId) |> ignore
+                        cmd.CommandText <- "DELETE FROM page_revision WHERE page_id = @id"
                         do! write cmd
                         cmd.CommandText <- "DELETE FROM page_permalink WHERE page_id = @id"
                         do! write cmd
@@ -937,7 +952,7 @@ type SQLiteData (conn : SqliteConnection) =
                             LIMIT @pageSize OFFSET @toSkip"""
                     addWebLogId cmd webLogId
                     [ cmd.Parameters.AddWithValue ("@pageSize", 26)
-                      cmd.Parameters.AddWithValue ("@offset", pageNbr * 25)
+                      cmd.Parameters.AddWithValue ("@toSkip", (pageNbr - 1) * 25)
                     ] |> ignore
                     use! rdr = cmd.ExecuteReaderAsync ()
                     return toList Map.toPage rdr
@@ -988,9 +1003,13 @@ type SQLiteData (conn : SqliteConnection) =
                 member _.add post = backgroundTask {
                     use cmd = conn.CreateCommand ()
                     cmd.CommandText <-
-                        """INSERT INTO post
-                           VALUES (@id, @webLogId, @authorId, @status, @title, @permalink, @publishedOn, @updatedOn,
-                                   @template, @text)"""
+                        """INSERT INTO post (
+                               id, web_log_id, author_id, status, title, permalink, published_on, updated_on,
+                               template, post_text
+                           ) VALUES (
+                               @id, @webLogId, @authorId, @status, @title, @permalink, @publishedOn, @updatedOn,
+                               @template, @text
+                           )"""
                     addPostParameters cmd post
                     do! write cmd
                     do! updatePostCategories post.id [] post.categoryIds
@@ -1003,7 +1022,7 @@ type SQLiteData (conn : SqliteConnection) =
                 member _.countByStatus status webLogId = backgroundTask {
                     use cmd = conn.CreateCommand ()
                     cmd.CommandText <-
-                        "SELECT COUNT(page_id) FROM page WHERE web_log_id = @webLogId AND status = @status"
+                        "SELECT COUNT(id) FROM post WHERE web_log_id = @webLogId AND status = @status"
                     addWebLogId cmd webLogId
                     cmd.Parameters.AddWithValue ("@status", PostStatus.toString status) |> ignore
                     return! count cmd
@@ -1043,8 +1062,8 @@ type SQLiteData (conn : SqliteConnection) =
                     match! this.findFullById postId webLogId with
                     | Some _ ->
                         use cmd = conn.CreateCommand ()
-                        cmd.CommandText <- "DELETE FROM post_revision WHERE post_id = @id"
                         cmd.Parameters.AddWithValue ("@id", PostId.toString postId) |> ignore
+                        cmd.CommandText <- "DELETE FROM post_revision WHERE post_id = @id"
                         do! write cmd
                         cmd.CommandText <- "DELETE FROM post_permalink WHERE post_id = @id"
                         do! write cmd
@@ -1195,14 +1214,15 @@ type SQLiteData (conn : SqliteConnection) =
                     [ cmd.Parameters.AddWithValue ("@status", PostStatus.toString Published)
                       cmd.Parameters.AddWithValue ("@publishedOn", publishedOn)
                     ] |> ignore
-                    use! oldRdr = cmd.ExecuteReaderAsync ()
+                    use! rdr = cmd.ExecuteReaderAsync ()
                     let! older = backgroundTask {
-                        if oldRdr.Read () then
-                            let! post = appendPostCategoryTagAndMeta (postWithoutText oldRdr)
+                        if rdr.Read () then
+                            let! post = appendPostCategoryTagAndMeta (postWithoutText rdr)
                             return Some post
                         else
                             return None
                     }
+                    do! rdr.CloseAsync ()
                     cmd.CommandText <-
                         """SELECT *
                              FROM post
@@ -1211,10 +1231,10 @@ type SQLiteData (conn : SqliteConnection) =
                               AND published_on > @publishedOn
                             ORDER BY published_on
                             LIMIT 1"""
-                    use! newRdr = cmd.ExecuteReaderAsync ()
+                    use! rdr = cmd.ExecuteReaderAsync ()
                     let! newer = backgroundTask {
-                        if newRdr.Read () then
-                            let! post = appendPostCategoryTagAndMeta (postWithoutText oldRdr)
+                        if rdr.Read () then
+                            let! post = appendPostCategoryTagAndMeta (postWithoutText rdr)
                             return Some post
                         else
                             return None
@@ -1327,9 +1347,15 @@ type SQLiteData (conn : SqliteConnection) =
                             """UPDATE tag_map
                                   SET tag       = @tag,
                                       url_value = @urlValue
-                                WHERE id = @id
+                                WHERE id         = @id
                                   AND web_log_id = @webLogId"""
-                    | None -> cmd.CommandText <- "INSERT INTO tag_map VALUES (@id, @webLogId, @tag, @urlValue)"
+                    | None ->
+                        cmd.CommandText <-
+                            """INSERT INTO tag_map (
+                                   id, web_log_id, tag, url_value
+                               ) VALUES (
+                                   @id, @webLogId, @tag, @urlValue
+                               )"""
                     addWebLogId cmd tagMap.webLogId
                     [ cmd.Parameters.AddWithValue ("@id", TagMapId.toString tagMap.id)
                       cmd.Parameters.AddWithValue ("@tag", tagMap.tag)
@@ -1361,8 +1387,10 @@ type SQLiteData (conn : SqliteConnection) =
                     use! rdr = cmd.ExecuteReaderAsync ()
                     if rdr.Read () then
                         let theme = Map.toTheme rdr
-                        cmd.CommandText <- "SELECT * FROM theme_template WHERE theme_id = @id"
-                        use! templateRdr = cmd.ExecuteReaderAsync ()
+                        let templateCmd = conn.CreateCommand ()
+                        templateCmd.CommandText <- "SELECT * FROM theme_template WHERE theme_id = @id"
+                        templateCmd.Parameters.Add cmd.Parameters["@id"] |> ignore
+                        use! templateRdr = templateCmd.ExecuteReaderAsync ()
                         return Some { theme with templates = toList Map.toThemeTemplate templateRdr }
                     else
                         return None
@@ -1383,7 +1411,7 @@ type SQLiteData (conn : SqliteConnection) =
                     cmd.CommandText <-
                         match oldTheme with
                         | Some _ -> "UPDATE theme SET name = @name, version = @version WHERE id = @id"
-                        | None -> "INSERT INTO theme (@id, @name, @version)"
+                        | None -> "INSERT INTO theme VALUES (@id, @name, @version)"
                     [ cmd.Parameters.AddWithValue ("@id", ThemeId.toString theme.id)
                       cmd.Parameters.AddWithValue ("@name", theme.name)
                       cmd.Parameters.AddWithValue ("@version", theme.version)
@@ -1400,36 +1428,33 @@ type SQLiteData (conn : SqliteConnection) =
                             && not (toAdd |> List.exists (fun a -> a.name = t.name)))
                     cmd.CommandText <-
                         "UPDATE theme_template SET template = @template WHERE theme_id = @themeId AND name = @name"
+                    cmd.Parameters.Clear ()
+                    [ cmd.Parameters.AddWithValue ("@themeId", ThemeId.toString theme.id)
+                      cmd.Parameters.Add ("@name", SqliteType.Text)
+                      cmd.Parameters.Add ("@template", SqliteType.Text)
+                    ] |> ignore
                     toUpdate
                     |> List.map (fun template -> backgroundTask {
-                        cmd.Parameters.Clear ()
-                        [ cmd.Parameters.AddWithValue ("@themeId", ThemeId.toString theme.id)
-                          cmd.Parameters.AddWithValue ("@name", template.name)
-                          cmd.Parameters.AddWithValue ("@template", template.text)
-                        ] |> ignore
+                        cmd.Parameters["@name"    ].Value <- template.name
+                        cmd.Parameters["@template"].Value <- template.text
                         do! write cmd
                     })
                     |> Task.WhenAll
                     |> ignore
-                    cmd.CommandText <- "INSERT INTO theme_template (@themeId, @name, @template)"
+                    cmd.CommandText <- "INSERT INTO theme_template VALUES (@themeId, @name, @template)"
                     toAdd
                     |> List.map (fun template -> backgroundTask {
-                        cmd.Parameters.Clear ()
-                        [ cmd.Parameters.AddWithValue ("@themeId", ThemeId.toString theme.id)
-                          cmd.Parameters.AddWithValue ("@name", template.name)
-                          cmd.Parameters.AddWithValue ("@template", template.text)
-                        ] |> ignore
+                        cmd.Parameters["@name"    ].Value <- template.name
+                        cmd.Parameters["@template"].Value <- template.text
                         do! write cmd
                     })
                     |> Task.WhenAll
                     |> ignore
                     cmd.CommandText <- "DELETE FROM theme_template WHERE theme_id = @themeId AND name = @name"
+                    cmd.Parameters.Remove cmd.Parameters["@template"]
                     toDelete
                     |> List.map (fun template -> backgroundTask {
-                        cmd.Parameters.Clear ()
-                        [ cmd.Parameters.AddWithValue ("@themeId", ThemeId.toString theme.id)
-                          cmd.Parameters.AddWithValue ("@name", template.name)
-                        ] |> ignore
+                        cmd.Parameters["@name"].Value <- template.name
                         do! write cmd
                     })
                     |> Task.WhenAll
@@ -1500,7 +1525,11 @@ type SQLiteData (conn : SqliteConnection) =
                                 WHERE theme_id = @themeId
                                   AND path     = @path"""
                         else
-                            "INSERT INTO theme_asset VALUES (@themeId, @path, @updatedOn, ZEROBLOB(@dataLength))"
+                            """INSERT INTO theme_asset (
+                                   theme_id, path, updated_on, data
+                               ) VALUES (
+                                   @themeId, @path, @updatedOn, ZEROBLOB(@dataLength)
+                               )"""
                     [ cmd.Parameters.AddWithValue ("@themeId", themeId)
                       cmd.Parameters.AddWithValue ("@path", path)
                       cmd.Parameters.AddWithValue ("@updatedOn", asset.updatedOn)
@@ -1523,12 +1552,64 @@ type SQLiteData (conn : SqliteConnection) =
                 member _.add webLog = backgroundTask {
                     use cmd = conn.CreateCommand ()
                     cmd.CommandText <-
-                        """INSERT INTO web_log
-                           VALUES (@id, @name, @subtitle, @defaultPage, @postsPerPage, @themeId, @urlBase, @timeZone,
-                                   @autoHtmx, @feedEnabled, @feedName, @itemsInFeed, @categoryEnabled, @tagEnabled,
-                                   @copyright)"""
+                        """INSERT INTO web_log (
+                               id, name, subtitle, default_page, posts_per_page, theme_id, url_base, time_zone,
+                               auto_htmx, feed_enabled, feed_name, items_in_feed, category_enabled, tag_enabled,
+                               copyright
+                           ) VALUES (
+                               @id, @name, @subtitle, @defaultPage, @postsPerPage, @themeId, @urlBase, @timeZone,
+                               @autoHtmx, @feedEnabled, @feedName, @itemsInFeed, @categoryEnabled, @tagEnabled,
+                               @copyright
+                           )"""
                     addWebLogParameters cmd webLog
                     do! write cmd
+                    webLog.rss.customFeeds
+                    |> List.map (fun feed -> backgroundTask {
+                        cmd.CommandText <-
+                            """INSERT INTO web_log_feed (
+                                   id, web_log_id, source, path
+                               ) VALUES (
+                                   @id, @webLogId, @source, @path
+                               )"""
+                        cmd.Parameters.Clear ()
+                        [ cmd.Parameters.AddWithValue ("@id", CustomFeedId.toString feed.id)
+                          cmd.Parameters.AddWithValue ("@webLogId", WebLogId.toString webLog.id)
+                          cmd.Parameters.AddWithValue ("@source", CustomFeedSource.toString feed.source)
+                          cmd.Parameters.AddWithValue ("@path", Permalink.toString feed.path)
+                        ] |> ignore
+                        do! write cmd
+                        match feed.podcast with
+                        | Some podcast ->
+                            cmd.CommandText <-
+                                """INSERT INTO web_log_feed_podcast (
+                                       feed_id, title, subtitle, items_in_feed, summary, displayed_author, email,
+                                       image_url, itunes_category, itunes_subcategory, explicit, default_media_type,
+                                       media_base_url
+                                   ) VALUES (
+                                       @feedId, @title, @subtitle, @itemsInFeed, @summary, @displayedAuthor, @email,
+                                       @imageUrl, @iTunesCategory, @iTunesSubcategory, @explicit, @defaultMediaType,
+                                       @mediaBaseUrl
+                                   )"""
+                            cmd.Parameters.Clear ()
+                            [ cmd.Parameters.AddWithValue ("@feedId", CustomFeedId.toString feed.id)
+                              cmd.Parameters.AddWithValue ("@title", podcast.title)
+                              cmd.Parameters.AddWithValue ("@subtitle", maybe podcast.subtitle)
+                              cmd.Parameters.AddWithValue ("@itemsInFeed", podcast.itemsInFeed)
+                              cmd.Parameters.AddWithValue ("@summary", podcast.summary)
+                              cmd.Parameters.AddWithValue ("@displayedAuthor", podcast.displayedAuthor)
+                              cmd.Parameters.AddWithValue ("@email", podcast.email)
+                              cmd.Parameters.AddWithValue ("@imageUrl", Permalink.toString podcast.imageUrl)
+                              cmd.Parameters.AddWithValue ("@iTunesCategory", podcast.iTunesCategory)
+                              cmd.Parameters.AddWithValue ("@iTunesSubcategory", maybe podcast.iTunesSubcategory)
+                              cmd.Parameters.AddWithValue ("@explicit", ExplicitRating.toString podcast.explicit)
+                              cmd.Parameters.AddWithValue ("@defaultMediaType", maybe podcast.defaultMediaType)
+                              cmd.Parameters.AddWithValue ("@mediaBaseUrl", maybe podcast.mediaBaseUrl)
+                            ] |> ignore
+                            do! write cmd
+                        | None -> ()
+                    })
+                    |> Task.WhenAll
+                    |> ignore
                 }
                 
                 member _.all () = backgroundTask {
@@ -1641,9 +1722,13 @@ type SQLiteData (conn : SqliteConnection) =
                 member _.add user = backgroundTask {
                     use cmd = conn.CreateCommand ()
                     cmd.CommandText <-
-                        """INSERT INTO web_log_user
-                           VALUES (@id, @webLogId, @userName, @firstName, @lastName, @preferredName, @passwordHash,
-                                   @salt, @url, @authorizationLevel)"""
+                        """INSERT INTO web_log_user (
+                               id, web_log_id, user_name, first_name, last_name, preferred_name, password_hash, salt,
+                               url, authorization_level
+                           ) VALUES (
+                               @id, @webLogId, @userName, @firstName, @lastName, @preferredName, @passwordHash, @salt,
+                               @url, @authorizationLevel
+                           )"""
                     addWebLogUserParameters cmd user
                     do! write cmd
                 }
@@ -1750,6 +1835,7 @@ type SQLiteData (conn : SqliteConnection) =
                         name              TEXT NOT NULL,
                         subtitle          TEXT,
                         default_page      TEXT NOT NULL,
+                        posts_per_page    INTEGER NOT NULL,
                         theme_id          TEXT NOT NULL REFERENCES theme (id),
                         url_base          TEXT NOT NULL,
                         time_zone         TEXT NOT NULL,
@@ -1793,6 +1879,7 @@ type SQLiteData (conn : SqliteConnection) =
                         id          TEXT PRIMARY KEY,
                         web_log_id  TEXT NOT NULL REFERENCES web_log (id),
                         name        TEXT NOT NULL,
+                        slug        TEXT NOT NULL,
                         description TEXT,
                         parent_id   TEXT)"""
                 do! write cmd
@@ -1897,7 +1984,7 @@ type SQLiteData (conn : SqliteConnection) =
                         post_id        TEXT NOT NULL REFERENCES post (id),
                         as_of          TEXT NOT NULL,
                         revision_text  TEXT NOT NULL,
-                        PRIMARY KEY (page_id, as_of))"""
+                        PRIMARY KEY (post_id, as_of))"""
                 do! write cmd
                 cmd.CommandText <-
                     """CREATE TABLE post_comment (

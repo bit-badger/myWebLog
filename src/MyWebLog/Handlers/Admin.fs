@@ -425,8 +425,8 @@ let loadThemeFromZip themeName file clean (data : IData) = backgroundTask {
     let! theme = updateNameAndVersion theme   zip
     let! theme = checkForCleanLoad    theme   clean data
     let! theme = updateTemplates      theme   zip
-    do!          updateAssets         themeId zip   data
     do! data.Theme.save theme
+    do! updateAssets themeId zip data
 }
 
 // POST /admin/theme/update

@@ -313,9 +313,14 @@ module Backup =
                     }
         }
         
+        // Restore theme and assets (one at a time, as assets can be large)
+        printfn ""
+        printfn "- Importing theme..."
+        do! data.Theme.save restore.theme
+        let! _ = restore.assets |> List.map (EncodedAsset.fromAsset >> data.ThemeAsset.save) |> Task.WhenAll
+        
         // Restore web log data
         
-        printfn ""
         printfn "- Restoring web log..."
         do! data.WebLog.add restore.webLog
         
@@ -333,11 +338,6 @@ module Backup =
         do! data.Post.restore restore.posts
         
         // TODO: comments not yet implemented
-        
-        // Restore theme and assets (one at a time, as assets can be large)
-        printfn "- Importing theme..."
-        do! data.Theme.save restore.theme
-        let! _ = restore.assets |> List.map (EncodedAsset.fromAsset >> data.ThemeAsset.save) |> Task.WhenAll
         
         displayStats "Restored for {{NAME}}:" restore.webLog restore
     }
