@@ -1046,15 +1046,12 @@ type SQLiteData (conn : SqliteConnection) =
                     cmd.CommandText <- "SELECT * FROM post WHERE id = @id"
                     cmd.Parameters.AddWithValue ("@id", PostId.toString postId) |> ignore
                     use! rdr = cmd.ExecuteReaderAsync ()
-                    if rdr.Read () then
-                        match verifyWebLog<Post> webLogId (fun p -> p.webLogId) Map.toPost rdr with
-                        | Some post ->
-                            let! post = appendPostCategoryTagAndMeta     post
-                            let! post = appendPostRevisionsAndPermalinks post
-                            return Some post
-                        | None ->
-                            return None
-                    else
+                    match verifyWebLog<Post> webLogId (fun p -> p.webLogId) Map.toPost rdr with
+                    | Some post ->
+                        let! post = appendPostCategoryTagAndMeta     post
+                        let! post = appendPostRevisionsAndPermalinks post
+                        return Some post
+                    | None ->
                         return None
                 }
 
@@ -1690,7 +1687,7 @@ type SQLiteData (conn : SqliteConnection) =
                                   time_zone        = @timeZone,
                                   auto_htmx        = @autoHtmx,
                                   feed_enabled     = @feedEnabled,
-                                  feed_name        = @feedName
+                                  feed_name        = @feedName,
                                   items_in_feed    = @itemsInFeed,
                                   category_enabled = @categoryEnabled,
                                   tag_enabled      = @tagEnabled,
@@ -1705,7 +1702,7 @@ type SQLiteData (conn : SqliteConnection) =
                     cmd.CommandText <-
                         """UPDATE web_log
                               SET feed_enabled     = @feedEnabled,
-                                  feed_name        = @feedName
+                                  feed_name        = @feedName,
                                   items_in_feed    = @itemsInFeed,
                                   category_enabled = @categoryEnabled,
                                   tag_enabled      = @tagEnabled,

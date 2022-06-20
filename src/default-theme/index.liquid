@@ -43,4 +43,16 @@
       </div>
     </div>
   {% endfor %}
+  <nav aria-label="pagination">
+    <ul class="pager">
+      {% if model.newer_link -%}
+        <li class="previous item"><a href="{{ model.newer_link.value }}">&laquo; Newer Posts</a></li>
+      {%- else -%}
+        <li></li>
+      {% endif %}
+      {% if model.older_link -%}
+        <li class="next item"><a href="{{ model.older_link.value }}">Older Posts &raquo;</a></li>
+      {%- endif -%}
+    </ul>
+  </nav>
 </section>

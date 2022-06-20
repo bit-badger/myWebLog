@@ -1,0 +1,77 @@
+﻿{%- assign post = model.posts | first -%}
+<div class="content single">
+  <article class="item">
+    <h1 class="item-heading">{{ post.title }}</h1>
+    <h4 class="post-meta">
+      {% if post.published_on -%}
+        <span title="Published On">
+          <i class="fa fa-calendar"></i> {{ post.published_on | date: "dddd, MMMM d, yyyy" }}
+        </span>
+        <span title="Published At">
+          <i class="fa fa-clock-o"></i> {{ post.published_on | date: "h:mm tt" | downcase }}
+        </span>
+      {%- else -%}
+        <span>**DRAFT**</span>
+      {% endif %}
+      <span title="Author"><i class="fa fa-user"></i> {{ model.authors | value: post.author_id }}</span>
+      {% if logged_on %}
+        <span>
+          <a hx-boost="false" href="{{ post | edit_post_link }}">
+            <i class="fa fa-pencil-square-o"></i> Edit Post
+          </a>
+        </span>
+      {% endif %}
+    </h4>
+    <div>{{ post.text }}</div>
+    {%- assign cat_count = post.category_ids | size -%}
+    {% if cat_count > 0 -%}
+      <h4>
+        Categorized &nbsp;
+        {% for cat_id in post.category_ids -%}
+          {% assign cat = categories | where: "id", cat_id | first %}
+          <span class="no-wrap">
+            <i class="fa fa-folder-open-o" title="Category"></i>
+            <a href="{{ cat | category_link }}" title="Categorized under &ldquo;{{ cat.name | escape }}&rdquo;">
+             {{ cat.name }}
+            </a> &nbsp; &nbsp;
+          </span>
+        {%- endfor %}
+      </h4>
+    {%- endif %}
+    {%- assign tag_count = post.tags | size -%}
+    {% if tag_count > 0 -%}
+      <h4>
+        Tagged &nbsp;
+        {% for tag in post.tags %}
+          <span class="no-wrap">
+            <a href="{{ tag | tag_link }}" title="Posts tagged &ldquo;{{ tag | escape }}&rdquo;" rel="tag">
+              <i class="fa fa-tag"></i> {{ tag }}
+            </a> &nbsp; &nbsp;
+          </span>
+        {%- endfor %}
+      </h4>
+    {%- endif %}
+  </article>
+  <div>
+    <nav aria-label="pagination">
+      <ul class="pager">
+        {% if model.newer_link -%}
+          <li class="previous item">
+            <h4 class="item-heading">
+              <a href="{{ model.newer_link.value | relative_link }}">&laquo;</a> Previous Post
+            </h4>
+            <a href="{{ model.newer_link.value | relative_link }}">{{ model.newer_name.value }}</a>
+          </li>
+        {%- else -%}
+          <li></li>
+        {% endif %}
+        {% if model.older_link -%}
+          <li class="next item">
+            <h4 class="item-heading">Next Post <a href="{{ model.older_link.value | relative_link }}">&raquo;</a></h4>
+            <a href="{{ model.older_link.value | relative_link }}">{{ model.older_name.value }}</a>
+          </li>
+        {%- endif -%}
+      </ul>
+    </nav>
+  </div>
+</div>
