@@ -58,6 +58,7 @@ open Giraffe.EndpointRouting
 open Microsoft.AspNetCore.Authentication.Cookies
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.HttpOverrides
+open NeoSmart.Caching.Sqlite
 open RethinkDB.DistributedCache
 
 [<EntryPoint>]
@@ -97,17 +98,16 @@ let rec main args =
             |> ignore
         | :? SQLiteData ->
             // ADO.NET connections are designed to work as per-request instantiation
+            let cfg  = sp.GetRequiredService<IConfiguration> ()
             builder.Services.AddScoped<SqliteConnection> (fun sp ->
-                let cfg  = sp.GetRequiredService<IConfiguration> ()
                 let conn = new SqliteConnection (cfg.GetConnectionString "SQLite")
                 SQLiteData.setUpConnection conn |> Async.AwaitTask |> Async.RunSynchronously
                 conn)
             |> ignore
             builder.Services.AddScoped<IData, SQLiteData> () |> ignore
-            let log = sp.GetRequiredService<ILoggerFactory> ()
-            let logger = log.CreateLogger "MyWebLog.StartUp"
-            logger.LogWarning "Session caching is not yet implemented via SQLite; using memory cache for sessions"
-            builder.Services.AddDistributedMemoryCache () |> ignore
+            // Use SQLite for caching as well
+            let cachePath = defaultArg (Option.ofObj (cfg.GetConnectionString "SQLiteCachePath")) "./session.db"
+            builder.Services.AddSqliteCache (fun o -> o.CachePath <- cachePath) |> ignore
         | _ -> ()
     | None ->
         invalidOp "There is no data configuration present; please add a RethinkDB section or LiteDB connection string"

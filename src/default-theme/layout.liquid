@@ -21,13 +21,12 @@
             {% if web_log.subtitle -%}
               <span class="navbar-text">{{ web_log.subtitle.value | escape }}</span>
             {%- endif %}
-            {% if page_list -%}
-              <ul class="navbar-nav">
-                {% for pg in page_list -%}
-                  {{ pg.permalink | nav_link: pg.title }}
-                {%- endfor %}
-              </ul>
-            {%- endif %}
+            <ul class="navbar-nav">
+              {% unless web_log.default_page == "posts" %}{{ "page/1" | nav_link: "Posts" }}{% endunless %}
+              {% if page_list -%}
+                {% for pg in page_list %}{{ pg.permalink | nav_link: pg.title }}{% endfor %}
+              {%- endif %}
+            </ul>
             {% user_links %}
           </div>
         </div>
@@ -53,7 +52,7 @@
     <footer>
       <hr>
       <div class="container-fluid text-end">
-        <img src="{{ "themes/admin/logo-dark.png" | relative_link }}" alt="myWebLog">
+        <img src="{{ "themes/admin/logo-dark.png" | relative_link }}" alt="myWebLog" width="120" height="34">
       </div>
     </footer>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"
