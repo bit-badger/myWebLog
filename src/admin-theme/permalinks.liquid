@@ -1,0 +1,59 @@
+﻿<h2 class="my-3">{{ page_title }}</h2>
+<article>
+  {%- capture form_action %}admin/{{ model.entity }}/permalinks{% endcapture -%}
+  <form action="{{ form_action | relative_link }}" method="post">
+    <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
+    <input type="hidden" name="id" value="{{ model.id }}">
+    <div class="container">
+      <div class="row">
+        <div class="col">
+          <p style="line-height:1.2rem;">
+            <strong>{{ model.current_title }}</strong><br>
+            <small class="text-muted">
+              <span class="fst-italic">{{ model.current_permalink }}</span><br>
+              {%- capture back_link %}admin/{{ model.entity }}/{{ model.id }}/edit{% endcapture -%}
+              <a href="{{ back_link | relative_link }}">&laquo; Back to Edit {{ model.entity | capitalize }}</a>
+            </small>
+          </p>
+        </div>
+      </div>
+      <div class="row mb-3">
+        <div class="col">
+          <button type="button" class="btn btn-sm btn-secondary" onclick="Admin.addPermalink()">Add a Permalink</button>
+        </div>
+      </div>
+      <div class="row mb-3">
+        <div class="col">
+          <div id="permalinks" class="container">
+            {%- assign link_count = 0 -%}
+            {%- for link in model.prior %}
+              <div id="link_{{ link_count }}" class="row mb-3">
+                <div class="col-1 text-center align-self-center">
+                  <button type="button" class="btn btn-sm btn-danger" onclick="Admin.removePermalink({{ link_count }})">
+                    &minus;
+                  </button>
+                </div>
+                <div class="col-11">
+                  <div class="form-floating">
+                    <input type="text" name="prior" id="prior_{{ link_count }}" class="form-control"
+                           placeholder="Link" value="{{ link }}">
+                    <label for="prior_{{ link_count }}">Link</label>
+                  </div>
+                </div>
+              </div>
+              {%- assign link_count = link_count | plus: 1 -%}
+            {% endfor -%}
+            <script>
+              document.addEventListener("DOMContentLoaded", () => Admin.setPermalinkIndex({{ link_count }}))
+            </script>
+          </div>
+        </div>
+      </div>
+      <div class="row pb-3">
+        <div class="col">
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+      </div>
+    </div>
+  </form>
+</article>

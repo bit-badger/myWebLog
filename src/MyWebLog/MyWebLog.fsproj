@@ -1,0 +1,44 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net6.0</TargetFramework>
+    <NoWarn>3391</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="appsettings.json" CopyToOutputDirectory="Always" />
+    <Compile Include="Caches.fs" />
+    <Compile Include="Handlers\Error.fs" />
+    <Compile Include="Handlers\Helpers.fs" />
+    <Compile Include="Handlers\Admin.fs" />
+    <Compile Include="Handlers\Feed.fs" />
+    <Compile Include="Handlers\Post.fs" />
+    <Compile Include="Handlers\User.fs" />
+    <Compile Include="Handlers\Routes.fs" />
+    <Compile Include="DotLiquidBespoke.fs" />
+    <Compile Include="Maintenance.fs" />
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DotLiquid" Version="2.2.656" />
+    <PackageReference Include="Giraffe" Version="6.0.0" />
+    <PackageReference Include="Giraffe.Htmx" Version="1.7.0" />
+    <PackageReference Include="Giraffe.ViewEngine.Htmx" Version="1.7.0" />
+    <PackageReference Include="NeoSmart.Caching.Sqlite" Version="6.0.1" />
+    <PackageReference Include="RethinkDB.DistributedCache" Version="1.0.0-rc1" />
+    <PackageReference Update="FSharp.Core" Version="6.0.5" />
+    <PackageReference Include="System.ServiceModel.Syndication" Version="6.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MyWebLog.Data\MyWebLog.Data.fsproj" />
+    <ProjectReference Include="..\MyWebLog.Domain\MyWebLog.Domain.fsproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include=".\wwwroot\img\*.png" CopyToOutputDirectory="Always" />
+  </ItemGroup>
+
+</Project>

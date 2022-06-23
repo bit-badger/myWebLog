@@ -1,0 +1,56 @@
+﻿{%- if is_category or is_tag %}
+  <h1 class="index-title">{{ page_title }}</h1>
+  {%- if is_category %}
+    {%- assign cat = categories | where: "slug", slug | first -%}
+    {%- if cat.description %}<h4 class="text-muted">{{ cat.description.value }}</h4>{% endif -%}
+  {%- endif %}
+{%- endif %}
+<section class="container mt-3" aria-label="The posts for the page">
+  {% for post in model.posts %}
+    <article>
+      <h1>
+        <a href="{{ post | relative_link }}" title="Permanent link to &quot;{{ post.title | escape }}&quot;">
+          {{ post.title }}
+        </a>
+      </h1>
+      <p>
+        Published on {{ post.published_on | date: "MMMM d, yyyy" }}
+        at {{ post.published_on | date: "h:mmtt" | downcase }}
+        by {{ model.authors | value: post.author_id }}
+      </p>
+      {{ post.text }}
+      {%- assign category_count = post.category_ids | size -%}
+      {%- assign tag_count = post.tags | size -%}
+      {% if category_count > 0 or tag_count > 0 %}
+        <footer>
+          <p>
+            {%- if category_count > 0 -%}
+              Categorized under:
+              {% for cat in post.category_ids -%}
+                {%- assign this_cat = categories | where: "id", cat | first -%}
+                {{ this_cat.name }}{% unless forloop.last %}, {% endunless %}
+                {%- assign cat_names = this_cat.name | concat: cat_names -%}
+              {%- endfor -%}
+              {%- assign cat_names = "" -%}
+              <br>
+            {% endif -%}
+            {%- if tag_count > 0 %}
+              Tagged: {{ post.tags | join: ", " }}
+            {% endif -%}
+          </p>
+        </footer>
+      {% endif %}
+      <hr>
+    </article>
+  {% endfor %}
+</section>
+<nav aria-label="pagination">
+  <ul class="pagination justify-content-evenly mt-2">
+    {% if model.newer_link -%}
+      <li class="page-item"><a class="page-link" href="{{ model.newer_link.value }}">&laquo; Newer Posts</a></li>
+    {% endif %}
+    {% if model.older_link -%}
+      <li class="page-item"><a class="page-link" href="{{ model.older_link.value }}">Older Posts &raquo;</a></li>
+    {%- endif -%}
+  </ul>
+</nav>

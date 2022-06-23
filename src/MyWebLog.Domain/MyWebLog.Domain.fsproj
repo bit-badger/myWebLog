@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="SupportTypes.fs" />
+    <Compile Include="DataTypes.fs" />
+    <Compile Include="ViewModels.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Markdig" Version="0.30.2" />
+    <PackageReference Update="FSharp.Core" Version="6.0.5" />
+    <PackageReference Include="Markdown.ColorCode" Version="1.0.1" />
+  </ItemGroup>
+
+</Project>

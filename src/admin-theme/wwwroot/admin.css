@@ -1,0 +1,87 @@
+﻿:root {
+  --dark-gray: #212529;
+  --light-accent: rgba(0, 0, 0, .075);
+}
+html {
+  background-color: var(--dark-gray);
+}
+body {
+  scrollbar-width: thin;
+  scrollbar-color: var(--dark-gray) gray;
+  padding-top: 3rem;
+  padding-bottom: 2rem;
+  min-height: 100vh;
+}
+body::-webkit-scrollbar {
+  width: 12px;
+}
+body::-webkit-scrollbar-track {
+  background: gray;
+}
+body::-webkit-scrollbar-thumb {
+  background-color: var(--dark-gray);
+  border-radius: 20px;
+  border: 3px solid gray;
+}
+header nav {
+  z-index: 9;
+}
+footer {
+  background-color: #808080;
+  border-top: solid 1px black;
+  color: white;
+}
+.messages {
+  max-width: 60rem;
+  margin: auto;
+}
+.action-button-column {
+  width: 1rem;
+  white-space: nowrap;
+}
+fieldset {
+  border: solid 1px lightgray;
+  border-radius: .5rem;
+  padding: 0 1rem 1rem;
+}
+legend {
+  float: unset;
+  width: unset;
+}
+textarea {
+  font-family: monospace;
+  font-size: .8rem !important;
+}
+#text {
+  min-height: 50vh;
+}
+.no-wrap {
+  white-space: nowrap;
+}
+a:link, a:visited {
+  text-decoration: none;
+}
+a:link:hover, a:visited:hover {
+  text-decoration: underline;
+}
+a.btn:link:hover, a.btn:visited:hover {
+  text-decoration: none;
+}
+a.text-danger:link:hover, a.text-danger:visited:hover {
+  text-decoration: none;
+  background-color: var(--bs-danger);
+  border-radius: 0.25rem;
+  color: white !important;
+}
+.mwl-table-heading {
+  font-size: 1.1rem;
+  font-weight: bold;
+  border-bottom: solid 1px var(--bs-dark);
+}
+.mwl-table-detail {
+  border-bottom: solid 1px var(--light-accent);
+}
+.mwl-table-detail:hover {
+  background-color: var(--light-accent);
+  color: var(--dark-gray);
+}

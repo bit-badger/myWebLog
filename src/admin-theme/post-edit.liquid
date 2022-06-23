@@ -1,0 +1,157 @@
+﻿<h2 class="my-3">{{ page_title }}</h2>
+<article>
+  <form action="{{ "admin/post/save" | relative_link }}" method="post" hx-push-url="true">
+    <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
+    <input type="hidden" name="postId" value="{{ model.post_id }}">
+    <div class="container">
+      <div class="row mb-3">
+        <div class="col-12 col-lg-9">
+          <div class="form-floating pb-3">
+            <input type="text" name="title" id="title" class="form-control" placeholder="Title" autofocus required
+                   value="{{ model.title }}">
+            <label for="title">Title</label>
+          </div>
+          <div class="form-floating pb-3">
+            <input type="text" name="permalink" id="permalink" class="form-control" placeholder="Permalink" required
+                   value="{{ model.permalink }}">
+            <label for="permalink">Permalink</label>
+            {%- if model.post_id != "new" %}
+              {%- capture perm_edit %}admin/post/{{ model.post_id }}/permalinks{% endcapture -%}
+              <span class="form-text"><a href="{{ perm_edit | relative_link }}">Manage Permalinks</a></span>
+            {% endif -%}
+          </div>
+          <div class="mb-2">
+            <label for="text">Text</label> &nbsp; &nbsp;
+            <input type="radio" name="source" id="source_html" class="btn-check" value="HTML"
+            {%- if model.source == "HTML" %} checked="checked"{% endif %}>
+            <label class="btn btn-sm btn-outline-secondary" for="source_html">HTML</label>
+            <input type="radio" name="source" id="source_md" class="btn-check" value="Markdown"
+            {%- if model.source == "Markdown" %} checked="checked"{% endif %}>
+            <label class="btn btn-sm btn-outline-secondary" for="source_md">Markdown</label>
+          </div>
+          <div class="pb-3">
+            <textarea name="text" id="text" class="form-control" rows="20">{{ model.text }}</textarea>
+          </div>
+          <div class="form-floating pb-3">
+            <input type="text" name="tags" id="tags" class="form-control" placeholder="Tags"
+                   value="{{ model.tags }}">
+            <label for="tags">Tags</label>
+            <div class="form-text">comma-delimited</div>
+          </div>
+          {% if model.status == "Draft" %}
+            <div class="form-check pb-2">
+              <input type="checkbox" name="doPublish" id="doPublish" class="form-check-input" value="true">
+              <label for="doPublish" class="form-check-label">Publish This Post</label>
+            </div>
+          {% endif %}
+          <button type="submit" class="btn btn-primary pb-2">Save Changes</button>
+          <hr class="mb-3">
+          <fieldset class="pb-3">
+            <legend>
+              Metadata
+              <button type="button" class="btn btn-sm btn-secondary" data-bs-toggle="collapse"
+                      data-bs-target="#metaItemContainer">
+                show
+              </button>
+            </legend>
+            <div id="metaItemContainer" class="collapse">
+              {%- unless model.meta_names contains "episode_media_file" %}
+                <button class="btn btn-sm btn-secondary" onclick="Admin.addPodcastFields()" id="addPodcastFieldButton">
+                  Add Podcast Episode Fields
+                </button>
+              {%- endunless %}
+              <div id="metaItems" class="container">
+                {%- for meta in metadata %}
+                  <div id="meta_{{ meta[0] }}" class="row mb-3">
+                    <div class="col-1 text-center align-self-center">
+                      <button type="button" class="btn btn-sm btn-danger" onclick="Admin.removeMetaItem({{ meta[0] }})">
+                        &minus;
+                      </button>
+                    </div>
+                    <div class="col-3">
+                      <div class="form-floating">
+                        <input type="text" name="metaNames" id="metaNames_{{ meta[0] }}" class="form-control"
+                               placeholder="Name" value="{{ meta[1] }}">
+                        <label for="metaNames_{{ meta[0] }}">Name</label>
+                      </div>
+                    </div>
+                    <div class="col-8">
+                      <div class="form-floating">
+                        <input type="text" name="metaValues" id="metaValues_{{ meta[0] }}" class="form-control"
+                               placeholder="Value" value="{{ meta[2] }}">
+                        <label for="metaValues_{{ meta[0] }}">Value</label>
+                      </div>
+                    </div>
+                  </div>
+                {% endfor -%}
+              </div>
+              <button type="button" class="btn btn-sm btn-secondary" onclick="Admin.addMetaItem()">Add an Item</button>
+              <script>
+                document.addEventListener("DOMContentLoaded", () => Admin.setNextMetaIndex({{ metadata | size }}))
+              </script>
+            </div>
+          </fieldset>
+          {% if model.status == "Published" %}
+            <fieldset class="pb-3">
+              <legend>Maintenance</legend>
+              <div class="container">
+                <div class="row">
+                  <div class="col align-self-center">
+                    <div class="form-check form-switch pb-2">
+                      <input type="checkbox" name="setPublished" id="setPublished" class="form-check-input"
+                             value="true">
+                      <label for="setPublished" class="form-check-label">Set Published Date</label>
+                    </div>
+                  </div>
+                  <div class="col-4">
+                    <div class="form-floating">
+                      <input type="datetime-local" name="pubOverride" id="pubOverride" class="form-control"
+                             placeholder="Override Date"
+                             {%- if model.pub_override -%}
+                               value="{{ model.pub_override | date: "yyyy-MM-dd\THH:mm" }}"
+                             {%- endif %}>
+                      <label for="pubOverride" class="form-label">Published On</label>
+                    </div>
+                  </div>
+                  <div class="col-5 align-self-center">
+                    <div class="form-check form-switch pb-2">
+                      <input type="checkbox" name="setUpdated" id="setUpdated" class="form-check-input" value="true">
+                      <label for="setUpdated" class="form-check-label">
+                        Purge revisions and<br>set as updated date as well
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </fieldset>
+          {% endif %}
+        </div>
+        <div class="col-12 col-lg-3">
+          <div class="form-floating pb-3">
+            <select name="template" id="template" class="form-control">
+              {% for tmpl in templates -%}
+                <option value="{{ tmpl[0] }}"{% if model.template == tmpl[0] %} selected="selected"{% endif %}>
+                  {{ tmpl[1] }}
+                </option>
+              {%- endfor %}
+            </select>
+            <label for="template">Post Template</label>
+          </div>
+          <fieldset>
+            <legend>Categories</legend>
+            {% for cat in categories %}
+              <div class="form-check">
+                <input type="checkbox" name="categoryIds" id="categoryId_{{ cat.id }}" class="form-check-input"
+                       value="{{ cat.id }}" {% if model.category_ids contains cat.id %} checked="checked"{% endif %}>
+                <label for="categoryId_{{ cat.id }}" class="form-check-label"
+                       {%- if cat.description %} title="{{ cat.description.value | strip_html | escape }}"{% endif %}>
+                  {%- for it in cat.parent_names %}&nbsp; &rang; &nbsp;{% endfor %}{{ cat.name }}
+                </label>
+              </div>
+            {% endfor %}
+          </fieldset>
+        </div>
+      </div>
+    </div>
+  </form>
+</article>

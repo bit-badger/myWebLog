@@ -1,0 +1,22 @@
+.messages {
+  max-width: 60rem;
+  margin: auto;
+}
+blockquote {
+  border-left: solid 4px lightgray;
+  padding-left: 1rem;
+}
+.item-meta {
+  font-size: 1.1rem;
+  font-weight: normal;;
+}
+.item-meta::before {
+  content: "»";
+  vertical-align: text-top;
+}
+a:link, a:visited {
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}

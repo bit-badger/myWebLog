@@ -1,0 +1,62 @@
+﻿{%- assign post = model.posts | first -%}
+<h1>{{ post.title }}</h1>
+<h4 class="item-meta text-muted">
+  {% if post.published_on -%}
+    Published {{ post.published_on | date: "dddd, MMMM d, yyyy" }}
+    at {{ post.published_on | date: "h:mm tt" | downcase }}
+  {%- else -%}
+    **DRAFT**
+  {% endif %}
+  by {{ model.authors | value: post.author_id }}
+  {% if logged_on %} &bull; <a hx-boost="false" href="{{ post | edit_post_link }}">Edit Post</a> {% endif %}
+</h4>
+<div>
+  <article class="container mt-3">
+    <div>{{ post.text }}</div>
+    {%- assign cat_count = post.category_ids | size -%}
+    {% if cat_count > 0 -%}
+      <h4 class="item-meta text-muted">
+        Categorized under
+        {% for cat_id in post.category_ids -%}
+          {% assign cat = categories | where: "id", cat_id | first %}
+          <span class="text-nowrap">
+            <a href="{{ cat | category_link }}" title="Categorized under &ldquo;{{ cat.name | escape }}&rdquo;">
+              {{ cat.name }}
+            </a>
+          </span>
+          {% unless forloop.last %} &bull; {% endunless %}
+        {%- endfor %}
+      </h4>
+    {%- endif %}
+    {%- assign tag_count = post.tags | size -%}
+    {% if tag_count > 0 -%}
+      <h4 class="item-meta text-muted">
+        Tagged
+        {% for tag in post.tags %}
+          <span class="text-nowrap">
+            <a href="{{ tag | tag_link }}" title="Posts tagged &ldquo;{{ tag | escape }}&rdquo;" rel="tag">{{ tag }}</a>
+          </span>
+          {% unless forloop.last %} &bull; {% endunless %}
+        {%- endfor %}
+      </h4>
+    {%- endif %}
+  </article>
+  <div>
+    <nav aria-label="pagination">
+      <ul class="pagination justify-content-evenly mt-5">
+        {% if model.newer_link -%}
+          <li class="page-item">
+            <a class="page-link" href="{{ model.newer_link.value | relative_link }}">{{ model.newer_name.value }}</a>
+            <span class="text-muted">&laquo; Previous Post</span>
+          </li>
+        {% endif %}
+        {% if model.older_link -%}
+          <li class="page-item text-end">
+            <a class="page-link" href="{{ model.older_link.value | relative_link }}">{{ model.older_name.value }}</a>
+            <span class="text-muted">Next Post &raquo;</span>
+          </li>
+        {%- endif -%}
+      </ul>
+    </nav>
+  </div>
+</div>

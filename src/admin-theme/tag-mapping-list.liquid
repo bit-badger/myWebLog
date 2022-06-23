@@ -1,0 +1,14 @@
+﻿<h2 class="my-3">{{ page_title }}</h2>
+<article>
+  <a href="{{ "admin/settings/tag-mapping/new/edit" | relative_link }}" class="btn btn-primary btn-sm mb-3"
+     hx-target="#tag_new">
+    Add a New Tag Mapping
+  </a>
+  <div class="container">
+    <div class="row mwl-table-heading">
+      <div class="col">Tag</div>
+      <div class="col">URL Value</div>
+    </div>
+  </div>
+  {{ tag_mapping_list }}
+</article>
