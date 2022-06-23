@@ -235,6 +235,9 @@ module private SqliteHelpers =
     let maybe<'T> (it : 'T option) : obj = match it with Some x -> x :> obj | None -> DBNull.Value
 
 
+// The web log podcast insert loop is not statically compilable; this is OK
+#nowarn "3511"
+
 /// SQLite myWebLog data implementation        
 type SQLiteData (conn : SqliteConnection, log : ILogger<SQLiteData>) =
     

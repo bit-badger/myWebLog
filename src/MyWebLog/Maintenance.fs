@@ -110,6 +110,9 @@ let importLinks args sp = task {
     | _ -> printfn "Usage: MyWebLog import-links [url] [file-name]"
 }
 
+// Loading a theme and restoring a backup are not statically compilable; this is OK
+#nowarn "3511"
+
 /// Load a theme from the given ZIP file
 let loadTheme (args : string[]) (sp : IServiceProvider) = task {
     if args.Length > 1 then
