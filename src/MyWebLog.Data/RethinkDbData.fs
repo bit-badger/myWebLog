@@ -866,13 +866,13 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
         member _.startUp () = backgroundTask {
             let! dbs = rethink<string list> { dbList; result; withRetryOnce conn }
             if not (dbs |> List.contains config.Database) then
-                log.LogInformation($"Creating database {config.Database}...")
+                log.LogInformation $"Creating database {config.Database}..."
                 do! rethink { dbCreate config.Database; write; withRetryOnce; ignoreResult conn }
             
             let! tables = rethink<string list> { tableList; result; withRetryOnce conn }
             for tbl in Table.all do
                 if not (tables |> List.contains tbl) then
-                    log.LogInformation($"Creating table {tbl}...")
+                    log.LogInformation $"Creating table {tbl}..."
                     do! rethink { tableCreate tbl; write; withRetryOnce; ignoreResult conn }
 
             do! ensureIndexes Table.Category   [ "webLogId" ]

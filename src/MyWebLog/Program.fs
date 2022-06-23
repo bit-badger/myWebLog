@@ -38,19 +38,23 @@ module DataImplementation =
     open RethinkDb.Driver.Net
 
     /// Get the configured data implementation
-    let get (sp : IServiceProvider) : IData option =
+    let get (sp : IServiceProvider) : IData =
         let config = sp.GetRequiredService<IConfiguration> ()
-        if (config.GetSection "RethinkDB").Exists () then
+        if (config.GetConnectionString >> isNull >> not) "SQLite" then
+            let conn = new SqliteConnection (config.GetConnectionString "SQLite")
+            SQLiteData.setUpConnection conn |> Async.AwaitTask |> Async.RunSynchronously
+            upcast SQLiteData (conn, sp.GetRequiredService<ILogger<SQLiteData>> ())
+        elif (config.GetSection "RethinkDB").Exists () then
             Json.all () |> Seq.iter Converter.Serializer.Converters.Add 
             let rethinkCfg = DataConfig.FromConfiguration (config.GetSection "RethinkDB")
             let conn       = rethinkCfg.CreateConnectionAsync () |> Async.AwaitTask |> Async.RunSynchronously
-            Some (upcast RethinkDbData (conn, rethinkCfg, sp.GetRequiredService<ILogger<RethinkDbData>> ()))
-        elif (config.GetConnectionString >> isNull >> not) "SQLite" then
-            let conn = new SqliteConnection (config.GetConnectionString "SQLite")
-            SQLiteData.setUpConnection conn |> Async.AwaitTask |> Async.RunSynchronously
-            Some (upcast SQLiteData conn)
+            upcast RethinkDbData (conn, rethinkCfg, sp.GetRequiredService<ILogger<RethinkDbData>> ())
         else
-            None
+            let log  = sp.GetRequiredService<ILogger<SQLiteData>> ()
+            log.LogInformation "Using default SQLite database myweblog.db"
+            let conn = new SqliteConnection ("Data Source=./myweblog.db;Cache=Shared")
+            SQLiteData.setUpConnection conn |> Async.AwaitTask |> Async.RunSynchronously
+            upcast SQLiteData (conn, log)
 
 
 open Giraffe
@@ -78,39 +82,37 @@ let rec main args =
     let _ = builder.Services.AddAuthorization ()
     let _ = builder.Services.AddAntiforgery ()
     
-    let sp = builder.Services.BuildServiceProvider ()
-    match DataImplementation.get sp with
-    | Some data ->
-        task {
-            do! data.startUp ()
-            do! WebLogCache.fill data
-            do! ThemeAssetCache.fill data
-        } |> Async.AwaitTask |> Async.RunSynchronously
-        
-        // Define distributed cache implementation based on data implementation
-        match data with
-        | :? RethinkDbData as rethink ->
-            // A RethinkDB connection is designed to work as a singleton
-            builder.Services.AddSingleton<IData> data |> ignore
-            builder.Services.AddDistributedRethinkDBCache (fun opts ->
-                opts.TableName  <- "Session"
-                opts.Connection <- rethink.Conn)
-            |> ignore
-        | :? SQLiteData ->
-            // ADO.NET connections are designed to work as per-request instantiation
-            let cfg  = sp.GetRequiredService<IConfiguration> ()
-            builder.Services.AddScoped<SqliteConnection> (fun sp ->
-                let conn = new SqliteConnection (cfg.GetConnectionString "SQLite")
-                SQLiteData.setUpConnection conn |> Async.AwaitTask |> Async.RunSynchronously
-                conn)
-            |> ignore
-            builder.Services.AddScoped<IData, SQLiteData> () |> ignore
-            // Use SQLite for caching as well
-            let cachePath = defaultArg (Option.ofObj (cfg.GetConnectionString "SQLiteCachePath")) "./session.db"
-            builder.Services.AddSqliteCache (fun o -> o.CachePath <- cachePath) |> ignore
-        | _ -> ()
-    | None ->
-        invalidOp "There is no data configuration present; please add a RethinkDB section or LiteDB connection string"
+    let sp   = builder.Services.BuildServiceProvider ()
+    let data = DataImplementation.get sp
+    
+    task {
+        do! data.startUp ()
+        do! WebLogCache.fill data
+        do! ThemeAssetCache.fill data
+    } |> Async.AwaitTask |> Async.RunSynchronously
+    
+    // Define distributed cache implementation based on data implementation
+    match data with
+    | :? RethinkDbData as rethink ->
+        // A RethinkDB connection is designed to work as a singleton
+        builder.Services.AddSingleton<IData> data |> ignore
+        builder.Services.AddDistributedRethinkDBCache (fun opts ->
+            opts.TableName  <- "Session"
+            opts.Connection <- rethink.Conn)
+        |> ignore
+    | :? SQLiteData as sql ->
+        // ADO.NET connections are designed to work as per-request instantiation
+        let cfg  = sp.GetRequiredService<IConfiguration> ()
+        builder.Services.AddScoped<SqliteConnection> (fun sp ->
+            let conn = new SqliteConnection (sql.Conn.ConnectionString)
+            SQLiteData.setUpConnection conn |> Async.AwaitTask |> Async.RunSynchronously
+            conn)
+        |> ignore
+        builder.Services.AddScoped<IData, SQLiteData> () |> ignore
+        // Use SQLite for caching as well
+        let cachePath = Option.ofObj (cfg.GetConnectionString "SQLiteCachePath") |> Option.defaultValue "./session.db"
+        builder.Services.AddSqliteCache (fun o -> o.CachePath <- cachePath) |> ignore
+    | _ -> ()
     
     let _ = builder.Services.AddSession(fun opts ->
         opts.IdleTimeout        <- TimeSpan.FromMinutes 60

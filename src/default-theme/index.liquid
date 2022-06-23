@@ -1,7 +1,11 @@
-﻿{% if model.subtitle %}
-  <h2>{{ model.subtitle.value }}</h2>
-{% endif %}
-<section class="container" aria-label="The posts for the page">
+﻿{%- if is_category or is_tag %}
+  <h1 class="index-title">{{ page_title }}</h1>
+  {%- if is_category %}
+    {%- assign cat = categories | where: "slug", slug | first -%}
+    {%- if cat.description %}<h4 class="text-muted">{{ cat.description.value }}</h4>{% endif -%}
+  {%- endif %}
+{%- endif %}
+<section class="container mt-3" aria-label="The posts for the page">
   {% for post in model.posts %}
     <article>
       <h1>

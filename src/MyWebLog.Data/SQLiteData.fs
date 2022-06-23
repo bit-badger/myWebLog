@@ -4,6 +4,7 @@ open System
 open System.IO
 open System.Threading.Tasks
 open Microsoft.Data.Sqlite
+open Microsoft.Extensions.Logging
 open MyWebLog
 open MyWebLog.ViewModels
 
@@ -235,7 +236,7 @@ module private SqliteHelpers =
 
 
 /// SQLite myWebLog data implementation        
-type SQLiteData (conn : SqliteConnection) =
+type SQLiteData (conn : SqliteConnection, log : ILogger<SQLiteData>) =
     
     /// Add parameters for category INSERT or UPDATE statements
     let addCategoryParameters (cmd : SqliteCommand) (cat : Category) =
@@ -1800,6 +1801,7 @@ type SQLiteData (conn : SqliteConnection) =
 
             let! exists = tableExists "theme"
             if not exists then
+                log.LogInformation "Creating theme tables..."
                 use cmd = conn.CreateCommand ()
                 cmd.CommandText <-
                     """CREATE TABLE theme (
@@ -1825,6 +1827,7 @@ type SQLiteData (conn : SqliteConnection) =
             
             let! exists = tableExists "web_log"
             if not exists then
+                log.LogInformation "Creating web log tables..."
                 use cmd = conn.CreateCommand ()
                 cmd.CommandText <-
                     """CREATE TABLE web_log (
@@ -1870,6 +1873,7 @@ type SQLiteData (conn : SqliteConnection) =
             
             let! exists = tableExists "category"
             if not exists then
+                log.LogInformation "Creating category table..."
                 use cmd = conn.CreateCommand ()
                 cmd.CommandText <-
                     """CREATE TABLE category (
@@ -1883,6 +1887,7 @@ type SQLiteData (conn : SqliteConnection) =
             
             let! exists = tableExists "web_log_user"
             if not exists then
+                log.LogInformation "Creating user table..."
                 use cmd = conn.CreateCommand ()
                 cmd.CommandText <-
                     """CREATE TABLE web_log_user (
@@ -1900,6 +1905,7 @@ type SQLiteData (conn : SqliteConnection) =
             
             let! exists = tableExists "page"
             if not exists then
+                log.LogInformation "Creating page tables..."
                 use cmd = conn.CreateCommand ()
                 cmd.CommandText <-
                     """CREATE TABLE page (
@@ -1937,6 +1943,7 @@ type SQLiteData (conn : SqliteConnection) =
             
             let! exists = tableExists "post"
             if not exists then
+                log.LogInformation "Creating post tables..."
                 use cmd = conn.CreateCommand ()
                 cmd.CommandText <-
                     """CREATE TABLE post (
@@ -1998,6 +2005,7 @@ type SQLiteData (conn : SqliteConnection) =
             
             let! exists = tableExists "tag_map"
             if not exists then
+                log.LogInformation "Creating tag map tables..."
                 use cmd = conn.CreateCommand ()
                 cmd.CommandText <-
                     """CREATE TABLE tag_map (

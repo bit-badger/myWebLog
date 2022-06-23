@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css"
           integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
-    <title>{{ page_title | escape }}{% if page_title %} &laquo; {% endif %}{{ web_log.name | escape }}</title>
+    <title>{{ page_title | strip_html }}{% if page_title %} &laquo; {% endif %}{{ web_log.name | strip_html }}</title>
     {% page_head -%}
   </head>
   <body>
@@ -19,7 +19,7 @@
           </button>
           <div class="collapse navbar-collapse" id="navbarText">
             {% if web_log.subtitle -%}
-              <span class="navbar-text">{{ web_log.subtitle.value | escape }}</span>
+              <span class="navbar-text">{{ web_log.subtitle.value }}</span>
             {%- endif %}
             <ul class="navbar-nav">
               {% unless web_log.default_page == "posts" %}{{ "page/1" | nav_link: "Posts" }}{% endunless %}

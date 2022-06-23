@@ -1,63 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <title>{{ page_title | escape }} &laquo; Admin &laquo; {{ web_log.name | escape }}</title>
+    <title>{{ page_title | strip_html }} &laquo; Admin &laquo; {{ web_log.name | strip_html }}</title>
   </head>
   <body>
-    <header>
-      <nav class="navbar navbar-dark bg-dark navbar-expand-md justify-content-start px-2 position-fixed top-0 w-100">
-        <div class="container-fluid">
-          <a class="navbar-brand" href="{{ "" | relative_link }}" hx-boost="false">{{ web_log.name }}</a>
-          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarText"
-                  aria-controls="navbarText" aria-expanded="false" aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-          </button>
-          <div class="collapse navbar-collapse" id="navbarText">
-            {% if logged_on -%}
-              <ul class="navbar-nav">
-                {{ "admin/dashboard" | nav_link: "Dashboard" }}
-                {{ "admin/pages" | nav_link: "Pages" }}
-                {{ "admin/posts" | nav_link: "Posts" }}
-                {{ "admin/categories" | nav_link: "Categories" }}
-                {{ "admin/settings" | nav_link: "Settings" }}
-              </ul>
-            {%- endif %}
-            <ul class="navbar-nav flex-grow-1 justify-content-end">
-              {% if logged_on -%}
-                {{ "admin/user/edit" | nav_link: "Edit User" }}
-                {{ "user/log-off" | nav_link: "Log Off" }}
-              {%- else -%}
-                {{ "user/log-on" | nav_link: "Log On" }}
-              {%- endif %}
-            </ul>
-          </div>
-        </div>
-      </nav>
-    </header>
-    <main class="mx-3 mt-3">
-      <div class="messages mt-2" id="msgContainer">
-        {% for msg in messages %}
-          <div role="alert" class="alert alert-{{ msg.level }} alert-dismissible fade show">
-            {{ msg.message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            {% if msg.detail %}
-              <hr>
-              {{ msg.detail.value }}
-            {% endif %}
-          </div>
-        {% endfor %}
-      </div>
-      {{ content }}
-    </main>
-    <footer class="position-fixed bottom-0 w-100">
-      <div class="container-fluid">
-        <div class="row">
-          <div class="col-xs-12 text-end">
-            <img src="{{ "themes/admin/logo-light.png" | relative_link }}" alt="myWebLog" width="120" height="34">
-          </div>
-        </div>
-      </div>
-    </footer>
+    {% include_template "_layout" %}
     <script>Admin.dismissSuccesses()</script>
   </body>
 </html>
