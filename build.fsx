@@ -94,6 +94,13 @@ Target.create "RepackageLinux" (fun _ ->
 
 Target.create "All" ignore
 
+Target.create "RemoveThemeArchives" (fun _ ->
+    Shell.rm $"{releasePath}/admin.zip"
+    Shell.rm $"{releasePath}/default.zip"
+)
+
+Target.create "CI" ignore
+
 "Clean"
   ==> "All"
 
@@ -128,5 +135,9 @@ Target.create "All" ignore
 "PackageLinux"
   ==> "RepackageLinux"
   ==> "All"
+
+"All"
+  ==> "RemoveThemeArchives"
+  ==> "CI"
 
 Target.runOrDefault "All"
