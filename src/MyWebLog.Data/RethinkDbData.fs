@@ -41,9 +41,6 @@ module private RethinkHelpers =
 
         /// A list of all tables
         let all = [ Category; Comment; Page; Post; TagMap; Theme; ThemeAsset; WebLog; WebLogUser ]
-        
-        /// A list of all tables with a webLogId field
-        let allForWebLog = [ Comment; Post; Category; TagMap; Page; WebLogUser ]
 
 
     /// Shorthand for the ReQL starting point
@@ -743,19 +740,42 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                 }
                 
                 member _.delete webLogId = backgroundTask {
-                    for table in Table.allForWebLog do
-                        do! rethink {
-                            withTable table
-                            getAll [ webLogId ] (nameof webLogId)
-                            delete
-                            write; withRetryOnce; ignoreResult conn
-                        }
-                    do! rethink {
-                        withTable Table.WebLog
-                        get webLogId
-                        delete
-                        write; withRetryOnce; ignoreResult conn
-                    }
+                     // Comments should be deleted by post IDs
+                     let! thePostIds = rethink<{| id : string |} list> {
+                         withTable Table.Post
+                         getAll [ webLogId ] (nameof webLogId)
+                         pluck [ "id" ]
+                         result; withRetryOnce conn
+                     }
+                     if not (List.isEmpty thePostIds) then
+                         let postIds = thePostIds |> List.map (fun it -> it.id :> obj)
+                         do! rethink {
+                             withTable Table.Comment
+                             getAll postIds "postId"
+                             delete
+                             write; withRetryOnce; ignoreResult conn
+                         }
+                     // Tag mappings do not have a straightforward webLogId index
+                     do! rethink {
+                         withTable Table.TagMap
+                         between (r.Array (webLogId, r.Minval ())) (r.Array (webLogId, r.Maxval ()))
+                                     [ Index "webLogAndTag" ]
+                         delete
+                         write; withRetryOnce; ignoreResult conn
+                     }
+                     for table in [ Table.Post; Table.Category; Table.Page; Table.WebLogUser ] do
+                         do! rethink {
+                             withTable table
+                             getAll [ webLogId ] (nameof webLogId)
+                             delete
+                             write; withRetryOnce; ignoreResult conn
+                         }
+                     do! rethink {
+                         withTable Table.WebLog
+                         get webLogId
+                         delete
+                         write; withRetryOnce; ignoreResult conn
+                     }
                 }
                 
                 member _.findByHost url =

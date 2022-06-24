@@ -10,7 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="appsettings.json" CopyToOutputDirectory="Always" />
+    <Content Include="appsettings*.json" CopyToOutputDirectory="Always" />
     <Compile Include="Caches.fs" />
     <Compile Include="Handlers\Error.fs" />
     <Compile Include="Handlers\Helpers.fs" />

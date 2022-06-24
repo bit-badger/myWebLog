@@ -275,7 +275,7 @@ module Backup =
             match! data.WebLog.findById archive.webLog.id with
             | Some webLog when defaultArg newUrlBase webLog.urlBase = webLog.urlBase ->
                 do! data.WebLog.delete webLog.id
-                return archive
+                return { archive with webLog = { archive.webLog with urlBase = defaultArg newUrlBase webLog.urlBase } }
             | Some _ ->
                 // Err'body gets new IDs...
                 let newWebLogId = WebLogId.create ()
