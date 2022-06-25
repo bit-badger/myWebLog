@@ -68,6 +68,109 @@ module CommentStatus =
         | it         -> invalidOp $"{it} is not a valid post status"
 
 
+/// Valid values for the iTunes explicit rating
+type ExplicitRating =
+    | Yes
+    | No
+    | Clean
+
+/// Functions to support iTunes explicit ratings
+module ExplicitRating =
+    /// Convert an explicit rating to a string
+    let toString : ExplicitRating -> string =
+        function
+        | Yes   -> "yes"
+        | No    -> "no"
+        | Clean -> "clean"
+    
+    /// Parse a string into an explicit rating
+    let parse : string -> ExplicitRating =
+        function
+        | "yes"   -> Yes
+        | "no"    -> No
+        | "clean" -> Clean
+        | x       -> raise (invalidArg "rating" $"{x} is not a valid explicit rating")
+
+
+/// A podcast episode
+type Episode =
+    {   /// The URL to the media file for the episode (may be permalink)
+        media : string
+        
+        /// The length of the media file, in bytes
+        length : int64
+        
+        /// The duration of the episode
+        duration : TimeSpan option
+        
+        /// The media type of the file (overrides podcast default if present)
+        mediaType : string option
+        
+        /// The URL to the image file for this episode (overrides podcast image if present, may be permalink)
+        imageUrl : string option
+        
+        /// A subtitle for this episode
+        subtitle : string option
+        
+        /// This episode's explicit rating (overrides podcast rating if present)
+        explicit : ExplicitRating option
+        
+        /// A link to a chapter file
+        chapterFile : string option
+        
+        /// The MIME type for the chapter file
+        chapterType : string option
+        
+        /// The URL for the transcript of the episode (may be permalink)
+        transcriptUrl : string option
+        
+        /// The MIME type of the transcript
+        transcriptType : string option
+        
+        /// The language in which the transcript is written
+        transcriptLang : string option
+        
+        /// If true, the transcript will be declared (in the feed) to be a captions file
+        transcriptCaptions : bool option
+        
+        /// The season number (for serialized podcasts)
+        seasonNumber : int option
+        
+        /// A description of the season
+        seasonDescription : string option
+        
+        /// The episode number
+        episodeNumber : double option
+        
+        /// A description of the episode
+        episodeDescription : string option
+    }
+
+/// Functions to support episodes
+module Episode =
+    
+    /// An empty episode
+    let empty = {
+        media              = ""
+        length             = 0L
+        duration           = None
+        mediaType          = None
+        imageUrl           = None
+        subtitle           = None
+        explicit           = None
+        chapterFile        = None
+        chapterType        = None
+        transcriptUrl      = None
+        transcriptType     = None
+        transcriptLang     = None
+        transcriptCaptions = None
+        seasonNumber       = None
+        seasonDescription  = None
+        episodeNumber      = None
+        episodeDescription = None
+    }
+
+
 open Markdig
 open Markdown.ColorCode
 
@@ -171,6 +274,43 @@ module PageId =
     let create () = PageId (newId ())
 
 
+/// PodcastIndex.org podcast:medium allowed values
+type PodcastMedium =
+    | Podcast
+    | Music
+    | Video
+    | Film
+    | Audiobook
+    | Newsletter
+    | Blog
+
+/// Functions to support podcast medium
+module PodcastMedium =
+    
+    /// Convert a podcast medium to a string
+    let toString =
+        function
+        | Podcast    -> "podcast"
+        | Music      -> "music"
+        | Video      -> "video"
+        | Film       -> "film"
+        | Audiobook  -> "audiobook"
+        | Newsletter -> "newsletter"
+        | Blog       -> "blog"
+    
+    /// Parse a string into a podcast medium
+    let parse value =
+        match value with
+        | "podcast"    -> Podcast
+        | "music"      -> Music
+        | "video"      -> Video
+        | "film"       -> Film
+        | "audiobook"  -> Audiobook
+        | "newsletter" -> Newsletter
+        | "blog"       -> Blog
+        | it           -> invalidOp $"{it} is not a valid podcast medium"
+
+
 /// Statuses for posts
 type PostStatus =
     /// The post should not be publicly available
@@ -248,30 +388,6 @@ module CustomFeedSource =
         | source -> invalidArg "feedSource" $"{source} is not a valid feed source"
 
 
-/// Valid values for the iTunes explicit rating
-type ExplicitRating =
-    | Yes
-    | No
-    | Clean
-
-/// Functions to support iTunes explicit ratings
-module ExplicitRating =
-    /// Convert an explicit rating to a string
-    let toString : ExplicitRating -> string =
-        function
-        | Yes   -> "yes"
-        | No    -> "no"
-        | Clean -> "clean"
-    
-    /// Parse a string into an explicit rating
-    let parse : string -> ExplicitRating =
-        function
-        | "yes"   -> Yes
-        | "no"    -> No
-        | "clean" -> Clean
-        | x       -> raise (invalidArg "rating" $"{x} is not a valid explicit rating")
-
-
 /// Options for a feed that describes a podcast
 type PodcastOptions =
     {   /// The title of the podcast
@@ -309,6 +425,18 @@ type PodcastOptions =
         
         /// The base URL for relative URL media files for this podcast (optional; defaults to web log base)
         mediaBaseUrl : string option
+        
+        /// A GUID for this podcast
+        guid : Guid option
+        
+        /// A URL at which information on supporting the podcast may be found (supports permalinks)
+        fundingUrl : string option
+        
+        /// The text to be displayed in the funding item within the feed
+        fundingText : string option
+        
+        /// The medium (what the podcast IS, not what it is ABOUT)
+        medium : PodcastMedium option
     }
 
 

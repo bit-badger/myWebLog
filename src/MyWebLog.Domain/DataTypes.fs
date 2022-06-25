@@ -190,6 +190,9 @@ type Post =
         /// The tags for the post
         tags : string list
 
+        /// Podcast episode information for this post
+        episode : Episode option
+        
         /// Metadata for the post
         metadata : MetaItem list
         
@@ -217,6 +220,7 @@ module Post =
           template        = None
           categoryIds     = []
           tags            = []
+          episode         = None
           metadata        = []
           priorPermalinks = []
           revisions       = []

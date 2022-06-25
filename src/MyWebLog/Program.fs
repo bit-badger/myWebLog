@@ -130,7 +130,8 @@ let rec main args =
     | Some it when it = "import-links" -> Maintenance.importLinks              args app.Services
     | Some it when it = "load-theme"   -> Maintenance.loadTheme                args app.Services
     | Some it when it = "backup"       -> Maintenance.Backup.generateBackup    args app.Services
-    | Some it when it = "restore"      -> Maintenance.Backup.restoreFromBackup args app.Services    
+    | Some it when it = "restore"      -> Maintenance.Backup.restoreFromBackup args app.Services
+    | Some it when it = "do-restore"   -> Maintenance.Backup.restoreFromBackup args app.Services    
     | _ ->
         let _ = app.UseForwardedHeaders ()
         let _ = app.UseCookiePolicy (CookiePolicyOptions (MinimumSameSitePolicy = SameSiteMode.Strict))

@@ -65,6 +65,13 @@ module Json =
         override _.ReadJson (reader : JsonReader, _ : Type, _ : PageId, _ : bool, _ : JsonSerializer) =
             (string >> PageId) reader.Value
 
+    type PodcastMediumConverter () =
+        inherit JsonConverter<PodcastMedium> ()
+        override _.WriteJson (writer : JsonWriter, value : PodcastMedium, _ : JsonSerializer) =
+            writer.WriteValue (PodcastMedium.toString value)
+        override _.ReadJson (reader : JsonReader, _ : Type, _ : PodcastMedium, _ : bool, _ : JsonSerializer) =
+            (string >> PodcastMedium.parse) reader.Value
+
     type PostIdConverter () =
         inherit JsonConverter<PostId> ()
         override _.WriteJson (writer : JsonWriter, value : PostId, _ : JsonSerializer) =
@@ -121,6 +128,7 @@ module Json =
             MarkupTextConverter       ()
             PermalinkConverter        ()
             PageIdConverter           ()
+            PodcastMediumConverter    ()
             PostIdConverter           ()
             TagMapIdConverter         ()
             ThemeAssetIdConverter     ()

@@ -300,6 +300,11 @@ type EditCustomFeedModel =
                         explicit          = ExplicitRating.parse this.explicit
                         defaultMediaType  = noneIfBlank this.defaultMediaType
                         mediaBaseUrl      = noneIfBlank this.mediaBaseUrl
+                        // TODO: implement UI to update these
+                        guid              = None
+                        fundingUrl        = None
+                        fundingText       = None
+                        medium            = None
                     }
                 else
                     None
