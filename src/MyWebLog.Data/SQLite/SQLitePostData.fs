@@ -141,7 +141,7 @@ type SQLitePostData (conn : SqliteConnection) =
     let updatePostEpisode (post : Post) = backgroundTask {
         use cmd = conn.CreateCommand ()
         cmd.CommandText <- "SELECT COUNT(post_id) FROM post_episode WHERE post_id = @postId"
-        cmd.Parameters.AddWithValue ("@postId", post.id) |> ignore
+        cmd.Parameters.AddWithValue ("@postId", PostId.toString post.id) |> ignore
         let! count = count cmd
         if count = 1 then
             match post.episode with
@@ -176,13 +176,13 @@ type SQLitePostData (conn : SqliteConnection) =
             | Some ep ->
                 cmd.CommandText <-
                     """INSERT INTO post_episode (
-                           post_id, media, length, duration, media_type, image_url, subtitle, explicit, chapter_file,
-                           chapter_type, transcript_url, transcript_type, transcript_lang, transcript_captions,
-                           season_number, season_description, episode_number, episode_description
+                           post_id, media, length, duration, media_type, image_url, subtitle, explicit,
+                           chapter_file, chapter_type, transcript_url, transcript_type, transcript_lang,
+                           transcript_captions, season_number, season_description, episode_number, episode_description
                        ) VALUES (
-                           @media, @length, @duration, @mediaType, @imageUrl, @subtitle, @explicit, @chapterFile,
-                           @chapterType, @transcriptUrl, @transcriptType, @transcriptLang, @transcriptCaptions,
-                           @seasonNumber, @seasonDescription, @episodeNumber, @episodeDescription
+                           @postId, @media, @length, @duration, @mediaType, @imageUrl, @subtitle, @explicit,
+                           @chapterFile, @chapterType, @transcriptUrl, @transcriptType, @transcriptLang,
+                           @transcriptCaptions, @seasonNumber, @seasonDescription, @episodeNumber, @episodeDescription
                        )"""
                 addEpisodeParameters cmd ep
                 do! write cmd
@@ -530,7 +530,7 @@ type SQLitePostData (conn : SqliteConnection) =
             use cmd = conn.CreateCommand ()
             cmd.CommandText <-
                 """UPDATE post
-                      SET author_id    = @author_id,
+                      SET author_id    = @authorId,
                           status       = @status,
                           title        = @title,
                           permalink    = @permalink,

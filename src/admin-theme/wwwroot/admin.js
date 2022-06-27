@@ -204,32 +204,16 @@
   },
 
   /**
-   * Add podcast episode metadata fields
+   * Enable or disable podcast fields
    */
-  addPodcastFields() {
-    [ [ "episode_media_file",   true,  "required; relative URL will be appended to configured base media path" ],
-      [ "episode_media_length", true,  "required; file size in bytes" ],
-      [ "episode_duration",     false, "suggested; format is HH:MM:SS" ],
-      [ "episode_media_type",   false, "optional; blank uses podcast default" ],
-      [ "episode_image",        false, "optional; relative URLs are served from this web log" ],
-      [ "episode_subtitle",     false, "optional" ],
-      [ "episode_explicit",     false, "optional; blank uses podcast default"]
-    ].forEach(([fieldName, isRequired, hintText]) => {
-      const nameField = this.createMetaNameField()
-      nameField.value = fieldName
-      nameField.readOnly = true
-      
-      const valueField = this.createMetaValueField()
-      valueField.required = isRequired
-
-      this.createMetaRow(
-        this.createMetaRemoveColumn(),
-        this.createMetaNameColumn(nameField),
-        this.createMetaValueColumn(valueField, hintText))
-    })
-    document.getElementById("addPodcastFieldButton").remove()
+  toggleEpisodeFields() {
+    const disabled = !document.getElementById("isEpisode").checked
+    ;[ "media", "mediaType", "length", "duration", "subtitle", "imageUrl", "explicit", "chapterFile", "chapterType",
+       "transcriptUrl", "transcriptType", "transcriptLang", "transcriptCaptions", "seasonNumber", "seasonDescription",
+       "episodeNumber", "episodeDescription"
+    ].forEach(it => document.getElementById(it).disabled = disabled)
   },
-
+  
   /**
    * Check to enable or disable podcast fields
    */

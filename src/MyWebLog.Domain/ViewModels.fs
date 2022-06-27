@@ -9,7 +9,7 @@ module private Helpers =
     
     /// Create a string option if a string is blank
     let noneIfBlank (it : string) =
-        match it.Trim () with "" -> None | trimmed -> Some trimmed
+        match (defaultArg (Option.ofObj it) "").Trim () with "" -> None | trimmed -> Some trimmed
 
 
 /// Details about a category, used to display category lists
@@ -448,10 +448,10 @@ type EditPostModel =
         transcriptLang : string
         
         /// Whether the provided transcript should be presented as captions
-        transcriptCaptions : bool option
+        transcriptCaptions : bool
         
         /// The season number (optional)
-        seasonNumber : int option
+        seasonNumber : int
         
         /// A description of this season (optional, ignored if season number is not provided)
         seasonDescription : string
@@ -489,7 +489,7 @@ type EditPostModel =
           isEpisode          = Option.isSome post.episode
           media              = episode.media
           length             = episode.length
-          duration           = defaultArg (episode.duration |> Option.map (fun it -> it.ToString "HH:mm:SS")) ""
+          duration           = defaultArg (episode.duration |> Option.map (fun it -> it.ToString """hh\:mm\:ss""")) ""
           mediaType          = defaultArg episode.mediaType ""
           imageUrl           = defaultArg episode.imageUrl ""
           subtitle           = defaultArg episode.subtitle ""
@@ -499,8 +499,8 @@ type EditPostModel =
           transcriptUrl      = defaultArg episode.transcriptUrl ""
           transcriptType     = defaultArg episode.transcriptType ""
           transcriptLang     = defaultArg episode.transcriptLang ""
-          transcriptCaptions = episode.transcriptCaptions
-          seasonNumber       = episode.seasonNumber
+          transcriptCaptions = defaultArg episode.transcriptCaptions false
+          seasonNumber       = defaultArg episode.seasonNumber 0
           seasonDescription  = defaultArg episode.seasonDescription ""
           episodeNumber      = defaultArg (episode.episodeNumber |> Option.map string) ""  
           episodeDescription = defaultArg episode.episodeDescription ""
@@ -536,27 +536,24 @@ type EditPostModel =
                     Some {
                         media              = this.media
                         length             = this.length
-                        duration           = match this.duration.Trim () with
-                                             | "" -> None
-                                             | dur -> Some (TimeSpan.Parse dur)
-                        mediaType          = match this.mediaType.Trim () with "" -> None | mt -> Some mt
-                        imageUrl           = match this.imageUrl.Trim () with "" -> None | iu -> Some iu
-                        subtitle           = match this.subtitle.Trim () with "" -> None | sub -> Some sub
-                        explicit           = match this.explicit.Trim () with
-                                             | "" -> None
-                                             | exp -> Some (ExplicitRating.parse exp)
-                        chapterFile        = match this.chapterFile.Trim () with "" -> None | cf -> Some cf
-                        chapterType        = match this.chapterType.Trim () with "" -> None | ct -> Some ct
-                        transcriptUrl      = match this.transcriptUrl.Trim () with "" -> None | tu -> Some tu
-                        transcriptType     = match this.transcriptType.Trim () with "" -> None | tt -> Some tt
-                        transcriptLang     = match this.transcriptLang.Trim () with "" -> None | tl -> Some tl
-                        transcriptCaptions = this.transcriptCaptions
-                        seasonNumber       = this.seasonNumber
-                        seasonDescription  = match this.seasonDescription.Trim () with "" -> None | sd -> Some sd
-                        episodeNumber      = match this.episodeNumber.Trim () with
-                                             | "" -> None
-                                             | en -> Some (Double.Parse en)  
-                        episodeDescription = match this.episodeDescription.Trim () with "" -> None | ed -> Some ed
+                        duration           = noneIfBlank this.duration |> Option.map TimeSpan.Parse
+                        mediaType          = noneIfBlank this.mediaType
+                        imageUrl           = noneIfBlank this.imageUrl
+                        subtitle           = noneIfBlank this.subtitle
+                        explicit           = noneIfBlank this.explicit |> Option.map ExplicitRating.parse
+                        chapterFile        = noneIfBlank this.chapterFile
+                        chapterType        = noneIfBlank this.chapterType
+                        transcriptUrl      = noneIfBlank this.transcriptUrl
+                        transcriptType     = noneIfBlank this.transcriptType
+                        transcriptLang     = noneIfBlank this.transcriptLang
+                        transcriptCaptions = if this.transcriptCaptions then Some true else None
+                        seasonNumber       = if this.seasonNumber = 0 then None else Some this.seasonNumber
+                        seasonDescription  = noneIfBlank this.seasonDescription
+                        episodeNumber      = match noneIfBlank this.episodeNumber |> Option.map Double.Parse with
+                                             | Some it when it = 0.0 -> None
+                                             | Some it -> Some (double it)
+                                             | None -> None
+                        episodeDescription = noneIfBlank this.episodeDescription
                     }
                 else
                     None

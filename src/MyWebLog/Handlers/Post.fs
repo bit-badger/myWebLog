@@ -2,6 +2,7 @@
 module MyWebLog.Handlers.Post
 
 open System
+open System.Collections.Generic
 open MyWebLog
 
 /// Parse a slug and page number from an "everything else" URL
@@ -237,13 +238,19 @@ let edit postId : HttpHandler = fun next ctx -> task {
         let  model     = EditPostModel.fromPost webLog post
         return!
             Hash.FromAnonymousObject {|
-                csrf       = csrfToken ctx
-                model      = model
-                metadata   = Array.zip model.metaNames model.metaValues
-                             |> Array.mapi (fun idx (name, value) -> [| string idx; name; value |])
-                page_title = title
-                templates  = templates
-                categories = cats
+                csrf            = csrfToken ctx
+                model           = model
+                metadata        = Array.zip model.metaNames model.metaValues
+                                  |> Array.mapi (fun idx (name, value) -> [| string idx; name; value |])
+                page_title      = title
+                templates       = templates
+                categories      = cats
+                explicit_values = [|
+                    KeyValuePair.Create ("", "&ndash; Default &ndash;")
+                    KeyValuePair.Create (ExplicitRating.toString Yes,   "Yes")
+                    KeyValuePair.Create (ExplicitRating.toString No,    "No")
+                    KeyValuePair.Create (ExplicitRating.toString Clean, "Clean")
+                |]
             |}
             |> viewForTheme "admin" "post-edit" next ctx
     | None -> return! Error.notFound next ctx
