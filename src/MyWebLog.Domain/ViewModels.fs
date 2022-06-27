@@ -407,7 +407,62 @@ type EditPostModel =
         
         /// Whether all revisions should be purged and the override date set as the updated date as well
         setUpdated : bool
+        
+        /// Whether this post has a podcast episode
+        isEpisode : bool
+        
+        /// The URL for the media for this episode (may be permalink)
+        media : string
+        
+        /// The size (in bytes) of the media for this episode
+        length : int64
+        
+        /// The duration of the media for this episode
+        duration : string
+        
+        /// The media type (optional, defaults to podcast-defined media type)
+        mediaType : string
+        
+        /// The URL for the image for this episode (may be permalink; optional, defaults to podcast image)
+        imageUrl : string
+        
+        /// A subtitle for the episode (optional)
+        subtitle : string
+        
+        /// The explicit rating for this episode (optional, defaults to podcast setting)
+        explicit : string
+        
+        /// The URL for the chapter file for the episode (may be permalink; optional)
+        chapterFile : string
+        
+        /// The type of the chapter file (optional; defaults to application/json+chapters if chapterFile is provided)
+        chapterType : string
+        
+        /// The URL for the transcript (may be permalink; optional)
+        transcriptUrl : string
+        
+        /// The MIME type for the transcript (optional, recommended if transcriptUrl is provided)
+        transcriptType : string
+        
+        /// The language of the transcript (optional)
+        transcriptLang : string
+        
+        /// Whether the provided transcript should be presented as captions
+        transcriptCaptions : bool option
+        
+        /// The season number (optional)
+        seasonNumber : int option
+        
+        /// A description of this season (optional, ignored if season number is not provided)
+        seasonDescription : string
+        
+        /// The episode number (decimal; optional)
+        episodeNumber : string
+        
+        /// A description of this episode (optional, ignored if episode number is not provided)
+        episodeDescription : string
     }
+    
     /// Create an edit model from an existing past
     static member fromPost webLog (post : Post) =
         let latest =
@@ -415,21 +470,96 @@ type EditPostModel =
             | Some rev -> rev
             | None -> Revision.empty
         let post = if post.metadata |> List.isEmpty then { post with metadata = [ MetaItem.empty ] } else post
-        { postId       = PostId.toString post.id
-          title        = post.title
-          permalink    = Permalink.toString post.permalink
-          source       = MarkupText.sourceType latest.text
-          text         = MarkupText.text       latest.text
-          tags         = String.Join (", ", post.tags)
-          template     = defaultArg post.template ""
-          categoryIds  = post.categoryIds |> List.map CategoryId.toString |> Array.ofList
-          status       = PostStatus.toString post.status
-          doPublish    = false
-          metaNames    = post.metadata |> List.map (fun m -> m.name)  |> Array.ofList
-          metaValues   = post.metadata |> List.map (fun m -> m.value) |> Array.ofList
-          setPublished = false
-          pubOverride  = post.publishedOn |> Option.map (WebLog.localTime webLog) |> Option.toNullable
-          setUpdated   = false
+        let episode = defaultArg post.episode Episode.empty
+        { postId             = PostId.toString post.id
+          title              = post.title
+          permalink          = Permalink.toString post.permalink
+          source             = MarkupText.sourceType latest.text
+          text               = MarkupText.text       latest.text
+          tags               = String.Join (", ", post.tags)
+          template           = defaultArg post.template ""
+          categoryIds        = post.categoryIds |> List.map CategoryId.toString |> Array.ofList
+          status             = PostStatus.toString post.status
+          doPublish          = false
+          metaNames          = post.metadata |> List.map (fun m -> m.name)  |> Array.ofList
+          metaValues         = post.metadata |> List.map (fun m -> m.value) |> Array.ofList
+          setPublished       = false
+          pubOverride        = post.publishedOn |> Option.map (WebLog.localTime webLog) |> Option.toNullable
+          setUpdated         = false
+          isEpisode          = Option.isSome post.episode
+          media              = episode.media
+          length             = episode.length
+          duration           = defaultArg (episode.duration |> Option.map (fun it -> it.ToString "HH:mm:SS")) ""
+          mediaType          = defaultArg episode.mediaType ""
+          imageUrl           = defaultArg episode.imageUrl ""
+          subtitle           = defaultArg episode.subtitle ""
+          explicit           = defaultArg (episode.explicit |> Option.map ExplicitRating.toString) ""
+          chapterFile        = defaultArg episode.chapterFile ""
+          chapterType        = defaultArg episode.chapterType ""
+          transcriptUrl      = defaultArg episode.transcriptUrl ""
+          transcriptType     = defaultArg episode.transcriptType ""
+          transcriptLang     = defaultArg episode.transcriptLang ""
+          transcriptCaptions = episode.transcriptCaptions
+          seasonNumber       = episode.seasonNumber
+          seasonDescription  = defaultArg episode.seasonDescription ""
+          episodeNumber      = defaultArg (episode.episodeNumber |> Option.map string) ""  
+          episodeDescription = defaultArg episode.episodeDescription ""
+        }
+    
+    /// Update a post with values from the submitted form
+    member this.updatePost (post : Post) (revision : Revision) now =
+        { post with
+            title       = this.title
+            permalink   = Permalink this.permalink
+            publishedOn = if this.doPublish then Some now else post.publishedOn
+            updatedOn   = now
+            text        = MarkupText.toHtml revision.text
+            tags        = this.tags.Split ","
+                          |> Seq.ofArray
+                          |> Seq.map (fun it -> it.Trim().ToLower ())
+                          |> Seq.filter (fun it -> it <> "")
+                          |> Seq.sort
+                          |> List.ofSeq
+            template    = match this.template.Trim () with "" -> None | tmpl -> Some tmpl
+            categoryIds = this.categoryIds |> Array.map CategoryId |> List.ofArray
+            status      = if this.doPublish then Published else post.status
+            metadata    = Seq.zip this.metaNames this.metaValues
+                          |> Seq.filter (fun it -> fst it > "")
+                          |> Seq.map (fun it -> { name = fst it; value = snd it })
+                          |> Seq.sortBy (fun it -> $"{it.name.ToLower ()} {it.value.ToLower ()}")
+                          |> List.ofSeq
+            revisions   = match post.revisions |> List.tryHead with
+                          | Some r when r.text = revision.text -> post.revisions
+                          | _ -> revision :: post.revisions
+            episode     =
+                if this.isEpisode then
+                    Some {
+                        media              = this.media
+                        length             = this.length
+                        duration           = match this.duration.Trim () with
+                                             | "" -> None
+                                             | dur -> Some (TimeSpan.Parse dur)
+                        mediaType          = match this.mediaType.Trim () with "" -> None | mt -> Some mt
+                        imageUrl           = match this.imageUrl.Trim () with "" -> None | iu -> Some iu
+                        subtitle           = match this.subtitle.Trim () with "" -> None | sub -> Some sub
+                        explicit           = match this.explicit.Trim () with
+                                             | "" -> None
+                                             | exp -> Some (ExplicitRating.parse exp)
+                        chapterFile        = match this.chapterFile.Trim () with "" -> None | cf -> Some cf
+                        chapterType        = match this.chapterType.Trim () with "" -> None | ct -> Some ct
+                        transcriptUrl      = match this.transcriptUrl.Trim () with "" -> None | tu -> Some tu
+                        transcriptType     = match this.transcriptType.Trim () with "" -> None | tt -> Some tt
+                        transcriptLang     = match this.transcriptLang.Trim () with "" -> None | tl -> Some tl
+                        transcriptCaptions = this.transcriptCaptions
+                        seasonNumber       = this.seasonNumber
+                        seasonDescription  = match this.seasonDescription.Trim () with "" -> None | sd -> Some sd
+                        episodeNumber      = match this.episodeNumber.Trim () with
+                                             | "" -> None
+                                             | en -> Some (Double.Parse en)  
+                        episodeDescription = match this.episodeDescription.Trim () with "" -> None | ed -> Some ed
+                    }
+                else
+                    None
         }
 
 

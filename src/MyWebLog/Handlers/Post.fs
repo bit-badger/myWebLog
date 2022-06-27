@@ -312,31 +312,7 @@ let save : HttpHandler = fun next ctx -> task {
             | "" -> post
             | link when link = model.permalink -> post
             | _ -> { post with priorPermalinks = post.permalink :: post.priorPermalinks }
-        let post =
-            { post with
-                title       = model.title
-                permalink   = Permalink model.permalink
-                publishedOn = if model.doPublish then Some now else post.publishedOn
-                updatedOn   = now
-                text        = MarkupText.toHtml revision.text
-                tags        = model.tags.Split ","
-                              |> Seq.ofArray
-                              |> Seq.map (fun it -> it.Trim().ToLower ())
-                              |> Seq.filter (fun it -> it <> "")
-                              |> Seq.sort
-                              |> List.ofSeq
-                template    = match model.template.Trim () with "" -> None | tmpl -> Some tmpl
-                categoryIds = model.categoryIds |> Array.map CategoryId |> List.ofArray
-                status      = if model.doPublish then Published else post.status
-                metadata    = Seq.zip model.metaNames model.metaValues
-                              |> Seq.filter (fun it -> fst it > "")
-                              |> Seq.map (fun it -> { name = fst it; value = snd it })
-                              |> Seq.sortBy (fun it -> $"{it.name.ToLower ()} {it.value.ToLower ()}")
-                              |> List.ofSeq
-                revisions   = match post.revisions |> List.tryHead with
-                              | Some r when r.text = revision.text -> post.revisions
-                              | _ -> revision :: post.revisions
-            }
+        let post = model.updatePost post revision now
         let post =
             match model.setPublished with
             | true ->
