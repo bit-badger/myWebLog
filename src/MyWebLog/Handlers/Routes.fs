@@ -93,44 +93,14 @@ module CatchAll =
 /// Serve theme assets
 module Asset =
     
-    open System
-    open Microsoft.AspNetCore.Http.Headers
-    open Microsoft.AspNetCore.StaticFiles
-    open Microsoft.Net.Http.Headers
-    
-    /// Determine if the asset has been modified since the date/time specified by the If-Modified-Since header
-    let private checkModified asset (ctx : HttpContext) : HttpHandler option =
-        match ctx.Request.Headers.IfModifiedSince with
-        | it when it.Count < 1 -> None
-        | it ->
-            if asset.updatedOn > DateTime.Parse it[0] then
-                None
-            else
-                Some (setStatusCode 304 >=> setBodyFromString "Not Modified")
-    
-    /// An instance of ASP.NET Core's file extension to MIME type converter
-    let private mimeMap = FileExtensionContentTypeProvider ()
-    
     // GET /theme/{theme}/{**path}
-    let serveAsset (urlParts : string seq) : HttpHandler = fun next ctx -> task {
+    let serve (urlParts : string seq) : HttpHandler = fun next ctx -> task {
         let path = urlParts |> Seq.skip 1 |> Seq.head
         match! ctx.Data.ThemeAsset.findById (ThemeAssetId.ofString path) with
         | Some asset ->
-            match checkModified asset ctx with
+            match Upload.checkModified asset.updatedOn ctx with
             | Some threeOhFour -> return! threeOhFour next ctx
-            | None ->
-                let mimeType =
-                    match mimeMap.TryGetContentType path with
-                    | true,  typ -> typ
-                    | false, _   -> "application/octet-stream"
-                let headers = ResponseHeaders ctx.Response.Headers
-                headers.LastModified <- Some (DateTimeOffset asset.updatedOn) |> Option.toNullable
-                headers.ContentType  <- MediaTypeHeaderValue mimeType
-                headers.CacheControl <-
-                    let hdr = CacheControlHeaderValue()
-                    hdr.MaxAge <- Some (TimeSpan.FromDays 30) |> Option.toNullable
-                    hdr
-                return! setBody asset.data next ctx
+            | None -> return! Upload.sendFile asset.updatedOn path asset.data next ctx
         | None -> return! Error.notFound next ctx
     }
 
@@ -210,7 +180,8 @@ let router : HttpHandler = choose [
     GET_HEAD >=> routef  "/page/%i"        Post.pageOfPosts
     GET_HEAD >=> routef  "/page/%i/"       Post.redirectToPageOfPosts       
     GET_HEAD >=> routexp "/tag/(.*)"       Post.pageOfTaggedPosts
-    GET_HEAD >=> routexp "/themes/(.*)"    Asset.serveAsset
+    GET_HEAD >=> routexp "/themes/(.*)"    Asset.serve
+    GET_HEAD >=> routexp "/upload/(.*)"    Upload.serve
     subRoute "/user" (choose [
         GET_HEAD >=> choose [
             route "/log-on"  >=> User.logOn None

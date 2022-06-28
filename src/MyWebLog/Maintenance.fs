@@ -2,6 +2,7 @@ module MyWebLog.Maintenance
 
 open System
 open System.IO
+open System.Text.RegularExpressions
 open Microsoft.Extensions.DependencyInjection
 open MyWebLog.Data
 
@@ -23,11 +24,13 @@ let private doCreateWebLog (args : string[]) (sp : IServiceProvider) = task {
     let webLogId   = WebLogId.create ()
     let userId     = WebLogUserId.create ()
     let homePageId = PageId.create ()
+    let slug       = ((Regex """\s+""").Replace ((Regex "[^A-z0-9 ]").Replace (args[2], ""), "-")).ToLowerInvariant ()
     
     do! data.WebLog.add
             { WebLog.empty with
                 id          = webLogId
                 name        = args[2]
+                slug        = slug
                 urlBase     = args[1]
                 defaultPage = PageId.toString homePageId
                 timeZone    = timeZone
@@ -162,13 +165,48 @@ module Backup =
             }
     
         /// Create a theme asset from an encoded theme asset
-        static member fromAsset (asset : EncodedAsset) : ThemeAsset =
-            { id        = asset.id
-              updatedOn = asset.updatedOn
-              data      = Convert.FromBase64String asset.data
+        static member fromEncoded (encoded : EncodedAsset) : ThemeAsset =
+            { id        = encoded.id
+              updatedOn = encoded.updatedOn
+              data      = Convert.FromBase64String encoded.data
             }
     
+    /// An uploaded file, with the data base-64 encoded
+    type EncodedUpload =
+        {   /// The ID of the upload
+            id : UploadId
+            
+            /// The ID of the web log to which the upload belongs
+            webLogId : WebLogId
+            
+            /// The path at which this upload is served
+            path : Permalink
+            
+            /// The date/time this upload was last updated (file time)
+            updatedOn : DateTime
+            
+            /// The data for the upload, base-64 encoded
+            data : string
+        }
         
+        /// Create an encoded uploaded file from the original uploaded file
+        static member fromUpload (upload : Upload) : EncodedUpload =
+            { id        = upload.id
+              webLogId  = upload.webLogId
+              path      = upload.path
+              updatedOn = upload.updatedOn
+              data      = Convert.ToBase64String upload.data
+            }
+        
+        /// Create an uploaded file from an encoded uploaded file
+        static member fromEncoded (encoded : EncodedUpload) : Upload =
+            { id        = encoded.id
+              webLogId  = encoded.webLogId
+              path      = encoded.path
+              updatedOn = encoded.updatedOn
+              data      = Convert.FromBase64String encoded.data
+            }
+    
     /// A unified archive for a web log
     type Archive =
         {   /// The web log to which this archive belongs
@@ -194,6 +232,9 @@ module Backup =
             
             /// The posts for this web log (containing only the most recent revision)
             posts : Post list
+            
+            /// The uploaded files for this web log
+            uploads : EncodedUpload list
         }
     
     /// Create a JSON serializer (uses RethinkDB data implementation's JSON converters)
@@ -212,6 +253,7 @@ module Backup =
         let tagMapCount   = List.length archive.tagMappings
         let pageCount     = List.length archive.pages
         let postCount     = List.length archive.posts
+        let uploadCount   = List.length archive.uploads
         
         // Create a pluralized output based on the count
         let plural count ifOne ifMany =
@@ -225,6 +267,7 @@ module Backup =
         printfn $""" - {tagMapCount} tag mapping{plural tagMapCount "" "s"}"""
         printfn $""" - {pageCount} page{plural pageCount "" "s"}"""
         printfn $""" - {postCount} post{plural postCount "" "s"}"""
+        printfn $""" - {uploadCount} uploaded file{plural uploadCount "" "s"}"""
 
     /// Create a backup archive
     let private createBackup webLog (fileName : string) prettyOutput (data : IData) = task {
@@ -248,6 +291,9 @@ module Backup =
         printfn "- Exporting posts..."
         let! posts = data.Post.findFullByWebLog webLog.id
         
+        printfn "- Exporting uploads..."
+        let! uploads = data.Upload.findByWebLog webLog.id
+        
         printfn "- Writing archive..."
         let  archive    = {
             webLog      = webLog
@@ -256,8 +302,9 @@ module Backup =
             assets      = assets |> List.map EncodedAsset.fromAsset
             categories  = categories
             tagMappings = tagMaps
-            pages       = pages |> List.map (fun p -> { p with revisions = List.truncate 1 p.revisions })
-            posts       = posts |> List.map (fun p -> { p with revisions = List.truncate 1 p.revisions })
+            pages       = pages   |> List.map (fun p -> { p with revisions = List.truncate 1 p.revisions })
+            posts       = posts   |> List.map (fun p -> { p with revisions = List.truncate 1 p.revisions })
+            uploads     = uploads |> List.map EncodedUpload.fromUpload
         }
         
         // Write the structure to the backup file
@@ -284,6 +331,7 @@ module Backup =
                 let newPageIds  = archive.pages       |> List.map (fun page -> page.id, PageId.create       ()) |> dict
                 let newPostIds  = archive.posts       |> List.map (fun post -> post.id, PostId.create       ()) |> dict
                 let newUserIds  = archive.users       |> List.map (fun user -> user.id, WebLogUserId.create ()) |> dict
+                let newUpIds    = archive.uploads     |> List.map (fun up   -> up.id,   UploadId.create     ()) |> dict
                 return
                     { archive with
                         webLog      = { archive.webLog with id = newWebLogId; urlBase = Option.get newUrlBase }
@@ -308,6 +356,8 @@ module Backup =
                                               authorId    = newUserIds[post.authorId]
                                               categoryIds = post.categoryIds |> List.map (fun c -> newCatIds[c])
                                           })
+                        uploads     = archive.uploads
+                                      |> List.map (fun u -> { u with id = newUpIds[u.id]; webLogId = newWebLogId })
                     }
             | None ->
                 return
@@ -320,7 +370,7 @@ module Backup =
         printfn ""
         printfn "- Importing theme..."
         do! data.Theme.save restore.theme
-        let! _ = restore.assets |> List.map (EncodedAsset.fromAsset >> data.ThemeAsset.save) |> Task.WhenAll
+        let! _ = restore.assets |> List.map (EncodedAsset.fromEncoded >> data.ThemeAsset.save) |> Task.WhenAll
         
         // Restore web log data
         
@@ -341,6 +391,9 @@ module Backup =
         do! data.Post.restore restore.posts
         
         // TODO: comments not yet implemented
+        
+        printfn "- Restoring uploads..."
+        do! data.Upload.restore (restore.uploads |> List.map EncodedUpload.fromEncoded)
         
         displayStats "Restored for {{NAME}}:" restore.webLog restore
     }

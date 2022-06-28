@@ -18,6 +18,7 @@
     <Compile Include="Handlers\Feed.fs" />
     <Compile Include="Handlers\Post.fs" />
     <Compile Include="Handlers\User.fs" />
+    <Compile Include="Handlers\Upload.fs" />
     <Compile Include="Handlers\Routes.fs" />
     <Compile Include="DotLiquidBespoke.fs" />
     <Compile Include="Maintenance.fs" />
@@ -41,7 +42,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include=".\wwwroot\img\*.png" CopyToOutputDirectory="Always" />
+    <None Include=".\wwwroot\upload\*" CopyToOutputDirectory="Always" />
   </ItemGroup>
 
 </Project>

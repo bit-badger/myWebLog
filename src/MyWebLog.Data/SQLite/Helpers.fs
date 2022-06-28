@@ -248,10 +248,24 @@ module Map =
           text = getString "template" rdr
         }
     
+    /// Create an uploaded file from the current row in the given data reader
+    let toUpload (rdr : SqliteDataReader) : Upload =
+        { id        = UploadId (getString "id" rdr)
+          webLogId  = WebLogId (getString "web_log_id" rdr)
+          path      = Permalink (getString "path" rdr)
+          updatedOn = getDateTime "updated_on" rdr
+          data      =
+              use dataStream = new MemoryStream ()
+              use blobStream = getStream "data" rdr
+              blobStream.CopyTo dataStream
+              dataStream.ToArray ()
+        }
+    
     /// Create a web log from the current row in the given data reader
     let toWebLog (rdr : SqliteDataReader) : WebLog =
         { id           = WebLogId (getString "id" rdr)
           name         = getString "name" rdr
+          slug         = getString "slug" rdr
           subtitle     = tryString "subtitle" rdr
           defaultPage  = getString "default_page" rdr
           postsPerPage = getInt "posts_per_page" rdr
@@ -259,6 +273,7 @@ module Map =
           urlBase      = getString "url_base" rdr
           timeZone     = getString "time_zone" rdr
           autoHtmx     = getBoolean "auto_htmx" rdr
+          uploads      = UploadDestination.parse (getString "uploads" rdr)
           rss          = {
               feedEnabled     = getBoolean "feed_enabled" rdr
               feedName        = getString "feed_name" rdr

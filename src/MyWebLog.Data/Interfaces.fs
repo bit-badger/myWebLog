@@ -199,6 +199,22 @@ type IThemeAssetData =
     abstract member save : ThemeAsset -> Task<unit>
 
 
+/// Functions to manipulate uploaded files
+type IUploadData =
+    
+    /// Add an uploaded file
+    abstract member add : Upload -> Task<unit>
+    
+    /// Find an uploaded file by its path for the given web log
+    abstract member findByPath : string -> WebLogId -> Task<Upload option>
+    
+    /// Find all uploaded files for a web log
+    abstract member findByWebLog : WebLogId -> Task<Upload list>
+    
+    /// Restore uploaded files from a backup
+    abstract member restore : Upload list -> Task<unit>
+
+
 /// Functions to manipulate web logs
 type IWebLogData =
     
@@ -269,6 +285,9 @@ type IData =
     
     /// Theme asset data functions
     abstract member ThemeAsset : IThemeAssetData
+    
+    /// Uploaded file functions
+    abstract member Upload : IUploadData
     
     /// Web log data functions
     abstract member WebLog : IWebLogData

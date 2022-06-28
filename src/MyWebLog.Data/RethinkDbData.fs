@@ -33,6 +33,9 @@ module private RethinkHelpers =
         /// The theme asset table
         let ThemeAsset = "ThemeAsset"
         
+        /// The uploaded file table
+        let Upload = "Upload"
+        
         /// The web log table
         let WebLog = "WebLog"
 
@@ -40,7 +43,7 @@ module private RethinkHelpers =
         let WebLogUser = "WebLogUser"
 
         /// A list of all tables
-        let all = [ Category; Comment; Page; Post; TagMap; Theme; ThemeAsset; WebLog; WebLogUser ]
+        let all = [ Category; Comment; Page; Post; TagMap; Theme; ThemeAsset; Upload; WebLog; WebLogUser ]
 
 
     /// Shorthand for the ReQL starting point
@@ -123,6 +126,15 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                 do! rethink {
                     withTable table
                     indexCreate "webLogAndUrl" (fun row -> r.Array (row["webLogId"], row["urlValue"]) :> obj)
+                    write; withRetryOnce; ignoreResult conn
+                }
+        // Uploaded files need an index by web log ID and path, as that is how they are retrieved
+        if Table.Upload = table then
+            if not (indexes |> List.contains "webLogAndPath") then
+                log.LogInformation $"Creating index {table}.webLogAndPath..."
+                do! rethink {
+                    withTable table
+                    indexCreate "webLogAndPath" (fun row -> r.Array (row["webLogId"], row["path"]) :> obj)
                     write; withRetryOnce; ignoreResult conn
                 }
         // Users log on with e-mail
@@ -725,6 +737,41 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                 }
         }
         
+        member _.Upload = {
+            new IUploadData with
+                
+                member _.add upload = rethink {
+                    withTable Table.Upload
+                    insert upload
+                    write; withRetryDefault; ignoreResult conn
+                }
+                
+                member _.findByPath path webLogId =
+                    rethink<Upload> {
+                        withTable Table.Upload
+                        getAll [ r.Array (path, webLogId) ] "webLogAndPath"
+                        resultCursor; withRetryCursorDefault; toList
+                    }
+                    |> tryFirst <| conn
+                
+                member _.findByWebLog webLogId = rethink<Upload> {
+                    withTable Table.Upload
+                    between (r.Array (webLogId, r.Minval ())) (r.Array (webLogId, r.Maxval ()))
+                        [ Index "webLogAndPath" ]
+                    resultCursor; withRetryCursorDefault; toList conn
+                }
+                
+                member _.restore uploads = backgroundTask {
+                    // Files can be large; we'll do 5 at a time
+                    for batch in uploads |> List.chunkBySize 5 do
+                        do! rethink {
+                            withTable Table.TagMap
+                            insert batch
+                            write; withRetryOnce; ignoreResult conn
+                        }
+                }
+        }
+        
         member _.WebLog = {
             new IWebLogData with
                 
@@ -760,6 +807,14 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                          withTable Table.TagMap
                          between (r.Array (webLogId, r.Minval ())) (r.Array (webLogId, r.Maxval ()))
                                      [ Index "webLogAndTag" ]
+                         delete
+                         write; withRetryOnce; ignoreResult conn
+                     }
+                     // Uploaded files do not have a straightforward webLogId index
+                     do! rethink {
+                         withTable Table.Upload
+                         between (r.Array (webLogId, r.Minval ())) (r.Array (webLogId, r.Maxval ()))
+                                     [ Index "webLogAndPath" ]
                          delete
                          write; withRetryOnce; ignoreResult conn
                      }
@@ -900,6 +955,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
             do! ensureIndexes Table.Page       [ "webLogId"; "authorId" ]
             do! ensureIndexes Table.Post       [ "webLogId"; "authorId" ]
             do! ensureIndexes Table.TagMap     []
+            do! ensureIndexes Table.Upload     []
             do! ensureIndexes Table.WebLog     [ "urlBase" ]
             do! ensureIndexes Table.WebLogUser [ "webLogId" ]
         }

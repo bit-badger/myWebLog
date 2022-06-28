@@ -31,6 +31,7 @@
 		<Compile Include="SQLite\SQLitePostData.fs" />
 		<Compile Include="SQLite\SQLiteTagMapData.fs" />
 		<Compile Include="SQLite\SQLiteThemeData.fs" />
+		<Compile Include="SQLite\SQLiteUploadData.fs" />
 		<Compile Include="SQLite\SQLiteWebLogData.fs" />
 		<Compile Include="SQLite\SQLiteWebLogUserData.fs" />
 		<Compile Include="SQLiteData.fs" />

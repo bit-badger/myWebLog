@@ -295,6 +295,37 @@ type ThemeAsset =
     }
 
 
+/// An uploaded file
+type Upload =
+    {   /// The ID of the upload
+        id : UploadId
+        
+        /// The ID of the web log to which this upload belongs
+        webLogId : WebLogId
+        
+        /// The link at which this upload is served
+        path : Permalink
+        
+        /// The updated date/time for this upload
+        updatedOn : DateTime
+        
+        /// The data for the upload
+        data : byte[]
+    }
+
+/// Functions to support uploaded files
+module Upload =
+    
+    /// An empty upload
+    let empty = {
+        id        = UploadId.empty
+        webLogId  = WebLogId.empty
+        path      = Permalink.empty
+        updatedOn = DateTime.MinValue
+        data      = [||]
+    }
+
+
 /// A web log
 [<CLIMutable; NoComparison; NoEquality>]
 type WebLog =
@@ -304,6 +335,9 @@ type WebLog =
         /// The name of the web log
         name : string
 
+        /// The slug of the web log
+        slug : string
+        
         /// A subtitle for the web log
         subtitle : string option
 
@@ -327,6 +361,9 @@ type WebLog =
         
         /// Whether to automatically load htmx
         autoHtmx : bool
+        
+        /// Where uploads are placed
+        uploads : UploadDestination
     }
 
 /// Functions to support web logs
@@ -336,6 +373,7 @@ module WebLog =
     let empty =
         { id           = WebLogId.empty
           name         = ""
+          slug         = ""
           subtitle     = None
           defaultPage  = ""
           postsPerPage = 10
@@ -344,6 +382,7 @@ module WebLog =
           timeZone     = ""
           rss          = RssOptions.empty
           autoHtmx     = false
+          uploads      = Database
         }
     
     /// Get the host (including scheme) and extra path from the URL base

@@ -28,14 +28,14 @@ type SQLiteWebLogUserData (conn : SqliteConnection) =
     /// Add a user
     let add user = backgroundTask {
         use cmd = conn.CreateCommand ()
-        cmd.CommandText <-
-            """INSERT INTO web_log_user (
-                   id, web_log_id, user_name, first_name, last_name, preferred_name, password_hash, salt,
-                   url, authorization_level
-               ) VALUES (
-                   @id, @webLogId, @userName, @firstName, @lastName, @preferredName, @passwordHash, @salt,
-                   @url, @authorizationLevel
-               )"""
+        cmd.CommandText <- """
+            INSERT INTO web_log_user (
+                id, web_log_id, user_name, first_name, last_name, preferred_name, password_hash, salt, url,
+                authorization_level
+            ) VALUES (
+                @id, @webLogId, @userName, @firstName, @lastName, @preferredName, @passwordHash, @salt, @url,
+                @authorizationLevel
+            )"""
         addWebLogUserParameters cmd user
         do! write cmd
     }
@@ -43,8 +43,7 @@ type SQLiteWebLogUserData (conn : SqliteConnection) =
     /// Find a user by their e-mail address for the given web log
     let findByEmail (email : string) webLogId = backgroundTask {
         use cmd = conn.CreateCommand ()
-        cmd.CommandText <-
-            "SELECT * FROM web_log_user WHERE web_log_id = @webLogId AND user_name = @userName"
+        cmd.CommandText <- "SELECT * FROM web_log_user WHERE web_log_id = @webLogId AND user_name = @userName"
         addWebLogId cmd webLogId
         cmd.Parameters.AddWithValue ("@userName", email) |> ignore
         use! rdr = cmd.ExecuteReaderAsync ()
@@ -95,18 +94,18 @@ type SQLiteWebLogUserData (conn : SqliteConnection) =
     /// Update a user
     let update user = backgroundTask {
         use cmd = conn.CreateCommand ()
-        cmd.CommandText <-
-            """UPDATE web_log_user
-                  SET user_name           = @userName,
-                      first_name          = @firstName,
-                      last_name           = @lastName,
-                      preferred_name      = @preferredName,
-                      password_hash       = @passwordHash,
-                      salt                = @salt,
-                      url                 = @url,
-                      authorization_level = @authorizationLevel
-                WHERE id         = @id
-                  AND web_log_id = @webLogId"""
+        cmd.CommandText <- """
+            UPDATE web_log_user
+               SET user_name           = @userName,
+                   first_name          = @firstName,
+                   last_name           = @lastName,
+                   preferred_name      = @preferredName,
+                   password_hash       = @passwordHash,
+                   salt                = @salt,
+                   url                 = @url,
+                   authorization_level = @authorizationLevel
+             WHERE id         = @id
+               AND web_log_id = @webLogId"""
         addWebLogUserParameters cmd user
         do! write cmd
     }

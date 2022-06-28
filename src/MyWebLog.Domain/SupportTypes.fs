@@ -556,6 +556,41 @@ type ThemeTemplate =
     }
 
 
+/// Where uploads should be placed
+type UploadDestination =
+    | Database
+    | Disk
+
+/// Functions to support upload destinations
+module UploadDestination =
+    
+    /// Convert an upload destination to its string representation
+    let toString = function Database -> "database" | Disk -> "disk"
+    
+    /// Parse an upload destination from its string representation
+    let parse value =
+        match value with
+        | "database" -> Database
+        | "disk"     -> Disk
+        | it         -> invalidOp $"{it} is not a valid upload destination"
+
+
+/// An identifier for an upload
+type UploadId = UploadId of string
+
+/// Functions to support upload IDs
+module UploadId =
+    
+    /// An empty upload ID
+    let empty = UploadId ""
+    
+    /// Convert an upload ID to a string
+    let toString = function UploadId ui -> ui
+    
+    /// Create a new upload ID
+    let create () = UploadId (newId ())
+
+
 /// An identifier for a web log
 type WebLogId = WebLogId of string
 
