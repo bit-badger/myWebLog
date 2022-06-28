@@ -33,7 +33,6 @@ let version =
 /// Zip a theme distributed with myWebLog
 let zipTheme (name : string) (_ : TargetParameter) =
     let path = $"src/{name}-theme"
-    Trace.log $"Path = {path}"
     !! $"{path}/**/*"
     |> Zip.filesAsSpecs path //$"src/{name}-theme"
     |> Seq.filter (fun (_, name) -> not (name.EndsWith ".zip"))
@@ -79,14 +78,16 @@ Target.create "PackageLinux" (packageFor "linux-x64")
 Target.create "RepackageLinux" (fun _ ->
     let workDir = $"{releasePath}/linux"
     let zipArchive = $"{releasePath}/myWebLog-{version}.linux-x64.zip"
+    let sh command args = 
+        CreateProcess.fromRawCommand command args
+        |> CreateProcess.redirectOutput
+        |> Proc.run
+        |> ignore
     Shell.mkdir workDir
     Zip.unzip workDir zipArchive
     Shell.cd workDir
-    [ "cfj"; $"../myWebLog-{version}.linux-x64.tar.bz2"; "." ]
-    |> CreateProcess.fromRawCommand "tar"
-    |> CreateProcess.redirectOutput
-    |> Proc.run
-    |> ignore
+    sh "chmod" [ "+x"; "app/MyWebLog" ]
+    sh "tar" [ "cfj"; $"../myWebLog-{version}.linux-x64.tar.bz2"; "." ]
     Shell.cd "../.."
     Shell.rm zipArchive
     Shell.rm_rf workDir
