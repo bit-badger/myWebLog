@@ -256,6 +256,13 @@
   },
 
   /**
+   * Require transcript type if transcript URL is present
+   */
+  requireTranscriptType() {
+    document.getElementById("transcriptType").required = document.getElementById("transcriptUrl").value.trim() !== ""
+  },
+
+  /**
    * Show messages that may have come with an htmx response
    * @param messages The messages from the response
    */

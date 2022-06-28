@@ -233,22 +233,24 @@ type SQLiteWebLogData (conn : SqliteConnection) =
         let postSubQuery = subQuery "post"
         let pageSubQuery = subQuery "page"
         cmd.CommandText <-
-            $"""DELETE FROM post_comment  WHERE post_id IN {postSubQuery};
-                DELETE FROM post_revision WHERE post_id IN {postSubQuery};
-                DELETE FROM post_episode  WHERE post_id IN {postSubQuery};
-                DELETE FROM post_tag      WHERE post_id IN {postSubQuery};
-                DELETE FROM post_category WHERE post_id IN {postSubQuery};
-                DELETE FROM post_meta     WHERE post_id IN {postSubQuery};
-                DELETE FROM post          WHERE web_log_id = @webLogId;
-                DELETE FROM page_revision WHERE page_id IN {pageSubQuery};
-                DELETE FROM page_meta     WHERE page_id IN {pageSubQuery};
-                DELETE FROM page          WHERE web_log_id = @webLogId;
-                DELETE FROM category      WHERE web_log_id = @webLogId;
-                DELETE FROM tag_map       WHERE web_log_id = @webLogId;
-                DELETE FROM web_log_user  WHERE web_log_id = @webLogId;
+            $"""DELETE FROM post_comment         WHERE post_id IN {postSubQuery};
+                DELETE FROM post_revision        WHERE post_id IN {postSubQuery};
+                DELETE FROM post_permalink       WHERE post_id IN {postSubQuery};
+                DELETE FROM post_episode         WHERE post_id IN {postSubQuery};
+                DELETE FROM post_tag             WHERE post_id IN {postSubQuery};
+                DELETE FROM post_category        WHERE post_id IN {postSubQuery};
+                DELETE FROM post_meta            WHERE post_id IN {postSubQuery};
+                DELETE FROM post                 WHERE web_log_id = @webLogId;
+                DELETE FROM page_revision        WHERE page_id IN {pageSubQuery};
+                DELETE FROM page_permalink       WHERE page_id IN {pageSubQuery};
+                DELETE FROM page_meta            WHERE page_id IN {pageSubQuery};
+                DELETE FROM page                 WHERE web_log_id = @webLogId;
+                DELETE FROM category             WHERE web_log_id = @webLogId;
+                DELETE FROM tag_map              WHERE web_log_id = @webLogId;
+                DELETE FROM web_log_user         WHERE web_log_id = @webLogId;
                 DELETE FROM web_log_feed_podcast WHERE feed_id IN {subQuery "web_log_feed"};
-                DELETE FROM web_log_feed  WHERE web_log_id = @webLogId;
-                DELETE FROM web_log       WHERE id = @webLogId"""
+                DELETE FROM web_log_feed         WHERE web_log_id = @webLogId;
+                DELETE FROM web_log              WHERE id         = @webLogId"""
         do! write cmd
     }
     

@@ -76,6 +76,9 @@ module private Namespace =
     /// iTunes elements
     let iTunes = "http://www.itunes.com/dtds/podcast-1.0.dtd"
 
+    /// Podcast Index (AKA "podcasting 2.0")
+    let podcast = "https://podcastindex.org/namespace/1.0"
+    
     /// Enables chapters
     let psc = "http://podlove.org/simple-chapters/"
 
@@ -127,36 +130,23 @@ let private toFeedItem webLog (authors : MetaItem list) (cats : DisplayCategory[
     item
 
 /// Add episode information to a podcast feed item
-let private addEpisode webLog (feed : CustomFeed) (post : Post) (item : SyndicationItem) =
-    let podcast = Option.get feed.podcast
-    let meta name = post.metadata |> List.tryFind (fun it -> it.name = name)
-    let value (item : MetaItem) = item.value
+let private addEpisode webLog (podcast : PodcastOptions) (episode : Episode) (post : Post) (item : SyndicationItem) =
+    // Convert non-absolute URLs to an absolute URL for this web log
+    let toAbsolute (link : string) = if link.StartsWith "http" then link else WebLog.absoluteUrl webLog (Permalink link)
     let epMediaUrl =
-        match (meta >> Option.get >> value) "episode_media_file" with
+        match episode.media with
         | link when link.StartsWith "http" -> link
         | link when Option.isSome podcast.mediaBaseUrl -> $"{podcast.mediaBaseUrl.Value}{link}"
         | link -> WebLog.absoluteUrl webLog (Permalink link)
-    let epMediaType =
-        match meta "episode_media_type", podcast.defaultMediaType with
-        | Some epType, _ -> Some epType.value
-        | None, Some defType -> Some defType
-        | _ -> None
-    let epImageUrl =
-        match defaultArg ((meta >> Option.map value) "episode_image") (Permalink.toString podcast.imageUrl) with
-        | link when link.StartsWith "http" -> link
-        | link -> WebLog.absoluteUrl webLog (Permalink link)
-    let epExplicit =
-        try
-            (meta >> Option.map (value >> ExplicitRating.parse)) "episode_explicit"
-            |> Option.defaultValue podcast.explicit
-            |> ExplicitRating.toString
-        with :? ArgumentException -> ExplicitRating.toString podcast.explicit
+    let epMediaType = [ episode.mediaType; podcast.defaultMediaType ] |> List.tryFind Option.isSome |> Option.flatten
+    let epImageUrl = defaultArg episode.imageUrl (Permalink.toString podcast.imageUrl) |> toAbsolute
+    let epExplicit = defaultArg episode.explicit podcast.explicit |> ExplicitRating.toString
     
     let xmlDoc    = XmlDocument ()
     let enclosure =
         let it = xmlDoc.CreateElement "enclosure"
         it.SetAttribute ("url", epMediaUrl)
-        meta "episode_media_length" |> Option.iter (fun len -> it.SetAttribute ("length", len.value))
+        it.SetAttribute ("length", string episode.length)
         epMediaType |> Option.iter (fun typ -> it.SetAttribute ("type", typ))
         it
     let image =
@@ -169,10 +159,57 @@ let private addEpisode webLog (feed : CustomFeed) (post : Post) (item : Syndicat
     item.ElementExtensions.Add ("creator",  Namespace.dc,     podcast.displayedAuthor)
     item.ElementExtensions.Add ("author",   Namespace.iTunes, podcast.displayedAuthor)
     item.ElementExtensions.Add ("explicit", Namespace.iTunes, epExplicit)
-    meta "episode_subtitle"
-    |> Option.iter (fun it -> item.ElementExtensions.Add ("subtitle", Namespace.iTunes, it.value))
-    meta "episode_duration"
-    |> Option.iter (fun it -> item.ElementExtensions.Add ("duration", Namespace.iTunes, it.value))
+    episode.subtitle |> Option.iter (fun it -> item.ElementExtensions.Add ("subtitle", Namespace.iTunes, it))
+    episode.duration
+    |> Option.iter (fun it -> item.ElementExtensions.Add ("duration", Namespace.iTunes, it.ToString """hh\:mm\:ss"""))
+    
+    match episode.chapterFile with
+    | Some chapters ->
+        let url = toAbsolute chapters
+        let typ =
+            match episode.chapterType with
+            | Some mime -> Some mime
+            | None when chapters.EndsWith ".json" -> Some "application/json+chapters"
+            | None -> None
+        let elt = xmlDoc.CreateElement ("podcast", "chapters", Namespace.podcast)
+        elt.SetAttribute ("url", url)
+        typ |> Option.iter (fun it -> elt.SetAttribute ("type", it))
+        item.ElementExtensions.Add elt
+    | None -> ()
+    
+    match episode.transcriptUrl with
+    | Some transcript ->
+        let url = toAbsolute transcript
+        let elt = xmlDoc.CreateElement ("podcast", "transcript", Namespace.podcast)
+        elt.SetAttribute ("url", url)
+        elt.SetAttribute ("type", Option.get episode.transcriptType)
+        episode.transcriptLang |> Option.iter (fun it -> elt.SetAttribute ("language", it))
+        if defaultArg episode.transcriptCaptions false then
+            elt.SetAttribute ("rel", "captions")
+        item.ElementExtensions.Add elt
+    | None -> ()
+    
+    match episode.seasonNumber with
+    | Some season ->
+        match episode.seasonDescription with
+        | Some desc ->
+            let elt = xmlDoc.CreateElement ("podcast", "season", Namespace.podcast)
+            elt.SetAttribute ("name", desc)
+            elt.InnerText <- string season
+            item.ElementExtensions.Add elt
+        | None -> item.ElementExtensions.Add ("season", Namespace.podcast, string season)
+    | None -> ()
+    
+    match episode.episodeNumber with
+    | Some epNumber ->
+        match episode.episodeDescription with
+        | Some desc ->
+            let elt = xmlDoc.CreateElement ("podcast", "episode", Namespace.podcast)
+            elt.SetAttribute ("name", desc)
+            elt.InnerText <- string epNumber
+            item.ElementExtensions.Add elt
+        | None -> item.ElementExtensions.Add ("episode", Namespace.podcast, string epNumber)
+    | None -> ()
     
     if post.metadata |> List.exists (fun it -> it.name = "chapter") then
         try
@@ -216,7 +253,12 @@ let private addPodcast webLog (rssFeed : SyndicationFeed) (feed : CustomFeed) =
     
     let xmlDoc = XmlDocument ()
     
-    [ "dc", Namespace.dc; "itunes", Namespace.iTunes; "psc", Namespace.psc; "rawvoice", Namespace.rawVoice ]
+    [ "dc",       Namespace.dc
+      "itunes",   Namespace.iTunes
+      "podcast",  Namespace.podcast
+      "psc",      Namespace.psc
+      "rawvoice", Namespace.rawVoice
+    ]
     |> List.iter (fun (alias, nsUrl) -> addNamespace rssFeed alias nsUrl)
     
     let categorization =
@@ -314,10 +356,9 @@ let createFeed (feedType : FeedType) posts : HttpHandler = fun next ctx -> backg
     
     let toItem post =
         let item = toFeedItem webLog authors cats tagMaps post
-        match podcast with
-        | Some feed when post.metadata |> List.exists (fun it -> it.name = "episode_media_file") ->
-            addEpisode webLog feed post item
-        | Some _ ->
+        match podcast, post.episode with
+        | Some feed, Some episode -> addEpisode webLog (Option.get feed.podcast) episode post item
+        | Some _, _ ->
             warn "Feed" ctx $"[{webLog.name} {Permalink.toString self}] \"{stripHtml post.title}\" has no media"
             item
         | _ -> item

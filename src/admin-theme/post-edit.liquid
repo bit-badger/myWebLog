@@ -157,7 +157,8 @@
                 <div class="col-12 col-md-8 pb-3">
                   <div class="form-floating">
                     <input type="text" name="transcriptUrl" id="transcriptUrl" class="form-control"
-                           placeholder="Transcript URL" value="{{ model.transcript_url }}">
+                           placeholder="Transcript URL" value="{{ model.transcript_url }}"
+                           onkeyup="Admin.requireTranscriptType()">
                     <label for="transcriptUrl">Transcript URL</label>
                     <div class="form-text">Optional; relative URL served from this web log</div>
                   </div>
@@ -165,7 +166,8 @@
                 <div class="col-12 col-md-4 pb-3">
                   <div class="form-floating">
                     <input type="text" name="transcriptType" id="transcriptType" class="form-control"
-                           placeholder="Transcript Type" value="{{ model.transcript_type }}">
+                           placeholder="Transcript Type" value="{{ model.transcript_type }}"
+                           {%- if model.transcript_url != "" %} required{% endif %}>
                     <label for="transcriptType">Transcript MIME Type</label>
                     <div class="form-text">Recommended if transcript file provided</div>
                   </div>
