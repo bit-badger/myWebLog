@@ -1,2 +1,2 @@
 myWebLog Admin
-2.0.0-alpha34
+2.0.0-beta02
