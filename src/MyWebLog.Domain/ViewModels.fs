@@ -745,6 +745,9 @@ type PostListItem =
         /// Tags for the post
         tags : string list
         
+        /// The podcast episode information for this post
+        episode : Episode option
+        
         /// Metadata for the post
         metadata : MetaItem list
     }
@@ -763,6 +766,7 @@ type PostListItem =
           text        = if extra = "" then post.text else post.text.Replace ("href=\"/", $"href=\"{extra}/")
           categoryIds = post.categoryIds |> List.map CategoryId.toString
           tags        = post.tags
+          episode     = post.episode
           metadata    = post.metadata
         }
 

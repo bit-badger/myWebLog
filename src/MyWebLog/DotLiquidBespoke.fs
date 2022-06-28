@@ -223,7 +223,8 @@ let register () =
     Template.RegisterTag<UserLinksTag> "user_links"
     
     [   // Domain types
-        typeof<CustomFeed>; typeof<MetaItem>; typeof<Page>; typeof<RssOptions>; typeof<TagMap>; typeof<WebLog>
+        typeof<CustomFeed>; typeof<Episode>; typeof<Episode option>; typeof<MetaItem>; typeof<Page>; typeof<RssOptions>
+        typeof<TagMap>;     typeof<WebLog>
         // View models
         typeof<DashboardModel>;        typeof<DisplayCategory>;     typeof<DisplayCustomFeed>; typeof<DisplayPage>
         typeof<EditCategoryModel>;     typeof<EditCustomFeedModel>; typeof<EditPageModel>;     typeof<EditPostModel>

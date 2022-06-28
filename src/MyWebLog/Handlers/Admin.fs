@@ -440,6 +440,7 @@ let updateTheme : HttpHandler = fun next ctx -> task {
             do! themeFile.CopyToAsync stream
             do! loadThemeFromZip themeName stream true data
             do! ThemeAssetCache.refreshTheme (ThemeId themeName) data
+            TemplateCache.invalidateTheme themeName
             do! addMessage ctx { UserMessage.success with message = "Theme updated successfully" }
             return! redirectToGet (WebLog.relativeUrl ctx.WebLog (Permalink "admin/dashboard")) next ctx
         | Ok _ ->

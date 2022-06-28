@@ -66,7 +66,9 @@
                     <input type="text" name="media" id="media" class="form-control" placeholder="Media" required
                            value="{{ model.media }}">
                     <label for="media">Media File</label>
-                    <div class="form-text">Path to media; relative URL will be appended to base media path</div>
+                    <div class="form-text">
+                      Relative URL will be appended to base media path (if set) or served from this web log
+                    </div>
                   </div>
                 </div>
                 <div class="col-12 col-md-4 pb-3">
@@ -169,7 +171,7 @@
                            placeholder="Transcript Type" value="{{ model.transcript_type }}"
                            {%- if model.transcript_url != "" %} required{% endif %}>
                     <label for="transcriptType">Transcript MIME Type</label>
-                    <div class="form-text">Recommended if transcript file provided</div>
+                    <div class="form-text">Required if transcript URL provided</div>
                   </div>
                 </div>
               </div>
