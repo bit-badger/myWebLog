@@ -208,8 +208,11 @@ type IUploadData =
     /// Find an uploaded file by its path for the given web log
     abstract member findByPath : string -> WebLogId -> Task<Upload option>
     
-    /// Find all uploaded files for a web log
+    /// Find all uploaded files for a web log (excludes data)
     abstract member findByWebLog : WebLogId -> Task<Upload list>
+    
+    /// Find all uploaded files for a web log
+    abstract member findByWebLogWithData : WebLogId -> Task<Upload list>
     
     /// Restore uploaded files from a backup
     abstract member restore : Upload list -> Task<unit>

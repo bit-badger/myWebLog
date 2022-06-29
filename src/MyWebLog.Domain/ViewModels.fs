@@ -12,6 +12,29 @@ module private Helpers =
         match (defaultArg (Option.ofObj it) "").Trim () with "" -> None | trimmed -> Some trimmed
 
 
+/// The model used to display the admin dashboard
+[<NoComparison; NoEquality>]
+type DashboardModel =
+    {   /// The number of published posts
+        posts : int
+
+        /// The number of post drafts
+        drafts : int
+
+        /// The number of pages
+        pages : int
+
+        /// The number of pages in the page list
+        listedPages : int
+
+        /// The number of categories
+        categories : int
+
+        /// The top-level categories
+        topLevelCategories : int
+    }
+
+
 /// Details about a category, used to display category lists
 [<NoComparison; NoEquality>]
 type DisplayCategory =
@@ -124,27 +147,37 @@ type DisplayPage =
         }
 
 
-/// The model used to display the admin dashboard
+open System.IO
+
+/// Information about an uploaded file used for display
 [<NoComparison; NoEquality>]
-type DashboardModel =
-    {   /// The number of published posts
-        posts : int
-
-        /// The number of post drafts
-        drafts : int
-
-        /// The number of pages
-        pages : int
-
-        /// The number of pages in the page list
-        listedPages : int
-
-        /// The number of categories
-        categories : int
-
-        /// The top-level categories
-        topLevelCategories : int
+type DisplayUpload =
+    {   /// The ID of the uploaded file
+        id : string
+        
+        /// The name of the uploaded file
+        name : string
+        
+        /// The path at which the file is served
+        path : string
+        
+        /// The date/time the file was updated
+        updatedOn : DateTime option
+        
+        /// The source for this file (created from UploadDestination DU)
+        source : string
     }
+    
+    /// Create a display uploaded file
+    static member fromUpload source (upload : Upload) =
+        let path = Permalink.toString upload.path
+        let name = Path.GetFileName path
+        { id        = UploadId.toString upload.id
+          name      = name
+          path      = path.Replace (name, "")
+          updatedOn = Some upload.updatedOn
+          source    = UploadDestination.toString source
+        }
 
 
 /// View model for editing categories

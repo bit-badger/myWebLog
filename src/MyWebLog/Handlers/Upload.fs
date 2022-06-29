@@ -59,3 +59,52 @@ let serve (urlParts : string seq) : HttpHandler = fun next ctx -> task {
     else
         return! Error.notFound next ctx
 }
+
+// ADMIN
+
+open System.IO
+open DotLiquid
+open MyWebLog.ViewModels
+
+// GET /admin/uploads
+let list : HttpHandler = fun next ctx -> task {
+    let webLog = ctx.WebLog
+    let! dbUploads = ctx.Data.Upload.findByWebLog webLog.id
+    let diskUploads =
+        let path = Path.Combine ("wwwroot", "upload", webLog.slug)
+        printfn $"Files in %s{path}"
+        try
+            Directory.EnumerateFiles (path, "*", SearchOption.AllDirectories)
+            |> Seq.map (fun file ->
+                let name = Path.GetFileName file
+                let create =
+                    match File.GetCreationTime (Path.Combine (path, file)) with
+                    | dt when dt > DateTime.UnixEpoch -> Some dt
+                    | _ -> None
+                { DisplayUpload.id = ""
+                  name             = name
+                  path             = file.Substring(8).Replace (name, "")
+                  updatedOn        = create
+                  source           = UploadDestination.toString Disk
+                })
+            |> List.ofSeq
+        with
+        | :? DirectoryNotFoundException -> [] // This is fine
+        | ex ->
+            warn "Upload" ctx $"Encountered {ex.GetType().Name} listing uploads for {path}:\n{ex.Message}"
+            []
+    printfn "done"
+    let allFiles =
+        dbUploads
+        |> List.map (DisplayUpload.fromUpload Database)
+        |> List.append diskUploads
+        |> List.sortByDescending (fun file -> file.updatedOn, file.path)
+
+    return!
+        Hash.FromAnonymousObject {|
+            csrf       = csrfToken ctx
+            page_title = "Uploaded Files"
+            files      = allFiles
+        |}
+        |> viewForTheme "admin" "upload-list" next ctx
+    }

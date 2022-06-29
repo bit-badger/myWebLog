@@ -292,7 +292,7 @@ module Backup =
         let! posts = data.Post.findFullByWebLog webLog.id
         
         printfn "- Exporting uploads..."
-        let! uploads = data.Upload.findByWebLog webLog.id
+        let! uploads = data.Upload.findByWebLogWithData webLog.id
         
         printfn "- Writing archive..."
         let  archive    = {

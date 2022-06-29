@@ -1,0 +1,32 @@
+<h2 class="my-3">{{ page_title }}</h2>
+<article>
+  <a href="{{ "admin/upload/new" | relative_link }}" class="btn btn-primary btn-sm mb-3">Upload a New File</a>
+  <form method="post" class="container" hx-target="body">
+    <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
+    <div class="row mwl-table-heading">
+      <div class="col">File Name</div>
+      <div class="col">Path</div>
+      <div class="col">File Date/Time</div>
+    </div>
+    {%- assign file_count = files | size -%}
+    {%- if file_count > 0 %}
+      {% for file in files %}
+        <div class="row mwl-table-detail">
+          <div class="col">{{ file.name }}</div>
+          <div class="col">
+            <span class="badge bg-{% if file.source == "disk" %}secondary{% else %}primary{% endif %} text-uppercase">
+              {{ file.source }}
+            </span> {{ file.path }}
+          </div>
+          <div class="col">
+            {% if file.updated_on %}{{ file.updated_on.value | date: "yyyy-MM-dd/HH:mm" }}{% else %}--{% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    {%- else -%}
+      <div class="row">
+        <div class="col text-muted fst-italic text-center">This web log has uploaded files</div>
+      </div>
+    {%- endif %}
+  </form>
+</article>

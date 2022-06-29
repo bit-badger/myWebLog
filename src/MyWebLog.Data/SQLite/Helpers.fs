@@ -249,16 +249,20 @@ module Map =
         }
     
     /// Create an uploaded file from the current row in the given data reader
-    let toUpload (rdr : SqliteDataReader) : Upload =
+    let toUpload includeData (rdr : SqliteDataReader) : Upload =
+        let data =
+            if includeData then
+                use dataStream = new MemoryStream ()
+                use blobStream = getStream "data" rdr
+                blobStream.CopyTo dataStream
+                dataStream.ToArray ()
+            else
+                [||]
         { id        = UploadId (getString "id" rdr)
           webLogId  = WebLogId (getString "web_log_id" rdr)
           path      = Permalink (getString "path" rdr)
           updatedOn = getDateTime "updated_on" rdr
-          data      =
-              use dataStream = new MemoryStream ()
-              use blobStream = getStream "data" rdr
-              blobStream.CopyTo dataStream
-              dataStream.ToArray ()
+          data      = data
         }
     
     /// Create a web log from the current row in the given data reader

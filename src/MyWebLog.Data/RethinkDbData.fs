@@ -758,6 +758,14 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     withTable Table.Upload
                     between (r.Array (webLogId, r.Minval ())) (r.Array (webLogId, r.Maxval ()))
                         [ Index "webLogAndPath" ]
+                    without [ "data" ]
+                    resultCursor; withRetryCursorDefault; toList conn
+                }
+                
+                member _.findByWebLogWithData webLogId = rethink<Upload> {
+                    withTable Table.Upload
+                    between (r.Array (webLogId, r.Minval ())) (r.Array (webLogId, r.Maxval ()))
+                        [ Index "webLogAndPath" ]
                     resultCursor; withRetryCursorDefault; toList conn
                 }
                 

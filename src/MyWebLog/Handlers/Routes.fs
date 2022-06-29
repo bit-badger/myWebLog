@@ -143,6 +143,9 @@ let router : HttpHandler = choose [
                 ])
             ])
             route    "/theme/update" >=> Admin.themeUpdatePage
+            subRoute "/upload" (choose [
+                route "s" >=> Upload.list
+            ])
             route    "/user/edit"    >=> User.edit
         ]
         POST >=> validateCsrf >=> choose [

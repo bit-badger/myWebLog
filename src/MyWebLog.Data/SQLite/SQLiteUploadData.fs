@@ -44,16 +44,25 @@ type SQLiteUploadData (conn : SqliteConnection) =
         addWebLogId cmd webLogId
         cmd.Parameters.AddWithValue ("@path", path) |> ignore
         let! rdr = cmd.ExecuteReaderAsync ()
-        return if rdr.Read () then Some (Map.toUpload rdr) else None
+        return if rdr.Read () then Some (Map.toUpload true rdr) else None
+    }
+    
+    /// Find all uploaded files for the given web log (excludes data)
+    let findByWebLog webLogId = backgroundTask {
+        use cmd = conn.CreateCommand ()
+        cmd.CommandText <- "SELECT id, web_log_id, path, updated_on FROM upload WHERE web_log_id = @webLogId"
+        addWebLogId cmd webLogId
+        let! rdr = cmd.ExecuteReaderAsync ()
+        return toList (Map.toUpload false) rdr
     }
     
     /// Find all uploaded files for the given web log
-    let findByWebLog webLogId = backgroundTask {
+    let findByWebLogWithData webLogId = backgroundTask {
         use cmd = conn.CreateCommand ()
         cmd.CommandText <- "SELECT *, ROWID FROM upload WHERE web_log_id = @webLogId"
         addWebLogId cmd webLogId
         let! rdr = cmd.ExecuteReaderAsync ()
-        return toList Map.toUpload rdr
+        return toList (Map.toUpload true) rdr
     }
     
     /// Restore uploads from a backup
@@ -65,5 +74,6 @@ type SQLiteUploadData (conn : SqliteConnection) =
         member _.add upload = add upload
         member _.findByPath path webLogId = findByPath path webLogId
         member _.findByWebLog webLogId = findByWebLog webLogId
+        member _.findByWebLogWithData webLogId = findByWebLogWithData webLogId
         member _.restore uploads = restore uploads
         
