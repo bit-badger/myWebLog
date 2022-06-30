@@ -1,24 +1,56 @@
 <h2 class="my-3">{{ page_title }}</h2>
 <article>
+  {%- capture base_url %}{{ "" | relative_link }}{% endcapture -%}
+  {%- capture upload_path %}upload/{{ web_log.slug }}/{% endcapture -%}
+  {%- capture upload_base %}{{ base_url }}{{ upload_path }}{% endcapture -%}
   <a href="{{ "admin/upload/new" | relative_link }}" class="btn btn-primary btn-sm mb-3">Upload a New File</a>
   <form method="post" class="container" hx-target="body">
     <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
+    <div class="row">
+      <div class="col text-muted text-center"><em>Uploaded files served from</em><br>{{ upload_base }}</div>
+    </div>
     <div class="row mwl-table-heading">
-      <div class="col">File Name</div>
-      <div class="col">Path</div>
-      <div class="col">File Date/Time</div>
+      <div class="col-6">File Name</div>
+      <div class="col-3">Path</div>
+      <div class="col-3">File Date/Time</div>
     </div>
     {%- assign file_count = files | size -%}
     {%- if file_count > 0 %}
       {% for file in files %}
         <div class="row mwl-table-detail">
-          <div class="col">{{ file.name }}</div>
-          <div class="col">
-            <span class="badge bg-{% if file.source == "disk" %}secondary{% else %}primary{% endif %} text-uppercase">
-              {{ file.source }}
-            </span> {{ file.path }}
+          <div class="col-6">
+            {%- capture badge_class -%}
+              {%- if file.source == "disk" %}secondary{% else %}primary{% endif -%}
+            {%- endcapture -%}
+            {%- capture rel_url %}{{ upload_base }}{{ file.path }}{{ file.name }}{% endcapture -%}
+            {%- capture blog_rel %}{{ upload_path }}{{ file.path }}{{ file.name }}{% endcapture -%}
+            <span class="badge bg-{{ badge_class }} text-uppercase float-end mt-1">{{ file.source }}</span>
+            {{ file.name }}<br>
+            <small>
+              <a href="{{ rel_url }}" target="_blank">View File</a>
+              <span class="text-muted"> &bull; Copy </span>
+              <a href="{{ blog_rel | absolute_link }}" hx-boost="false"
+                 onclick="return Admin.copyText('{{ blog_rel | absolute_link }}', this)">
+                Absolute
+              </a>
+              <span class="text-muted"> | </span>
+              <a href="{{ blog_rel | relative_link }}" hx-boost="false"
+                 onclick="return Admin.copyText('{{ blog_rel | relative_link }}', this)">
+                Relative
+              </a>
+              {%- unless base_url == "/" %}
+                <span class="text-muted"> | </span>
+                <a href="{{ blog_rel }}" hx-boost="false"
+                   onclick="return Admin.copyText('/{{ blog_rel }}', this)">
+                  For Post
+                </a>
+              {%- endunless %}
+              <span class="text-muted"> Link &bull; </span>
+              <a href="#" onclick="" class="text-danger">Delete</a>
+            </small>
           </div>
-          <div class="col">
+          <div class="col-3">{{ file.path }}</div>
+          <div class="col-3">
             {% if file.updated_on %}{{ file.updated_on.value | date: "yyyy-MM-dd/HH:mm" }}{% else %}--{% endif %}
           </div>
         </div>

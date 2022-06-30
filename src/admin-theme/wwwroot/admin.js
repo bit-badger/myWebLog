@@ -220,6 +220,18 @@
   checkPodcast() {
     document.getElementById("podcastFields").disabled = !document.getElementById("isPodcast").checked
   },
+
+  /**
+   * Copy text to the clipboard
+   * @param text {string} The text to be copied
+   * @param elt {HTMLAnchorElement} The element on which the click was generated
+   * @return {boolean} False, to prevent navigation
+   */
+  copyText(text, elt) {
+    navigator.clipboard.writeText(text)
+    elt.innerText = "Copied"
+    return false
+  },
   
   /**
    * Toggle the source of a custom RSS feed
