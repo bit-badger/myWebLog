@@ -71,8 +71,12 @@ let serve (urlParts : string seq) : HttpHandler = fun next ctx -> task {
 
 // ADMIN
 
+open System.Text.RegularExpressions
 open DotLiquid
 open MyWebLog.ViewModels
+
+/// Turn a string into a lowercase URL-safe slug
+let makeSlug it = ((Regex """\s+""").Replace ((Regex "[^A-z0-9 ]").Replace (it, ""), "-")).ToLowerInvariant ()
 
 // GET /admin/uploads
 let list : HttpHandler = fun next ctx -> task {
@@ -114,3 +118,50 @@ let list : HttpHandler = fun next ctx -> task {
         |}
         |> viewForTheme "admin" "upload-list" next ctx
     }
+
+// GET /admin/upload/new
+let showNew : HttpHandler = fun next ctx -> task {
+    return!
+        Hash.FromAnonymousObject {|
+            csrf        = csrfToken ctx
+            destination = UploadDestination.toString ctx.WebLog.uploads
+            page_title  = "Upload a File"
+        |}
+        |> viewForTheme "admin" "upload-new" next ctx
+}
+
+// POST /admin/upload/save
+let save : HttpHandler = fun next ctx -> task {
+    if ctx.Request.HasFormContentType && ctx.Request.Form.Files.Count > 0 then
+        let upload    = Seq.head ctx.Request.Form.Files
+        let fileName  = String.Join ('.', makeSlug (Path.GetFileNameWithoutExtension upload.FileName),
+                                          Path.GetExtension(upload.FileName).ToLowerInvariant ())
+        let  webLog   = ctx.WebLog
+        let  localNow = WebLog.localTime webLog DateTime.Now
+        let  year     = localNow.ToString "yyyy"
+        let  month    = localNow.ToString "MM"
+        let! form     = ctx.BindFormAsync<UploadFileModel> ()
+        
+        match UploadDestination.parse form.destination with
+        | Database ->
+            use stream = new MemoryStream ()
+            do! upload.CopyToAsync stream
+            let file =
+                { id        = UploadId.create ()
+                  webLogId  = webLog.id
+                  path      = Permalink $"{year}/{month}/{fileName}"
+                  updatedOn = DateTime.UtcNow
+                  data      = stream.ToArray ()
+                }
+            do! ctx.Data.Upload.add file
+        | Disk ->
+            let fullPath = Path.Combine ("wwwroot", webLog.slug, year, month)
+            let _        = Directory.CreateDirectory fullPath
+            use stream   = new FileStream (Path.Combine (fullPath, fileName), FileMode.Create)
+            do! upload.CopyToAsync stream
+        
+        do! addMessage ctx { UserMessage.success with message = $"File uploaded to {form.destination} successfully" }
+        return! redirectToGet (WebLog.relativeUrl ctx.WebLog (Permalink "admin/uploads")) next ctx
+    else
+        return! RequestErrors.BAD_REQUEST "Bad request; no file present" next ctx
+}

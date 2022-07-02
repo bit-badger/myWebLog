@@ -878,6 +878,15 @@ type SettingsModel =
         }
 
 
+/// View model for uploading a file
+[<CLIMutable; NoComparison; NoEquality>]
+type UploadFileModel =
+    {   /// The upload destination
+        destination : string
+    }
+
+
+/// A message displayed to the user
 [<CLIMutable; NoComparison; NoEquality>]
 type UserMessage =
     {   /// The level of the message

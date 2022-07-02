@@ -107,11 +107,11 @@ module Asset =
 
 /// The primary myWebLog router
 let router : HttpHandler = choose [
-    GET >=> choose [
+    GET_HEAD >=> choose [
         route "/" >=> Post.home
     ]
     subRoute "/admin" (requireUser >=> choose [
-        GET >=> choose [
+        GET_HEAD >=> choose [
             subRoute "/categor" (choose [
                 route  "ies"       >=> Admin.listCategories
                 route  "ies/bare"  >=> Admin.listCategoriesBare
@@ -144,7 +144,8 @@ let router : HttpHandler = choose [
             ])
             route    "/theme/update" >=> Admin.themeUpdatePage
             subRoute "/upload" (choose [
-                route "s" >=> Upload.list
+                route "s"    >=> Upload.list
+                route "/new" >=> Upload.showNew
             ])
             route    "/user/edit"    >=> User.edit
         ]
@@ -176,6 +177,9 @@ let router : HttpHandler = choose [
                 ])
             ])
             route    "/theme/update" >=> Admin.updateTheme
+            subRoute "/upload" (choose [
+                route "/save" >=> Upload.save
+            ])
             route    "/user/save"    >=> User.save
         ]
     ])

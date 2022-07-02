@@ -2,7 +2,6 @@ module MyWebLog.Maintenance
 
 open System
 open System.IO
-open System.Text.RegularExpressions
 open Microsoft.Extensions.DependencyInjection
 open MyWebLog.Data
 
@@ -24,7 +23,7 @@ let private doCreateWebLog (args : string[]) (sp : IServiceProvider) = task {
     let webLogId   = WebLogId.create ()
     let userId     = WebLogUserId.create ()
     let homePageId = PageId.create ()
-    let slug       = ((Regex """\s+""").Replace ((Regex "[^A-z0-9 ]").Replace (args[2], ""), "-")).ToLowerInvariant ()
+    let slug       = Handlers.Upload.makeSlug args[2]
     
     do! data.WebLog.add
             { WebLog.empty with
