@@ -262,6 +262,18 @@ type EditCustomFeedModel =
         
         /// The base URL for relative URL media files for this podcast (optional; defaults to web log base)
         mediaBaseUrl : string
+        
+        /// The URL for funding information for the podcast
+        fundingUrl : string
+        
+        /// The text for the funding link
+        fundingText : string
+        
+        /// A unique identifier to follow this podcast
+        guid : string
+        
+        /// The medium for the content of this podcast
+        medium : string
     }
     
     /// An empty custom feed model
@@ -283,6 +295,10 @@ type EditCustomFeedModel =
           explicit          = "no"
           defaultMediaType  = "audio/mpeg"
           mediaBaseUrl      = ""
+          fundingUrl        = ""
+          fundingText       = ""
+          guid              = ""
+          medium            = ""
         }
     
     /// Create a model from a custom feed
@@ -310,6 +326,12 @@ type EditCustomFeedModel =
                 explicit          = ExplicitRating.toString p.explicit
                 defaultMediaType  = defaultArg p.defaultMediaType ""
                 mediaBaseUrl      = defaultArg p.mediaBaseUrl ""
+                fundingUrl        = defaultArg p.fundingUrl ""
+                fundingText       = defaultArg p.fundingText ""
+                guid              = p.guid
+                                    |> Option.map (fun it -> it.ToString().ToLowerInvariant ())
+                                    |> Option.defaultValue ""
+                medium            = p.medium |> Option.map PodcastMedium.toString |> Option.defaultValue ""
             }
         | None -> rss
     
@@ -333,11 +355,10 @@ type EditCustomFeedModel =
                         explicit          = ExplicitRating.parse this.explicit
                         defaultMediaType  = noneIfBlank this.defaultMediaType
                         mediaBaseUrl      = noneIfBlank this.mediaBaseUrl
-                        // TODO: implement UI to update these
-                        guid              = None
-                        fundingUrl        = None
-                        fundingText       = None
-                        medium            = None
+                        guid              = noneIfBlank this.guid |> Option.map Guid.Parse
+                        fundingUrl        = noneIfBlank this.fundingUrl
+                        fundingText       = noneIfBlank this.fundingText
+                        medium            = noneIfBlank this.medium |> Option.map PodcastMedium.parse
                     }
                 else
                     None

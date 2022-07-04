@@ -41,13 +41,17 @@ module DataImplementation =
     let get (sp : IServiceProvider) : IData =
         let config = sp.GetRequiredService<IConfiguration> ()
         if (config.GetConnectionString >> isNull >> not) "SQLite" then
+            let log  = sp.GetRequiredService<ILogger<SQLiteData>> ()
             let conn = new SqliteConnection (config.GetConnectionString "SQLite")
+            log.LogInformation $"Using SQL database {conn.DataSource}"
             SQLiteData.setUpConnection conn |> Async.AwaitTask |> Async.RunSynchronously
             upcast SQLiteData (conn, sp.GetRequiredService<ILogger<SQLiteData>> ())
         elif (config.GetSection "RethinkDB").Exists () then
+            let log = sp.GetRequiredService<ILogger<RethinkDbData>> ()
             Json.all () |> Seq.iter Converter.Serializer.Converters.Add 
             let rethinkCfg = DataConfig.FromConfiguration (config.GetSection "RethinkDB")
             let conn       = rethinkCfg.CreateConnectionAsync () |> Async.AwaitTask |> Async.RunSynchronously
+            log.LogInformation $"Using RethinkDB database {rethinkCfg.Database}"
             upcast RethinkDbData (conn, rethinkCfg, sp.GetRequiredService<ILogger<RethinkDbData>> ())
         else
             let log  = sp.GetRequiredService<ILogger<SQLiteData>> ()

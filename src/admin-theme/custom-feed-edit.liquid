@@ -185,13 +185,64 @@
                 </div>
               </div>
             </div>
-            <div class="row">
+            <div class="row pb-3">
               <div class="col-12 col-lg-10 offset-lg-1">
                 <div class="form-floating">
                   <input type="text" name="mediaBaseUrl" id="mediaBaseUrl" class="form-control"
                          placeholder="Media Base URL" value="{{ model.media_base_url }}">
                   <label for="mediaBaseUrl">Media Base URL</label>
                   <span class="form-text fst-italic">Optional; prepended to episode media file if present</span>
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-12 col-lg-5 offset-lg-1 pb-3">
+                <div class="form-floating">
+                  <input type="text" name="fundingUrl" id="fundingUrl" class="form-control" placeholder="Funding URL"
+                         value="{{ model.funding_url }}">
+                  <label for="fundingUrl">Funding URL</label>
+                  <span class="form-text fst-italic">
+                    Optional; URL describing donation options for this podcast, relative URL supported
+                  </span>
+                </div>
+              </div>
+              <div class="col-12 col-lg-5 pb-3">
+                <div class="form-floating">
+                  <input type="text" name="fundingText" id="fundingText" class="form-control" maxlength="128"
+                         placeholder="Funding Text" value="{{ model.funding_text }}">
+                  <label for="fundingText">Funding Text</label>
+                  <span class="form-text fst-italic">Optional; text for the funding link</span>
+                </div>
+              </div>
+            </div>
+            <div class="row pb-3">
+              <div class="col-8 col-lg-5 offset-lg-1 pb-3">
+                <div class="form-floating">
+                  <input type="text" name="guid" id="guid" class="form-control" placeholder="GUID"
+                         value="{{ model.guid }}">
+                  <label for="guid">Podcast GUID</label>
+                  <span class="form-text fst-italic">
+                    Optional; v5 UUID uniquely identifying this podcast; once entered, do not change this value
+                    (<a href="https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#guid"
+                        target="_blank">documentation</a>)
+                  </span>
+                </div>
+              </div>
+              <div class="col-4 col-lg-3 offset-lg-2 pb-3">
+                <div class="form-floating">
+                  <select name="medium" id="medium" class="form-control">
+                    {% for med in medium_values -%}
+                      <option value="{{ med[0] }}"{% if model.medium == med[0] %} selected{% endif %}>
+                        {{ med[1] }}
+                      </option>
+                    {%- endfor %}
+                  </select>
+                  <label for="medium">Medium</label>
+                  <span class="form-text fst-italic">
+                    Optional; medium of the podcast content
+                    (<a href="https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#medium"
+                        target="_blank">documentation</a>)
+                  </span>
                 </div>
               </div>
             </div>

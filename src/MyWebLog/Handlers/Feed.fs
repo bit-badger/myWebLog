@@ -2,6 +2,7 @@
 module MyWebLog.Handlers.Feed
 
 open System
+open System.Collections.Generic
 open System.IO
 open System.Net
 open System.ServiceModel.Syndication
@@ -129,17 +130,19 @@ let private toFeedItem webLog (authors : MetaItem list) (cats : DisplayCategory[
     |> List.iter item.Categories.Add
     item
 
+/// Convert non-absolute URLs to an absolute URL for this web log
+let toAbsolute webLog (link : string) =
+    if link.StartsWith "http" then link else WebLog.absoluteUrl webLog (Permalink link)
+
 /// Add episode information to a podcast feed item
 let private addEpisode webLog (podcast : PodcastOptions) (episode : Episode) (post : Post) (item : SyndicationItem) =
-    // Convert non-absolute URLs to an absolute URL for this web log
-    let toAbsolute (link : string) = if link.StartsWith "http" then link else WebLog.absoluteUrl webLog (Permalink link)
     let epMediaUrl =
         match episode.media with
         | link when link.StartsWith "http" -> link
         | link when Option.isSome podcast.mediaBaseUrl -> $"{podcast.mediaBaseUrl.Value}{link}"
         | link -> WebLog.absoluteUrl webLog (Permalink link)
     let epMediaType = [ episode.mediaType; podcast.defaultMediaType ] |> List.tryFind Option.isSome |> Option.flatten
-    let epImageUrl = defaultArg episode.imageUrl (Permalink.toString podcast.imageUrl) |> toAbsolute
+    let epImageUrl = defaultArg episode.imageUrl (Permalink.toString podcast.imageUrl) |> toAbsolute webLog
     let epExplicit = defaultArg episode.explicit podcast.explicit |> ExplicitRating.toString
     
     let xmlDoc    = XmlDocument ()
@@ -165,7 +168,7 @@ let private addEpisode webLog (podcast : PodcastOptions) (episode : Episode) (po
     
     match episode.chapterFile with
     | Some chapters ->
-        let url = toAbsolute chapters
+        let url = toAbsolute webLog chapters
         let typ =
             match episode.chapterType with
             | Some mime -> Some mime
@@ -179,7 +182,7 @@ let private addEpisode webLog (podcast : PodcastOptions) (episode : Episode) (po
     
     match episode.transcriptUrl with
     | Some transcript ->
-        let url = toAbsolute transcript
+        let url = toAbsolute webLog transcript
         let elt = xmlDoc.CreateElement ("podcast", "transcript", Namespace.podcast)
         elt.SetAttribute ("url", url)
         elt.SetAttribute ("type", Option.get episode.transcriptType)
@@ -301,6 +304,17 @@ let private addPodcast webLog (rssFeed : SyndicationFeed) (feed : CustomFeed) =
     rssFeed.ElementExtensions.Add ("author",    Namespace.iTunes,   podcast.displayedAuthor)
     rssFeed.ElementExtensions.Add ("explicit",  Namespace.iTunes,   ExplicitRating.toString podcast.explicit)
     podcast.subtitle |> Option.iter (fun sub -> rssFeed.ElementExtensions.Add ("subtitle", Namespace.iTunes, sub))
+    podcast.fundingUrl
+    |> Option.iter (fun url ->
+        let funding = xmlDoc.CreateElement ("podcast", "funding", Namespace.podcast)
+        funding.SetAttribute ("url", toAbsolute webLog url)
+        funding.InnerText <- defaultArg podcast.fundingText "Support This Podcast"
+        rssFeed.ElementExtensions.Add funding)
+    podcast.guid
+    |> Option.iter (fun guid ->
+        rssFeed.ElementExtensions.Add ("guid", Namespace.podcast, guid.ToString().ToLowerInvariant ()))
+    podcast.medium
+    |> Option.iter (fun med -> rssFeed.ElementExtensions.Add ("medium", Namespace.podcast, PodcastMedium.toString med))
 
 /// Get the feed's self reference and non-feed link
 let private selfAndLink webLog feedType ctx =
@@ -402,7 +416,7 @@ let generate (feedType : FeedType) postCount : HttpHandler = fun next ctx -> bac
 
 open DotLiquid
 
-// GET: /admin/rss/settings
+// GET: /admin/settings/rss
 let editSettings : HttpHandler = fun next ctx -> task {
     let webLog = ctx.WebLog
     let feeds =
@@ -418,7 +432,7 @@ let editSettings : HttpHandler = fun next ctx -> task {
         |> viewForTheme "admin" "rss-settings" next ctx
 }
 
-// POST: /admin/rss/settings
+// POST: /admin/settings/rss
 let saveSettings : HttpHandler = fun next ctx -> task {
     let  data  = ctx.Data
     let! model = ctx.BindFormAsync<EditRssModel> ()
@@ -432,7 +446,7 @@ let saveSettings : HttpHandler = fun next ctx -> task {
     | None -> return! Error.notFound next ctx
 }
 
-// GET: /admin/rss/{id}/edit
+// GET: /admin/settings/rss/{id}/edit
 let editCustomFeed feedId : HttpHandler = fun next ctx -> task {
     let customFeed =
         match feedId with
@@ -441,16 +455,26 @@ let editCustomFeed feedId : HttpHandler = fun next ctx -> task {
     match customFeed with
     | Some f ->
         return! Hash.FromAnonymousObject
-            {|  csrf       = csrfToken ctx
-                page_title = $"""{if feedId = "new" then "Add" else "Edit"} Custom RSS Feed"""
-                model      = EditCustomFeedModel.fromFeed f
-                categories = CategoryCache.get ctx
+            {|  csrf          = csrfToken ctx
+                page_title    = $"""{if feedId = "new" then "Add" else "Edit"} Custom RSS Feed"""
+                model         = EditCustomFeedModel.fromFeed f
+                categories    = CategoryCache.get ctx
+                medium_values = [|
+                    KeyValuePair.Create ("", "&ndash; Unspecified &ndash;")
+                    KeyValuePair.Create (PodcastMedium.toString Podcast, "Podcast")
+                    KeyValuePair.Create (PodcastMedium.toString Music, "Music")
+                    KeyValuePair.Create (PodcastMedium.toString Video, "Video")
+                    KeyValuePair.Create (PodcastMedium.toString Film, "Film")
+                    KeyValuePair.Create (PodcastMedium.toString Audiobook, "Audiobook")
+                    KeyValuePair.Create (PodcastMedium.toString Newsletter, "Newsletter")
+                    KeyValuePair.Create (PodcastMedium.toString Blog, "Blog")
+                |]
             |}
             |> viewForTheme "admin" "custom-feed-edit" next ctx
     | None -> return! Error.notFound next ctx
 }
 
-// POST: /admin/rss/save
+// POST: /admin/settings/rss/save
 let saveCustomFeed : HttpHandler = fun next ctx -> task {
     let data = ctx.Data
     match! data.WebLog.findById ctx.WebLog.id with
@@ -476,7 +500,7 @@ let saveCustomFeed : HttpHandler = fun next ctx -> task {
     | None -> return! Error.notFound next ctx
 }
 
-// POST /admin/rss/{id}/delete
+// POST /admin/settings/rss/{id}/delete
 let deleteCustomFeed feedId : HttpHandler = fun next ctx -> task {
     let data = ctx.Data
     match! data.WebLog.findById ctx.WebLog.id with
