@@ -2,6 +2,7 @@
 module MyWebLog.Handlers.Upload
 
 open System
+open System.IO
 open Giraffe
 open Microsoft.AspNetCore.Http
 open Microsoft.Net.Http.Headers
@@ -21,6 +22,12 @@ module private Helpers =
         let hdr = CacheControlHeaderValue()
         hdr.MaxAge <- Some (TimeSpan.FromDays 30) |> Option.toNullable
         hdr
+    
+    /// Shorthand for the directory separator
+    let slash = Path.DirectorySeparatorChar
+    
+    /// The base directory where uploads are stored, relative to the executable
+    let uploadDir = Path.Combine ("wwwroot", "upload")
 
 
 /// Determine if the file has been modified since the date/time specified by the If-Modified-Since header
@@ -31,7 +38,6 @@ let checkModified since (ctx : HttpContext) : HttpHandler option =
     | _ -> Some (setStatusCode 304 >=> setBodyFromString "Not Modified")
 
 
-open System.IO
 open Microsoft.AspNetCore.Http.Headers
 
 /// Derive a MIME type based on the extension of the file
@@ -83,7 +89,7 @@ let list : HttpHandler = fun next ctx -> task {
     let  webLog      = ctx.WebLog
     let! dbUploads   = ctx.Data.Upload.findByWebLog webLog.id
     let  diskUploads =
-        let path = Path.Combine ("wwwroot", "upload", webLog.slug)
+        let path = Path.Combine (uploadDir, webLog.slug)
         try
             Directory.EnumerateFiles (path, "*", SearchOption.AllDirectories)
             |> Seq.map (fun file ->
@@ -94,7 +100,7 @@ let list : HttpHandler = fun next ctx -> task {
                     | _ -> None
                 { DisplayUpload.id = ""
                   name             = name
-                  path             = file.Replace($"{path}/", "").Replace (name, "")
+                  path             = file.Replace($"{path}{slash}", "").Replace(name, "").Replace (slash, '/')
                   updatedOn        = create
                   source           = UploadDestination.toString Disk
                 })
@@ -106,7 +112,7 @@ let list : HttpHandler = fun next ctx -> task {
             []
     let allFiles =
         dbUploads
-        |> List.map (DisplayUpload.fromUpload Database)
+        |> List.map (DisplayUpload.fromUpload webLog Database)
         |> List.append diskUploads
         |> List.sortByDescending (fun file -> file.updatedOn, file.path)
 
@@ -130,12 +136,17 @@ let showNew : HttpHandler = fun next ctx -> task {
         |> viewForTheme "admin" "upload-new" next ctx
 }
 
+/// Redirect to the upload list
+let showUploads : HttpHandler = fun next ctx -> task {
+    return! redirectToGet (WebLog.relativeUrl ctx.WebLog (Permalink "admin/uploads")) next ctx
+}
+
 // POST /admin/upload/save
 let save : HttpHandler = fun next ctx -> task {
     if ctx.Request.HasFormContentType && ctx.Request.Form.Files.Count > 0 then
         let upload    = Seq.head ctx.Request.Form.Files
-        let fileName  = String.Join ('.', makeSlug (Path.GetFileNameWithoutExtension upload.FileName),
-                                          Path.GetExtension(upload.FileName).ToLowerInvariant ())
+        let fileName  = String.Concat (makeSlug (Path.GetFileNameWithoutExtension upload.FileName),
+                                       Path.GetExtension(upload.FileName).ToLowerInvariant ())
         let  webLog   = ctx.WebLog
         let  localNow = WebLog.localTime webLog DateTime.Now
         let  year     = localNow.ToString "yyyy"
@@ -155,13 +166,50 @@ let save : HttpHandler = fun next ctx -> task {
                 }
             do! ctx.Data.Upload.add file
         | Disk ->
-            let fullPath = Path.Combine ("wwwroot", webLog.slug, year, month)
+            let fullPath = Path.Combine (uploadDir, webLog.slug, year, month)
             let _        = Directory.CreateDirectory fullPath
             use stream   = new FileStream (Path.Combine (fullPath, fileName), FileMode.Create)
             do! upload.CopyToAsync stream
         
         do! addMessage ctx { UserMessage.success with message = $"File uploaded to {form.destination} successfully" }
-        return! redirectToGet (WebLog.relativeUrl ctx.WebLog (Permalink "admin/uploads")) next ctx
+        return! showUploads next ctx
     else
         return! RequestErrors.BAD_REQUEST "Bad request; no file present" next ctx
+}
+
+// POST /admin/upload/{id}/delete
+let deleteFromDb upId : HttpHandler = fun next ctx -> task {
+    let uploadId = UploadId upId
+    let webLog   = ctx.WebLog
+    let data     = ctx.Data
+    match! data.Upload.delete uploadId webLog.id with
+    | Ok fileName ->
+        do! addMessage ctx { UserMessage.success with message = $"{fileName} deleted successfully" }
+        return! showUploads next ctx
+    | Error _ -> return! Error.notFound next ctx
+}
+
+/// Remove a directory tree if it is empty
+let removeEmptyDirectories (webLog : WebLog) (filePath : string) =
+    let mutable path     = Path.GetDirectoryName filePath
+    let mutable finished = false
+    while (not finished) && path > "" do
+        let fullPath = Path.Combine (uploadDir, webLog.slug, path)
+        if Directory.EnumerateFileSystemEntries fullPath |> Seq.isEmpty then
+            Directory.Delete fullPath
+            path <- String.Join(slash, path.Split slash |> Array.rev |> Array.skip 1 |> Array.rev)
+        else
+            finished <- true
+    
+// POST /admin/upload/delete/{**path}
+let deleteFromDisk urlParts : HttpHandler = fun next ctx -> task {
+    let filePath = urlParts |> Seq.skip 1 |> Seq.head
+    let path = Path.Combine (uploadDir, ctx.WebLog.slug, filePath)
+    if File.Exists path then
+        File.Delete path
+        removeEmptyDirectories ctx.WebLog filePath
+        do! addMessage ctx { UserMessage.success with message = $"{filePath} deleted successfully" }
+        return! showUploads next ctx
+    else
+        return! Error.notFound next ctx
 }

@@ -46,7 +46,16 @@
                 </a>
               {%- endunless %}
               <span class="text-muted"> Link &bull; </span>
-              <a href="#" onclick="" class="text-danger">Delete</a>
+              {%- capture delete_url -%}
+                {%- if file.source == "disk" -%}
+                  admin/upload/delete/{{ file.path }}{{ file.name }}
+                {%- else -%}
+                  admin/upload/{{ file.id }}/delete
+                {%- endif -%}
+              {%- endcapture -%}
+              <a href="{{ delete_url | relative_link }}" hx-post="{{ delete_url | relative_link }}"
+                 hx-confirm="Are you sure you want to delete {{ file.name }}? This action cannot be undone."
+                 class="text-danger">Delete</a>
             </small>
           </div>
           <div class="col-3">{{ file.path }}</div>

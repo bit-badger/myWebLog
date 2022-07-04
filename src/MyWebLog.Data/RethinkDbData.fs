@@ -746,10 +746,30 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     write; withRetryDefault; ignoreResult conn
                 }
                 
+                member _.delete uploadId webLogId = backgroundTask {
+                    let! upload =
+                        rethink<Upload> {
+                            withTable Table.Upload
+                            get uploadId
+                            resultOption; withRetryOptionDefault
+                        }
+                        |> verifyWebLog<Upload> webLogId (fun u -> u.webLogId) <| conn
+                    match upload with
+                    | Some up ->
+                        do! rethink {
+                            withTable Table.Upload
+                            get uploadId
+                            delete
+                            write; withRetryDefault; ignoreResult conn
+                        }
+                        return Ok (Permalink.toString up.path)
+                    | None -> return Result.Error $"Upload ID {UploadId.toString uploadId} not found"
+                }
+                
                 member _.findByPath path webLogId =
                     rethink<Upload> {
                         withTable Table.Upload
-                        getAll [ r.Array (path, webLogId) ] "webLogAndPath"
+                        getAll [ r.Array (webLogId, path) ] "webLogAndPath"
                         resultCursor; withRetryCursorDefault; toList
                     }
                     |> tryFirst <| conn

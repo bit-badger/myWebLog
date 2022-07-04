@@ -169,13 +169,13 @@ type DisplayUpload =
     }
     
     /// Create a display uploaded file
-    static member fromUpload source (upload : Upload) =
+    static member fromUpload webLog source (upload : Upload) =
         let path = Permalink.toString upload.path
         let name = Path.GetFileName path
         { id        = UploadId.toString upload.id
           name      = name
           path      = path.Replace (name, "")
-          updatedOn = Some upload.updatedOn
+          updatedOn = Some (WebLog.localTime webLog upload.updatedOn)
           source    = UploadDestination.toString source
         }
 

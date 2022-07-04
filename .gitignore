@@ -262,3 +262,6 @@ src/MyWebLog/wwwroot/img/bit-badger
 
 .ionide
 src/MyWebLog/appsettings.Production.json
+
+# SQLite database files
+src/MyWebLog/*.db*

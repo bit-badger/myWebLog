@@ -232,7 +232,7 @@ let register () =
         typeof<LogOnModel>;     typeof<ManagePermalinksModel>; typeof<PostDisplay>;         typeof<PostListItem>
         typeof<SettingsModel>;  typeof<UserMessage>
         // Framework types
-        typeof<AntiforgeryTokenSet>; typeof<int option>;    typeof<KeyValuePair>; typeof<MetaItem list>
-        typeof<string list>;         typeof<string option>; typeof<TagMap list>
+        typeof<AntiforgeryTokenSet>; typeof<DateTime option>; typeof<int option>;    typeof<KeyValuePair>
+        typeof<MetaItem list>;       typeof<string list>;     typeof<string option>; typeof<TagMap list>
     ]
     |> List.iter (fun it -> Template.RegisterSafeType (it, [| "*" |]))

@@ -178,7 +178,9 @@ let router : HttpHandler = choose [
             ])
             route    "/theme/update" >=> Admin.updateTheme
             subRoute "/upload" (choose [
-                route "/save" >=> Upload.save
+                route   "/save"        >=> Upload.save
+                routexp "/delete/(.*)"     Upload.deleteFromDisk
+                routef  "/%s/delete"       Upload.deleteFromDb
             ])
             route    "/user/save"    >=> User.save
         ]

@@ -205,6 +205,9 @@ type IUploadData =
     /// Add an uploaded file
     abstract member add : Upload -> Task<unit>
     
+    /// Delete an uploaded file
+    abstract member delete : UploadId -> WebLogId -> Task<Result<string, string>>
+    
     /// Find an uploaded file by its path for the given web log
     abstract member findByPath : string -> WebLogId -> Task<Upload option>
     

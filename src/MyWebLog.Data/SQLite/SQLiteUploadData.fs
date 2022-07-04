@@ -37,6 +37,27 @@ type SQLiteUploadData (conn : SqliteConnection) =
         do! dataStream.CopyToAsync blobStream
     }
     
+    /// Delete an uploaded file by its ID
+    let delete uploadId webLogId = backgroundTask {
+        use cmd = conn.CreateCommand ()
+        cmd.CommandText <- """
+            SELECT id, web_log_id, path, updated_on
+              FROM upload
+             WHERE id         = @id
+               AND web_log_id = @webLogId"""
+        addWebLogId cmd webLogId
+        cmd.Parameters.AddWithValue ("@id", UploadId.toString uploadId) |> ignore
+        let! rdr = cmd.ExecuteReaderAsync ()
+        if (rdr.Read ()) then
+            let upload = Map.toUpload false rdr
+            do! rdr.CloseAsync ()
+            cmd.CommandText <- "DELETE FROM upload WHERE id = @id AND web_log_id = @webLogId"
+            do! write cmd
+            return Ok (Permalink.toString upload.path)
+        else
+            return Error $"""Upload ID {cmd.Parameters["@id"]} not found"""
+    }
+    
     /// Find an uploaded file by its path for the given web log
     let findByPath (path : string) webLogId = backgroundTask {
         use cmd = conn.CreateCommand ()
@@ -72,6 +93,7 @@ type SQLiteUploadData (conn : SqliteConnection) =
     
     interface IUploadData with
         member _.add upload = add upload
+        member _.delete uploadId webLogId = delete uploadId webLogId
         member _.findByPath path webLogId = findByPath path webLogId
         member _.findByWebLog webLogId = findByWebLog webLogId
         member _.findByWebLogWithData webLogId = findByWebLogWithData webLogId
