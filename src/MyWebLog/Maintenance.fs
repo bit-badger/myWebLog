@@ -259,7 +259,7 @@ module Backup =
             if count = 1 then ifOne else ifMany
             
         printfn ""
-        printfn $"""{msg.Replace ("{{NAME}}", webLog.name)}"""
+        printfn $"""{msg.Replace ("<>NAME<>", webLog.name)}"""
         printfn $""" - The theme "{archive.theme.name}" with {assetCount} asset{plural assetCount "" "s"}"""
         printfn $""" - {userCount} user{plural userCount "" "s"}"""
         printfn $""" - {categoryCount} categor{plural categoryCount "y" "ies"}"""
@@ -313,7 +313,7 @@ module Backup =
         serializer.Serialize (writer, archive)
         writer.Close ()
         
-        displayStats "{{NAME}} backup contains:" webLog archive
+        displayStats $"{fileName} (for <>NAME<>) contains:" webLog archive
     }
     
     let private doRestore archive newUrlBase (data : IData) = task {
@@ -394,7 +394,7 @@ module Backup =
         printfn "- Restoring uploads..."
         do! data.Upload.restore (restore.uploads |> List.map EncodedUpload.fromEncoded)
         
-        displayStats "Restored for {{NAME}}:" restore.webLog restore
+        displayStats "Restored for <>NAME<>:" restore.webLog restore
     }
     
     /// Decide whether to restore a backup
@@ -423,17 +423,26 @@ module Backup =
         
     /// Generate a backup archive
     let generateBackup (args : string[]) (sp : IServiceProvider) = task {
-        if args.Length = 3 || args.Length = 4 then
+        let showUsage () =
+            printfn """Usage: MyWebLog backup [url-base] [*backup-file-name] [**"pretty"]"""
+            printfn """          * optional - default is [web-log-slug].json"""
+            printfn """         ** optional - default is non-pretty JSON output"""
+        if args.Length > 1 && args.Length < 5 then
             let data = sp.GetRequiredService<IData> ()
             match! data.WebLog.findByHost args[1] with
             | Some webLog ->
-                let fileName     = if args[2].EndsWith ".json" then args[2] else $"{args[2]}.json"
-                let prettyOutput = args.Length = 4 && args[3] = "pretty"
+                let fileName =
+                    if args.Length = 2 || (args.Length = 3 && args[2] = "pretty") then
+                        $"{webLog.slug}.json"
+                    elif args[2].EndsWith ".json" then
+                        args[2]
+                    else
+                        $"{args[2]}.json"
+                let prettyOutput = (args.Length = 3 && args[2] = "pretty") || (args.Length = 4 && args[3] = "pretty")
                 do! createBackup webLog fileName prettyOutput data
             | None -> printfn $"Error: no web log found for {args[1]}"
         else
-            printfn """Usage: MyWebLog backup [url-base] [backup-file-name] [*"pretty"]"""
-            printfn """         * optional - default is non-pretty JSON output"""
+            showUsage ()
     }
     
     /// Restore a backup archive
