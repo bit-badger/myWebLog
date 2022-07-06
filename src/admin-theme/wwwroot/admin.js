@@ -1,13 +1,22 @@
-﻿const Admin = {
-  /** The next index for a metadata item */
+﻿/**
+ * Support functions for the administrative UI
+ */
+this.Admin = {
+  /**
+   * The next index for a metadata item
+   * @type {number}
+   */
   nextMetaIndex : 0,
 
-  /** The next index for a permalink */
+  /**
+   * The next index for a permalink
+   * @type {number}
+   */
   nextPermalink : 0,
   
   /**
    * Set the next meta item index
-   * @param idx The index to set
+   * @param {number} idx The index to set
    */
   setNextMetaIndex(idx) {
     this.nextMetaIndex = idx
@@ -15,7 +24,7 @@
 
   /**
    * Set the next permalink index
-   * @param idx The index to set
+   * @param {number} idx The index to set
    */
   setPermalinkIndex(idx) {
     this.nextPermalink = idx
@@ -223,8 +232,8 @@
 
   /**
    * Copy text to the clipboard
-   * @param text {string} The text to be copied
-   * @param elt {HTMLAnchorElement} The element on which the click was generated
+   * @param {string} text The text to be copied
+   * @param {HTMLAnchorElement} elt The element on which the click was generated
    * @return {boolean} False, to prevent navigation
    */
   copyText(text, elt) {
@@ -235,7 +244,7 @@
   
   /**
    * Toggle the source of a custom RSS feed
-   * @param source The source that was selected
+   * @param {string} source The source that was selected
    */
   customFeedBy(source) {
     const categoryInput = document.getElementById("sourceValueCat")
@@ -253,7 +262,7 @@
   
   /**
    * Remove a metadata item
-   * @param idx The index of the metadata item to remove
+   * @param {number} idx The index of the metadata item to remove
    */
   removeMetaItem(idx) {
     document.getElementById(`meta_${idx}`).remove()
@@ -261,7 +270,7 @@
 
   /**
    * Remove a permalink
-   * @param idx The index of the permalink to remove
+   * @param {number} idx The index of the permalink to remove
    */
   removePermalink(idx) {
     document.getElementById(`link_${idx}`).remove()
@@ -276,7 +285,7 @@
 
   /**
    * Show messages that may have come with an htmx response
-   * @param messages The messages from the response
+   * @param {string} messages The messages from the response
    */
   showMessage(messages) {
     const msgs = messages.split(", ")
