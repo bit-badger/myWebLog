@@ -888,12 +888,14 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     get webLog.id
                     update [
                         "name",         webLog.name :> obj
+                        "slug",         webLog.slug
                         "subtitle",     webLog.subtitle
                         "defaultPage",  webLog.defaultPage
                         "postsPerPage", webLog.postsPerPage
                         "timeZone",     webLog.timeZone
                         "themePath",    webLog.themePath
                         "autoHtmx",     webLog.autoHtmx
+                        "uploads",      webLog.uploads
                     ]
                     write; withRetryDefault; ignoreResult conn
                 }

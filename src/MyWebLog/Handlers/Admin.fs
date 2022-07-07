@@ -475,11 +475,15 @@ let settings : HttpHandler = fun next ctx -> task {
                            |> List.map (fun p -> KeyValuePair.Create (PageId.toString p.id, p.title))
                 }
                 |> Array.ofSeq
-            themes     = themes
-                         |> Seq.ofList
-                         |> Seq.map (fun it ->
-                             KeyValuePair.Create (ThemeId.toString it.id, $"{it.name} (v{it.version})"))
-                         |> Array.ofSeq
+            themes =
+                themes
+                 |> Seq.ofList
+                 |> Seq.map (fun it -> KeyValuePair.Create (ThemeId.toString it.id, $"{it.name} (v{it.version})"))
+                 |> Array.ofSeq
+            upload_values =
+                [|  KeyValuePair.Create (UploadDestination.toString Database, "Database")
+                    KeyValuePair.Create (UploadDestination.toString Disk,     "Disk")
+                |]
             web_log    = webLog
             page_title = "Web Log Settings"
         |}
@@ -493,11 +497,18 @@ let saveSettings : HttpHandler = fun next ctx -> task {
     let! model  = ctx.BindFormAsync<SettingsModel> ()
     match! data.WebLog.findById webLog.id with
     | Some webLog ->
-        let webLog = model.update webLog
+        let oldSlug = webLog.slug
+        let webLog  = model.update webLog
         do! data.WebLog.updateSettings webLog
 
         // Update cache
         WebLogCache.set webLog
+        
+        if oldSlug <> webLog.slug then
+            // Rename disk directory if it exists
+            let uploadRoot = Path.Combine ("wwwroot", "upload")
+            let oldDir     = Path.Combine (uploadRoot, oldSlug)
+            if Directory.Exists oldDir then Directory.Move (oldDir, Path.Combine (uploadRoot, webLog.slug))
     
         do! addMessage ctx { UserMessage.success with message = "Web log settings saved successfully" }
         return! redirectToGet (WebLog.relativeUrl webLog (Permalink "admin/settings")) next ctx

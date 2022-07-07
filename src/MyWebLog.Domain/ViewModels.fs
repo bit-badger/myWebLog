@@ -856,6 +856,9 @@ type SettingsModel =
     {   /// The name of the web log
         name : string
 
+        /// The slug of the web log
+        slug : string
+        
         /// The subtitle of the web log
         subtitle : string
 
@@ -873,29 +876,36 @@ type SettingsModel =
         
         /// Whether to automatically load htmx
         autoHtmx : bool
+        
+        /// The default location for uploads
+        uploads : string
     }
     
     /// Create a settings model from a web log
     static member fromWebLog (webLog : WebLog) =
         { name         = webLog.name
+          slug         = webLog.slug
           subtitle     = defaultArg webLog.subtitle ""
           defaultPage  = webLog.defaultPage
           postsPerPage = webLog.postsPerPage
           timeZone     = webLog.timeZone
           themePath    = webLog.themePath
           autoHtmx     = webLog.autoHtmx
+          uploads      = UploadDestination.toString webLog.uploads
         }
     
     /// Update a web log with settings from the form
     member this.update (webLog : WebLog) =
         { webLog with
             name         = this.name
+            slug         = this.slug
             subtitle     = if this.subtitle = "" then None else Some this.subtitle
             defaultPage  = this.defaultPage
             postsPerPage = this.postsPerPage
             timeZone     = this.timeZone
             themePath    = this.themePath
             autoHtmx     = this.autoHtmx
+            uploads      = UploadDestination.parse this.uploads
         }
 
 
