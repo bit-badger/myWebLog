@@ -138,7 +138,7 @@ let bareForTheme theme template next ctx = fun (hash : Hash) -> task {
                 | Some detail -> $"{m.level}|||{m.message}|||{detail}"
                 | None -> $"{m.level}|||{m.message}"
                 |> setHttpHeader "X-Message")
-        withHxNoPush
+        withHxNoPushUrl
         htmlString (layoutTemplate.Render hash)
         }
     

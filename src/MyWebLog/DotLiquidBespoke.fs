@@ -222,17 +222,17 @@ let register () =
     Template.RegisterTag<PageFootTag>  "page_foot"
     Template.RegisterTag<UserLinksTag> "user_links"
     
-    [   // Domain types
-        typeof<CustomFeed>; typeof<Episode>; typeof<Episode option>;    typeof<MetaItem>; typeof<Page>
-        typeof<RssOptions>; typeof<TagMap>;  typeof<UploadDestination>; typeof<WebLog>
-        // View models
-        typeof<DashboardModel>; typeof<DisplayCategory>;       typeof<DisplayCustomFeed>;   typeof<DisplayPage>
-        typeof<DisplayUpload>;  typeof<EditCategoryModel>;     typeof<EditCustomFeedModel>; typeof<EditPageModel>
-        typeof<EditPostModel>;  typeof<EditRssModel>;          typeof<EditTagMapModel>;     typeof<EditUserModel>
-        typeof<LogOnModel>;     typeof<ManagePermalinksModel>; typeof<PostDisplay>;         typeof<PostListItem>
-        typeof<SettingsModel>;  typeof<UserMessage>
-        // Framework types
-        typeof<AntiforgeryTokenSet>; typeof<DateTime option>; typeof<int option>;    typeof<KeyValuePair>
-        typeof<MetaItem list>;       typeof<string list>;     typeof<string option>; typeof<TagMap list>
+    [ // Domain types
+      typeof<CustomFeed>; typeof<Episode>; typeof<Episode option>;    typeof<MetaItem>; typeof<Page>
+      typeof<RssOptions>; typeof<TagMap>;  typeof<UploadDestination>; typeof<WebLog>
+      // View models
+      typeof<DashboardModel>; typeof<DisplayCategory>;       typeof<DisplayCustomFeed>;   typeof<DisplayPage>
+      typeof<DisplayUpload>;  typeof<EditCategoryModel>;     typeof<EditCustomFeedModel>; typeof<EditPageModel>
+      typeof<EditPostModel>;  typeof<EditRssModel>;          typeof<EditTagMapModel>;     typeof<EditUserModel>
+      typeof<LogOnModel>;     typeof<ManagePermalinksModel>; typeof<PostDisplay>;         typeof<PostListItem>
+      typeof<SettingsModel>;  typeof<UserMessage>
+      // Framework types
+      typeof<AntiforgeryTokenSet>; typeof<DateTime option>; typeof<int option>;    typeof<KeyValuePair>
+      typeof<MetaItem list>;       typeof<string list>;     typeof<string option>; typeof<TagMap list>
     ]
     |> List.iter (fun it -> Template.RegisterSafeType (it, [| "*" |]))
