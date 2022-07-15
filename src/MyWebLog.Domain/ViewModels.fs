@@ -147,6 +147,28 @@ type DisplayPage =
         }
 
 
+/// Information about a revision used for display
+[<CLIMutable; NoComparison; NoEquality>]
+type DisplayRevision =
+    {   /// The as-of date/time for the revision
+        asOf : DateTime
+        
+        /// The as-of date/time for the revision in the web log's local time zone
+        asOfLocal : DateTime
+        
+        /// The format of the text of the revision
+        format : string
+    }
+with
+
+    /// Create a display revision from an actual revision
+    static member fromRevision webLog (rev : Revision) =
+        { asOf      = rev.asOf
+          asOfLocal = WebLog.localTime webLog rev.asOf
+          format    = MarkupText.sourceType rev.text
+        }
+
+
 open System.IO
 
 /// Information about an uploaded file used for display
@@ -763,6 +785,39 @@ type ManagePermalinksModel =
           currentTitle     = post.title
           currentPermalink = Permalink.toString post.permalink
           prior            = post.priorPermalinks |> List.map Permalink.toString |> Array.ofList
+        }
+
+
+/// View model to manage revisions
+[<CLIMutable; NoComparison; NoEquality>]
+type ManageRevisionsModel =
+    {   /// The ID for the entity being edited
+        id : string
+        
+        /// The type of entity being edited ("page" or "post")
+        entity : string
+        
+        /// The current title of the page or post
+        currentTitle : string
+        
+        /// The revisions for the page or post
+        revisions : DisplayRevision[]
+    }
+    
+    /// Create a revision model from a page
+    static member fromPage webLog (pg : Page) =
+        { id           = PageId.toString pg.id
+          entity       = "page"
+          currentTitle = pg.title
+          revisions    = pg.revisions |> List.map (DisplayRevision.fromRevision webLog) |> Array.ofList
+        }
+
+    /// Create a revision model from a post
+    static member fromPost webLog (post : Post) =
+        { id           = PostId.toString post.id
+          entity       = "post"
+          currentTitle = post.title
+          revisions    = post.revisions |> List.map (DisplayRevision.fromRevision webLog) |> Array.ofList
         }
 
 

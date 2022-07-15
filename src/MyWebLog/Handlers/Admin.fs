@@ -190,6 +190,21 @@ let savePagePermalinks : HttpHandler = fun next ctx -> task {
     | false -> return! Error.notFound next ctx
 }
 
+// GET /admin/page/{id}/revisions
+let editPageRevisions pgId : HttpHandler = fun next ctx -> task {
+    let webLog = ctx.WebLog
+    match! ctx.Data.Page.findFullById (PageId pgId) webLog.id with
+    | Some pg ->
+        return!
+            Hash.FromAnonymousObject {|
+                csrf       = csrfToken ctx
+                model      = ManageRevisionsModel.fromPage webLog pg
+                page_title = $"Manage Page Permalinks"
+            |}
+            |> viewForTheme "admin" "revisions" next ctx
+    | None -> return! Error.notFound next ctx
+}
+
 // POST /admin/page/{id}/delete
 let deletePage pgId : HttpHandler = fun next ctx -> task {
     let webLog = ctx.WebLog

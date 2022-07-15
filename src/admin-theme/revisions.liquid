@@ -1,0 +1,58 @@
+﻿<h2 class="my-3">{{ page_title }}</h2>
+<article>
+  <form method="post">
+    <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
+    <input type="hidden" name="id" value="{{ model.id }}">
+    <div class="container">
+      <div class="row">
+        <div class="col">
+          <p style="line-height:1.2rem;">
+            <strong>{{ model.current_title }}</strong><br>
+            <small class="text-muted">
+              {%- capture back_link %}admin/{{ model.entity }}/{{ model.id }}/edit{% endcapture -%}
+              <a href="{{ back_link | relative_link }}">&laquo; Back to Edit {{ model.entity | capitalize }}</a>
+            </small>
+          </p>
+        </div>
+      </div>
+      {%- assign revision_count = model.revisions | size -%}
+      {%- capture rev_url_base %}admin/{{ model.entity }}/{{ model.id }}/revision{% endcapture -%}
+      {%- if revision_count > 1 %}
+        {% capture delete_all %}{{ rev_url_base }}s/purge{% endcapture %}
+        <div class="row mb-3">
+          <div class="col">
+            <button type="button" class="btn btn-sm btn-danger" hx-post="{{ delete_all | relative_link }}"
+                    hx-confirm="This will remove all revisions but the current one; are you sure this is what you wish to do?">
+              Delete All Prior Revisions
+            </button>
+          </div>
+        </div>
+      {%- endif %}
+      {% for rev in model.revisions %}
+        <div class="row mb-3">
+          <div class="col">
+            {{ rev.as_of_local | date: "MMMM d, yyyy" }} at {{ rev.as_of_local | date: "h:mmaa" | downcase }}
+            <span class="badge bg-secondary text-uppercase">{{ ref.format }}</span>
+            {%- if forloop.first %}
+              <span class="badge bg-primary text-uppercase ms-2">Current Revision</span>
+            {%- endif %}<br>
+            {% unless forloop.first %}
+              {%- capture rev_url_prefix %}{{ rev_url_base }}/{{ rev.as_of | date: "o" }}{% endcapture -%}
+              <small>
+                <a href="TODO">Preview</a>
+                <span class="text-muted"> &bull; </span>
+                {%- capture rev_restore %}{{ rev_url_prefix }}/restore{% endcapture -%}
+                {%- capture rev_restore_link %}{{ rev_restore | relative_link }}{% endcapture -%}
+                <a href="{{ rev_restore_link }}" hx-post="{{ rev_restore_link }}">Restore as Current</a>
+                <span class="text-muted"> &bull; </span>
+                {%- capture rev_del %}{{ rev_url_prefix }}/delete{% endcapture -%}
+                {%- capture rev_del_link %}{{ rev_del | relative_link }}{% endcapture -%}
+                <a href="{{ rev_del_link }}" hx-post="{{ rev_del_link }}" class="text-danger">Delete</a>
+              </small>
+            {% endunless %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </form>
+</article>
