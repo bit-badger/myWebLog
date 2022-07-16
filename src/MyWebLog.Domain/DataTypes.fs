@@ -436,8 +436,8 @@ type WebLogUser =
         /// The URL of the user's personal site
         url : string option
 
-        /// The user's authorization level
-        authorizationLevel : AuthorizationLevel
+        /// The user's access level
+        accessLevel : AccessLevel
     }
 
 /// Functions to support web log users
@@ -445,16 +445,16 @@ module WebLogUser =
     
     /// An empty web log user
     let empty =
-        { id                 = WebLogUserId.empty
-          webLogId           = WebLogId.empty
-          userName           = ""
-          firstName          = ""
-          lastName           = ""
-          preferredName      = ""
-          passwordHash       = ""
-          salt               = Guid.Empty
-          url                = None
-          authorizationLevel = User
+        { id            = WebLogUserId.empty
+          webLogId      = WebLogId.empty
+          userName      = ""
+          firstName     = ""
+          lastName      = ""
+          preferredName = ""
+          passwordHash  = ""
+          salt          = Guid.Empty
+          url           = None
+          accessLevel   = Author
         }
     
     /// Get the user's displayed name
@@ -463,3 +463,7 @@ module WebLogUser =
             seq { match user.preferredName with "" -> user.firstName | n -> n; " "; user.lastName }
             |> Seq.reduce (+)
         name.Trim ()
+    
+    /// Does a user have the required access level?
+    let hasAccess level user =
+        AccessLevel.hasAccess level user.accessLevel

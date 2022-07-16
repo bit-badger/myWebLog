@@ -165,16 +165,16 @@ type SQLiteData (conn : SqliteConnection, log : ILogger<SQLiteData>) =
                 log.LogInformation "Creating web_log_user table..."
                 cmd.CommandText <- """
                     CREATE TABLE web_log_user (
-                        id                   TEXT PRIMARY KEY,
-                        web_log_id           TEXT NOT NULL REFERENCES web_log (id),
-                        user_name            TEXT NOT NULL,
-                        first_name           TEXT NOT NULL,
-                        last_name            TEXT NOT NULL,
-                        preferred_name       TEXT NOT NULL,
-                        password_hash        TEXT NOT NULL,
-                        salt                 TEXT NOT NULL,
-                        url                  TEXT,
-                        authorization_level  TEXT NOT NULL);
+                        id             TEXT PRIMARY KEY,
+                        web_log_id     TEXT NOT NULL REFERENCES web_log (id),
+                        user_name      TEXT NOT NULL,
+                        first_name     TEXT NOT NULL,
+                        last_name      TEXT NOT NULL,
+                        preferred_name TEXT NOT NULL,
+                        password_hash  TEXT NOT NULL,
+                        salt           TEXT NOT NULL,
+                        url            TEXT,
+                        access_level   TEXT NOT NULL);
                     CREATE INDEX web_log_user_web_log_idx   ON web_log_user (web_log_id);
                     CREATE INDEX web_log_user_user_name_idx ON web_log_user (web_log_id, user_name)"""
                 do! write cmd

@@ -20,7 +20,7 @@ type SQLiteWebLogUserData (conn : SqliteConnection) =
           cmd.Parameters.AddWithValue ("@passwordHash", user.passwordHash)
           cmd.Parameters.AddWithValue ("@salt", user.salt)
           cmd.Parameters.AddWithValue ("@url", maybe user.url)
-          cmd.Parameters.AddWithValue ("@authorizationLevel", AuthorizationLevel.toString user.authorizationLevel)
+          cmd.Parameters.AddWithValue ("@accessLevel", AccessLevel.toString user.accessLevel)
         ] |> ignore
     
     // IMPLEMENTATION FUNCTIONS
@@ -31,10 +31,10 @@ type SQLiteWebLogUserData (conn : SqliteConnection) =
         cmd.CommandText <- """
             INSERT INTO web_log_user (
                 id, web_log_id, user_name, first_name, last_name, preferred_name, password_hash, salt, url,
-                authorization_level
+                access_level
             ) VALUES (
                 @id, @webLogId, @userName, @firstName, @lastName, @preferredName, @passwordHash, @salt, @url,
-                @authorizationLevel
+                @accessLevel
             )"""
         addWebLogUserParameters cmd user
         do! write cmd
@@ -96,14 +96,14 @@ type SQLiteWebLogUserData (conn : SqliteConnection) =
         use cmd = conn.CreateCommand ()
         cmd.CommandText <- """
             UPDATE web_log_user
-               SET user_name           = @userName,
-                   first_name          = @firstName,
-                   last_name           = @lastName,
-                   preferred_name      = @preferredName,
-                   password_hash       = @passwordHash,
-                   salt                = @salt,
-                   url                 = @url,
-                   authorization_level = @authorizationLevel
+               SET user_name      = @userName,
+                   first_name     = @firstName,
+                   last_name      = @lastName,
+                   preferred_name = @preferredName,
+                   password_hash  = @passwordHash,
+                   salt           = @salt,
+                   url            = @url,
+                   access_level   = @accessLevel
              WHERE id         = @id
                AND web_log_id = @webLogId"""
         addWebLogUserParameters cmd user

@@ -40,15 +40,15 @@ let private doCreateWebLog (args : string[]) (sp : IServiceProvider) = task {
     
     do! data.WebLogUser.add 
             { WebLogUser.empty with
-                id                 = userId
-                webLogId           = webLogId
-                userName           = args[3]
-                firstName          = "Admin"
-                lastName           = "User"
-                preferredName      = "Admin"
-                passwordHash       = Handlers.User.hashedPassword args[4] args[3] salt
-                salt               = salt
-                authorizationLevel = Administrator
+                id            = userId
+                webLogId      = webLogId
+                userName      = args[3]
+                firstName     = "Admin"
+                lastName      = "User"
+                preferredName = "Admin"
+                passwordHash  = Handlers.User.hashedPassword args[4] args[3] salt
+                salt          = salt
+                accessLevel   = Administrator
             }
 
     // Create the default home page

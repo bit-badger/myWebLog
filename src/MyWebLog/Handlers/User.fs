@@ -47,7 +47,7 @@ let doLogOn : HttpHandler = fun next ctx -> task {
             Claim (ClaimTypes.NameIdentifier, WebLogUserId.toString user.id)
             Claim (ClaimTypes.Name,           $"{user.firstName} {user.lastName}")
             Claim (ClaimTypes.GivenName,      user.preferredName)
-            Claim (ClaimTypes.Role,           user.authorizationLevel.ToString ())
+            Claim (ClaimTypes.Role,           AccessLevel.toString user.accessLevel)
         }
         let identity = ClaimsIdentity (claims, CookieAuthenticationDefaults.AuthenticationScheme)
 

@@ -291,16 +291,16 @@ module Map =
     
     /// Create a web log user from the current row in the given data reader
     let toWebLogUser (rdr : SqliteDataReader) : WebLogUser =
-        { id                 = WebLogUserId (getString "id" rdr)
-          webLogId           = WebLogId (getString "web_log_id" rdr)
-          userName           = getString "user_name" rdr
-          firstName          = getString "first_name" rdr
-          lastName           = getString "last_name" rdr
-          preferredName      = getString "preferred_name" rdr
-          passwordHash       = getString "password_hash" rdr
-          salt               = getGuid "salt" rdr
-          url                = tryString "url" rdr
-          authorizationLevel = AuthorizationLevel.parse (getString "authorization_level" rdr)
+        { id            = WebLogUserId (getString "id" rdr)
+          webLogId      = WebLogId (getString "web_log_id" rdr)
+          userName      = getString "user_name" rdr
+          firstName     = getString "first_name" rdr
+          lastName      = getString "last_name" rdr
+          preferredName = getString "preferred_name" rdr
+          passwordHash  = getString "password_hash" rdr
+          salt          = getGuid "salt" rdr
+          url           = tryString "url" rdr
+          accessLevel   = AccessLevel.parse (getString "access_level" rdr)
         }
 
 /// Add a possibly-missing parameter, substituting null for None

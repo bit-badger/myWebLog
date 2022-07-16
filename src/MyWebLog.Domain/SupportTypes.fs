@@ -12,6 +12,51 @@ module private Helpers =
         Convert.ToBase64String(Guid.NewGuid().ToByteArray()).Replace('/', '_').Replace('+', '-').Substring (0, 22)
 
 
+/// A user's access level
+type AccessLevel =
+    /// The user may create and publish posts and edit the ones they have created
+    | Author
+    /// The user may edit posts they did not create, but may not delete them
+    | Editor
+    /// The user may delete posts and configure web log settings
+    | WebLogAdmin
+    /// The user may manage themes (which affects all web logs for an installation)
+    | Administrator
+
+/// Functions to support access levels
+module AccessLevel =
+    
+    /// Weightings for access levels
+    let private weights =
+        [ Author,        10
+          Editor,        20
+          WebLogAdmin,   30
+          Administrator, 40
+        ]
+        |> Map.ofList
+    
+    /// Convert an access level to its string representation
+    let toString =
+        function
+        | Author        -> "Author"
+        | Editor        -> "Editor"
+        | WebLogAdmin   -> "WebLogAdmin"
+        | Administrator -> "Administrator"
+    
+    /// Parse an access level from its string representation
+    let parse it =
+        match it with
+        | "Author"        -> Author
+        | "Editor"        -> Editor
+        | "WebLogAdmin"   -> WebLogAdmin
+        | "Administrator" -> Administrator
+        | _               -> invalidOp $"{it} is not a valid access level"
+    
+    /// Does a given access level allow an action that requires a certain access level?
+    let hasAccess needed held =
+        weights[needed] <= weights[held]
+
+
 /// An identifier for a category
 type CategoryId = CategoryId of string
 
@@ -606,26 +651,6 @@ module WebLogId =
     /// Create a new web log ID
     let create () = WebLogId (newId ())
 
-
-/// A level of authorization for a given web log
-type AuthorizationLevel =
-    /// <summary>The user may administer all aspects of a web log</summary>
-    | Administrator
-    /// <summary>The user is a known user of a web log</summary>
-    | User
-
-/// Functions to support authorization levels 
-module AuthorizationLevel =
-    
-    /// Convert an authorization level to a string
-    let toString = function Administrator -> "Administrator" | User -> "User"
-    
-    /// Parse a string into an authorization level
-    let parse value =
-        match value with
-        | "Administrator" -> Administrator
-        | "User"          -> User
-        | it              -> invalidOp $"{it} is not a valid authorization level"
 
 
 /// An identifier for a web log user
