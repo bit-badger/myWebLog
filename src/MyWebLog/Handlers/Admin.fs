@@ -8,7 +8,7 @@ open MyWebLog
 open MyWebLog.ViewModels
 
 // GET /admin
-let dashboard : HttpHandler = fun next ctx -> task {
+let dashboard : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     let webLogId = ctx.WebLog.id
     let data     = ctx.Data
     let getCount (f : WebLogId -> Task<int>) = f webLogId
@@ -36,7 +36,7 @@ let dashboard : HttpHandler = fun next ctx -> task {
 // -- CATEGORIES --
 
 // GET /admin/categories
-let listCategories : HttpHandler = fun next ctx -> task {
+let listCategories : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     let! catListTemplate = TemplateCache.get "admin" "category-list-body" ctx.Data
     let hash = Hash.FromAnonymousObject {|
         page_title = "Categories"
@@ -49,7 +49,7 @@ let listCategories : HttpHandler = fun next ctx -> task {
 }
 
 // GET /admin/categories/bare
-let listCategoriesBare : HttpHandler = fun next ctx -> task {
+let listCategoriesBare : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     return!
         Hash.FromAnonymousObject {|
             categories = CategoryCache.get ctx
@@ -60,7 +60,7 @@ let listCategoriesBare : HttpHandler = fun next ctx -> task {
 
 
 // GET /admin/category/{id}/edit
-let editCategory catId : HttpHandler = fun next ctx -> task {
+let editCategory catId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     let! result = task {
         match catId with
         | "new" -> return Some ("Add a New Category", { Category.empty with id = CategoryId "new" })
@@ -83,14 +83,13 @@ let editCategory catId : HttpHandler = fun next ctx -> task {
 }
 
 // POST /admin/category/save
-let saveCategory : HttpHandler = fun next ctx -> task {
-    let  webLog   = ctx.WebLog
+let saveCategory : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     let  data     = ctx.Data
     let! model    = ctx.BindFormAsync<EditCategoryModel> ()
     let! category = task {
         match model.categoryId with
-        | "new" -> return Some { Category.empty with id = CategoryId.create (); webLogId = webLog.id }
-        | catId -> return! data.Category.findById (CategoryId catId) webLog.id
+        | "new" -> return Some { Category.empty with id = CategoryId.create (); webLogId = ctx.WebLog.id }
+        | catId -> return! data.Category.findById (CategoryId catId) ctx.WebLog.id
     }
     match category with
     | Some cat ->
@@ -109,7 +108,7 @@ let saveCategory : HttpHandler = fun next ctx -> task {
 }
 
 // POST /admin/category/{id}/delete
-let deleteCategory catId : HttpHandler = fun next ctx -> task {
+let deleteCategory catId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     match! ctx.Data.Category.delete (CategoryId catId) ctx.WebLog.id with
     | true ->
         do! CategoryCache.update ctx
@@ -134,7 +133,7 @@ let private tagMappingHash (ctx : HttpContext) = task {
 }
 
 // GET /admin/settings/tag-mappings
-let tagMappings : HttpHandler = fun next ctx -> task {
+let tagMappings : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     let! hash         = tagMappingHash ctx
     let! listTemplate = TemplateCache.get "admin" "tag-mapping-list-body" ctx.Data
     
@@ -145,13 +144,13 @@ let tagMappings : HttpHandler = fun next ctx -> task {
 }
 
 // GET /admin/settings/tag-mappings/bare
-let tagMappingsBare : HttpHandler = fun next ctx -> task {
+let tagMappingsBare : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     let! hash = tagMappingHash ctx
     return! bareForTheme "admin" "tag-mapping-list-body" next ctx hash
 }
 
 // GET /admin/settings/tag-mapping/{id}/edit
-let editMapping tagMapId : HttpHandler = fun next ctx -> task {
+let editMapping tagMapId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     let isNew  = tagMapId = "new"
     let tagMap =
         if isNew then
@@ -171,7 +170,7 @@ let editMapping tagMapId : HttpHandler = fun next ctx -> task {
 }
 
 // POST /admin/settings/tag-mapping/save
-let saveMapping : HttpHandler = fun next ctx -> task {
+let saveMapping : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     let  data   = ctx.Data
     let! model  = ctx.BindFormAsync<EditTagMapModel> ()
     let  tagMap =
@@ -188,7 +187,7 @@ let saveMapping : HttpHandler = fun next ctx -> task {
 }
 
 // POST /admin/settings/tag-mapping/{id}/delete
-let deleteMapping tagMapId : HttpHandler = fun next ctx -> task {
+let deleteMapping tagMapId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     match! ctx.Data.TagMap.delete (TagMapId tagMapId) ctx.WebLog.id with
     | true  -> do! addMessage ctx { UserMessage.success with message = "Tag mapping deleted successfully" }
     | false -> do! addMessage ctx { UserMessage.error with message = "Tag mapping not found; nothing deleted" }
@@ -204,7 +203,7 @@ open System.Text.RegularExpressions
 open MyWebLog.Data
 
 // GET /admin/theme/update
-let themeUpdatePage : HttpHandler = fun next ctx -> task {
+let themeUpdatePage : HttpHandler = requireAccess Administrator >=> fun next ctx -> task {
     return!
         Hash.FromAnonymousObject {|
             page_title = "Upload Theme"
@@ -291,7 +290,7 @@ let loadThemeFromZip themeName file clean (data : IData) = backgroundTask {
 }
 
 // POST /admin/theme/update
-let updateTheme : HttpHandler = fun next ctx -> task {
+let updateTheme : HttpHandler = requireAccess Administrator >=> fun next ctx -> task {
     if ctx.Request.HasFormContentType && ctx.Request.Form.Files.Count > 0 then
         let themeFile = Seq.head ctx.Request.Form.Files
         match getThemeName themeFile.FileName with
@@ -319,17 +318,15 @@ let updateTheme : HttpHandler = fun next ctx -> task {
 open System.Collections.Generic
 
 // GET /admin/settings
-let settings : HttpHandler = fun next ctx -> task {
-    let  webLog   = ctx.WebLog
+let settings : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     let  data     = ctx.Data
-    let! allPages = data.Page.all webLog.id
+    let! allPages = data.Page.all ctx.WebLog.id
     let! themes   = data.Theme.all ()
     return!
         Hash.FromAnonymousObject {|
             page_title = "Web Log Settings"
             csrf       = ctx.CsrfTokenSet
-            web_log    = webLog
-            model      = SettingsModel.fromWebLog webLog
+            model      = SettingsModel.fromWebLog ctx.WebLog
             pages      = seq
                 {   KeyValuePair.Create ("posts", "- First Page of Posts -")
                     yield! allPages
@@ -351,11 +348,10 @@ let settings : HttpHandler = fun next ctx -> task {
 }
 
 // POST /admin/settings
-let saveSettings : HttpHandler = fun next ctx -> task {
-    let  webLog = ctx.WebLog
-    let  data   = ctx.Data
-    let! model  = ctx.BindFormAsync<SettingsModel> ()
-    match! data.WebLog.findById webLog.id with
+let saveSettings : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
+    let  data  = ctx.Data
+    let! model = ctx.BindFormAsync<SettingsModel> ()
+    match! data.WebLog.findById ctx.WebLog.id with
     | Some webLog ->
         let oldSlug = webLog.slug
         let webLog  = model.update webLog

@@ -76,14 +76,14 @@ let private showEdit (hash : Hash) : HttpHandler = fun next ctx -> task {
 }
 
 // GET /admin/user/edit
-let edit : HttpHandler = fun next ctx -> task {
+let edit : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     match! ctx.Data.WebLogUser.findById ctx.UserId ctx.WebLog.id with
     | Some user -> return! showEdit (Hash.FromAnonymousObject {| model = EditUserModel.fromUser user |}) next ctx
     | None -> return! Error.notFound next ctx
 }
 
 // POST /admin/user/save
-let save : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
+let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     let! model = ctx.BindFormAsync<EditUserModel> ()
     if model.newPassword = model.newPasswordConfirm then
         let data = ctx.Data

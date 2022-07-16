@@ -417,23 +417,22 @@ let generate (feedType : FeedType) postCount : HttpHandler = fun next ctx -> bac
 open DotLiquid
 
 // GET: /admin/settings/rss
-let editSettings : HttpHandler = fun next ctx -> task {
-    let webLog = ctx.WebLog
+let editSettings : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     let feeds =
-        webLog.rss.customFeeds
+        ctx.WebLog.rss.customFeeds
         |> List.map (DisplayCustomFeed.fromFeed (CategoryCache.get ctx))
         |> Array.ofList
     return! Hash.FromAnonymousObject {|
             page_title   = "RSS Settings"
             csrf         = ctx.CsrfTokenSet
-            model        = EditRssModel.fromRssOptions webLog.rss
+            model        = EditRssModel.fromRssOptions ctx.WebLog.rss
             custom_feeds = feeds
         |}
         |> viewForTheme "admin" "rss-settings" next ctx
 }
 
 // POST: /admin/settings/rss
-let saveSettings : HttpHandler = fun next ctx -> task {
+let saveSettings : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     let  data  = ctx.Data
     let! model = ctx.BindFormAsync<EditRssModel> ()
     match! data.WebLog.findById ctx.WebLog.id with
@@ -447,7 +446,7 @@ let saveSettings : HttpHandler = fun next ctx -> task {
 }
 
 // GET: /admin/settings/rss/{id}/edit
-let editCustomFeed feedId : HttpHandler = fun next ctx -> task {
+let editCustomFeed feedId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     let customFeed =
         match feedId with
         | "new" -> Some { CustomFeed.empty with id = CustomFeedId "new" }
@@ -475,7 +474,7 @@ let editCustomFeed feedId : HttpHandler = fun next ctx -> task {
 }
 
 // POST: /admin/settings/rss/save
-let saveCustomFeed : HttpHandler = fun next ctx -> task {
+let saveCustomFeed : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     let data = ctx.Data
     match! data.WebLog.findById ctx.WebLog.id with
     | Some webLog ->
@@ -500,7 +499,7 @@ let saveCustomFeed : HttpHandler = fun next ctx -> task {
 }
 
 // POST /admin/settings/rss/{id}/delete
-let deleteCustomFeed feedId : HttpHandler = fun next ctx -> task {
+let deleteCustomFeed feedId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     let data = ctx.Data
     match! data.WebLog.findById ctx.WebLog.id with
     | Some webLog ->

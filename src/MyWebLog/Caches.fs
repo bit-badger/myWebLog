@@ -38,6 +38,12 @@ module Extensions =
                     | None -> Some "generator not configured"
                 generatorString.Value
 
+        /// The access level for the current user
+        member this.UserAccessLevel =
+            this.User.Claims
+            |> Seq.tryFind (fun claim -> claim.Type = ClaimTypes.Role)
+            |> Option.map (fun claim -> AccessLevel.parse claim.Value)
+
         /// The user ID for the current request
         member this.UserId =
             WebLogUserId (this.User.Claims |> Seq.find (fun c -> c.Type = ClaimTypes.NameIdentifier)).Value

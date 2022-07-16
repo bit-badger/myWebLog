@@ -149,6 +149,16 @@ let validateCsrf : HttpHandler = fun next ctx -> task {
 /// Require a user to be logged on
 let requireUser : HttpHandler = requiresAuthentication Error.notAuthorized
 
+/// Require a specific level of access for a route
+let requireAccess level : HttpHandler = fun next ctx ->
+    if defaultArg (ctx.UserAccessLevel |> Option.map (AccessLevel.hasAccess level)) false then next ctx
+    else Error.notAuthorized next ctx
+
+/// Determine if a user is authorized to edit a page or post, given the author        
+let canEdit authorId (ctx : HttpContext) =
+    if ctx.UserId = authorId then true
+    else defaultArg (ctx.UserAccessLevel |> Option.map (AccessLevel.hasAccess Editor)) false
+
 open System.Collections.Generic
 open MyWebLog.Data
 

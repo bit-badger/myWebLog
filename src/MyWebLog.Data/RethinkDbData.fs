@@ -454,6 +454,15 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     return result.Deleted > 0UL
                 }
                 
+                member _.findById postId webLogId =
+                    rethink<Post> {
+                        withTable Table.Post
+                        get postId
+                        without [ "priorPermalinks"; "revisions" ]
+                        resultOption; withRetryOptionDefault
+                    }
+                    |> verifyWebLog webLogId (fun p -> p.webLogId) <| conn
+                
                 member _.findByPermalink permalink webLogId =
                     rethink<Post list> {
                         withTable Table.Post

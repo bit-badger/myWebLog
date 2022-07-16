@@ -85,7 +85,7 @@ open MyWebLog.ViewModels
 let makeSlug it = ((Regex """\s+""").Replace ((Regex "[^A-z0-9 ]").Replace (it, ""), "-")).ToLowerInvariant ()
 
 // GET /admin/uploads
-let list : HttpHandler = fun next ctx -> task {
+let list : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     let  webLog      = ctx.WebLog
     let! dbUploads   = ctx.Data.Upload.findByWebLog webLog.id
     let  diskUploads =
@@ -126,7 +126,7 @@ let list : HttpHandler = fun next ctx -> task {
     }
 
 // GET /admin/upload/new
-let showNew : HttpHandler = fun next ctx -> task {
+let showNew : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     return!
         Hash.FromAnonymousObject {|
             page_title  = "Upload a File"
@@ -141,13 +141,12 @@ let showUploads : HttpHandler =
     redirectToGet "admin/uploads"
 
 // POST /admin/upload/save
-let save : HttpHandler = fun next ctx -> task {
+let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     if ctx.Request.HasFormContentType && ctx.Request.Form.Files.Count > 0 then
         let upload    = Seq.head ctx.Request.Form.Files
         let fileName  = String.Concat (makeSlug (Path.GetFileNameWithoutExtension upload.FileName),
                                        Path.GetExtension(upload.FileName).ToLowerInvariant ())
-        let  webLog   = ctx.WebLog
-        let  localNow = WebLog.localTime webLog DateTime.Now
+        let  localNow = WebLog.localTime ctx.WebLog DateTime.Now
         let  year     = localNow.ToString "yyyy"
         let  month    = localNow.ToString "MM"
         let! form     = ctx.BindFormAsync<UploadFileModel> ()
@@ -158,14 +157,14 @@ let save : HttpHandler = fun next ctx -> task {
             do! upload.CopyToAsync stream
             let file =
                 { id        = UploadId.create ()
-                  webLogId  = webLog.id
+                  webLogId  = ctx.WebLog.id
                   path      = Permalink $"{year}/{month}/{fileName}"
                   updatedOn = DateTime.UtcNow
                   data      = stream.ToArray ()
                 }
             do! ctx.Data.Upload.add file
         | Disk ->
-            let fullPath = Path.Combine (uploadDir, webLog.slug, year, month)
+            let fullPath = Path.Combine (uploadDir, ctx.WebLog.slug, year, month)
             let _        = Directory.CreateDirectory fullPath
             use stream   = new FileStream (Path.Combine (fullPath, fileName), FileMode.Create)
             do! upload.CopyToAsync stream
@@ -177,11 +176,8 @@ let save : HttpHandler = fun next ctx -> task {
 }
 
 // POST /admin/upload/{id}/delete
-let deleteFromDb upId : HttpHandler = fun next ctx -> task {
-    let uploadId = UploadId upId
-    let webLog   = ctx.WebLog
-    let data     = ctx.Data
-    match! data.Upload.delete uploadId webLog.id with
+let deleteFromDb upId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
+    match! ctx.Data.Upload.delete (UploadId upId) ctx.WebLog.id with
     | Ok fileName ->
         do! addMessage ctx { UserMessage.success with message = $"{fileName} deleted successfully" }
         return! showUploads next ctx
@@ -201,7 +197,7 @@ let removeEmptyDirectories (webLog : WebLog) (filePath : string) =
             finished <- true
     
 // POST /admin/upload/delete/{**path}
-let deleteFromDisk urlParts : HttpHandler = fun next ctx -> task {
+let deleteFromDisk urlParts : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     let filePath = urlParts |> Seq.skip 1 |> Seq.head
     let path = Path.Combine (uploadDir, ctx.WebLog.slug, filePath)
     if File.Exists path then

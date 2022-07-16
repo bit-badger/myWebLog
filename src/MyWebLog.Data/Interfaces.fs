@@ -97,6 +97,9 @@ type IPostData =
     /// Delete a post
     abstract member delete : PostId -> WebLogId -> Task<bool>
     
+    /// Find a post by its ID (excluding revisions and prior permalinks)
+    abstract member findById : PostId -> WebLogId -> Task<Post option>
+    
     /// Find a post by its permalink (excluding revisions and prior permalinks)
     abstract member findByPermalink : Permalink -> WebLogId -> Task<Post option>
     

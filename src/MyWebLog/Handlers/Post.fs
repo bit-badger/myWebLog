@@ -99,17 +99,17 @@ open Giraffe
 
 // GET /page/{pageNbr}
 let pageOfPosts pageNbr : HttpHandler = fun next ctx -> task {
-    let  webLog = ctx.WebLog
-    let  data   = ctx.Data
-    let! posts  = data.Post.findPageOfPublishedPosts webLog.id pageNbr webLog.postsPerPage
-    let! hash   = preparePostList webLog posts PostList "" pageNbr webLog.postsPerPage ctx data
-    let  title  =
-        match pageNbr, webLog.defaultPage with
+    let  count = ctx.WebLog.postsPerPage
+    let  data  = ctx.Data
+    let! posts = data.Post.findPageOfPublishedPosts ctx.WebLog.id pageNbr count
+    let! hash  = preparePostList ctx.WebLog posts PostList "" pageNbr count ctx data
+    let  title =
+        match pageNbr, ctx.WebLog.defaultPage with
         | 1, "posts" -> None
         | _, "posts" -> Some $"Page {pageNbr}"
         | _,  _      -> Some $"Page {pageNbr} &laquo; Posts"
     match title with Some ttl -> hash.Add ("page_title", ttl) | None -> ()
-    if pageNbr = 1 && webLog.defaultPage = "posts" then hash.Add ("is_home", true)
+    if pageNbr = 1 && ctx.WebLog.defaultPage = "posts" then hash.Add ("is_home", true)
     return! themedView "index" next ctx hash
 }
 
@@ -209,33 +209,31 @@ let home : HttpHandler = fun next ctx -> task {
 
 // GET /admin/posts
 // GET /admin/posts/page/{pageNbr}
-let all pageNbr : HttpHandler = fun next ctx -> task {
-    let  webLog = ctx.WebLog
-    let  data   = ctx.Data
-    let! posts  = data.Post.findPageOfPosts webLog.id pageNbr 25
-    let! hash   = preparePostList webLog posts AdminList "" pageNbr 25 ctx data
+let all pageNbr : HttpHandler = requireAccess Author >=> fun next ctx -> task {
+    let  data  = ctx.Data
+    let! posts = data.Post.findPageOfPosts ctx.WebLog.id pageNbr 25
+    let! hash  = preparePostList ctx.WebLog posts AdminList "" pageNbr 25 ctx data
     hash.Add ("page_title", "Posts")
     hash.Add ("csrf", ctx.CsrfTokenSet)
     return! viewForTheme "admin" "post-list" next ctx hash
 }
 
 // GET /admin/post/{id}/edit
-let edit postId : HttpHandler = fun next ctx -> task {
-    let  webLog = ctx.WebLog
+let edit postId : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     let  data   = ctx.Data
     let! result = task {
         match postId with
         | "new" -> return Some ("Write a New Post", { Post.empty with id = PostId "new" })
         | _ ->
-            match! data.Post.findFullById (PostId postId) webLog.id with
+            match! data.Post.findFullById (PostId postId) ctx.WebLog.id with
             | Some post -> return Some ("Edit Post", post)
             | None -> return None
     }
     match result with
-    | Some (title, post) ->
-        let! cats      = data.Category.findAllForView webLog.id
+    | Some (title, post) when canEdit post.authorId ctx ->
+        let! cats      = data.Category.findAllForView ctx.WebLog.id
         let! templates = templatesForTheme ctx "post"
-        let  model     = EditPostModel.fromPost webLog post
+        let  model     = EditPostModel.fromPost ctx.WebLog post
         return!
             Hash.FromAnonymousObject {|
                 page_title      = title
@@ -253,22 +251,22 @@ let edit postId : HttpHandler = fun next ctx -> task {
                 |]
             |}
             |> viewForTheme "admin" "post-edit" next ctx
+    | Some _ -> return! Error.notAuthorized next ctx
     | None -> return! Error.notFound next ctx
 }
 
 // POST /admin/post/{id}/delete
-let delete postId : HttpHandler = fun next ctx -> task {
-    let webLog = ctx.WebLog
-    match! ctx.Data.Post.delete (PostId postId) webLog.id with
+let delete postId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
+    match! ctx.Data.Post.delete (PostId postId) ctx.WebLog.id with
     | true  -> do! addMessage ctx { UserMessage.success with message = "Post deleted successfully" }
     | false -> do! addMessage ctx { UserMessage.error with message = "Post not found; nothing deleted" }
     return! redirectToGet "admin/posts" next ctx
 }
 
 // GET /admin/post/{id}/permalinks
-let editPermalinks postId : HttpHandler = fun next ctx -> task {
+let editPermalinks postId : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     match! ctx.Data.Post.findFullById (PostId postId) ctx.WebLog.id with
-    | Some post ->
+    | Some post when canEdit post.authorId ctx ->
         return!
             Hash.FromAnonymousObject {|
                 page_title = "Manage Prior Permalinks"
@@ -276,25 +274,30 @@ let editPermalinks postId : HttpHandler = fun next ctx -> task {
                 model      = ManagePermalinksModel.fromPost post
             |}
             |> viewForTheme "admin" "permalinks" next ctx
+    | Some _ -> return! Error.notAuthorized next ctx
     | None -> return! Error.notFound next ctx
 }
 
 // POST /admin/post/permalinks
-let savePermalinks : HttpHandler = fun next ctx -> task {
-    let  webLog = ctx.WebLog
+let savePermalinks : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     let! model  = ctx.BindFormAsync<ManagePermalinksModel> ()
-    let  links  = model.prior |> Array.map Permalink |> List.ofArray
-    match! ctx.Data.Post.updatePriorPermalinks (PostId model.id) webLog.id links with
-    | true ->
-        do! addMessage ctx { UserMessage.success with message = "Post permalinks saved successfully" }
-        return! redirectToGet $"admin/post/{model.id}/permalinks" next ctx
-    | false -> return! Error.notFound next ctx
+    let  postId = PostId model.id
+    match! ctx.Data.Post.findById postId ctx.WebLog.id with
+    | Some post when canEdit post.authorId ctx ->
+        let  links  = model.prior |> Array.map Permalink |> List.ofArray
+        match! ctx.Data.Post.updatePriorPermalinks (PostId model.id) ctx.WebLog.id links with
+        | true ->
+            do! addMessage ctx { UserMessage.success with message = "Post permalinks saved successfully" }
+            return! redirectToGet $"admin/post/{model.id}/permalinks" next ctx
+        | false -> return! Error.notFound next ctx
+    | Some _ -> return! Error.notAuthorized next ctx
+    | None -> return! Error.notFound next ctx
 }
 
 // GET /admin/post/{id}/revisions
-let editRevisions postId : HttpHandler = fun next ctx -> task {
+let editRevisions postId : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     match! ctx.Data.Post.findFullById (PostId postId) ctx.WebLog.id with
-    | Some post ->
+    | Some post when canEdit post.authorId ctx ->
         return!
             Hash.FromAnonymousObject {|
                 page_title = "Manage Post Revisions"
@@ -302,17 +305,19 @@ let editRevisions postId : HttpHandler = fun next ctx -> task {
                 model      = ManageRevisionsModel.fromPost ctx.WebLog post
             |}
             |> viewForTheme "admin" "revisions" next ctx
+    | Some _ -> return! Error.notAuthorized next ctx
     | None -> return! Error.notFound next ctx
 }
 
 // GET /admin/post/{id}/revisions/purge
-let purgeRevisions postId : HttpHandler = fun next ctx -> task {
+let purgeRevisions postId : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     let data = ctx.Data
     match! data.Post.findFullById (PostId postId) ctx.WebLog.id with
-    | Some post ->
+    | Some post when canEdit post.authorId ctx ->
         do! data.Post.update { post with revisions = [ List.head post.revisions ] }
         do! addMessage ctx { UserMessage.success with message = "Prior revisions purged successfully" }
         return! redirectToGet $"admin/post/{postId}/revisions" next ctx
+    | Some _ -> return! Error.notAuthorized next ctx
     | None -> return! Error.notFound next ctx
 }
 
@@ -328,22 +333,23 @@ let private findPostRevision postId revDate (ctx : HttpContext) = task {
 }
 
 // GET /admin/post/{id}/revision/{revision-date}/preview
-let previewRevision (postId, revDate) : HttpHandler = fun next ctx -> task {
+let previewRevision (postId, revDate) : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     match! findPostRevision postId revDate ctx with
-    | Some _, Some rev ->
+    | Some post, Some rev when canEdit post.authorId ctx ->
         return!
             Hash.FromAnonymousObject {|
                 content = $"""<div class="mwl-revision-preview mb-3">{MarkupText.toHtml rev.text}</div>"""
             |}
             |> bareForTheme "admin" "" next ctx
+    | Some _, Some _ -> return! Error.notAuthorized next ctx
     | None, _
     | _, None -> return! Error.notFound next ctx
 }
 
 // POST /admin/post/{id}/revision/{revision-date}/restore
-let restoreRevision (postId, revDate) : HttpHandler = fun next ctx -> task {
+let restoreRevision (postId, revDate) : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     match! findPostRevision postId revDate ctx with
-    | Some post, Some rev ->
+    | Some post, Some rev when canEdit post.authorId ctx ->
         do! ctx.Data.Post.update
                 { post with
                     revisions = { rev with asOf = DateTime.UtcNow }
@@ -351,17 +357,19 @@ let restoreRevision (postId, revDate) : HttpHandler = fun next ctx -> task {
                 }
         do! addMessage ctx { UserMessage.success with message = "Revision restored successfully" }
         return! redirectToGet $"admin/post/{postId}/revisions" next ctx
+    | Some _, Some _ -> return! Error.notAuthorized next ctx
     | None, _
     | _, None -> return! Error.notFound next ctx
 }
 
 // POST /admin/post/{id}/revision/{revision-date}/delete
-let deleteRevision (postId, revDate) : HttpHandler = fun next ctx -> task {
+let deleteRevision (postId, revDate) : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     match! findPostRevision postId revDate ctx with
-    | Some post, Some rev ->
+    | Some post, Some rev when canEdit post.authorId ctx ->
         do! ctx.Data.Post.update { post with revisions = post.revisions |> List.filter (fun r -> r.asOf <> rev.asOf) }
         do! addMessage ctx { UserMessage.success with message = "Revision deleted successfully" }
         return! bareForTheme "admin" "" next ctx (Hash.FromAnonymousObject {| content = "" |})
+    | Some _, Some _ -> return! Error.notAuthorized next ctx
     | None, _
     | _, None -> return! Error.notFound next ctx
 }
@@ -369,24 +377,23 @@ let deleteRevision (postId, revDate) : HttpHandler = fun next ctx -> task {
 #nowarn "3511"
 
 // POST /admin/post/save
-let save : HttpHandler = fun next ctx -> task {
-    let! model  = ctx.BindFormAsync<EditPostModel> ()
-    let  webLog = ctx.WebLog
-    let  data   = ctx.Data
-    let  now    = DateTime.UtcNow
-    let! pst    = task {
+let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
+    let! model = ctx.BindFormAsync<EditPostModel> ()
+    let  data  = ctx.Data
+    let  now   = DateTime.UtcNow
+    let! pst   = task {
         match model.postId with
         | "new" ->
             return Some
                 { Post.empty with
                     id        = PostId.create ()
-                    webLogId  = webLog.id
+                    webLogId  = ctx.WebLog.id
                     authorId  = ctx.UserId
                 }
-        | postId -> return! data.Post.findFullById (PostId postId) webLog.id
+        | postId -> return! data.Post.findFullById (PostId postId) ctx.WebLog.id
     }
     match pst with
-    | Some post ->
+    | Some post when canEdit post.authorId ctx ->
         let revision = { asOf = now; text = MarkupText.parse $"{model.source}: {model.text}" }
         // Detect a permalink change, and add the prior one to the prior list
         let post =
@@ -418,5 +425,6 @@ let save : HttpHandler = fun next ctx -> task {
             do! CategoryCache.update ctx
         do! addMessage ctx { UserMessage.success with message = "Post saved successfully" }
         return! redirectToGet $"admin/post/{PostId.toString post.id}/edit" next ctx
+    | Some _ -> return! Error.notAuthorized next ctx
     | None -> return! Error.notFound next ctx
 }

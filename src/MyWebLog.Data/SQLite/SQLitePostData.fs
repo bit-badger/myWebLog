@@ -81,6 +81,18 @@ type SQLitePostData (conn : SqliteConnection) =
         return { post with revisions = toList Map.toRevision rdr }
     }
     
+    /// The SELECT statement for a post that will include episode data, if it exists
+    let selectPost = "SELECT p.*, e.* FROM post p LEFT JOIN post_episode e ON e.post_id = p.id"
+    
+    /// Find just-the-post by its ID for the given web log (excludes category, tag, meta, revisions, and permalinks)
+    let findPostById postId webLogId = backgroundTask {
+        use cmd = conn.CreateCommand ()
+        cmd.CommandText <- $"{selectPost} WHERE p.id = @id"
+        cmd.Parameters.AddWithValue ("@id", PostId.toString postId) |> ignore
+        use! rdr = cmd.ExecuteReaderAsync ()
+        return Helpers.verifyWebLog<Post> webLogId (fun p -> p.webLogId) Map.toPost rdr
+    }
+    
     /// Return a post with no revisions, prior permalinks, or text
     let postWithoutText rdr =
         { Map.toPost rdr with text = "" }
@@ -270,9 +282,6 @@ type SQLitePostData (conn : SqliteConnection) =
             |> ignore
     }
     
-    /// The SELECT statement for a post that will include episode data, if it exists
-    let selectPost = "SELECT p.*, e.* FROM post p LEFT JOIN post_episode e ON e.post_id = p.id"
-    
     // IMPLEMENTATION FUNCTIONS
     
     /// Add a post
@@ -303,6 +312,15 @@ type SQLitePostData (conn : SqliteConnection) =
         return! count cmd
     }
     
+    /// Find a post by its ID for the given web log (excluding revisions and prior permalinks
+    let findById postId webLogId = backgroundTask {
+        match! findPostById postId webLogId with
+        | Some post ->
+            let! post = appendPostCategoryTagAndMeta post
+            return Some post
+        | None -> return None
+    }
+    
     /// Find a post by its permalink for the given web log (excluding revisions and prior permalinks)
     let findByPermalink permalink webLogId = backgroundTask {
         use cmd = conn.CreateCommand ()
@@ -319,17 +337,11 @@ type SQLitePostData (conn : SqliteConnection) =
     
     /// Find a complete post by its ID for the given web log
     let findFullById postId webLogId = backgroundTask {
-        use cmd = conn.CreateCommand ()
-        cmd.CommandText <- $"{selectPost} WHERE p.id = @id"
-        cmd.Parameters.AddWithValue ("@id", PostId.toString postId) |> ignore
-        use! rdr = cmd.ExecuteReaderAsync ()
-        match Helpers.verifyWebLog<Post> webLogId (fun p -> p.webLogId) Map.toPost rdr with
+        match! findById postId webLogId with
         | Some post ->
-            let! post = appendPostCategoryTagAndMeta     post
             let! post = appendPostRevisionsAndPermalinks post
             return Some post
-        | None ->
-            return None
+        | None -> return None
     }
     
     /// Delete a post by its ID for the given web log
@@ -562,6 +574,7 @@ type SQLitePostData (conn : SqliteConnection) =
         member _.add post = add post
         member _.countByStatus status webLogId = countByStatus status webLogId
         member _.delete postId webLogId = delete postId webLogId
+        member _.findById postId webLogId = findById postId webLogId
         member _.findByPermalink permalink webLogId = findByPermalink permalink webLogId
         member _.findCurrentPermalink permalinks webLogId = findCurrentPermalink permalinks webLogId
         member _.findFullById postId webLogId = findFullById postId webLogId
