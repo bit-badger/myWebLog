@@ -39,10 +39,10 @@ let dashboard : HttpHandler = fun next ctx -> task {
 let listCategories : HttpHandler = fun next ctx -> task {
     let! catListTemplate = TemplateCache.get "admin" "category-list-body" ctx.Data
     let hash = Hash.FromAnonymousObject {|
+        page_title = "Categories"
+        csrf       = ctx.CsrfTokenSet
         web_log    = ctx.WebLog
         categories = CategoryCache.get ctx
-        page_title = "Categories"
-        csrf       = csrfToken ctx
     |}
     hash.Add ("category_list", catListTemplate.Render hash)
     return! viewForTheme "admin" "category-list" next ctx hash
@@ -53,7 +53,7 @@ let listCategoriesBare : HttpHandler = fun next ctx -> task {
     return!
         Hash.FromAnonymousObject {|
             categories = CategoryCache.get ctx
-            csrf       = csrfToken ctx
+            csrf       = ctx.CsrfTokenSet
         |}
         |> bareForTheme "admin" "category-list-body" next ctx
 }
@@ -73,9 +73,9 @@ let editCategory catId : HttpHandler = fun next ctx -> task {
     | Some (title, cat) ->
         return!
             Hash.FromAnonymousObject {|
-                csrf       = csrfToken ctx
-                model      = EditCategoryModel.fromCategory cat
                 page_title = title
+                csrf       = ctx.CsrfTokenSet
+                model      = EditCategoryModel.fromCategory cat
                 categories = CategoryCache.get ctx
             |}
             |> bareForTheme "admin" "category-edit" next ctx
@@ -127,9 +127,9 @@ let listPages pageNbr : HttpHandler = fun next ctx -> task {
     let! pages  = ctx.Data.Page.findPageOfPages webLog.id pageNbr
     return!
         Hash.FromAnonymousObject {|
-            csrf       = csrfToken ctx
-            pages      = pages |> List.map (DisplayPage.fromPageMinimal webLog)
             page_title = "Pages"
+            csrf       = ctx.CsrfTokenSet
+            pages      = pages |> List.map (DisplayPage.fromPageMinimal webLog)
             page_nbr   = pageNbr
             prev_page  = if pageNbr = 2 then "" else $"/page/{pageNbr - 1}"
             next_page  = $"/page/{pageNbr + 1}"
@@ -153,15 +153,26 @@ let editPage pgId : HttpHandler = fun next ctx -> task {
         let! templates = templatesForTheme ctx "page"
         return!
             Hash.FromAnonymousObject {|
-                csrf       = csrfToken ctx
+                page_title = title
+                csrf       = ctx.CsrfTokenSet
                 model      = model
                 metadata   = Array.zip model.metaNames model.metaValues
                              |> Array.mapi (fun idx (name, value) -> [| string idx; name; value |])
-                page_title = title
                 templates  = templates
             |}
             |> viewForTheme "admin" "page-edit" next ctx
     | None -> return! Error.notFound next ctx
+}
+
+// POST /admin/page/{id}/delete
+let deletePage pgId : HttpHandler = fun next ctx -> task {
+    let webLog = ctx.WebLog
+    match! ctx.Data.Page.delete (PageId pgId) webLog.id with
+    | true ->
+        do! PageListCache.update ctx
+        do! addMessage ctx { UserMessage.success with message = "Page deleted successfully" }
+    | false -> do! addMessage ctx { UserMessage.error with message = "Page not found; nothing deleted" }
+    return! redirectToGet "admin/pages" next ctx
 }
 
 // GET /admin/page/{id}/permalinks
@@ -170,9 +181,9 @@ let editPagePermalinks pgId : HttpHandler = fun next ctx -> task {
     | Some pg ->
         return!
             Hash.FromAnonymousObject {|
-                csrf       = csrfToken ctx
+                page_title = "Manage Prior Permalinks"
+                csrf       = ctx.CsrfTokenSet
                 model      = ManagePermalinksModel.fromPage pg
-                page_title = $"Manage Prior Permalinks"
             |}
             |> viewForTheme "admin" "permalinks" next ctx
     | None -> return! Error.notFound next ctx
@@ -186,7 +197,7 @@ let savePagePermalinks : HttpHandler = fun next ctx -> task {
     match! ctx.Data.Page.updatePriorPermalinks (PageId model.id) webLog.id links with
     | true ->
         do! addMessage ctx { UserMessage.success with message = "Page permalinks saved successfully" }
-        return! redirectToGet (WebLog.relativeUrl webLog (Permalink $"admin/page/{model.id}/permalinks")) next ctx
+        return! redirectToGet $"admin/page/{model.id}/permalinks" next ctx
     | false -> return! Error.notFound next ctx
 }
 
@@ -197,26 +208,73 @@ let editPageRevisions pgId : HttpHandler = fun next ctx -> task {
     | Some pg ->
         return!
             Hash.FromAnonymousObject {|
-                csrf       = csrfToken ctx
+                page_title = "Manage Page Revisions"
+                csrf       = ctx.CsrfTokenSet
                 model      = ManageRevisionsModel.fromPage webLog pg
-                page_title = $"Manage Page Permalinks"
             |}
             |> viewForTheme "admin" "revisions" next ctx
     | None -> return! Error.notFound next ctx
 }
 
-// POST /admin/page/{id}/delete
-let deletePage pgId : HttpHandler = fun next ctx -> task {
+// GET /admin/page/{id}/revisions/purge
+let purgePageRevisions pgId : HttpHandler = fun next ctx -> task {
     let webLog = ctx.WebLog
-    match! ctx.Data.Page.delete (PageId pgId) webLog.id with
-    | true ->
-        do! PageListCache.update ctx
-        do! addMessage ctx { UserMessage.success with message = "Page deleted successfully" }
-    | false -> do! addMessage ctx { UserMessage.error with message = "Page not found; nothing deleted" }
-    return! redirectToGet (WebLog.relativeUrl webLog (Permalink "admin/pages")) next ctx
+    let data   = ctx.Data
+    match! data.Page.findFullById (PageId pgId) webLog.id with
+    | Some pg ->
+        do! data.Page.update { pg with revisions = [ List.head pg.revisions ] }
+        do! addMessage ctx { UserMessage.success with message = "Prior revisions purged successfully" }
+        return! redirectToGet $"admin/page/{pgId}/revisions" next ctx
+    | None -> return! Error.notFound next ctx
+}
+
+open Microsoft.AspNetCore.Http
+
+/// Find the page and the requested revision
+let private findPageRevision pgId revDate (ctx : HttpContext) = task {
+    match! ctx.Data.Page.findFullById (PageId pgId) ctx.WebLog.id with
+    | Some pg ->
+        let asOf = parseToUtc revDate
+        return Some pg, pg.revisions |> List.tryFind (fun r -> r.asOf = asOf)
+    | None -> return None, None
+}
+
+// GET /admin/page/{id}/revision/{revision-date}/preview
+let previewPageRevision (pgId, revDate) : HttpHandler = fun next ctx -> task {
+    match! findPageRevision pgId revDate ctx with
+    | Some _, Some rev ->
+        return! bareForTheme "admin" "" next ctx (Hash.FromAnonymousObject {| content = MarkupText.toHtml rev.text |})
+    | None, _
+    | _, None -> return! Error.notFound next ctx
 }
 
 open System
+
+// POST /admin/page/{id}/revision/{revision-date}/restore
+let restorePageRevision (pgId, revDate) : HttpHandler = fun next ctx -> task {
+    match! findPageRevision pgId revDate ctx with
+    | Some pg, Some rev ->
+        do! ctx.Data.Page.update
+                { pg with
+                    revisions = { rev with asOf = DateTime.UtcNow }
+                                  :: (pg.revisions |> List.filter (fun r -> r.asOf <> rev.asOf))
+                }
+        do! addMessage ctx { UserMessage.success with message = "Revision restored successfully" }
+        return! redirectToGet $"admin/page/{pgId}/revisions" next ctx
+    | None, _
+    | _, None -> return! Error.notFound next ctx
+}
+
+// POST /admin/page/{id}/revision/{revision-date}/delete
+let deletePageRevision (pgId, revDate) : HttpHandler = fun next ctx -> task {
+    match! findPageRevision pgId revDate ctx with
+    | Some pg, Some rev ->
+        do! ctx.Data.Page.update { pg with revisions = pg.revisions |> List.filter (fun r -> r.asOf <> rev.asOf) }
+        do! addMessage ctx { UserMessage.success with message = "Revision deleted successfully" }
+        return! bareForTheme "admin" "" next ctx (Hash.FromAnonymousObject {| content = "" |})
+    | None, _
+    | _, None -> return! Error.notFound next ctx
+}
 
 #nowarn "3511"
 
@@ -233,7 +291,7 @@ let savePage : HttpHandler = fun next ctx -> task {
                 { Page.empty with
                     id          = PageId.create ()
                     webLogId    = webLog.id
-                    authorId    = userId ctx
+                    authorId    = ctx.UserId
                     publishedOn = now
                 }
         | pgId -> return! data.Page.findFullById (PageId pgId) webLog.id
@@ -268,21 +326,18 @@ let savePage : HttpHandler = fun next ctx -> task {
         do! (if model.pageId = "new" then data.Page.add else data.Page.update) page
         if updateList then do! PageListCache.update ctx
         do! addMessage ctx { UserMessage.success with message = "Page saved successfully" }
-        return!
-            redirectToGet (WebLog.relativeUrl webLog (Permalink $"admin/page/{PageId.toString page.id}/edit")) next ctx
+        return! redirectToGet $"admin/page/{PageId.toString page.id}/edit" next ctx
     | None -> return! Error.notFound next ctx
 }
 
 // -- TAG MAPPINGS --
 
-open Microsoft.AspNetCore.Http
-
 /// Get the hash necessary to render the tag mapping list
 let private tagMappingHash (ctx : HttpContext) = task {
     let! mappings = ctx.Data.TagMap.findByWebLog ctx.WebLog.id
     return Hash.FromAnonymousObject {|
+        csrf        = ctx.CsrfTokenSet
         web_log     = ctx.WebLog
-        csrf        = csrfToken ctx
         mappings    = mappings
         mapping_ids = mappings |> List.map (fun it -> { name = it.tag; value = TagMapId.toString it.id })
     |}
@@ -317,9 +372,9 @@ let editMapping tagMapId : HttpHandler = fun next ctx -> task {
     | Some tm ->
         return!
             Hash.FromAnonymousObject {|
-                csrf       = csrfToken ctx
-                model      = EditTagMapModel.fromMapping tm
                 page_title = if isNew then "Add Tag Mapping" else $"Mapping for {tm.tag} Tag" 
+                csrf       = ctx.CsrfTokenSet
+                model      = EditTagMapModel.fromMapping tm
             |}
             |> bareForTheme "admin" "tag-mapping-edit" next ctx
     | None -> return! Error.notFound next ctx
@@ -361,8 +416,8 @@ open MyWebLog.Data
 let themeUpdatePage : HttpHandler = fun next ctx -> task {
     return!
         Hash.FromAnonymousObject {|
-            csrf       = csrfToken ctx
             page_title = "Upload Theme"
+            csrf       = ctx.CsrfTokenSet
         |}
         |> viewForTheme "admin" "upload-theme" next ctx
 }
@@ -457,13 +512,13 @@ let updateTheme : HttpHandler = fun next ctx -> task {
             do! ThemeAssetCache.refreshTheme (ThemeId themeName) data
             TemplateCache.invalidateTheme themeName
             do! addMessage ctx { UserMessage.success with message = "Theme updated successfully" }
-            return! redirectToGet (WebLog.relativeUrl ctx.WebLog (Permalink "admin/dashboard")) next ctx
+            return! redirectToGet "admin/dashboard" next ctx
         | Ok _ ->
             do! addMessage ctx { UserMessage.error with message = "You may not replace the admin theme" }
-            return! redirectToGet (WebLog.relativeUrl ctx.WebLog (Permalink "admin/theme/update")) next ctx
+            return! redirectToGet "admin/theme/update" next ctx
         | Error message ->
             do! addMessage ctx { UserMessage.error with message = message }
-            return! redirectToGet (WebLog.relativeUrl ctx.WebLog (Permalink "admin/theme/update")) next ctx
+            return! redirectToGet "admin/theme/update" next ctx
     else
         return! RequestErrors.BAD_REQUEST "Bad request" next ctx
 }
@@ -480,11 +535,12 @@ let settings : HttpHandler = fun next ctx -> task {
     let! themes   = data.Theme.all ()
     return!
         Hash.FromAnonymousObject {|
-            csrf  = csrfToken ctx
-            model = SettingsModel.fromWebLog webLog
-            pages =
-                seq {
-                    KeyValuePair.Create ("posts", "- First Page of Posts -")
+            page_title = "Web Log Settings"
+            csrf       = ctx.CsrfTokenSet
+            web_log    = webLog
+            model      = SettingsModel.fromWebLog webLog
+            pages      = seq
+                {   KeyValuePair.Create ("posts", "- First Page of Posts -")
                     yield! allPages
                            |> List.sortBy (fun p -> p.title.ToLower ())
                            |> List.map (fun p -> KeyValuePair.Create (PageId.toString p.id, p.title))
@@ -495,12 +551,10 @@ let settings : HttpHandler = fun next ctx -> task {
                  |> Seq.ofList
                  |> Seq.map (fun it -> KeyValuePair.Create (ThemeId.toString it.id, $"{it.name} (v{it.version})"))
                  |> Array.ofSeq
-            upload_values =
-                [|  KeyValuePair.Create (UploadDestination.toString Database, "Database")
+            upload_values = [|
+                    KeyValuePair.Create (UploadDestination.toString Database, "Database")
                     KeyValuePair.Create (UploadDestination.toString Disk,     "Disk")
                 |]
-            web_log    = webLog
-            page_title = "Web Log Settings"
         |}
         |> viewForTheme "admin" "settings" next ctx
 }
@@ -526,6 +580,6 @@ let saveSettings : HttpHandler = fun next ctx -> task {
             if Directory.Exists oldDir then Directory.Move (oldDir, Path.Combine (uploadRoot, webLog.slug))
     
         do! addMessage ctx { UserMessage.success with message = "Web log settings saved successfully" }
-        return! redirectToGet (WebLog.relativeUrl webLog (Permalink "admin/settings")) next ctx
+        return! redirectToGet "admin/settings" next ctx
     | None -> return! Error.notFound next ctx
 }

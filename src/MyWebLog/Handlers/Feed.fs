@@ -423,9 +423,9 @@ let editSettings : HttpHandler = fun next ctx -> task {
         webLog.rss.customFeeds
         |> List.map (DisplayCustomFeed.fromFeed (CategoryCache.get ctx))
         |> Array.ofList
-    return! Hash.FromAnonymousObject
-        {|  csrf         = csrfToken ctx
+    return! Hash.FromAnonymousObject {|
             page_title   = "RSS Settings"
+            csrf         = ctx.CsrfTokenSet
             model        = EditRssModel.fromRssOptions webLog.rss
             custom_feeds = feeds
         |}
@@ -442,7 +442,7 @@ let saveSettings : HttpHandler = fun next ctx -> task {
         do! data.WebLog.updateRssOptions webLog
         WebLogCache.set webLog
         do! addMessage ctx { UserMessage.success with message = "RSS settings updated successfully" }
-        return! redirectToGet (WebLog.relativeUrl webLog (Permalink "admin/settings/rss")) next ctx
+        return! redirectToGet "admin/settings/rss" next ctx
     | None -> return! Error.notFound next ctx
 }
 
@@ -454,9 +454,9 @@ let editCustomFeed feedId : HttpHandler = fun next ctx -> task {
         | _     -> ctx.WebLog.rss.customFeeds |> List.tryFind (fun f -> f.id = CustomFeedId feedId)
     match customFeed with
     | Some f ->
-        return! Hash.FromAnonymousObject
-            {|  csrf          = csrfToken ctx
+        return! Hash.FromAnonymousObject {|
                 page_title    = $"""{if feedId = "new" then "Add" else "Edit"} Custom RSS Feed"""
+                csrf          = ctx.CsrfTokenSet
                 model         = EditCustomFeedModel.fromFeed f
                 categories    = CategoryCache.get ctx
                 medium_values = [|
@@ -494,8 +494,7 @@ let saveCustomFeed : HttpHandler = fun next ctx -> task {
                 UserMessage.success with
                   message = $"""Successfully {if model.id = "new" then "add" else "sav"}ed custom feed"""
             }
-            let nextUrl = $"admin/settings/rss/{CustomFeedId.toString feed.id}/edit" 
-            return! redirectToGet (WebLog.relativeUrl webLog (Permalink nextUrl)) next ctx
+            return! redirectToGet $"admin/settings/rss/{CustomFeedId.toString feed.id}/edit" next ctx
         | None -> return! Error.notFound next ctx
     | None -> return! Error.notFound next ctx
 }
@@ -519,6 +518,6 @@ let deleteCustomFeed feedId : HttpHandler = fun next ctx -> task {
             do! addMessage ctx { UserMessage.success with message = "Custom feed deleted successfully" }
         else
             do! addMessage ctx { UserMessage.warning with message = "Custom feed not found; no action taken" }
-        return! redirectToGet (WebLog.relativeUrl webLog (Permalink "admin/settings/rss")) next ctx
+        return! redirectToGet "admin/settings/rss" next ctx
     | None -> return! Error.notFound next ctx
 }

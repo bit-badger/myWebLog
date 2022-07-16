@@ -198,9 +198,9 @@ let home : HttpHandler = fun next ctx -> task {
         | Some page ->
             return!
                 Hash.FromAnonymousObject {|
+                    page_title = page.title
                     page       = DisplayPage.fromPage webLog page
                     categories = CategoryCache.get ctx
-                    page_title = page.title
                     is_home    = true
                 |}
                 |> themedView (defaultArg page.template "single-page") next ctx
@@ -215,7 +215,7 @@ let all pageNbr : HttpHandler = fun next ctx -> task {
     let! posts  = data.Post.findPageOfPosts webLog.id pageNbr 25
     let! hash   = preparePostList webLog posts AdminList "" pageNbr 25 ctx data
     hash.Add ("page_title", "Posts")
-    hash.Add ("csrf", csrfToken ctx)
+    hash.Add ("csrf", ctx.CsrfTokenSet)
     return! viewForTheme "admin" "post-list" next ctx hash
 }
 
@@ -238,11 +238,11 @@ let edit postId : HttpHandler = fun next ctx -> task {
         let  model     = EditPostModel.fromPost webLog post
         return!
             Hash.FromAnonymousObject {|
-                csrf            = csrfToken ctx
+                page_title      = title
+                csrf            = ctx.CsrfTokenSet
                 model           = model
                 metadata        = Array.zip model.metaNames model.metaValues
                                   |> Array.mapi (fun idx (name, value) -> [| string idx; name; value |])
-                page_title      = title
                 templates       = templates
                 categories      = cats
                 explicit_values = [|
@@ -262,9 +262,9 @@ let editPermalinks postId : HttpHandler = fun next ctx -> task {
     | Some post ->
         return!
             Hash.FromAnonymousObject {|
-                csrf       = csrfToken ctx
+                page_title = "Manage Prior Permalinks"
+                csrf       = ctx.CsrfTokenSet
                 model      = ManagePermalinksModel.fromPost post
-                page_title = $"Manage Prior Permalinks"
             |}
             |> viewForTheme "admin" "permalinks" next ctx
     | None -> return! Error.notFound next ctx
@@ -278,7 +278,7 @@ let savePermalinks : HttpHandler = fun next ctx -> task {
     match! ctx.Data.Post.updatePriorPermalinks (PostId model.id) webLog.id links with
     | true ->
         do! addMessage ctx { UserMessage.success with message = "Post permalinks saved successfully" }
-        return! redirectToGet (WebLog.relativeUrl webLog (Permalink $"admin/post/{model.id}/permalinks")) next ctx
+        return! redirectToGet $"admin/post/{model.id}/permalinks" next ctx
     | false -> return! Error.notFound next ctx
 }
 
@@ -288,7 +288,7 @@ let delete postId : HttpHandler = fun next ctx -> task {
     match! ctx.Data.Post.delete (PostId postId) webLog.id with
     | true  -> do! addMessage ctx { UserMessage.success with message = "Post deleted successfully" }
     | false -> do! addMessage ctx { UserMessage.error with message = "Post not found; nothing deleted" }
-    return! redirectToGet (WebLog.relativeUrl webLog (Permalink "admin/posts")) next ctx
+    return! redirectToGet "admin/posts" next ctx
 }
 
 #nowarn "3511"
@@ -306,7 +306,7 @@ let save : HttpHandler = fun next ctx -> task {
                 { Post.empty with
                     id        = PostId.create ()
                     webLogId  = webLog.id
-                    authorId  = userId ctx
+                    authorId  = ctx.UserId
                 }
         | postId -> return! data.Post.findFullById (PostId postId) webLog.id
     }
@@ -323,7 +323,7 @@ let save : HttpHandler = fun next ctx -> task {
         let post =
             match model.setPublished with
             | true ->
-                let dt = WebLog.utcTime webLog model.pubOverride.Value
+                let dt = parseToUtc (model.pubOverride.Value.ToString "o")
                 match model.setUpdated with
                 | true ->
                     { post with
@@ -342,7 +342,6 @@ let save : HttpHandler = fun next ctx -> task {
                    |> List.length = List.length pst.Value.categoryIds) then
             do! CategoryCache.update ctx
         do! addMessage ctx { UserMessage.success with message = "Post saved successfully" }
-        return!
-            redirectToGet (WebLog.relativeUrl webLog (Permalink $"admin/post/{PostId.toString post.id}/edit")) next ctx
+        return! redirectToGet $"admin/post/{PostId.toString post.id}/edit" next ctx
     | None -> return! Error.notFound next ctx
 }

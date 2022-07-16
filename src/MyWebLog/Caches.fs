@@ -7,16 +7,29 @@ open MyWebLog.Data
 [<AutoOpen>]
 module Extensions =
     
+    open System.Security.Claims
+    open Microsoft.AspNetCore.Antiforgery
     open Microsoft.Extensions.DependencyInjection
     
     type HttpContext with
-        /// The web log for the current request
-        member this.WebLog = this.Items["webLog"] :?> WebLog
         
+        /// The anti-CSRF service
+        member this.AntiForgery = this.RequestServices.GetRequiredService<IAntiforgery> ()
+        
+        /// The cross-site request forgery token set for this request
+        member this.CsrfTokenSet = this.AntiForgery.GetAndStoreTokens this
+
         /// The data implementation
         member this.Data = this.RequestServices.GetRequiredService<IData> ()
-
         
+        /// The user ID for the current request
+        member this.UserId =
+            WebLogUserId (this.User.Claims |> Seq.find (fun c -> c.Type = ClaimTypes.NameIdentifier)).Value
+
+        /// The web log for the current request
+        member this.WebLog = this.Items["webLog"] :?> WebLog
+
+
 open System.Collections.Concurrent
 
 /// <summary>

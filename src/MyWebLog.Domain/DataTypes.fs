@@ -405,11 +405,6 @@ module WebLog =
         TimeZoneInfo.ConvertTimeFromUtc
             (DateTime (date.Ticks, DateTimeKind.Utc), TimeZoneInfo.FindSystemTimeZoneById webLog.timeZone) 
 
-    /// Convert a date/time in the web log's local date/time to UTC
-    let utcTime webLog (date : DateTime) =
-        TimeZoneInfo.ConvertTimeToUtc
-            (DateTime (date.Ticks, DateTimeKind.Unspecified), TimeZoneInfo.FindSystemTimeZoneById webLog.timeZone)
-
 
 /// A user of the web log
 [<CLIMutable; NoComparison; NoEquality>]

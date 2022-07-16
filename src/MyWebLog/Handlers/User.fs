@@ -13,6 +13,7 @@ let hashedPassword (plainText : string) (email : string) (salt : Guid) =
 
 open DotLiquid
 open Giraffe
+open MyWebLog
 open MyWebLog.ViewModels
 
 // GET /user/log-on
@@ -26,9 +27,9 @@ let logOn returnUrl : HttpHandler = fun next ctx -> task {
             | false -> None
     return!
         Hash.FromAnonymousObject {|
-            model      = { LogOnModel.empty with returnTo = returnTo }
             page_title = "Log On"
-            csrf       = csrfToken ctx
+            csrf       = ctx.CsrfTokenSet
+            model      = { LogOnModel.empty with returnTo = returnTo }
         |}
         |> viewForTheme "admin" "log-on" next ctx
 }
@@ -36,7 +37,6 @@ let logOn returnUrl : HttpHandler = fun next ctx -> task {
 open System.Security.Claims
 open Microsoft.AspNetCore.Authentication
 open Microsoft.AspNetCore.Authentication.Cookies
-open MyWebLog
 
 // POST /user/log-on
 let doLogOn : HttpHandler = fun next ctx -> task {
@@ -56,8 +56,7 @@ let doLogOn : HttpHandler = fun next ctx -> task {
             AuthenticationProperties (IssuedUtc = DateTimeOffset.UtcNow))
         do! addMessage ctx
                 { UserMessage.success with message = $"Logged on successfully | Welcome to {webLog.name}!" }
-        return! redirectToGet (defaultArg model.returnTo (WebLog.relativeUrl webLog (Permalink "admin/dashboard")))
-                    next ctx
+        return! redirectToGet (defaultArg model.returnTo "admin/dashboard") next ctx
     | _ ->
         do! addMessage ctx { UserMessage.error with message = "Log on attempt unsuccessful" }
         return! logOn model.returnTo next ctx
@@ -67,19 +66,19 @@ let doLogOn : HttpHandler = fun next ctx -> task {
 let logOff : HttpHandler = fun next ctx -> task {
     do! ctx.SignOutAsync CookieAuthenticationDefaults.AuthenticationScheme
     do! addMessage ctx { UserMessage.info with message = "Log off successful" }
-    return! redirectToGet (WebLog.relativeUrl ctx.WebLog Permalink.empty) next ctx
+    return! redirectToGet "" next ctx
 }
 
 /// Display the user edit page, with information possibly filled in
 let private showEdit (hash : Hash) : HttpHandler = fun next ctx -> task {
     hash.Add ("page_title", "Edit Your Information")
-    hash.Add ("csrf", csrfToken ctx)
+    hash.Add ("csrf", ctx.CsrfTokenSet)
     return! viewForTheme "admin" "user-edit" next ctx hash
 }
 
 // GET /admin/user/edit
 let edit : HttpHandler = fun next ctx -> task {
-    match! ctx.Data.WebLogUser.findById (userId ctx) ctx.WebLog.id with
+    match! ctx.Data.WebLogUser.findById ctx.UserId ctx.WebLog.id with
     | Some user -> return! showEdit (Hash.FromAnonymousObject {| model = EditUserModel.fromUser user |}) next ctx
     | None -> return! Error.notFound next ctx
 }
@@ -89,7 +88,7 @@ let save : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
     let! model = ctx.BindFormAsync<EditUserModel> ()
     if model.newPassword = model.newPasswordConfirm then
         let data = ctx.Data
-        match! data.WebLogUser.findById (userId ctx) ctx.WebLog.id with
+        match! data.WebLogUser.findById ctx.UserId ctx.WebLog.id with
         | Some user ->
             let pw, salt =
                 if model.newPassword = "" then
@@ -108,7 +107,7 @@ let save : HttpHandler = requireUser >=> validateCsrf >=> fun next ctx -> task {
             do! data.WebLogUser.update user
             let pwMsg = if model.newPassword = "" then "" else " and updated your password"
             do! addMessage ctx { UserMessage.success with message = $"Saved your information{pwMsg} successfully" }
-            return! redirectToGet (WebLog.relativeUrl ctx.WebLog (Permalink "admin/user/edit")) next ctx
+            return! redirectToGet "admin/user/edit" next ctx
         | None -> return! Error.notFound next ctx
     else
         do! addMessage ctx { UserMessage.error with message = "Passwords did not match; no updates made" }

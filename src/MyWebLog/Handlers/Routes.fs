@@ -40,9 +40,9 @@ module CatchAll =
                 debug (fun () -> $"Found page by permalink")
                 yield fun next ctx ->
                     Hash.FromAnonymousObject {|
+                        page_title = page.title
                         page       = DisplayPage.fromPage webLog page
                         categories = CategoryCache.get ctx
-                        page_title = page.title
                         is_page    = true
                     |}
                     |> themedView (defaultArg page.template "single-page") next ctx
@@ -119,10 +119,12 @@ let router : HttpHandler = choose [
             ])
             route    "/dashboard" >=> Admin.dashboard
             subRoute "/page" (choose [
-                route  "s"              >=> Admin.listPages 1
-                routef "s/page/%i"          Admin.listPages
-                routef "/%s/edit"           Admin.editPage
-                routef "/%s/permalinks"     Admin.editPagePermalinks
+                route  "s"                       >=> Admin.listPages 1
+                routef "s/page/%i"                   Admin.listPages
+                routef "/%s/edit"                    Admin.editPage
+                routef "/%s/permalinks"              Admin.editPagePermalinks
+                routef "/%s/revision/%s/preview"     Admin.previewPageRevision
+                routef "/%s/revisions"               Admin.editPageRevisions
             ])
             subRoute "/post" (choose [
                 route  "s"              >=> Post.all 1
@@ -155,9 +157,12 @@ let router : HttpHandler = choose [
                 routef "/%s/delete"     Admin.deleteCategory
             ])
             subRoute "/page" (choose [
-                route  "/save"       >=> Admin.savePage
-                route  "/permalinks" >=> Admin.savePagePermalinks
-                routef "/%s/delete"      Admin.deletePage
+                route  "/save"                   >=> Admin.savePage
+                route  "/permalinks"             >=> Admin.savePagePermalinks
+                routef "/%s/delete"                  Admin.deletePage
+                routef "/%s/revision/%s/delete"      Admin.deletePageRevision
+                routef "/%s/revision/%s/restore"     Admin.restorePageRevision
+                routef "/%s/revisions/purge"         Admin.purgePageRevisions
             ])
             subRoute "/post" (choose [
                 route  "/save"       >=> Post.save

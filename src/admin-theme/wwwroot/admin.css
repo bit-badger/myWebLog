@@ -85,3 +85,6 @@ a.text-danger:link:hover, a.text-danger:visited:hover {
   background-color: var(--light-accent);
   color: var(--dark-gray);
 }
+.mwl-revision-preview {
+  max-height: 90vh;
+}

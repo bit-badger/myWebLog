@@ -101,7 +101,7 @@ let private populateHash hash ctx = task {
 }
 
 /// Render a view for the specified theme, using the specified template, layout, and hash
-let viewForTheme theme template next ctx = fun (hash : Hash) -> task {
+let viewForTheme theme template next ctx (hash : Hash) = task {
     do! populateHash hash ctx
     
     // NOTE: DotLiquid does not support {% render %} or {% include %} in its templates, so we will do a 2-pass render;
@@ -119,13 +119,14 @@ let viewForTheme theme template next ctx = fun (hash : Hash) -> task {
 }
 
 /// Render a bare view for the specified theme, using the specified template and hash
-let bareForTheme theme template next ctx = fun (hash : Hash) -> task {
+let bareForTheme theme template next ctx (hash : Hash) = task {
     do! populateHash hash ctx
     
-    // Bare templates are rendered with layout-bare
-    let! contentTemplate = TemplateCache.get theme template ctx.Data
-    hash.Add ("content", contentTemplate.Render hash)
+    if not (hash.ContainsKey "content") then
+        let! contentTemplate = TemplateCache.get theme template ctx.Data
+        hash.Add ("content", contentTemplate.Render hash)
     
+    // Bare templates are rendered with layout-bare
     let! layoutTemplate = TemplateCache.get theme "layout-bare" ctx.Data
     
     // add messages as HTTP headers
@@ -146,36 +147,21 @@ let bareForTheme theme template next ctx = fun (hash : Hash) -> task {
 }
 
 /// Return a view for the web log's default theme
-let themedView template next ctx = fun (hash : Hash) -> task {
-    return! viewForTheme (deriveWebLogFromHash hash ctx).themePath template next ctx hash
-}
+let themedView template next ctx hash =
+    viewForTheme (deriveWebLogFromHash hash ctx).themePath template next ctx hash
+
 
 /// Redirect after doing some action; commits session and issues a temporary redirect
-let redirectToGet url : HttpHandler = fun next ctx -> task {
+let redirectToGet url : HttpHandler = fun _ ctx -> task {
     do! commitSession ctx
-    return! redirectTo false url next ctx
+    return! redirectTo false (WebLog.relativeUrl ctx.WebLog (Permalink url)) earlyReturn ctx
 }
-
-open System.Security.Claims
-
-/// Get the user ID for the current request
-let userId (ctx : HttpContext) =
-    WebLogUserId (ctx.User.Claims |> Seq.find (fun c -> c.Type = ClaimTypes.NameIdentifier)).Value
-
-open Microsoft.AspNetCore.Antiforgery
-
-/// Get the Anti-CSRF service
-let private antiForgery (ctx : HttpContext) = ctx.RequestServices.GetRequiredService<IAntiforgery> ()
-
-/// Get the cross-site request forgery token set
-let csrfToken (ctx : HttpContext) =
-    (antiForgery ctx).GetAndStoreTokens ctx
 
 /// Validate the cross-site request forgery token in the current request
 let validateCsrf : HttpHandler = fun next ctx -> task {
-    match! (antiForgery ctx).IsRequestValidAsync ctx with
+    match! ctx.AntiForgery.IsRequestValidAsync ctx with
     | true -> return! next ctx
-    | false -> return! RequestErrors.BAD_REQUEST "CSRF token invalid" next ctx
+    | false -> return! RequestErrors.BAD_REQUEST "CSRF token invalid" earlyReturn ctx
 }
 
 /// Require a user to be logged on
@@ -225,6 +211,13 @@ let getCategoryIds slug ctx =
     |> Seq.filter (fun c -> c.id = cat.id || Array.contains cat.name c.parentNames)
     |> Seq.map (fun c -> CategoryId c.id)
     |> List.ofSeq
+
+open System
+open System.Globalization
+
+/// Parse a date/time to UTC 
+let parseToUtc (date : string) =
+    DateTime.Parse (date, null, DateTimeStyles.AdjustToUniversal)
 
 open Microsoft.Extensions.Logging
 

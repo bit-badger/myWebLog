@@ -118,8 +118,8 @@ let list : HttpHandler = fun next ctx -> task {
 
     return!
         Hash.FromAnonymousObject {|
-            csrf       = csrfToken ctx
             page_title = "Uploaded Files"
+            csrf       = ctx.CsrfTokenSet
             files      = allFiles
         |}
         |> viewForTheme "admin" "upload-list" next ctx
@@ -129,17 +129,16 @@ let list : HttpHandler = fun next ctx -> task {
 let showNew : HttpHandler = fun next ctx -> task {
     return!
         Hash.FromAnonymousObject {|
-            csrf        = csrfToken ctx
-            destination = UploadDestination.toString ctx.WebLog.uploads
             page_title  = "Upload a File"
+            csrf        = ctx.CsrfTokenSet
+            destination = UploadDestination.toString ctx.WebLog.uploads
         |}
         |> viewForTheme "admin" "upload-new" next ctx
 }
 
 /// Redirect to the upload list
-let showUploads : HttpHandler = fun next ctx -> task {
-    return! redirectToGet (WebLog.relativeUrl ctx.WebLog (Permalink "admin/uploads")) next ctx
-}
+let showUploads : HttpHandler =
+    redirectToGet "admin/uploads"
 
 // POST /admin/upload/save
 let save : HttpHandler = fun next ctx -> task {
