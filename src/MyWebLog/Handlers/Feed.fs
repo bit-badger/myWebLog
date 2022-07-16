@@ -382,7 +382,7 @@ let createFeed (feedType : FeedType) posts : HttpHandler = fun next ctx -> backg
     setTitleAndDescription feedType webLog cats feed
     
     feed.LastUpdatedTime <- (List.head posts).updatedOn |> DateTimeOffset
-    feed.Generator       <- generator ctx
+    feed.Generator       <- ctx.Generator
     feed.Items           <- posts |> Seq.ofList |> Seq.map toItem
     feed.Language        <- "en"
     feed.Id              <- WebLog.absoluteUrl webLog link

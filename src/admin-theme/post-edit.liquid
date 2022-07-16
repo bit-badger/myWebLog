@@ -16,8 +16,15 @@
                    value="{{ model.permalink }}">
             <label for="permalink">Permalink</label>
             {%- if model.post_id != "new" %}
-              {%- capture perm_edit %}admin/post/{{ model.post_id }}/permalinks{% endcapture -%}
-              <span class="form-text"><a href="{{ perm_edit | relative_link }}">Manage Permalinks</a></span>
+              <span class="form-text">
+                <a href="{{ "admin/post/" | append: model.post_id | append: "/permalinks" | relative_link }}">
+                  Manage Permalinks
+                </a>
+                <span class="text-muted"> &bull; </span>
+                <a href="{{ "admin/post/" | append: model.post_id | append: "/revisions" | relative_link }}">
+                  Manage Revisions
+                </a>
+              </span>
             {% endif -%}
           </div>
           <div class="mb-2">

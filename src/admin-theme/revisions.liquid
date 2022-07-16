@@ -3,7 +3,7 @@
   <form method="post" hx-target="body">
     <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
     <input type="hidden" name="id" value="{{ model.id }}">
-    <div class="container">
+    <div class="container mb-3">
       <div class="row">
         <div class="col">
           <p style="line-height:1.2rem;">
@@ -29,11 +29,14 @@
           </div>
         </div>
       {%- endif %}
+      <div class="row mwl-table-heading">
+        <div class="col">Revision</div>
+      </div>
       {% for rev in model.revisions %}
         {%- assign as_of_string = rev.as_of | date: "o" -%}
         {%- assign as_of_id = "rev_" | append: as_of_string | replace: "\.", "_" | replace: ":", "-" -%}
-        <div id="{{ as_of_id }}" class="row mb-3">
-          <div class="col-12 mb-3">
+        <div id="{{ as_of_id }}" class="row pb-3 mwl-table-detail">
+          <div class="col-12 mb-1">
             {{ rev.as_of_local | date: "MMMM d, yyyy" }} at {{ rev.as_of_local | date: "h:mmtt" | downcase }}
             <span class="badge bg-secondary text-uppercase ms-2">{{ rev.format }}</span>
             {%- if forloop.first %}
@@ -50,20 +53,14 @@
                 <span class="text-muted"> &bull; </span>
                 <a href="{{ rev_restore }}" hx-post="{{ rev_restore }}">Restore as Current</a>
                 <span class="text-muted"> &bull; </span>
-                <a href="{{ rev_delete }}" hx-post="{{ rev_delete }}" hx-target="#{{ as_of_id }}" hx-swap="outerHtml"
+                <a href="{{ rev_delete }}" hx-post="{{ rev_delete }}" hx-target="#{{ as_of_id }}" hx-swap="outerHTML"
                    class="text-danger">
                   Delete
                 </a>
               </small>
             {% endunless %}
           </div>
-          {% unless forloop.first %}
-            <div class="col-12 mb-3">
-              <div id="{{ as_of_id }}_preview" class="mwl-revision-preview">
-                <span class="text-muted fst-italic">preview not loaded</span>
-              </div>
-            </div>
-          {% endunless %}
+          {% unless forloop.first %}<div id="{{ as_of_id }}_preview" class="col-12"></div>{% endunless %}
         </div>
       {% endfor %}
     </div>

@@ -52,24 +52,6 @@ let messages (ctx : HttpContext) = task {
     | None -> return [||]
 }
 
-/// Hold variable for the configured generator string
-let mutable private generatorString : string option = None
-
-open Microsoft.Extensions.Configuration
-open Microsoft.Extensions.DependencyInjection
-
-/// Get the generator string
-let generator (ctx : HttpContext) =
-    match generatorString with
-    | Some gen -> gen
-    | None ->
-        let cfg = ctx.RequestServices.GetRequiredService<IConfiguration> ()
-        generatorString <-
-            match Option.ofObj cfg["Generator"] with
-            | Some gen -> Some gen
-            | None -> Some "generator not configured"
-        generatorString.Value
-
 open MyWebLog
 open DotLiquid
 
@@ -94,7 +76,7 @@ let private populateHash hash ctx = task {
     hash.Add ("page_list",    PageListCache.get ctx)
     hash.Add ("current_page", ctx.Request.Path.Value.Substring 1)
     hash.Add ("messages",     messages)
-    hash.Add ("generator",    generator ctx)
+    hash.Add ("generator",    ctx.Generator)
     hash.Add ("htmx_script",  htmxScript)
     
     do! commitSession ctx
@@ -219,6 +201,7 @@ open System.Globalization
 let parseToUtc (date : string) =
     DateTime.Parse (date, null, DateTimeStyles.AdjustToUniversal)
 
+open Microsoft.Extensions.DependencyInjection
 open Microsoft.Extensions.Logging
 
 /// Log level for debugging

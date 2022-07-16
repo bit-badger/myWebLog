@@ -29,7 +29,7 @@ module CatchAll =
             // Current post
             match data.Post.findByPermalink permalink webLog.id |> await with
             | Some post ->
-                debug (fun () -> $"Found post by permalink")
+                debug (fun () -> "Found post by permalink")
                 let model = Post.preparePostList webLog [ post ] Post.ListType.SinglePost "" 1 1 ctx data |> await
                 model.Add ("page_title", post.title)
                 yield fun next ctx -> themedView (defaultArg post.template "single-post") next ctx model
@@ -37,7 +37,7 @@ module CatchAll =
             // Current page
             match data.Page.findByPermalink permalink webLog.id |> await with
             | Some page ->
-                debug (fun () -> $"Found page by permalink")
+                debug (fun () -> "Found page by permalink")
                 yield fun next ctx ->
                     Hash.FromAnonymousObject {|
                         page_title = page.title
@@ -50,7 +50,7 @@ module CatchAll =
             // RSS feed
             match Feed.deriveFeedType ctx textLink with
             | Some (feedType, postCount) ->
-                debug (fun () -> $"Found RSS feed")
+                debug (fun () -> "Found RSS feed")
                 yield Feed.generate feedType postCount 
             | None -> ()
             // Post differing only by trailing slash
@@ -58,28 +58,28 @@ module CatchAll =
                 Permalink (if textLink.EndsWith "/" then textLink[1..textLink.Length - 2] else $"{textLink[1..]}/")
             match data.Post.findByPermalink altLink webLog.id |> await with
             | Some post ->
-                debug (fun () -> $"Found post by trailing-slash-agnostic permalink")
+                debug (fun () -> "Found post by trailing-slash-agnostic permalink")
                 yield redirectTo true (WebLog.relativeUrl webLog post.permalink)
             | None -> ()
             // Page differing only by trailing slash
             match data.Page.findByPermalink altLink webLog.id |> await with
             | Some page ->
-                debug (fun () -> $"Found page by trailing-slash-agnostic permalink")
+                debug (fun () -> "Found page by trailing-slash-agnostic permalink")
                 yield redirectTo true (WebLog.relativeUrl webLog page.permalink)
             | None -> ()
             // Prior post
             match data.Post.findCurrentPermalink [ permalink; altLink ] webLog.id |> await with
             | Some link ->
-                debug (fun () -> $"Found post by prior permalink")
+                debug (fun () -> "Found post by prior permalink")
                 yield redirectTo true (WebLog.relativeUrl webLog link)
             | None -> ()
             // Prior page
             match data.Page.findCurrentPermalink [ permalink; altLink ] webLog.id |> await with
             | Some link ->
-                debug (fun () -> $"Found page by prior permalink")
+                debug (fun () -> "Found page by prior permalink")
                 yield redirectTo true (WebLog.relativeUrl webLog link)
             | None -> ()
-            debug (fun () -> $"No content found")
+            debug (fun () -> "No content found")
         }
 
     // GET {all-of-the-above}
@@ -119,18 +119,20 @@ let router : HttpHandler = choose [
             ])
             route    "/dashboard" >=> Admin.dashboard
             subRoute "/page" (choose [
-                route  "s"                       >=> Admin.listPages 1
-                routef "s/page/%i"                   Admin.listPages
-                routef "/%s/edit"                    Admin.editPage
-                routef "/%s/permalinks"              Admin.editPagePermalinks
-                routef "/%s/revision/%s/preview"     Admin.previewPageRevision
-                routef "/%s/revisions"               Admin.editPageRevisions
+                route  "s"                       >=> Page.all 1
+                routef "s/page/%i"                   Page.all
+                routef "/%s/edit"                    Page.edit
+                routef "/%s/permalinks"              Page.editPermalinks
+                routef "/%s/revision/%s/preview"     Page.previewRevision
+                routef "/%s/revisions"               Page.editRevisions
             ])
             subRoute "/post" (choose [
-                route  "s"              >=> Post.all 1
-                routef "s/page/%i"          Post.all
-                routef "/%s/edit"           Post.edit
-                routef "/%s/permalinks"     Post.editPermalinks
+                route  "s"                       >=> Post.all 1
+                routef "s/page/%i"                   Post.all
+                routef "/%s/edit"                    Post.edit
+                routef "/%s/permalinks"              Post.editPermalinks
+                routef "/%s/revision/%s/preview"     Post.previewRevision
+                routef "/%s/revisions"               Post.editRevisions
             ])
             subRoute "/settings" (choose [
                 route ""     >=> Admin.settings
@@ -157,17 +159,20 @@ let router : HttpHandler = choose [
                 routef "/%s/delete"     Admin.deleteCategory
             ])
             subRoute "/page" (choose [
-                route  "/save"                   >=> Admin.savePage
-                route  "/permalinks"             >=> Admin.savePagePermalinks
-                routef "/%s/delete"                  Admin.deletePage
-                routef "/%s/revision/%s/delete"      Admin.deletePageRevision
-                routef "/%s/revision/%s/restore"     Admin.restorePageRevision
-                routef "/%s/revisions/purge"         Admin.purgePageRevisions
+                route  "/save"                   >=> Page.save
+                route  "/permalinks"             >=> Page.savePermalinks
+                routef "/%s/delete"                  Page.delete
+                routef "/%s/revision/%s/delete"      Page.deleteRevision
+                routef "/%s/revision/%s/restore"     Page.restoreRevision
+                routef "/%s/revisions/purge"         Page.purgeRevisions
             ])
             subRoute "/post" (choose [
-                route  "/save"       >=> Post.save
-                route  "/permalinks" >=> Post.savePermalinks
-                routef "/%s/delete"      Post.delete
+                route  "/save"                   >=> Post.save
+                route  "/permalinks"             >=> Post.savePermalinks
+                routef "/%s/delete"                  Post.delete
+                routef "/%s/revision/%s/delete"      Post.deleteRevision
+                routef "/%s/revision/%s/restore"     Post.restoreRevision
+                routef "/%s/revisions/purge"         Post.purgeRevisions
             ])
             subRoute "/settings" (choose [
                 route ""     >=> Admin.saveSettings

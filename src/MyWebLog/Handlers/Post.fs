@@ -256,6 +256,15 @@ let edit postId : HttpHandler = fun next ctx -> task {
     | None -> return! Error.notFound next ctx
 }
 
+// POST /admin/post/{id}/delete
+let delete postId : HttpHandler = fun next ctx -> task {
+    let webLog = ctx.WebLog
+    match! ctx.Data.Post.delete (PostId postId) webLog.id with
+    | true  -> do! addMessage ctx { UserMessage.success with message = "Post deleted successfully" }
+    | false -> do! addMessage ctx { UserMessage.error with message = "Post not found; nothing deleted" }
+    return! redirectToGet "admin/posts" next ctx
+}
+
 // GET /admin/post/{id}/permalinks
 let editPermalinks postId : HttpHandler = fun next ctx -> task {
     match! ctx.Data.Post.findFullById (PostId postId) ctx.WebLog.id with
@@ -282,13 +291,79 @@ let savePermalinks : HttpHandler = fun next ctx -> task {
     | false -> return! Error.notFound next ctx
 }
 
-// POST /admin/post/{id}/delete
-let delete postId : HttpHandler = fun next ctx -> task {
-    let webLog = ctx.WebLog
-    match! ctx.Data.Post.delete (PostId postId) webLog.id with
-    | true  -> do! addMessage ctx { UserMessage.success with message = "Post deleted successfully" }
-    | false -> do! addMessage ctx { UserMessage.error with message = "Post not found; nothing deleted" }
-    return! redirectToGet "admin/posts" next ctx
+// GET /admin/post/{id}/revisions
+let editRevisions postId : HttpHandler = fun next ctx -> task {
+    match! ctx.Data.Post.findFullById (PostId postId) ctx.WebLog.id with
+    | Some post ->
+        return!
+            Hash.FromAnonymousObject {|
+                page_title = "Manage Post Revisions"
+                csrf       = ctx.CsrfTokenSet
+                model      = ManageRevisionsModel.fromPost ctx.WebLog post
+            |}
+            |> viewForTheme "admin" "revisions" next ctx
+    | None -> return! Error.notFound next ctx
+}
+
+// GET /admin/post/{id}/revisions/purge
+let purgeRevisions postId : HttpHandler = fun next ctx -> task {
+    let data = ctx.Data
+    match! data.Post.findFullById (PostId postId) ctx.WebLog.id with
+    | Some post ->
+        do! data.Post.update { post with revisions = [ List.head post.revisions ] }
+        do! addMessage ctx { UserMessage.success with message = "Prior revisions purged successfully" }
+        return! redirectToGet $"admin/post/{postId}/revisions" next ctx
+    | None -> return! Error.notFound next ctx
+}
+
+open Microsoft.AspNetCore.Http
+
+/// Find the post and the requested revision
+let private findPostRevision postId revDate (ctx : HttpContext) = task {
+    match! ctx.Data.Post.findFullById (PostId postId) ctx.WebLog.id with
+    | Some post ->
+        let asOf = parseToUtc revDate
+        return Some post, post.revisions |> List.tryFind (fun r -> r.asOf = asOf)
+    | None -> return None, None
+}
+
+// GET /admin/post/{id}/revision/{revision-date}/preview
+let previewRevision (postId, revDate) : HttpHandler = fun next ctx -> task {
+    match! findPostRevision postId revDate ctx with
+    | Some _, Some rev ->
+        return!
+            Hash.FromAnonymousObject {|
+                content = $"""<div class="mwl-revision-preview mb-3">{MarkupText.toHtml rev.text}</div>"""
+            |}
+            |> bareForTheme "admin" "" next ctx
+    | None, _
+    | _, None -> return! Error.notFound next ctx
+}
+
+// POST /admin/post/{id}/revision/{revision-date}/restore
+let restoreRevision (postId, revDate) : HttpHandler = fun next ctx -> task {
+    match! findPostRevision postId revDate ctx with
+    | Some post, Some rev ->
+        do! ctx.Data.Post.update
+                { post with
+                    revisions = { rev with asOf = DateTime.UtcNow }
+                                  :: (post.revisions |> List.filter (fun r -> r.asOf <> rev.asOf))
+                }
+        do! addMessage ctx { UserMessage.success with message = "Revision restored successfully" }
+        return! redirectToGet $"admin/post/{postId}/revisions" next ctx
+    | None, _
+    | _, None -> return! Error.notFound next ctx
+}
+
+// POST /admin/post/{id}/revision/{revision-date}/delete
+let deleteRevision (postId, revDate) : HttpHandler = fun next ctx -> task {
+    match! findPostRevision postId revDate ctx with
+    | Some post, Some rev ->
+        do! ctx.Data.Post.update { post with revisions = post.revisions |> List.filter (fun r -> r.asOf <> rev.asOf) }
+        do! addMessage ctx { UserMessage.success with message = "Revision deleted successfully" }
+        return! bareForTheme "admin" "" next ctx (Hash.FromAnonymousObject {| content = "" |})
+    | None, _
+    | _, None -> return! Error.notFound next ctx
 }
 
 #nowarn "3511"

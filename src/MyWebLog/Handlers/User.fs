@@ -40,9 +40,8 @@ open Microsoft.AspNetCore.Authentication.Cookies
 
 // POST /user/log-on
 let doLogOn : HttpHandler = fun next ctx -> task {
-    let! model  = ctx.BindFormAsync<LogOnModel> ()
-    let  webLog = ctx.WebLog
-    match! ctx.Data.WebLogUser.findByEmail model.emailAddress webLog.id with 
+    let! model = ctx.BindFormAsync<LogOnModel> ()
+    match! ctx.Data.WebLogUser.findByEmail model.emailAddress ctx.WebLog.id with 
     | Some user when user.passwordHash = hashedPassword model.password user.userName user.salt ->
         let claims = seq {
             Claim (ClaimTypes.NameIdentifier, WebLogUserId.toString user.id)
@@ -55,8 +54,8 @@ let doLogOn : HttpHandler = fun next ctx -> task {
         do! ctx.SignInAsync (identity.AuthenticationType, ClaimsPrincipal identity,
             AuthenticationProperties (IssuedUtc = DateTimeOffset.UtcNow))
         do! addMessage ctx
-                { UserMessage.success with message = $"Logged on successfully | Welcome to {webLog.name}!" }
-        return! redirectToGet (defaultArg model.returnTo "admin/dashboard") next ctx
+                { UserMessage.success with message = $"Logged on successfully | Welcome to {ctx.WebLog.name}!" }
+        return! redirectToGet (defaultArg (model.returnTo |> Option.map (fun it -> it[1..])) "admin/dashboard") next ctx
     | _ ->
         do! addMessage ctx { UserMessage.error with message = "Log on attempt unsuccessful" }
         return! logOn model.returnTo next ctx

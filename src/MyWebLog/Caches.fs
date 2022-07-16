@@ -9,7 +9,11 @@ module Extensions =
     
     open System.Security.Claims
     open Microsoft.AspNetCore.Antiforgery
+    open Microsoft.Extensions.Configuration
     open Microsoft.Extensions.DependencyInjection
+    
+    /// Hold variable for the configured generator string
+    let mutable private generatorString : string option = None
     
     type HttpContext with
         
@@ -22,6 +26,18 @@ module Extensions =
         /// The data implementation
         member this.Data = this.RequestServices.GetRequiredService<IData> ()
         
+        /// The generator string
+        member this.Generator =
+            match generatorString with
+            | Some gen -> gen
+            | None ->
+                let cfg = this.RequestServices.GetRequiredService<IConfiguration> ()
+                generatorString <-
+                    match Option.ofObj cfg["Generator"] with
+                    | Some gen -> Some gen
+                    | None -> Some "generator not configured"
+                generatorString.Value
+
         /// The user ID for the current request
         member this.UserId =
             WebLogUserId (this.User.Claims |> Seq.find (fun c -> c.Type = ClaimTypes.NameIdentifier)).Value

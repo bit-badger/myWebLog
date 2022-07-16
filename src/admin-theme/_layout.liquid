@@ -48,6 +48,8 @@
   <div class="container-fluid">
     <div class="row">
       <div class="col-xs-12 text-end">
+        {%- assign version = generator | split: " " -%}
+        <small class="me-1 align-baseline">v{{ version[1] }}</small>
         <img src="{{ "themes/admin/logo-light.png" | relative_link }}" alt="myWebLog" width="120" height="34">
       </div>
     </div>
