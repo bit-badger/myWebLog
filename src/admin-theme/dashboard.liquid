@@ -9,8 +9,10 @@
             Published <span class="badge rounded-pill bg-secondary">{{ model.posts }}</span>
             &nbsp; Drafts <span class="badge rounded-pill bg-secondary">{{ model.drafts }}</span>
           </h6>
-          <a href="{{ "admin/posts" | relative_link }}" class="btn btn-secondary me-2">View All</a>
-          <a href="{{ "admin/post/new/edit" | relative_link }}" class="btn btn-primary">Write a New Post</a>
+          {% if is_author %}
+            <a href="{{ "admin/posts" | relative_link }}" class="btn btn-secondary me-2">View All</a>
+            <a href="{{ "admin/post/new/edit" | relative_link }}" class="btn btn-primary">Write a New Post</a>
+          {% endif %}
         </div>
       </div>
     </section>
@@ -22,8 +24,10 @@
             All <span class="badge rounded-pill bg-secondary">{{ model.pages }}</span>
             &nbsp; Shown in Page List <span class="badge rounded-pill bg-secondary">{{ model.listed_pages }}</span>
           </h6>
-          <a href="{{ "admin/pages" | relative_link }}" class="btn btn-secondary me-2">View All</a>
-          <a href="{{ "admin/page/new/edit" | relative_link }}" class="btn btn-primary">Create a New Page</a>
+          {% if is_author %}
+            <a href="{{ "admin/pages" | relative_link }}" class="btn btn-secondary me-2">View All</a>
+            <a href="{{ "admin/page/new/edit" | relative_link }}" class="btn btn-primary">Create a New Page</a>
+          {% endif %}
         </div>
       </div>
     </section>
@@ -37,15 +41,19 @@
             All <span class="badge rounded-pill bg-secondary">{{ model.categories }}</span>
             &nbsp; Top Level <span class="badge rounded-pill bg-secondary">{{ model.top_level_categories }}</span>
           </h6>
-          <a href="{{ "admin/categories" | relative_link }}" class="btn btn-secondary me-2">View All</a>
-          <a href="{{ "admin/category/new/edit" | relative_link }}" class="btn btn-secondary">Add a New Category</a>
+          {% if is_web_log_admin %}
+            <a href="{{ "admin/categories" | relative_link }}" class="btn btn-secondary me-2">View All</a>
+            <a href="{{ "admin/category/new/edit" | relative_link }}" class="btn btn-secondary">Add a New Category</a>
+          {% endif %}
         </div>
       </div>
     </section>
   </div>
-  <div class="row pb-3">
-    <div class="col text-end">
-      <a href="{{ "admin/settings" | relative_link }}" class="btn btn-secondary">Modify Settings</a>
+  {% if is_web_log_admin %}
+    <div class="row pb-3">
+      <div class="col text-end">
+        <a href="{{ "admin/settings" | relative_link }}" class="btn btn-secondary">Modify Settings</a>
+      </div>
     </div>
-  </div>
+  {% endif %}
 </article>

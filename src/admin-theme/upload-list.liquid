@@ -22,12 +22,12 @@
             {%- capture badge_class -%}
               {%- if file.source == "disk" %}secondary{% else %}primary{% endif -%}
             {%- endcapture -%}
-            {%- capture rel_url %}{{ upload_base }}{{ file.path }}{{ file.name }}{% endcapture -%}
-            {%- capture blog_rel %}{{ upload_path }}{{ file.path }}{{ file.name }}{% endcapture -%}
+            {%- assign path_and_name = file.path | append: file.name -%}
+            {%- assign blog_rel = upload_path | append: path_and_name -%}
             <span class="badge bg-{{ badge_class }} text-uppercase float-end mt-1">{{ file.source }}</span>
             {{ file.name }}<br>
             <small>
-              <a href="{{ rel_url }}" target="_blank">View File</a>
+              <a href="{{ upload_base | append: path_and_name }}" target="_blank">View File</a>
               <span class="text-muted"> &bull; Copy </span>
               <a href="{{ blog_rel | absolute_link }}" hx-boost="false"
                  onclick="return Admin.copyText('{{ blog_rel | absolute_link }}', this)">
@@ -45,17 +45,20 @@
                   For Post
                 </a>
               {%- endunless %}
-              <span class="text-muted"> Link &bull; </span>
-              {%- capture delete_url -%}
-                {%- if file.source == "disk" -%}
-                  admin/upload/delete/{{ file.path }}{{ file.name }}
-                {%- else -%}
-                  admin/upload/{{ file.id }}/delete
-                {%- endif -%}
-              {%- endcapture -%}
-              <a href="{{ delete_url | relative_link }}" hx-post="{{ delete_url | relative_link }}"
-                 hx-confirm="Are you sure you want to delete {{ file.name }}? This action cannot be undone."
-                 class="text-danger">Delete</a>
+              <span class="text-muted"> Link</span>
+              {% if is_web_log_admin %}
+                <span class="text-muted"> &bull; </span>
+                {%- capture delete_url -%}
+                  {%- if file.source == "disk" -%}
+                    admin/upload/delete/{{ path_and_name }}
+                  {%- else -%}
+                    admin/upload/{{ file.id }}/delete
+                  {%- endif -%}
+                {%- endcapture -%}
+                <a href="{{ delete_url | relative_link }}" hx-post="{{ delete_url | relative_link }}"
+                   hx-confirm="Are you sure you want to delete {{ file.name }}? This action cannot be undone."
+                   class="text-danger">Delete</a>
+              {% endif %}
             </small>
           </div>
           <div class="col-3">{{ file.path }}</div>

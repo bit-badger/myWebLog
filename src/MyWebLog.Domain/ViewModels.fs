@@ -92,6 +92,9 @@ type DisplayPage =
     {   /// The ID of this page
         id : string
 
+        /// The ID of the author of this page
+        authorId : string
+        
         /// The title of the page
         title : string
 
@@ -121,6 +124,7 @@ type DisplayPage =
     static member fromPageMinimal webLog (page : Page) =
         let pageId = PageId.toString page.id
         { id             = pageId
+          authorId       = WebLogUserId.toString page.authorId
           title          = page.title
           permalink      = Permalink.toString page.permalink
           publishedOn    = page.publishedOn
@@ -136,6 +140,7 @@ type DisplayPage =
         let _, extra = WebLog.hostAndPath webLog
         let pageId = PageId.toString page.id
         { id             = pageId
+          authorId       = WebLogUserId.toString page.authorId
           title          = page.title
           permalink      = Permalink.toString page.permalink
           publishedOn    = page.publishedOn

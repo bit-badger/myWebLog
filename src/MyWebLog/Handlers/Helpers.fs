@@ -55,11 +55,13 @@ let messages (ctx : HttpContext) = task {
 open MyWebLog
 open DotLiquid
 
-/// Either get the web log from the hash, or get it from the cache and add it to the hash
-let private deriveWebLogFromHash (hash : Hash) (ctx : HttpContext) =
-    if hash.ContainsKey "web_log" then () else hash.Add ("web_log", ctx.WebLog)
-    hash["web_log"] :?> WebLog
+/// Add a key to the hash, returning the modified hash
+//    (note that the hash itself is mutated; this is only used to make it pipeable)
+let addToHash key (value : obj) (hash : Hash) =
+    hash.Add (key, value)
+    hash
 
+open System.Security.Claims
 open Giraffe
 open Giraffe.Htmx
 open Giraffe.ViewEngine
@@ -69,51 +71,57 @@ let private htmxScript = RenderView.AsString.htmlNode Htmx.Script.minified
 
 /// Populate the DotLiquid hash with standard information
 let private populateHash hash ctx = task {
-    // Don't need the web log, but this adds it to the hash if the function is called directly
-    let _ = deriveWebLogFromHash hash ctx
     let! messages = messages ctx
-    hash.Add ("logged_on",    ctx.User.Identity.IsAuthenticated)
-    hash.Add ("page_list",    PageListCache.get ctx)
-    hash.Add ("current_page", ctx.Request.Path.Value.Substring 1)
-    hash.Add ("messages",     messages)
-    hash.Add ("generator",    ctx.Generator)
-    hash.Add ("htmx_script",  htmxScript)
-    
     do! commitSession ctx
+    
+    let accessLevel = ctx.UserAccessLevel
+    let hasLevel lvl = accessLevel |> Option.map (AccessLevel.hasAccess lvl) |> Option.defaultValue false
+    
+    ctx.User.Claims
+    |> Seq.tryFind (fun claim -> claim.Type = ClaimTypes.NameIdentifier)
+    |> Option.map (fun claim -> claim.Value)
+    |> Option.iter (fun userId -> addToHash "user_id" userId hash |> ignore)
+    
+    return
+        addToHash    "web_log"          ctx.WebLog hash
+        |> addToHash "page_list"        (PageListCache.get ctx)
+        |> addToHash "current_page"     ctx.Request.Path.Value[1..]
+        |> addToHash "messages"         messages
+        |> addToHash "generator"        ctx.Generator
+        |> addToHash "htmx_script"      htmxScript
+        |> addToHash "is_logged_on"     ctx.User.Identity.IsAuthenticated
+        |> addToHash "is_author"        (hasLevel Author)
+        |> addToHash "is_editor"        (hasLevel Editor)
+        |> addToHash "is_web_log_admin" (hasLevel WebLogAdmin)
+        |> addToHash "is_administrator" (hasLevel Administrator)
 }
+
+/// Is the request from htmx?
+let isHtmx (ctx : HttpContext) =
+    ctx.Request.IsHtmx && not ctx.Request.IsHtmxRefresh
 
 /// Render a view for the specified theme, using the specified template, layout, and hash
 let viewForTheme theme template next ctx (hash : Hash) = task {
-    do! populateHash hash ctx
+    if not (hash.ContainsKey "web_log") then
+        let! _ = populateHash hash ctx
+        ()
     
     // NOTE: DotLiquid does not support {% render %} or {% include %} in its templates, so we will do a 2-pass render;
     //       the net effect is a "layout" capability similar to Razor or Pug
     
     // Render view content...
     let! contentTemplate = TemplateCache.get theme template ctx.Data
-    hash.Add ("content", contentTemplate.Render hash)
+    let _ = addToHash "content" (contentTemplate.Render hash) hash
     
     // ...then render that content with its layout
-    let  isHtmx         = ctx.Request.IsHtmx && not ctx.Request.IsHtmxRefresh
-    let! layoutTemplate = TemplateCache.get theme (if isHtmx then "layout-partial" else "layout") ctx.Data
+    let! layoutTemplate = TemplateCache.get theme (if isHtmx ctx then "layout-partial" else "layout") ctx.Data
     
     return! htmlString (layoutTemplate.Render hash) next ctx
 }
 
-/// Render a bare view for the specified theme, using the specified template and hash
-let bareForTheme theme template next ctx (hash : Hash) = task {
-    do! populateHash hash ctx
-    
-    if not (hash.ContainsKey "content") then
-        let! contentTemplate = TemplateCache.get theme template ctx.Data
-        hash.Add ("content", contentTemplate.Render hash)
-    
-    // Bare templates are rendered with layout-bare
-    let! layoutTemplate = TemplateCache.get theme "layout-bare" ctx.Data
-    
-    // add messages as HTTP headers
-    let messages = hash["messages"] :?> UserMessage[]
-    let actions = seq {
+/// Convert messages to headers (used for htmx responses)
+let messagesToHeaders (messages : UserMessage array) : HttpHandler =
+    seq {
         yield!
             messages
             |> Array.map (fun m ->
@@ -122,15 +130,29 @@ let bareForTheme theme template next ctx (hash : Hash) = task {
                 | None -> $"{m.level}|||{m.message}"
                 |> setHttpHeader "X-Message")
         withHxNoPushUrl
-        htmlString (layoutTemplate.Render hash)
-        }
+    }
+    |> Seq.reduce (>=>)
+
+/// Render a bare view for the specified theme, using the specified template and hash
+let bareForTheme theme template next ctx (hash : Hash) = task {
+    let! hash = populateHash hash ctx
     
-    return! (actions |> Seq.reduce (>=>)) next ctx
+    if not (hash.ContainsKey "content") then
+        let! contentTemplate = TemplateCache.get theme template ctx.Data
+        addToHash "content" (contentTemplate.Render hash) hash |> ignore
+    
+    // Bare templates are rendered with layout-bare
+    let! layoutTemplate = TemplateCache.get theme "layout-bare" ctx.Data
+    
+    return!
+        (messagesToHeaders (hash["messages"] :?> UserMessage[]) >=> htmlString (layoutTemplate.Render hash)) next ctx
 }
 
 /// Return a view for the web log's default theme
-let themedView template next ctx hash =
-    viewForTheme (deriveWebLogFromHash hash ctx).themePath template next ctx hash
+let themedView template next ctx hash = task {
+    let! hash = populateHash hash ctx
+    return! viewForTheme (hash["web_log"] :?> WebLog).themePath template next ctx hash
+}
 
 
 /// Redirect after doing some action; commits session and issues a temporary redirect
@@ -146,13 +168,59 @@ let validateCsrf : HttpHandler = fun next ctx -> task {
     | false -> return! RequestErrors.BAD_REQUEST "CSRF token invalid" earlyReturn ctx
 }
 
+
+/// Handlers for error conditions
+module Error =
+
+    open System.Net
+
+    /// Handle unauthorized actions, redirecting to log on for GETs, otherwise returning a 401 Not Authorized response
+    let notAuthorized : HttpHandler = fun next ctx ->
+        if ctx.Request.Method = "GET" then
+            let redirectUrl = $"user/log-on?returnUrl={WebUtility.UrlEncode ctx.Request.Path}"
+            if isHtmx ctx then (withHxRedirect redirectUrl >=> redirectToGet redirectUrl) next ctx
+            else redirectToGet redirectUrl next ctx
+        else
+            if isHtmx ctx then
+                let messages = [|
+                    { UserMessage.error with
+                        message = $"You are not authorized to access the URL {ctx.Request.Path.Value}"
+                    }
+                |]
+                (messagesToHeaders messages >=> setStatusCode 401) earlyReturn ctx
+            else setStatusCode 401 earlyReturn ctx
+
+    /// Handle 404s from the API, sending known URL paths to the Vue app so that they can be handled there
+    let notFound : HttpHandler =
+        handleContext (fun ctx ->
+            if isHtmx ctx then
+                let messages = [|
+                    { UserMessage.error with message = $"The URL {ctx.Request.Path.Value} was not found" }
+                |]
+                (messagesToHeaders messages >=> setStatusCode 404) earlyReturn ctx
+            else
+                (setStatusCode 404 >=> text "Not found") earlyReturn ctx)
+
+
 /// Require a user to be logged on
 let requireUser : HttpHandler = requiresAuthentication Error.notAuthorized
 
 /// Require a specific level of access for a route
-let requireAccess level : HttpHandler = fun next ctx ->
-    if defaultArg (ctx.UserAccessLevel |> Option.map (AccessLevel.hasAccess level)) false then next ctx
-    else Error.notAuthorized next ctx
+let requireAccess level : HttpHandler = fun next ctx -> task {
+    let userLevel = ctx.UserAccessLevel
+    if defaultArg (userLevel |> Option.map (AccessLevel.hasAccess level)) false then
+        return! next ctx
+    else
+        let message =
+            match userLevel with
+            | Some lvl ->
+                $"The page you tried to access requires {AccessLevel.toString level} privileges; your account only has {AccessLevel.toString lvl} privileges"
+            | None -> "The page you tried to access required you to be logged on"
+        do! addMessage ctx { UserMessage.warning with message = message }
+        printfn "Added message to context"
+        do! commitSession ctx
+        return! Error.notAuthorized next ctx
+}
 
 /// Determine if a user is authorized to edit a page or post, given the author        
 let canEdit authorId (ctx : HttpContext) =

@@ -8,7 +8,9 @@
     **DRAFT**
   {% endif %}
   by {{ model.authors | value: post.author_id }}
-  {% if logged_on %} &bull; <a hx-boost="false" href="{{ post | edit_post_link }}">Edit Post</a> {% endif %}
+  {%- if is_editor or is_author and user_id == post.author_id %}
+    &bull; <a hx-boost="false" href="{{ post | edit_post_link }}">Edit Post</a>
+  {%- endif %}
 </h4>
 <div>
   <article class="container mt-3">

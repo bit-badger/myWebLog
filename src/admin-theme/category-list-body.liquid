@@ -13,20 +13,19 @@
           {%- endif %}
           {{ cat.name }}<br>
           <small>
+            {%- assign cat_url_base = "admin/category/" | append: cat.id -%}
             {%- if cat.post_count > 0 %}
               <a href="{{ cat | category_link }}" target="_blank">
                 View {{ cat.post_count }} Post{% unless cat.post_count == 1 %}s{% endunless -%}
               </a>
               <span class="text-muted"> &bull; </span>
             {%- endif %}
-            {%- capture cat_edit %}admin/category/{{ cat.id }}/edit{% endcapture -%}
-            <a href="{{ cat_edit | relative_link }}" hx-target="#cat_{{ cat.id }}"
+            <a href="{{ cat_url_base | append: "/edit" | relative_link }}" hx-target="#cat_{{ cat.id }}"
                hx-swap="innerHTML show:#cat_{{ cat.id }}:top">
               Edit
             </a>
             <span class="text-muted"> &bull; </span>
-            {%- capture cat_del %}admin/category/{{ cat.id }}/delete{% endcapture -%}
-            {%- capture cat_del_link %}{{ cat_del | relative_link }}{% endcapture -%}
+            {%- assign cat_del_link = cat_url_base | append: "/delete" | relative_link -%}
             <a href="{{ cat_del_link }}" hx-post="{{ cat_del_link }}" class="text-danger"
                hx-confirm="Are you sure you want to delete the category &ldquo;{{ cat.name }}&rdquo;? This action cannot be undone.">
               Delete

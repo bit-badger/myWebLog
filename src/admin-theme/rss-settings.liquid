@@ -85,13 +85,12 @@
             {{ feed.source }}
             {%- if feed.is_podcast %} &nbsp; <span class="badge bg-primary">PODCAST</span>{% endif %}<br>
             <small>
+              {%- assign feed_url = "admin/settings/rss/" | append: feed.id -%}
               <a href="{{ feed.path | relative_link }}" target="_blank">View Feed</a>
               <span class="text-muted"> &bull; </span>
-              {%- capture feed_edit %}admin/settings/rss/{{ feed.id }}/edit{% endcapture -%}
-              <a href="{{ feed_edit | relative_link }}">Edit</a>
+              <a href="{{ feed_url | append: "/edit" | relative_link }}">Edit</a>
               <span class="text-muted"> &bull; </span>
-              {%- capture feed_del %}admin/settings/rss/{{ feed.id }}/delete{% endcapture -%}
-              {%- capture feed_del_link %}{{ feed_del | relative_link }}{% endcapture -%}
+              {%- assign feed_del_link = feed_url | append: "/delete" | relative_link -%}
               <a href="{{ feed_del_link }}" hx-post="{{ feed_del_link }}" class="text-danger"
                  hx-confirm="Are you sure you want to delete the custom RSS feed based on {{ feed.source | strip_html | escape }}? This action cannot be undone.">
                 Delete

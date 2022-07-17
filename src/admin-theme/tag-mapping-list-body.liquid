@@ -9,14 +9,13 @@
         <div class="col no-wrap">
           {{ map.tag }}<br>
           <small>
-            {%- capture map_edit %}admin/settings/tag-mapping/{{ map_id }}/edit{% endcapture -%}
-            <a href="{{ map_edit | relative_link }}" hx-target="#tag_{{ map_id }}"
+            {%- assign map_url = "admin/settings/tag-mapping/" | append: map_id -%}
+            <a href="{{ map_url | append: "/edit" | relative_link }}" hx-target="#tag_{{ map_id }}"
                hx-swap="innerHTML show:#tag_{{ map_id }}:top">
               Edit
             </a>
             <span class="text-muted"> &bull; </span>
-            {%- capture map_del %}admin/settings/tag-mapping/{{ map_id }}/delete{% endcapture -%}
-            {%- capture map_del_link %}{{ map_del | relative_link }}{% endcapture -%}
+            {%- assign map_del_link = map_url | append: "/delete" | relative_link -%}
             <a href="{{ map_del_link }}" hx-post="{{ map_del_link }}" class="text-danger"
                hx-confirm="Are you sure you want to delete the mapping for &ldquo;{{ map.tag }}&rdquo;? This action cannot be undone.">
               Delete

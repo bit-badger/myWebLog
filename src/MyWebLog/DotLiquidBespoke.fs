@@ -188,7 +188,7 @@ type UserLinksTag () =
         let link it = WebLog.relativeUrl webLog (Permalink it)
         seq {
             """<ul class="navbar-nav flex-grow-1 justify-content-end">"""
-            match Convert.ToBoolean context.Environments[0].["logged_on"] with
+            match Convert.ToBoolean context.Environments[0].["is_logged_on"] with
             | true ->
                 $"""<li class="nav-item"><a class="nav-link" href="{link "admin/dashboard"}">Dashboard</a></li>"""
                 $"""<li class="nav-item"><a class="nav-link" href="{link "user/log-off"}">Log Off</a></li>"""

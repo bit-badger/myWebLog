@@ -1,7 +1,7 @@
 ﻿<h2 class="my-3">{{ page_title }}</h2>
 <article>
-  {%- capture form_action %}admin/{{ model.entity }}/permalinks{% endcapture -%}
-  <form action="{{ form_action | relative_link }}" method="post">
+  {%- assign base_url = "admin/" | append: model.entity | append: "/" -%}
+  <form action="{{ base_url | append: "permalinks" | relative_link }}" method="post">
     <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
     <input type="hidden" name="id" value="{{ model.id }}">
     <div class="container">
@@ -11,8 +11,9 @@
             <strong>{{ model.current_title }}</strong><br>
             <small class="text-muted">
               <span class="fst-italic">{{ model.current_permalink }}</span><br>
-              {%- capture back_link %}admin/{{ model.entity }}/{{ model.id }}/edit{% endcapture -%}
-              <a href="{{ back_link | relative_link }}">&laquo; Back to Edit {{ model.entity | capitalize }}</a>
+              <a href="{{ base_url | append: model.id | append: "/edit" | relative_link }}">
+                &laquo; Back to Edit {{ model.entity | capitalize }}
+              </a>
             </small>
           </p>
         </div>

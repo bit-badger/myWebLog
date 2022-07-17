@@ -25,6 +25,11 @@ let private doCreateWebLog (args : string[]) (sp : IServiceProvider) = task {
     let homePageId = PageId.create ()
     let slug       = Handlers.Upload.makeSlug args[2]
     
+    // If this is the first web log being created, the user will be an installation admin; otherwise, they will be an
+    // admin just over their web log
+    let! webLogs     = data.WebLog.all ()
+    let  accessLevel = if List.isEmpty webLogs then Administrator else WebLogAdmin
+        
     do! data.WebLog.add
             { WebLog.empty with
                 id          = webLogId
@@ -48,7 +53,7 @@ let private doCreateWebLog (args : string[]) (sp : IServiceProvider) = task {
                 preferredName = "Admin"
                 passwordHash  = Handlers.User.hashedPassword args[4] args[3] salt
                 salt          = salt
-                accessLevel   = Administrator
+                accessLevel   = accessLevel
             }
 
     // Create the default home page
@@ -70,6 +75,12 @@ let private doCreateWebLog (args : string[]) (sp : IServiceProvider) = task {
             }
 
     printfn $"Successfully initialized database for {args[2]} with URL base {args[1]}"
+    match accessLevel with
+    | Administrator -> printfn $"  ({args[3]} is an installation administrator)"
+    | WebLogAdmin ->
+        printfn  $"  ({args[3]} is a web log administrator;"
+        printfn """   use "upgrade-user" to promote to installation administrator)"""
+    | _ -> ()
 }
 
 /// Create a new web log

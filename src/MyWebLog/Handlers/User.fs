@@ -55,7 +55,10 @@ let doLogOn : HttpHandler = fun next ctx -> task {
             AuthenticationProperties (IssuedUtc = DateTimeOffset.UtcNow))
         do! addMessage ctx
                 { UserMessage.success with message = $"Logged on successfully | Welcome to {ctx.WebLog.name}!" }
-        return! redirectToGet (defaultArg (model.returnTo |> Option.map (fun it -> it[1..])) "admin/dashboard") next ctx
+        return!
+            match model.returnTo with
+            | Some url -> redirectTo false url next ctx
+            | None -> redirectToGet "admin/dashboard" next ctx
     | _ ->
         do! addMessage ctx { UserMessage.error with message = "Log on attempt unsuccessful" }
         return! logOn model.returnTo next ctx

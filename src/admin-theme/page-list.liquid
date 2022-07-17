@@ -24,15 +24,18 @@
             <small>
               {%- capture pg_link %}{% unless pg.is_default %}{{ pg.permalink }}{% endunless %}{% endcapture -%}
               <a href="{{ pg_link | relative_link }}" target="_blank">View Page</a>
-              <span class="text-muted"> &bull; </span>
-              <a href="{{ pg | edit_page_link }}">Edit</a>
-              <span class="text-muted"> &bull; </span>
-              {%- capture pg_del %}admin/page/{{ pg.id }}/delete{% endcapture -%}
-              {%- capture pg_del_link %}{{ pg_del | relative_link }}{% endcapture -%}
-              <a href="{{ pg_del_link }}" hx-post="{{ pg_del_link }}" class="text-danger"
-                 hx-confirm="Are you sure you want to delete the page &ldquo;{{ pg.title | strip_html | escape }}&rdquo;? This action cannot be undone.">
-                Delete
-              </a>
+              {% if is_editor or is_author and user_id == pg.author_id %}
+                <span class="text-muted"> &bull; </span>
+                <a href="{{ pg | edit_page_link }}">Edit</a>
+              {% endif %}
+              {% if is_web_log_admin %}
+                <span class="text-muted"> &bull; </span>
+                {%- assign pg_del_link = "admin/page/" | append: pg.id | append: "/delete" | relative_link -%}
+                <a href="{{ pg_del_link }}" hx-post="{{ pg_del_link }}" class="text-danger"
+                   hx-confirm="Are you sure you want to delete the page &ldquo;{{ pg.title | strip_html | escape }}&rdquo;? This action cannot be undone.">
+                  Delete
+                </a>
+              {% endif %}
             </small>
           </div>
           <div class="{{ link_col }}">
@@ -55,14 +58,18 @@
     <div class="d-flex justify-content-evenly pb-3">
       <div>
         {% if page_nbr > 1 %}
-          {%- capture prev_link %}admin/pages{{ prev_page }}{% endcapture -%}
-          <p><a class="btn btn-default" href="{{ prev_link | relative_link }}">&laquo; Previous</a></p>
+          <p>
+            <a class="btn btn-default" href="{{ "admin/pages" | append: prev_page | relative_link }}">
+              &laquo; Previous
+            </a>
+          </p>
         {% endif %}
       </div>
       <div class="text-right">
         {% if page_count == 25 %}
-          {%- capture next_link %}admin/pages{{ next_page }}{% endcapture -%}
-          <p><a class="btn btn-default" href="{{ next_link | relative_link }}">Next &raquo;</a></p>
+          <p>
+            <a class="btn btn-default" href="{{ "admin/pages" | append: next_page | relative_link }}">Next &raquo;</a>
+          </p>
         {% endif %}
       </div>
     </div>
