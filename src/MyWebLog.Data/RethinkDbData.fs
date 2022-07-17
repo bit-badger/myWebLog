@@ -972,6 +972,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                         "preferredName", user.preferredName
                         "passwordHash",  user.passwordHash
                         "salt",          user.salt
+                        "accessLevel",   user.accessLevel
                         ]
                     write; withRetryDefault; ignoreResult conn
                 }
