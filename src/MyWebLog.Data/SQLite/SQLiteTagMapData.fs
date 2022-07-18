@@ -99,10 +99,10 @@ type SQLiteTagMapData (conn : SqliteConnection) =
     }
     
     interface ITagMapData with
-        member _.delete tagMapId webLogId = delete tagMapId webLogId
-        member _.findById tagMapId webLogId = findById tagMapId webLogId
-        member _.findByUrlValue urlValue webLogId = findByUrlValue urlValue webLogId
-        member _.findByWebLog webLogId = findByWebLog webLogId
-        member _.findMappingForTags tags webLogId = findMappingForTags tags webLogId
-        member _.save tagMap = save tagMap
-        member this.restore tagMaps = restore tagMaps
+        member _.Delete tagMapId webLogId = delete tagMapId webLogId
+        member _.FindById tagMapId webLogId = findById tagMapId webLogId
+        member _.FindByUrlValue urlValue webLogId = findByUrlValue urlValue webLogId
+        member _.FindByWebLog webLogId = findByWebLog webLogId
+        member _.FindMappingForTags tags webLogId = findMappingForTags tags webLogId
+        member _.Save tagMap = save tagMap
+        member this.Restore tagMaps = restore tagMaps

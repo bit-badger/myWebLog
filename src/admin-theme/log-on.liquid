@@ -3,19 +3,19 @@
   <form action="{{ "user/log-on" | relative_link }}" method="post" hx-push-url="true">
     <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
     {% if model.return_to %}
-      <input type="hidden" name="returnTo" value="{{ model.return_to.value }}">
+      <input type="hidden" name="ReturnTo" value="{{ model.return_to.value }}">
     {% endif %}
     <div class="container">
       <div class="row">
         <div class="col-12 col-md-6 col-lg-4 offset-lg-2 pb-3">
           <div class="form-floating">
-            <input type="email" id="email" name="emailAddress" class="form-control" autofocus required>
+            <input type="email" id="email" name="EmailAddress" class="form-control" autofocus required>
             <label for="email">E-mail Address</label>
           </div>
         </div>
         <div class="col-12 col-md-6 col-lg-4 pb-3">
           <div class="form-floating">
-            <input type="password" id="password" name="password" class="form-control" required>
+            <input type="password" id="password" name="Password" class="form-control" required>
             <label for="password">Password</label>
           </div>
         </div>

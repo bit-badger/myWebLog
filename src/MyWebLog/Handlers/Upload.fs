@@ -45,13 +45,13 @@ let deriveMimeType path =
     match mimeMap.TryGetContentType path with true, typ -> typ | false, _ -> "application/octet-stream"
 
 /// Send a file, caching the response for 30 days
-let sendFile updatedOn path (data : byte[]) : HttpHandler = fun next ctx -> task {
+let sendFile updatedOn path (data : byte[]) : HttpHandler = fun next ctx ->
     let headers = ResponseHeaders ctx.Response.Headers
     headers.ContentType  <- (deriveMimeType >> MediaTypeHeaderValue) path
     headers.CacheControl <- cacheForThirtyDays
     let stream = new MemoryStream (data)
-    return! streamData true stream None (Some (DateTimeOffset updatedOn)) next ctx
-}
+    streamData true stream None (Some (DateTimeOffset updatedOn)) next ctx
+
 
 // GET /upload/{web-log-slug}/{**path}
 let serve (urlParts : string seq) : HttpHandler = fun next ctx -> task {
@@ -65,7 +65,7 @@ let serve (urlParts : string seq) : HttpHandler = fun next ctx -> task {
             return! streamFile true fileName None None next ctx
         else
             let path = String.Join ('/', Array.skip 1 parts)
-            match! ctx.Data.Upload.findByPath path webLog.id with
+            match! ctx.Data.Upload.FindByPath path webLog.id with
             | Some upload ->
                 match checkModified upload.updatedOn ctx with
                 | Some threeOhFour -> return! threeOhFour next ctx
@@ -87,7 +87,7 @@ let makeSlug it = ((Regex """\s+""").Replace ((Regex "[^A-z0-9 ]").Replace (it, 
 // GET /admin/uploads
 let list : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     let  webLog      = ctx.WebLog
-    let! dbUploads   = ctx.Data.Upload.findByWebLog webLog.id
+    let! dbUploads   = ctx.Data.Upload.FindByWebLog webLog.id
     let  diskUploads =
         let path = Path.Combine (uploadDir, webLog.slug)
         try
@@ -98,11 +98,11 @@ let list : HttpHandler = requireAccess Author >=> fun next ctx -> task {
                     match File.GetCreationTime (Path.Combine (path, file)) with
                     | dt when dt > DateTime.UnixEpoch -> Some dt
                     | _ -> None
-                { DisplayUpload.id = ""
-                  name             = name
-                  path             = file.Replace($"{path}{slash}", "").Replace(name, "").Replace (slash, '/')
-                  updatedOn        = create
-                  source           = UploadDestination.toString Disk
+                { DisplayUpload.Id = ""
+                  Name             = name
+                  Path             = file.Replace($"{path}{slash}", "").Replace(name, "").Replace (slash, '/')
+                  UpdatedOn        = create
+                  Source           = UploadDestination.toString Disk
                 })
             |> List.ofSeq
         with
@@ -114,7 +114,7 @@ let list : HttpHandler = requireAccess Author >=> fun next ctx -> task {
         dbUploads
         |> List.map (DisplayUpload.fromUpload webLog Database)
         |> List.append diskUploads
-        |> List.sortByDescending (fun file -> file.updatedOn, file.path)
+        |> List.sortByDescending (fun file -> file.UpdatedOn, file.Path)
 
     return!
         Hash.FromAnonymousObject {|
@@ -126,15 +126,14 @@ let list : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     }
 
 // GET /admin/upload/new
-let showNew : HttpHandler = requireAccess Author >=> fun next ctx -> task {
-    return!
-        Hash.FromAnonymousObject {|
-            page_title  = "Upload a File"
-            csrf        = ctx.CsrfTokenSet
-            destination = UploadDestination.toString ctx.WebLog.uploads
-        |}
-        |> viewForTheme "admin" "upload-new" next ctx
-}
+let showNew : HttpHandler = requireAccess Author >=> fun next ctx ->
+    Hash.FromAnonymousObject {|
+        page_title  = "Upload a File"
+        csrf        = ctx.CsrfTokenSet
+        destination = UploadDestination.toString ctx.WebLog.uploads
+    |}
+    |> viewForTheme "admin" "upload-new" next ctx
+
 
 /// Redirect to the upload list
 let showUploads : HttpHandler =
@@ -151,7 +150,7 @@ let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
         let  month    = localNow.ToString "MM"
         let! form     = ctx.BindFormAsync<UploadFileModel> ()
         
-        match UploadDestination.parse form.destination with
+        match UploadDestination.parse form.Destination with
         | Database ->
             use stream = new MemoryStream ()
             do! upload.CopyToAsync stream
@@ -162,14 +161,14 @@ let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
                   updatedOn = DateTime.UtcNow
                   data      = stream.ToArray ()
                 }
-            do! ctx.Data.Upload.add file
+            do! ctx.Data.Upload.Add file
         | Disk ->
             let fullPath = Path.Combine (uploadDir, ctx.WebLog.slug, year, month)
             let _        = Directory.CreateDirectory fullPath
             use stream   = new FileStream (Path.Combine (fullPath, fileName), FileMode.Create)
             do! upload.CopyToAsync stream
         
-        do! addMessage ctx { UserMessage.success with message = $"File uploaded to {form.destination} successfully" }
+        do! addMessage ctx { UserMessage.success with Message = $"File uploaded to {form.Destination} successfully" }
         return! showUploads next ctx
     else
         return! RequestErrors.BAD_REQUEST "Bad request; no file present" next ctx
@@ -177,9 +176,9 @@ let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
 
 // POST /admin/upload/{id}/delete
 let deleteFromDb upId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
-    match! ctx.Data.Upload.delete (UploadId upId) ctx.WebLog.id with
+    match! ctx.Data.Upload.Delete (UploadId upId) ctx.WebLog.id with
     | Ok fileName ->
-        do! addMessage ctx { UserMessage.success with message = $"{fileName} deleted successfully" }
+        do! addMessage ctx { UserMessage.success with Message = $"{fileName} deleted successfully" }
         return! showUploads next ctx
     | Error _ -> return! Error.notFound next ctx
 }
@@ -193,8 +192,7 @@ let removeEmptyDirectories (webLog : WebLog) (filePath : string) =
         if Directory.EnumerateFileSystemEntries fullPath |> Seq.isEmpty then
             Directory.Delete fullPath
             path <- String.Join(slash, path.Split slash |> Array.rev |> Array.skip 1 |> Array.rev)
-        else
-            finished <- true
+        else finished <- true
     
 // POST /admin/upload/delete/{**path}
 let deleteFromDisk urlParts : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
@@ -203,8 +201,7 @@ let deleteFromDisk urlParts : HttpHandler = requireAccess WebLogAdmin >=> fun ne
     if File.Exists path then
         File.Delete path
         removeEmptyDirectories ctx.WebLog filePath
-        do! addMessage ctx { UserMessage.success with message = $"{filePath} deleted successfully" }
+        do! addMessage ctx { UserMessage.success with Message = $"{filePath} deleted successfully" }
         return! showUploads next ctx
-    else
-        return! Error.notFound next ctx
+    else return! Error.notFound next ctx
 }

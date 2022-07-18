@@ -27,7 +27,7 @@ module CatchAll =
             if textLink = "" then yield redirectTo true (WebLog.relativeUrl webLog Permalink.empty)
             let permalink = Permalink (textLink.Substring 1)
             // Current post
-            match data.Post.findByPermalink permalink webLog.id |> await with
+            match data.Post.FindByPermalink permalink webLog.id |> await with
             | Some post ->
                 debug (fun () -> "Found post by permalink")
                 let model = Post.preparePostList webLog [ post ] Post.ListType.SinglePost "" 1 1 ctx data |> await
@@ -35,7 +35,7 @@ module CatchAll =
                 yield fun next ctx -> themedView (defaultArg post.template "single-post") next ctx model
             | None -> ()
             // Current page
-            match data.Page.findByPermalink permalink webLog.id |> await with
+            match data.Page.FindByPermalink permalink webLog.id |> await with
             | Some page ->
                 debug (fun () -> "Found page by permalink")
                 yield fun next ctx ->
@@ -56,25 +56,25 @@ module CatchAll =
             // Post differing only by trailing slash
             let altLink =
                 Permalink (if textLink.EndsWith "/" then textLink[1..textLink.Length - 2] else $"{textLink[1..]}/")
-            match data.Post.findByPermalink altLink webLog.id |> await with
+            match data.Post.FindByPermalink altLink webLog.id |> await with
             | Some post ->
                 debug (fun () -> "Found post by trailing-slash-agnostic permalink")
                 yield redirectTo true (WebLog.relativeUrl webLog post.permalink)
             | None -> ()
             // Page differing only by trailing slash
-            match data.Page.findByPermalink altLink webLog.id |> await with
+            match data.Page.FindByPermalink altLink webLog.id |> await with
             | Some page ->
                 debug (fun () -> "Found page by trailing-slash-agnostic permalink")
                 yield redirectTo true (WebLog.relativeUrl webLog page.permalink)
             | None -> ()
             // Prior post
-            match data.Post.findCurrentPermalink [ permalink; altLink ] webLog.id |> await with
+            match data.Post.FindCurrentPermalink [ permalink; altLink ] webLog.id |> await with
             | Some link ->
                 debug (fun () -> "Found post by prior permalink")
                 yield redirectTo true (WebLog.relativeUrl webLog link)
             | None -> ()
             // Prior page
-            match data.Page.findCurrentPermalink [ permalink; altLink ] webLog.id |> await with
+            match data.Page.FindCurrentPermalink [ permalink; altLink ] webLog.id |> await with
             | Some link ->
                 debug (fun () -> "Found page by prior permalink")
                 yield redirectTo true (WebLog.relativeUrl webLog link)
@@ -83,11 +83,8 @@ module CatchAll =
         }
 
     // GET {all-of-the-above}
-    let route : HttpHandler = fun next ctx -> task {
-        match deriveAction ctx |> Seq.tryHead with
-        | Some handler -> return! handler next ctx
-        | None -> return! Error.notFound next ctx
-    }
+    let route : HttpHandler = fun next ctx ->
+        match deriveAction ctx |> Seq.tryHead with Some handler -> handler next ctx | None -> Error.notFound next ctx
 
 
 /// Serve theme assets
@@ -96,7 +93,7 @@ module Asset =
     // GET /theme/{theme}/{**path}
     let serve (urlParts : string seq) : HttpHandler = fun next ctx -> task {
         let path = urlParts |> Seq.skip 1 |> Seq.head
-        match! ctx.Data.ThemeAsset.findById (ThemeAssetId.ofString path) with
+        match! ctx.Data.ThemeAsset.FindById (ThemeAssetId.ofString path) with
         | Some asset ->
             match Upload.checkModified asset.updatedOn ctx with
             | Some threeOhFour -> return! threeOhFour next ctx
@@ -219,10 +216,10 @@ let routerWithPath extraPath : HttpHandler =
     subRoute extraPath router
 
 /// Handler to apply Giraffe routing with a possible sub-route
-let handleRoute : HttpHandler = fun next ctx -> task {
+let handleRoute : HttpHandler = fun next ctx ->
     let _, extraPath = WebLog.hostAndPath ctx.WebLog
-    return! (if extraPath = "" then router else routerWithPath extraPath) next ctx
-}
+    (if extraPath = "" then router else routerWithPath extraPath) next ctx
+
 
 open Giraffe.EndpointRouting
 

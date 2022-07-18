@@ -301,6 +301,8 @@ module Map =
           salt          = getGuid "salt" rdr
           url           = tryString "url" rdr
           accessLevel   = AccessLevel.parse (getString "access_level" rdr)
+          createdOn     = getDateTime "created_on" rdr
+          lastSeenOn    = tryDateTime "last_seen_on" rdr
         }
 
 /// Add a possibly-missing parameter, substituting null for None

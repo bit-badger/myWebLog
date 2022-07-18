@@ -56,7 +56,7 @@ this.Admin = {
     const nameField = document.createElement("input")
     
     nameField.type        = "text"
-    nameField.name        = "metaNames"
+    nameField.name        = "MetaNames"
     nameField.id          = `metaNames_${this.nextMetaIndex}`
     nameField.className   = "form-control"
     nameField.placeholder = "Name"
@@ -94,7 +94,7 @@ this.Admin = {
     const valueField = document.createElement("input")
     
     valueField.type        = "text"
-    valueField.name        = "metaValues"
+    valueField.name        = "MetaValues"
     valueField.id          = `metaValues_${this.nextMetaIndex}`
     valueField.className   = "form-control"
     valueField.placeholder = "Value"
@@ -182,7 +182,7 @@ this.Admin = {
     // Link
     const linkField = document.createElement("input")
     linkField.type        = "text"
-    linkField.name        = "prior"
+    linkField.name        = "Prior"
     linkField.id          = `prior_${this.nextPermalink}`
     linkField.className   = "form-control"
     linkField.placeholder = "Link"

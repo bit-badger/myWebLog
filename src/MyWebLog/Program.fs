@@ -90,7 +90,7 @@ let rec main args =
     let data = DataImplementation.get sp
     
     task {
-        do! data.startUp ()
+        do! data.StartUp ()
         do! WebLogCache.fill data
         do! ThemeAssetCache.fill data
     } |> Async.AwaitTask |> Async.RunSynchronously

@@ -3,25 +3,25 @@
   <form hx-post="{{ "admin/category/save" | relative_link }}" method="post" class="container"
         hx-target="#catList" hx-swap="outerHTML show:window:top">
     <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
-    <input type="hidden" name="categoryId" value="{{ model.category_id }}">
+    <input type="hidden" name="CategoryId" value="{{ model.category_id }}">
       <div class="row">
         <div class="col-12 col-sm-6 col-lg-4 col-xxl-3 offset-xxl-1 mb-3">
           <div class="form-floating">
-            <input type="text" name="name" id="name" class="form-control form-control-sm" placeholder="Name" autofocus
+            <input type="text" name="Name" id="name" class="form-control form-control-sm" placeholder="Name" autofocus
                    required value="{{ model.name | escape }}">
             <label for="name">Name</label>
           </div>
         </div>
         <div class="col-12 col-sm-6 col-lg-4 col-xxl-3 mb-3">
           <div class="form-floating">
-            <input type="text" name="slug" id="slug" class="form-control form-control-sm" placeholder="Slug" required
+            <input type="text" name="Slug" id="slug" class="form-control form-control-sm" placeholder="Slug" required
                    value="{{ model.slug | escape }}">
             <label for="slug">Slug</label>
           </div>
         </div>
         <div class="col-12 col-lg-4 col-xxl-3 offset-xxl-1 mb-3">
           <div class="form-floating">
-            <select name="parentId" id="parentId" class="form-control form-control-sm">
+            <select name="ParentId" id="parentId" class="form-control form-control-sm">
               <option value=""{% if model.parent_id == "" %} selected="selected"{% endif %}>
                 &ndash; None &ndash;
               </option>
@@ -38,7 +38,7 @@
         </div>
         <div class="col-12 col-xl-10 offset-xl-1 mb-3">
           <div class="form-floating">
-            <input name="description" id="description" class="form-control form-control-sm"
+            <input name="Description" id="description" class="form-control form-control-sm"
                    placeholder="A short description of this category" value="{{ model.description | escape }}">
             <label for="description">Description</label>
           </div>

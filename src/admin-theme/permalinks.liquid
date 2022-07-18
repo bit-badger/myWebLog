@@ -3,7 +3,7 @@
   {%- assign base_url = "admin/" | append: model.entity | append: "/" -%}
   <form action="{{ base_url | append: "permalinks" | relative_link }}" method="post">
     <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
-    <input type="hidden" name="id" value="{{ model.id }}">
+    <input type="hidden" name="Id" value="{{ model.id }}">
     <div class="container">
       <div class="row">
         <div class="col">
@@ -36,7 +36,7 @@
                 </div>
                 <div class="col-11">
                   <div class="form-floating">
-                    <input type="text" name="prior" id="prior_{{ link_count }}" class="form-control"
+                    <input type="text" name="Prior" id="prior_{{ link_count }}" class="form-control"
                            placeholder="Link" value="{{ link }}">
                     <label for="prior_{{ link_count }}">Link</label>
                   </div>

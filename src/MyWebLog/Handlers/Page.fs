@@ -9,7 +9,7 @@ open MyWebLog.ViewModels
 // GET /admin/pages
 // GET /admin/pages/page/{pageNbr}
 let all pageNbr : HttpHandler = requireAccess Author >=> fun next ctx -> task {
-    let! pages = ctx.Data.Page.findPageOfPages ctx.WebLog.id pageNbr
+    let! pages = ctx.Data.Page.FindPageOfPages ctx.WebLog.id pageNbr
     return!
         Hash.FromAnonymousObject {|
             page_title = "Pages"
@@ -28,7 +28,7 @@ let edit pgId : HttpHandler = requireAccess Author >=> fun next ctx -> task {
         match pgId with
         | "new" -> return Some ("Add a New Page", { Page.empty with id = PageId "new"; authorId = ctx.UserId })
         | _ ->
-            match! ctx.Data.Page.findFullById (PageId pgId) ctx.WebLog.id with
+            match! ctx.Data.Page.FindFullById (PageId pgId) ctx.WebLog.id with
             | Some page -> return Some ("Edit Page", page)
             | None -> return None
     }
@@ -41,7 +41,7 @@ let edit pgId : HttpHandler = requireAccess Author >=> fun next ctx -> task {
                 page_title = title
                 csrf       = ctx.CsrfTokenSet
                 model      = model
-                metadata   = Array.zip model.metaNames model.metaValues
+                metadata   = Array.zip model.MetaNames model.MetaValues
                              |> Array.mapi (fun idx (name, value) -> [| string idx; name; value |])
                 templates  = templates
             |}
@@ -52,17 +52,17 @@ let edit pgId : HttpHandler = requireAccess Author >=> fun next ctx -> task {
 
 // POST /admin/page/{id}/delete
 let delete pgId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
-    match! ctx.Data.Page.delete (PageId pgId) ctx.WebLog.id with
+    match! ctx.Data.Page.Delete (PageId pgId) ctx.WebLog.id with
     | true ->
         do! PageListCache.update ctx
-        do! addMessage ctx { UserMessage.success with message = "Page deleted successfully" }
-    | false -> do! addMessage ctx { UserMessage.error with message = "Page not found; nothing deleted" }
+        do! addMessage ctx { UserMessage.success with Message = "Page deleted successfully" }
+    | false -> do! addMessage ctx { UserMessage.error with Message = "Page not found; nothing deleted" }
     return! redirectToGet "admin/pages" next ctx
 }
 
 // GET /admin/page/{id}/permalinks
 let editPermalinks pgId : HttpHandler = requireAccess Author >=> fun next ctx -> task {
-    match! ctx.Data.Page.findFullById (PageId pgId) ctx.WebLog.id with
+    match! ctx.Data.Page.FindFullById (PageId pgId) ctx.WebLog.id with
     | Some pg when canEdit pg.authorId ctx ->
         return!
             Hash.FromAnonymousObject {|
@@ -78,14 +78,14 @@ let editPermalinks pgId : HttpHandler = requireAccess Author >=> fun next ctx ->
 // POST /admin/page/permalinks
 let savePermalinks : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     let! model = ctx.BindFormAsync<ManagePermalinksModel> ()
-    let  pageId = PageId model.id
-    match! ctx.Data.Page.findById pageId ctx.WebLog.id with
+    let  pageId = PageId model.Id
+    match! ctx.Data.Page.FindById pageId ctx.WebLog.id with
     | Some pg when canEdit pg.authorId ctx ->
-        let  links = model.prior |> Array.map Permalink |> List.ofArray
-        match! ctx.Data.Page.updatePriorPermalinks pageId ctx.WebLog.id links with
+        let  links = model.Prior |> Array.map Permalink |> List.ofArray
+        match! ctx.Data.Page.UpdatePriorPermalinks pageId ctx.WebLog.id links with
         | true ->
-            do! addMessage ctx { UserMessage.success with message = "Page permalinks saved successfully" }
-            return! redirectToGet $"admin/page/{model.id}/permalinks" next ctx
+            do! addMessage ctx { UserMessage.success with Message = "Page permalinks saved successfully" }
+            return! redirectToGet $"admin/page/{model.Id}/permalinks" next ctx
         | false -> return! Error.notFound next ctx
     | Some _ -> return! Error.notAuthorized next ctx
     | None -> return! Error.notFound next ctx
@@ -93,7 +93,7 @@ let savePermalinks : HttpHandler = requireAccess Author >=> fun next ctx -> task
 
 // GET /admin/page/{id}/revisions
 let editRevisions pgId : HttpHandler = requireAccess Author >=> fun next ctx -> task {
-    match! ctx.Data.Page.findFullById (PageId pgId) ctx.WebLog.id with
+    match! ctx.Data.Page.FindFullById (PageId pgId) ctx.WebLog.id with
     | Some pg when canEdit pg.authorId ctx ->
         return!
             Hash.FromAnonymousObject {|
@@ -109,10 +109,10 @@ let editRevisions pgId : HttpHandler = requireAccess Author >=> fun next ctx -> 
 // GET /admin/page/{id}/revisions/purge
 let purgeRevisions pgId : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     let data = ctx.Data
-    match! data.Page.findFullById (PageId pgId) ctx.WebLog.id with
+    match! data.Page.FindFullById (PageId pgId) ctx.WebLog.id with
     | Some pg ->
-        do! data.Page.update { pg with revisions = [ List.head pg.revisions ] }
-        do! addMessage ctx { UserMessage.success with message = "Prior revisions purged successfully" }
+        do! data.Page.Update { pg with revisions = [ List.head pg.revisions ] }
+        do! addMessage ctx { UserMessage.success with Message = "Prior revisions purged successfully" }
         return! redirectToGet $"admin/page/{pgId}/revisions" next ctx
     | None -> return! Error.notFound next ctx
 }
@@ -121,7 +121,7 @@ open Microsoft.AspNetCore.Http
 
 /// Find the page and the requested revision
 let private findPageRevision pgId revDate (ctx : HttpContext) = task {
-    match! ctx.Data.Page.findFullById (PageId pgId) ctx.WebLog.id with
+    match! ctx.Data.Page.FindFullById (PageId pgId) ctx.WebLog.id with
     | Some pg ->
         let asOf = parseToUtc revDate
         return Some pg, pg.revisions |> List.tryFind (fun r -> r.asOf = asOf)
@@ -148,12 +148,12 @@ open System
 let restoreRevision (pgId, revDate) : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     match! findPageRevision pgId revDate ctx with
     | Some pg, Some rev when canEdit pg.authorId ctx ->
-        do! ctx.Data.Page.update
+        do! ctx.Data.Page.Update
                 { pg with
                     revisions = { rev with asOf = DateTime.UtcNow }
                                   :: (pg.revisions |> List.filter (fun r -> r.asOf <> rev.asOf))
                 }
-        do! addMessage ctx { UserMessage.success with message = "Revision restored successfully" }
+        do! addMessage ctx { UserMessage.success with Message = "Revision restored successfully" }
         return! redirectToGet $"admin/page/{pgId}/revisions" next ctx
     | Some _, Some _ -> return! Error.notAuthorized next ctx
     | None, _
@@ -164,52 +164,54 @@ let restoreRevision (pgId, revDate) : HttpHandler = requireAccess Author >=> fun
 let deleteRevision (pgId, revDate) : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     match! findPageRevision pgId revDate ctx with
     | Some pg, Some rev when canEdit pg.authorId ctx ->
-        do! ctx.Data.Page.update { pg with revisions = pg.revisions |> List.filter (fun r -> r.asOf <> rev.asOf) }
-        do! addMessage ctx { UserMessage.success with message = "Revision deleted successfully" }
+        do! ctx.Data.Page.Update { pg with revisions = pg.revisions |> List.filter (fun r -> r.asOf <> rev.asOf) }
+        do! addMessage ctx { UserMessage.success with Message = "Revision deleted successfully" }
         return! bareForTheme "admin" "" next ctx (Hash.FromAnonymousObject {| content = "" |})
     | Some _, Some _ -> return! Error.notAuthorized next ctx
     | None, _
     | _, None -> return! Error.notFound next ctx
 }
 
-#nowarn "3511"
+//#nowarn "3511"
+
+open System.Threading.Tasks
 
 // POST /admin/page/save
 let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     let! model = ctx.BindFormAsync<EditPageModel> ()
     let  data  = ctx.Data
     let  now   = DateTime.UtcNow
-    let! pg    = task {
-        match model.pageId with
+    let  pg    =
+        match model.PageId with
         | "new" ->
-            return Some
-                { Page.empty with
-                    id          = PageId.create ()
-                    webLogId    = ctx.WebLog.id
-                    authorId    = ctx.UserId
-                    publishedOn = now
-                }
-        | pgId -> return! data.Page.findFullById (PageId pgId) ctx.WebLog.id
-    }
-    match pg with
+            Task.FromResult (
+                Some
+                    { Page.empty with
+                        id          = PageId.create ()
+                        webLogId    = ctx.WebLog.id
+                        authorId    = ctx.UserId
+                        publishedOn = now
+                    })
+        | pgId -> data.Page.FindFullById (PageId pgId) ctx.WebLog.id
+    match! pg with
     | Some page when canEdit page.authorId ctx ->
-        let updateList = page.showInPageList <> model.isShownInPageList
-        let revision   = { asOf = now; text = MarkupText.parse $"{model.source}: {model.text}" }
+        let updateList = page.showInPageList <> model.IsShownInPageList
+        let revision   = { asOf = now; text = MarkupText.parse $"{model.Source}: {model.Text}" }
         // Detect a permalink change, and add the prior one to the prior list
         let page =
             match Permalink.toString page.permalink with
             | "" -> page
-            | link when link = model.permalink -> page
+            | link when link = model.Permalink -> page
             | _ -> { page with priorPermalinks = page.permalink :: page.priorPermalinks }
         let page =
             { page with
-                title          = model.title
-                permalink      = Permalink model.permalink
+                title          = model.Title
+                permalink      = Permalink model.Permalink
                 updatedOn      = now
-                showInPageList = model.isShownInPageList
-                template       = match model.template with "" -> None | tmpl -> Some tmpl
+                showInPageList = model.IsShownInPageList
+                template       = match model.Template with "" -> None | tmpl -> Some tmpl
                 text           = MarkupText.toHtml revision.text
-                metadata       = Seq.zip model.metaNames model.metaValues
+                metadata       = Seq.zip model.MetaNames model.MetaValues
                                  |> Seq.filter (fun it -> fst it > "")
                                  |> Seq.map (fun it -> { name = fst it; value = snd it })
                                  |> Seq.sortBy (fun it -> $"{it.name.ToLower ()} {it.value.ToLower ()}")
@@ -218,9 +220,9 @@ let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
                                  | Some r when r.text = revision.text -> page.revisions
                                  | _ -> revision :: page.revisions
             }
-        do! (if model.pageId = "new" then data.Page.add else data.Page.update) page
+        do! (if model.PageId = "new" then data.Page.Add else data.Page.Update) page
         if updateList then do! PageListCache.update ctx
-        do! addMessage ctx { UserMessage.success with message = "Page saved successfully" }
+        do! addMessage ctx { UserMessage.success with Message = "Page saved successfully" }
         return! redirectToGet $"admin/page/{PageId.toString page.id}/edit" next ctx
     | Some _ -> return! Error.notAuthorized next ctx
     | None -> return! Error.notFound next ctx

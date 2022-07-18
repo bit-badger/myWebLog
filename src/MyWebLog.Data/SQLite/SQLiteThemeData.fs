@@ -101,10 +101,10 @@ type SQLiteThemeData (conn : SqliteConnection) =
     }
     
     interface IThemeData with
-        member _.all () = all ()
-        member _.findById themeId = findById themeId
-        member _.findByIdWithoutText themeId = findByIdWithoutText themeId
-        member _.save theme = save theme
+        member _.All () = all ()
+        member _.FindById themeId = findById themeId
+        member _.FindByIdWithoutText themeId = findByIdWithoutText themeId
+        member _.Save theme = save theme
 
 
 open System.IO
@@ -199,9 +199,9 @@ type SQLiteThemeAssetData (conn : SqliteConnection) =
     }
     
     interface IThemeAssetData with
-        member _.all () = all ()
-        member _.deleteByTheme themeId = deleteByTheme themeId
-        member _.findById assetId = findById assetId
-        member _.findByTheme themeId = findByTheme themeId
-        member _.findByThemeWithData themeId = findByThemeWithData themeId
-        member _.save asset = save asset
+        member _.All () = all ()
+        member _.DeleteByTheme themeId = deleteByTheme themeId
+        member _.FindById assetId = findById assetId
+        member _.FindByTheme themeId = findByTheme themeId
+        member _.FindByThemeWithData themeId = findByThemeWithData themeId
+        member _.Save asset = save asset

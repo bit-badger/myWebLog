@@ -40,7 +40,7 @@ type SQLiteData (conn : SqliteConnection, log : ILogger<SQLiteData>) =
         member _.WebLog     = SQLiteWebLogData     conn
         member _.WebLogUser = SQLiteWebLogUserData conn
         
-        member _.startUp () = backgroundTask {
+        member _.StartUp () = backgroundTask {
 
             use cmd = conn.CreateCommand ()
             
@@ -174,7 +174,9 @@ type SQLiteData (conn : SqliteConnection, log : ILogger<SQLiteData>) =
                         password_hash  TEXT NOT NULL,
                         salt           TEXT NOT NULL,
                         url            TEXT,
-                        access_level   TEXT NOT NULL);
+                        access_level   TEXT NOT NULL,
+                        created_on     TEXT NOT NULL,
+                        last_seen_on   TEXT NOT NULL);
                     CREATE INDEX web_log_user_web_log_idx   ON web_log_user (web_log_id);
                     CREATE INDEX web_log_user_user_name_idx ON web_log_user (web_log_id, user_name)"""
                 do! write cmd

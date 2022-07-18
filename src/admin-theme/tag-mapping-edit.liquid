@@ -2,18 +2,18 @@
 <form hx-post="{{ "admin/settings/tag-mapping/save" | relative_link }}" method="post" class="container"
       hx-target="#tagList" hx-swap="outerHTML show:window:top">
   <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
-  <input type="hidden" name="id" value="{{ model.id }}">
+  <input type="hidden" name="Id" value="{{ model.id }}">
   <div class="row mb-3">
     <div class="col-6 col-lg-4 offset-lg-2">
       <div class="form-floating">
-        <input type="text" name="tag" id="tag" class="form-control" placeholder="Tag" autofocus required
+        <input type="text" name="Tag" id="tag" class="form-control" placeholder="Tag" autofocus required
                value="{{ model.tag }}">
         <label for="tag">Tag</label>
       </div>
     </div>
     <div class="col-6 col-lg-4">
       <div class="form-floating">
-        <input type="text" name="urlValue" id="urlValue" class="form-control" placeholder="URL Value" required
+        <input type="text" name="UrlValue" id="urlValue" class="form-control" placeholder="URL Value" required
                value="{{ model.url_value }}">
         <label for="urlValue">URL Value</label>
       </div>

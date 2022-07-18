@@ -1,5 +1,6 @@
 namespace MyWebLog.Data.SQLite
 
+open System
 open Microsoft.Data.Sqlite
 open MyWebLog
 open MyWebLog.Data
@@ -21,6 +22,8 @@ type SQLiteWebLogUserData (conn : SqliteConnection) =
           cmd.Parameters.AddWithValue ("@salt", user.salt)
           cmd.Parameters.AddWithValue ("@url", maybe user.url)
           cmd.Parameters.AddWithValue ("@accessLevel", AccessLevel.toString user.accessLevel)
+          cmd.Parameters.AddWithValue ("@createdOn", user.createdOn)
+          cmd.Parameters.AddWithValue ("@lastSeenOn", maybe user.lastSeenOn)
         ] |> ignore
     
     // IMPLEMENTATION FUNCTIONS
@@ -31,10 +34,10 @@ type SQLiteWebLogUserData (conn : SqliteConnection) =
         cmd.CommandText <- """
             INSERT INTO web_log_user (
                 id, web_log_id, user_name, first_name, last_name, preferred_name, password_hash, salt, url,
-                access_level
+                access_level, created_on, last_seen_on
             ) VALUES (
                 @id, @webLogId, @userName, @firstName, @lastName, @preferredName, @passwordHash, @salt, @url,
-                @accessLevel
+                @accessLevel, @createdOn, @lastSeenOn
             )"""
         addWebLogUserParameters cmd user
         do! write cmd
@@ -91,6 +94,22 @@ type SQLiteWebLogUserData (conn : SqliteConnection) =
             do! add user
     }
     
+    /// Set a user's last seen date/time to now
+    let setLastSeen userId webLogId = backgroundTask {
+        use cmd = conn.CreateCommand ()
+        cmd.CommandText <- """
+            UPDATE web_log_user
+               SET last_seen_on = @lastSeenOn
+             WHERE id         = @id
+               AND web_log_id = @webLogId"""
+        addWebLogId cmd webLogId
+        [ cmd.Parameters.AddWithValue ("@id", WebLogUserId.toString userId)
+          cmd.Parameters.AddWithValue ("@lastSeenOn", DateTime.UtcNow)
+        ] |> ignore
+        let! _ = cmd.ExecuteNonQueryAsync ()
+        ()
+    }
+    
     /// Update a user
     let update user = backgroundTask {
         use cmd = conn.CreateCommand ()
@@ -103,7 +122,9 @@ type SQLiteWebLogUserData (conn : SqliteConnection) =
                    password_hash  = @passwordHash,
                    salt           = @salt,
                    url            = @url,
-                   access_level   = @accessLevel
+                   access_level   = @accessLevel,
+                   created_on     = @createdOn,
+                   last_seen_on   = @lastSeenOn
              WHERE id         = @id
                AND web_log_id = @webLogId"""
         addWebLogUserParameters cmd user
@@ -111,10 +132,11 @@ type SQLiteWebLogUserData (conn : SqliteConnection) =
     }
     
     interface IWebLogUserData with
-        member _.add user = add user
-        member _.findByEmail email webLogId = findByEmail email webLogId
-        member _.findById userId webLogId = findById userId webLogId
-        member _.findByWebLog webLogId = findByWebLog webLogId
-        member _.findNames webLogId userIds = findNames webLogId userIds
-        member this.restore users = restore users
-        member _.update user = update user
+        member _.Add user = add user
+        member _.FindByEmail email webLogId = findByEmail email webLogId
+        member _.FindById userId webLogId = findById userId webLogId
+        member _.FindByWebLog webLogId = findByWebLog webLogId
+        member _.FindNames webLogId userIds = findNames webLogId userIds
+        member _.Restore users = restore users
+        member _.SetLastSeen userId webLogId = setLastSeen userId webLogId
+        member _.Update user = update user

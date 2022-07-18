@@ -27,10 +27,10 @@ let private doCreateWebLog (args : string[]) (sp : IServiceProvider) = task {
     
     // If this is the first web log being created, the user will be an installation admin; otherwise, they will be an
     // admin just over their web log
-    let! webLogs     = data.WebLog.all ()
+    let! webLogs     = data.WebLog.All ()
     let  accessLevel = if List.isEmpty webLogs then Administrator else WebLogAdmin
         
-    do! data.WebLog.add
+    do! data.WebLog.Add
             { WebLog.empty with
                 id          = webLogId
                 name        = args[2]
@@ -42,8 +42,9 @@ let private doCreateWebLog (args : string[]) (sp : IServiceProvider) = task {
     
     // Create the admin user
     let salt = Guid.NewGuid ()
+    let now  = DateTime.UtcNow
     
-    do! data.WebLogUser.add 
+    do! data.WebLogUser.Add 
             { WebLogUser.empty with
                 id            = userId
                 webLogId      = webLogId
@@ -54,21 +55,22 @@ let private doCreateWebLog (args : string[]) (sp : IServiceProvider) = task {
                 passwordHash  = Handlers.User.hashedPassword args[4] args[3] salt
                 salt          = salt
                 accessLevel   = accessLevel
+                createdOn     = now
             }
 
     // Create the default home page
-    do! data.Page.add
+    do! data.Page.Add
             { Page.empty with
                 id          = homePageId
                 webLogId    = webLogId
                 authorId    = userId
                 title       = "Welcome to myWebLog!"
                 permalink   = Permalink "welcome-to-myweblog.html"
-                publishedOn = DateTime.UtcNow
-                updatedOn   = DateTime.UtcNow
+                publishedOn = now
+                updatedOn   = now
                 text        = "<p>This is your default home page.</p>"
                 revisions   = [
-                    { asOf = DateTime.UtcNow
+                    { asOf = now
                       text = Html "<p>This is your default home page.</p>"
                     }
                 ]
@@ -94,7 +96,7 @@ let createWebLog args sp = task {
 let private importPriorPermalinks urlBase file (sp : IServiceProvider) = task {
     let data = sp.GetRequiredService<IData> ()
 
-    match! data.WebLog.findByHost urlBase with
+    match! data.WebLog.FindByHost urlBase with
     | Some webLog ->
         
         let mapping =
@@ -105,10 +107,10 @@ let private importPriorPermalinks urlBase file (sp : IServiceProvider) = task {
                 Permalink parts[0], Permalink parts[1])
         
         for old, current in mapping do
-            match! data.Post.findByPermalink current webLog.id with
+            match! data.Post.FindByPermalink current webLog.id with
             | Some post ->
-                let! withLinks = data.Post.findFullById post.id post.webLogId
-                let! _ = data.Post.updatePriorPermalinks post.id post.webLogId
+                let! withLinks = data.Post.FindFullById post.id post.webLogId
+                let! _ = data.Post.UpdatePriorPermalinks post.id post.webLogId
                              (old :: withLinks.Value.priorPermalinks)
                 printfn $"{Permalink.toString old} -> {Permalink.toString current}"
             | None -> eprintfn $"Cannot find current post for {Permalink.toString current}"
@@ -285,24 +287,24 @@ module Backup =
         let themeId = ThemeId webLog.themePath
         
         printfn "- Exporting theme..."
-        let! theme  = data.Theme.findById themeId
-        let! assets = data.ThemeAsset.findByThemeWithData themeId
+        let! theme  = data.Theme.FindById themeId
+        let! assets = data.ThemeAsset.FindByThemeWithData themeId
         
         printfn "- Exporting users..."
-        let! users = data.WebLogUser.findByWebLog webLog.id
+        let! users = data.WebLogUser.FindByWebLog webLog.id
         
         printfn "- Exporting categories and tag mappings..."
-        let! categories = data.Category.findByWebLog webLog.id
-        let! tagMaps    = data.TagMap.findByWebLog webLog.id
+        let! categories = data.Category.FindByWebLog webLog.id
+        let! tagMaps    = data.TagMap.FindByWebLog webLog.id
         
         printfn "- Exporting pages..."
-        let! pages = data.Page.findFullByWebLog webLog.id
+        let! pages = data.Page.FindFullByWebLog webLog.id
         
         printfn "- Exporting posts..."
-        let! posts = data.Post.findFullByWebLog webLog.id
+        let! posts = data.Post.FindFullByWebLog webLog.id
         
         printfn "- Exporting uploads..."
-        let! uploads = data.Upload.findByWebLogWithData webLog.id
+        let! uploads = data.Upload.FindByWebLogWithData webLog.id
         
         printfn "- Writing archive..."
         let  archive    = {
@@ -329,9 +331,9 @@ module Backup =
     
     let private doRestore archive newUrlBase (data : IData) = task {
         let! restore = task {
-            match! data.WebLog.findById archive.webLog.id with
+            match! data.WebLog.FindById archive.webLog.id with
             | Some webLog when defaultArg newUrlBase webLog.urlBase = webLog.urlBase ->
-                do! data.WebLog.delete webLog.id
+                do! data.WebLog.Delete webLog.id
                 return { archive with webLog = { archive.webLog with urlBase = defaultArg newUrlBase webLog.urlBase } }
             | Some _ ->
                 // Err'body gets new IDs...
@@ -379,31 +381,31 @@ module Backup =
         // Restore theme and assets (one at a time, as assets can be large)
         printfn ""
         printfn "- Importing theme..."
-        do! data.Theme.save restore.theme
-        let! _ = restore.assets |> List.map (EncodedAsset.fromEncoded >> data.ThemeAsset.save) |> Task.WhenAll
+        do! data.Theme.Save restore.theme
+        let! _ = restore.assets |> List.map (EncodedAsset.fromEncoded >> data.ThemeAsset.Save) |> Task.WhenAll
         
         // Restore web log data
         
         printfn "- Restoring web log..."
-        do! data.WebLog.add restore.webLog
+        do! data.WebLog.Add restore.webLog
         
         printfn "- Restoring users..."
-        do! data.WebLogUser.restore restore.users
+        do! data.WebLogUser.Restore restore.users
         
         printfn "- Restoring categories and tag mappings..."
-        do! data.TagMap.restore   restore.tagMappings
-        do! data.Category.restore restore.categories
+        do! data.TagMap.Restore   restore.tagMappings
+        do! data.Category.Restore restore.categories
         
         printfn "- Restoring pages..."
-        do! data.Page.restore restore.pages
+        do! data.Page.Restore restore.pages
         
         printfn "- Restoring posts..."
-        do! data.Post.restore restore.posts
+        do! data.Post.Restore restore.posts
         
         // TODO: comments not yet implemented
         
         printfn "- Restoring uploads..."
-        do! data.Upload.restore (restore.uploads |> List.map EncodedUpload.fromEncoded)
+        do! data.Upload.Restore (restore.uploads |> List.map EncodedUpload.fromEncoded)
         
         displayStats "Restored for <>NAME<>:" restore.webLog restore
     }
@@ -436,7 +438,7 @@ module Backup =
     let generateBackup (args : string[]) (sp : IServiceProvider) = task {
         if args.Length > 1 && args.Length < 5 then
             let data = sp.GetRequiredService<IData> ()
-            match! data.WebLog.findByHost args[1] with
+            match! data.WebLog.FindByHost args[1] with
             | Some webLog ->
                 let fileName =
                     if args.Length = 2 || (args.Length = 3 && args[2] = "pretty") then
@@ -469,13 +471,13 @@ module Backup =
 
 /// Upgrade a WebLogAdmin user to an Administrator user
 let private doUserUpgrade urlBase email (data : IData) = task {
-    match! data.WebLog.findByHost urlBase with
+    match! data.WebLog.FindByHost urlBase with
     | Some webLog ->
-        match! data.WebLogUser.findByEmail email webLog.id with
+        match! data.WebLogUser.FindByEmail email webLog.id with
         | Some user ->
             match user.accessLevel with
             | WebLogAdmin ->
-                do! data.WebLogUser.update { user with accessLevel = Administrator }
+                do! data.WebLogUser.Update { user with accessLevel = Administrator }
                 printfn $"{email} is now an Administrator user"
             | other -> eprintfn $"ERROR: {email} is an {AccessLevel.toString other}, not a WebLogAdmin"
         | None -> eprintfn $"ERROR: no user {email} found at {urlBase}"

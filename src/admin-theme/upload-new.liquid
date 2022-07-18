@@ -6,17 +6,17 @@
     <div class="row">
       <div class="col-12 col-md-6 pb-3">
         <div class="form-floating">
-          <input type="file" id="file" name="file" class="form-control" placeholder="File" required>
+          <input type="file" id="file" name="File" class="form-control" placeholder="File" required>
           <label for="file">File to Upload</label>
         </div>
       </div>
       <div class="col-12 col-md-6 pb-3 d-flex align-self-center justify-content-around">
         Destination<br>
         <div class="btn-group" role="group" aria-label="Upload destination button group">
-          <input type="radio" name="destination" id="destination_db" class="btn-check" value="database"
+          <input type="radio" name="Destination" id="destination_db" class="btn-check" value="database"
           {%- if destination == "database" %} checked="checked"{% endif %}>
           <label class="btn btn-outline-primary" for="destination_db">Database</label>
-          <input type="radio" name="destination" id="destination_disk" class="btn-check" value="disk"
+          <input type="radio" name="Destination" id="destination_disk" class="btn-check" value="disk"
           {%- if destination == "disk" %} checked="checked"{% endif %}>
           <label class="btn btn-outline-secondary" for="destination_disk">Disk</label>
         </div>

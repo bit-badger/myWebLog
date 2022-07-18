@@ -438,6 +438,12 @@ type WebLogUser =
 
         /// The user's access level
         accessLevel : AccessLevel
+        
+        /// When the user was created
+        createdOn : DateTime
+        
+        /// When the user last logged on
+        lastSeenOn : DateTime option
     }
 
 /// Functions to support web log users
@@ -455,6 +461,8 @@ module WebLogUser =
           salt          = Guid.Empty
           url           = None
           accessLevel   = Author
+          createdOn     = DateTime.UnixEpoch
+          lastSeenOn    = None
         }
     
     /// Get the user's displayed name

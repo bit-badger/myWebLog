@@ -8,9 +8,11 @@ open DotLiquid
 open Giraffe.ViewEngine
 open MyWebLog.ViewModels
 
-/// Get the current web log from the DotLiquid context
-let webLog (ctx : Context) =
-    ctx.Environments[0].["web_log"] :?> WebLog
+/// Extensions on the DotLiquid Context object
+type Context with
+    
+    /// Get the current web log from the DotLiquid context
+    member this.WebLog = this.Environments[0].["web_log"] :?> WebLog
 
 /// Does an asset exist for the current theme?
 let assetExists fileName (webLog : WebLog) =
@@ -20,12 +22,12 @@ let assetExists fileName (webLog : WebLog) =
 let permalink (ctx : Context) (item : obj) (linkFunc : WebLog -> Permalink -> string) =
     match item with
     | :? String       as link  -> Some link
-    | :? DisplayPage  as page  -> Some page.permalink
-    | :? PostListItem as post  -> Some post.permalink
+    | :? DisplayPage  as page  -> Some page.Permalink
+    | :? PostListItem as post  -> Some post.Permalink
     | :? DropProxy    as proxy -> Option.ofObj proxy["permalink"] |> Option.map string
     | _ -> None
     |> function
-    | Some link -> linkFunc (webLog ctx) (Permalink link)
+    | Some link -> linkFunc ctx.WebLog (Permalink link)
     | None      -> $"alert('unknown item type {item.GetType().Name}')"
 
 
@@ -39,11 +41,11 @@ type AbsoluteLinkFilter () =
 type CategoryLinkFilter () =
     static member CategoryLink (ctx : Context, catObj : obj) =
         match catObj with
-        | :? DisplayCategory as cat   -> Some cat.slug
+        | :? DisplayCategory as cat   -> Some cat.Slug
         | :? DropProxy       as proxy -> Option.ofObj proxy["slug"] |> Option.map string
         | _ -> None
         |> function
-        | Some slug -> WebLog.relativeUrl (webLog ctx) (Permalink $"category/{slug}/")
+        | Some slug -> WebLog.relativeUrl ctx.WebLog (Permalink $"category/{slug}/")
         | None      -> $"alert('unknown category object type {catObj.GetType().Name}')"
         
 
@@ -51,12 +53,12 @@ type CategoryLinkFilter () =
 type EditPageLinkFilter () =
     static member EditPageLink (ctx : Context, pageObj : obj) =
         match pageObj with
-        | :? DisplayPage as page  -> Some page.id
+        | :? DisplayPage as page  -> Some page.Id
         | :? DropProxy   as proxy -> Option.ofObj proxy["id"] |> Option.map string
         | :? String      as theId -> Some theId
         | _ -> None
         |> function
-        | Some pageId -> WebLog.relativeUrl (webLog ctx) (Permalink $"admin/page/{pageId}/edit")
+        | Some pageId -> WebLog.relativeUrl ctx.WebLog (Permalink $"admin/page/{pageId}/edit")
         | None        -> $"alert('unknown page object type {pageObj.GetType().Name}')"
  
     
@@ -64,26 +66,25 @@ type EditPageLinkFilter () =
 type EditPostLinkFilter () =
     static member EditPostLink (ctx : Context, postObj : obj) =
         match postObj with
-        | :? PostListItem as post  -> Some post.id
+        | :? PostListItem as post  -> Some post.Id
         | :? DropProxy    as proxy -> Option.ofObj proxy["id"] |> Option.map string
         | :? String       as theId -> Some theId
         | _ -> None
         |> function
-        | Some postId -> WebLog.relativeUrl (webLog ctx) (Permalink $"admin/post/{postId}/edit")
+        | Some postId -> WebLog.relativeUrl ctx.WebLog (Permalink $"admin/post/{postId}/edit")
         | None        -> $"alert('unknown post object type {postObj.GetType().Name}')"
  
     
 /// A filter to generate nav links, highlighting the active link (exact match)
 type NavLinkFilter () =
     static member NavLink (ctx : Context, url : string, text : string) =
-        let webLog = webLog ctx
-        let _, path = WebLog.hostAndPath webLog
+        let _, path = WebLog.hostAndPath ctx.WebLog
         let path = if path = "" then path else $"{path.Substring 1}/"
         seq {
             "<li class=\"nav-item\"><a class=\"nav-link"
             if (string ctx.Environments[0].["current_page"]).StartsWith $"{path}{url}" then " active"
             "\" href=\""
-            WebLog.relativeUrl webLog (Permalink url)
+            WebLog.relativeUrl ctx.WebLog (Permalink url)
             "\">"
             text
             "</a></li>"
@@ -94,8 +95,7 @@ type NavLinkFilter () =
 /// A filter to generate a link for theme asset (image, stylesheet, script, etc.)
 type ThemeAssetFilter () =
     static member ThemeAsset (ctx : Context, asset : string) =
-        let webLog = webLog ctx
-        WebLog.relativeUrl webLog (Permalink $"themes/{webLog.themePath}/{asset}")
+        WebLog.relativeUrl ctx.WebLog (Permalink $"themes/{ctx.WebLog.themePath}/{asset}")
 
 
 /// Create various items in the page header based on the state of the page being generated
@@ -103,7 +103,7 @@ type PageHeadTag () =
     inherit Tag ()
     
     override this.Render (context : Context, result : TextWriter) =
-        let webLog = webLog context
+        let webLog = context.WebLog
         // spacer
         let s      = "    "
         let getBool name =
@@ -137,12 +137,12 @@ type PageHeadTag () =
             
         if getBool "is_post" then
             let post = context.Environments[0].["model"] :?> PostDisplay
-            let url  = WebLog.absoluteUrl webLog (Permalink post.posts[0].permalink)
+            let url  = WebLog.absoluteUrl webLog (Permalink post.Posts[0].Permalink)
             result.WriteLine $"""{s}<link rel="canonical" href="{url}">"""
         
         if getBool "is_page" then
             let page = context.Environments[0].["page"] :?> DisplayPage
-            let url  = WebLog.absoluteUrl webLog (Permalink page.permalink)
+            let url  = WebLog.absoluteUrl webLog (Permalink page.Permalink)
             result.WriteLine $"""{s}<link rel="canonical" href="{url}">"""
 
 
@@ -151,7 +151,7 @@ type PageFootTag () =
     inherit Tag ()
     
     override this.Render (context : Context, result : TextWriter) =
-        let webLog = webLog context
+        let webLog = context.WebLog
         // spacer
         let s = "    "
         
@@ -176,7 +176,7 @@ type TagLinkFilter () =
         |> function
         | Some tagMap -> tagMap.urlValue
         | None        -> tag.Replace (" ", "+")
-        |> function tagUrl -> WebLog.relativeUrl (webLog ctx) (Permalink $"tag/{tagUrl}/")
+        |> function tagUrl -> WebLog.relativeUrl ctx.WebLog (Permalink $"tag/{tagUrl}/")
 
 
 /// Create links for a user to log on or off, and a dashboard link if they are logged off
@@ -184,8 +184,7 @@ type UserLinksTag () =
     inherit Tag ()
     
     override this.Render (context : Context, result : TextWriter) =
-        let webLog = webLog context
-        let link it = WebLog.relativeUrl webLog (Permalink it)
+        let link it = WebLog.relativeUrl context.WebLog (Permalink it)
         seq {
             """<ul class="navbar-nav flex-grow-1 justify-content-end">"""
             match Convert.ToBoolean context.Environments[0].["is_logged_on"] with

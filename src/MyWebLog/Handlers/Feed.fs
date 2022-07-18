@@ -49,17 +49,17 @@ let deriveFeedType (ctx : HttpContext) feedPath : (FeedType * int) option =
 /// Determine the function to retrieve posts for the given feed
 let private getFeedPosts ctx feedType =
     let childIds catId =
-        let cat = CategoryCache.get ctx |> Array.find (fun c -> c.id = CategoryId.toString catId)
-        getCategoryIds cat.slug ctx
+        let cat = CategoryCache.get ctx |> Array.find (fun c -> c.Id = CategoryId.toString catId)
+        getCategoryIds cat.Slug ctx
     let data = ctx.Data
     match feedType with
-    | StandardFeed _          -> data.Post.findPageOfPublishedPosts ctx.WebLog.id 1
-    | CategoryFeed (catId, _) -> data.Post.findPageOfCategorizedPosts ctx.WebLog.id (childIds catId) 1
-    | TagFeed      (tag,   _) -> data.Post.findPageOfTaggedPosts ctx.WebLog.id tag 1
+    | StandardFeed _          -> data.Post.FindPageOfPublishedPosts ctx.WebLog.id 1
+    | CategoryFeed (catId, _) -> data.Post.FindPageOfCategorizedPosts ctx.WebLog.id (childIds catId) 1
+    | TagFeed      (tag,   _) -> data.Post.FindPageOfTaggedPosts ctx.WebLog.id tag 1
     | Custom       (feed,  _) ->
         match feed.source with
-        | Category catId -> data.Post.findPageOfCategorizedPosts ctx.WebLog.id (childIds catId) 1
-        | Tag      tag   -> data.Post.findPageOfTaggedPosts ctx.WebLog.id tag 1
+        | Category catId -> data.Post.FindPageOfCategorizedPosts ctx.WebLog.id (childIds catId) 1
+        | Tag      tag   -> data.Post.FindPageOfTaggedPosts ctx.WebLog.id tag 1
 
 /// Strip HTML from a string
 let private stripHtml text = WebUtility.HtmlDecode <| Regex.Replace (text, "<(.|\n)*?>", "")
@@ -116,8 +116,8 @@ let private toFeedItem webLog (authors : MetaItem list) (cats : DisplayCategory[
         Name = (authors |> List.find (fun a -> a.name = WebLogUserId.toString post.authorId)).value))
     [ post.categoryIds
       |> List.map (fun catId ->
-          let cat = cats |> Array.find (fun c -> c.id = CategoryId.toString catId)
-          SyndicationCategory (cat.name, WebLog.absoluteUrl webLog (Permalink $"category/{cat.slug}/"), cat.name))
+          let cat = cats |> Array.find (fun c -> c.Id = CategoryId.toString catId)
+          SyndicationCategory (cat.Name, WebLog.absoluteUrl webLog (Permalink $"category/{cat.Slug}/"), cat.Name))
       post.tags
       |> List.map (fun tag ->
           let urlTag =
@@ -326,7 +326,7 @@ let private selfAndLink webLog feedType ctx =
     | Custom (feed, _) ->
         match feed.source with
         | Category (CategoryId catId) ->
-            feed.path, Permalink $"category/{(CategoryCache.get ctx |> Array.find (fun c -> c.id = catId)).slug}"
+            feed.path, Permalink $"category/{(CategoryCache.get ctx |> Array.find (fun c -> c.Id = catId)).Slug}"
         | Tag tag -> feed.path, Permalink $"""tag/{tag.Replace(" ", "+")}/""" 
 
 /// Set the title and description of the feed based on its source
@@ -337,9 +337,9 @@ let private setTitleAndDescription feedType (webLog : WebLog) (cats : DisplayCat
         feed.Title       <- cleanText None webLog.name
         feed.Description <- cleanText webLog.subtitle webLog.name
     | CategoryFeed (CategoryId catId, _) ->
-        let cat = cats |> Array.find (fun it -> it.id = catId)
-        feed.Title       <- cleanText None $"""{webLog.name} - "{stripHtml cat.name}" Category"""
-        feed.Description <- cleanText cat.description $"""Posts categorized under "{cat.name}" """
+        let cat = cats |> Array.find (fun it -> it.Id = catId)
+        feed.Title       <- cleanText None $"""{webLog.name} - "{stripHtml cat.Name}" Category"""
+        feed.Description <- cleanText cat.Description $"""Posts categorized under "{cat.Name}" """
     | TagFeed (tag, _) ->
         feed.Title       <- cleanText None $"""{webLog.name} - "{tag}" Tag"""
         feed.Description <- cleanText None $"""Posts with the "{tag}" tag"""
@@ -351,9 +351,9 @@ let private setTitleAndDescription feedType (webLog : WebLog) (cats : DisplayCat
         | None ->
             match custom.source with
             | Category (CategoryId catId) ->
-                let cat = cats |> Array.find (fun it -> it.id = catId)
-                feed.Title       <- cleanText None $"""{webLog.name} - "{stripHtml cat.name}" Category"""
-                feed.Description <- cleanText cat.description $"""Posts categorized under "{cat.name}" """
+                let cat = cats |> Array.find (fun it -> it.Id = catId)
+                feed.Title       <- cleanText None $"""{webLog.name} - "{stripHtml cat.Name}" Category"""
+                feed.Description <- cleanText cat.Description $"""Posts categorized under "{cat.Name}" """
             | Tag tag ->
                 feed.Title       <- cleanText None $"""{webLog.name} - "{tag}" Tag"""
                 feed.Description <- cleanText None $"""Posts with the "{tag}" tag"""
@@ -417,81 +417,79 @@ let generate (feedType : FeedType) postCount : HttpHandler = fun next ctx -> bac
 open DotLiquid
 
 // GET: /admin/settings/rss
-let editSettings : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
+let editSettings : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx ->
     let feeds =
         ctx.WebLog.rss.customFeeds
         |> List.map (DisplayCustomFeed.fromFeed (CategoryCache.get ctx))
         |> Array.ofList
-    return! Hash.FromAnonymousObject {|
-            page_title   = "RSS Settings"
-            csrf         = ctx.CsrfTokenSet
-            model        = EditRssModel.fromRssOptions ctx.WebLog.rss
-            custom_feeds = feeds
-        |}
-        |> viewForTheme "admin" "rss-settings" next ctx
-}
+    Hash.FromAnonymousObject {|
+        page_title   = "RSS Settings"
+        csrf         = ctx.CsrfTokenSet
+        model        = EditRssModel.fromRssOptions ctx.WebLog.rss
+        custom_feeds = feeds
+    |}
+    |> viewForTheme "admin" "rss-settings" next ctx
 
 // POST: /admin/settings/rss
 let saveSettings : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     let  data  = ctx.Data
     let! model = ctx.BindFormAsync<EditRssModel> ()
-    match! data.WebLog.findById ctx.WebLog.id with
+    match! data.WebLog.FindById ctx.WebLog.id with
     | Some webLog ->
         let webLog = { webLog with rss = model.updateOptions webLog.rss }
-        do! data.WebLog.updateRssOptions webLog
+        do! data.WebLog.UpdateRssOptions webLog
         WebLogCache.set webLog
-        do! addMessage ctx { UserMessage.success with message = "RSS settings updated successfully" }
+        do! addMessage ctx { UserMessage.success with Message = "RSS settings updated successfully" }
         return! redirectToGet "admin/settings/rss" next ctx
     | None -> return! Error.notFound next ctx
 }
 
 // GET: /admin/settings/rss/{id}/edit
-let editCustomFeed feedId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
+let editCustomFeed feedId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx ->
     let customFeed =
         match feedId with
         | "new" -> Some { CustomFeed.empty with id = CustomFeedId "new" }
         | _     -> ctx.WebLog.rss.customFeeds |> List.tryFind (fun f -> f.id = CustomFeedId feedId)
     match customFeed with
     | Some f ->
-        return! Hash.FromAnonymousObject {|
-                page_title    = $"""{if feedId = "new" then "Add" else "Edit"} Custom RSS Feed"""
-                csrf          = ctx.CsrfTokenSet
-                model         = EditCustomFeedModel.fromFeed f
-                categories    = CategoryCache.get ctx
-                medium_values = [|
-                    KeyValuePair.Create ("", "&ndash; Unspecified &ndash;")
-                    KeyValuePair.Create (PodcastMedium.toString Podcast, "Podcast")
-                    KeyValuePair.Create (PodcastMedium.toString Music, "Music")
-                    KeyValuePair.Create (PodcastMedium.toString Video, "Video")
-                    KeyValuePair.Create (PodcastMedium.toString Film, "Film")
-                    KeyValuePair.Create (PodcastMedium.toString Audiobook, "Audiobook")
-                    KeyValuePair.Create (PodcastMedium.toString Newsletter, "Newsletter")
-                    KeyValuePair.Create (PodcastMedium.toString Blog, "Blog")
-                |]
-            |}
-            |> viewForTheme "admin" "custom-feed-edit" next ctx
-    | None -> return! Error.notFound next ctx
-}
+        Hash.FromAnonymousObject {|
+            page_title    = $"""{if feedId = "new" then "Add" else "Edit"} Custom RSS Feed"""
+            csrf          = ctx.CsrfTokenSet
+            model         = EditCustomFeedModel.fromFeed f
+            categories    = CategoryCache.get ctx
+            medium_values = [|
+                KeyValuePair.Create ("", "&ndash; Unspecified &ndash;")
+                KeyValuePair.Create (PodcastMedium.toString Podcast, "Podcast")
+                KeyValuePair.Create (PodcastMedium.toString Music, "Music")
+                KeyValuePair.Create (PodcastMedium.toString Video, "Video")
+                KeyValuePair.Create (PodcastMedium.toString Film, "Film")
+                KeyValuePair.Create (PodcastMedium.toString Audiobook, "Audiobook")
+                KeyValuePair.Create (PodcastMedium.toString Newsletter, "Newsletter")
+                KeyValuePair.Create (PodcastMedium.toString Blog, "Blog")
+            |]
+        |}
+        |> viewForTheme "admin" "custom-feed-edit" next ctx
+    | None -> Error.notFound next ctx
 
 // POST: /admin/settings/rss/save
 let saveCustomFeed : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     let data = ctx.Data
-    match! data.WebLog.findById ctx.WebLog.id with
+    match! data.WebLog.FindById ctx.WebLog.id with
     | Some webLog ->
         let! model = ctx.BindFormAsync<EditCustomFeedModel> ()
         let theFeed =
-            match model.id with
+            match model.Id with
             | "new" -> Some { CustomFeed.empty with id = CustomFeedId.create () }
-            | _ -> webLog.rss.customFeeds |> List.tryFind (fun it -> CustomFeedId.toString it.id = model.id)
+            | _ -> webLog.rss.customFeeds |> List.tryFind (fun it -> CustomFeedId.toString it.id = model.Id)
         match theFeed with
         | Some feed ->
             let feeds = model.updateFeed feed :: (webLog.rss.customFeeds |> List.filter (fun it -> it.id <> feed.id))
             let webLog = { webLog with rss = { webLog.rss with customFeeds = feeds } }
-            do! data.WebLog.updateRssOptions webLog
+            do! data.WebLog.UpdateRssOptions webLog
             WebLogCache.set webLog
             do! addMessage ctx {
                 UserMessage.success with
-                  message = $"""Successfully {if model.id = "new" then "add" else "sav"}ed custom feed"""
+                  Message = $"""Successfully {if model.Id = "new" then "add" else "sav"}ed custom feed"""
             }
             return! redirectToGet $"admin/settings/rss/{CustomFeedId.toString feed.id}/edit" next ctx
         | None -> return! Error.notFound next ctx
@@ -501,7 +499,7 @@ let saveCustomFeed : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx ->
 // POST /admin/settings/rss/{id}/delete
 let deleteCustomFeed feedId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     let data = ctx.Data
-    match! data.WebLog.findById ctx.WebLog.id with
+    match! data.WebLog.FindById ctx.WebLog.id with
     | Some webLog ->
         let customId = CustomFeedId feedId
         if webLog.rss.customFeeds |> List.exists (fun f -> f.id = customId) then
@@ -512,11 +510,11 @@ let deleteCustomFeed feedId : HttpHandler = requireAccess WebLogAdmin >=> fun ne
                     customFeeds = webLog.rss.customFeeds |> List.filter (fun f -> f.id <> customId)
                 }
             }
-            do! data.WebLog.updateRssOptions webLog
+            do! data.WebLog.UpdateRssOptions webLog
             WebLogCache.set webLog
-            do! addMessage ctx { UserMessage.success with message = "Custom feed deleted successfully" }
+            do! addMessage ctx { UserMessage.success with Message = "Custom feed deleted successfully" }
         else
-            do! addMessage ctx { UserMessage.warning with message = "Custom feed not found; no action taken" }
+            do! addMessage ctx { UserMessage.warning with Message = "Custom feed not found; no action taken" }
         return! redirectToGet "admin/settings/rss" next ctx
     | None -> return! Error.notFound next ctx
 }

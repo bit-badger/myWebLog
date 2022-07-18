@@ -125,9 +125,9 @@ let messagesToHeaders (messages : UserMessage array) : HttpHandler =
         yield!
             messages
             |> Array.map (fun m ->
-                match m.detail with
-                | Some detail -> $"{m.level}|||{m.message}|||{detail}"
-                | None -> $"{m.level}|||{m.message}"
+                match m.Detail with
+                | Some detail -> $"{m.Level}|||{m.Message}|||{detail}"
+                | None -> $"{m.Level}|||{m.Message}"
                 |> setHttpHeader "X-Message")
         withHxNoPushUrl
     }
@@ -184,7 +184,7 @@ module Error =
             if isHtmx ctx then
                 let messages = [|
                     { UserMessage.error with
-                        message = $"You are not authorized to access the URL {ctx.Request.Path.Value}"
+                        Message = $"You are not authorized to access the URL {ctx.Request.Path.Value}"
                     }
                 |]
                 (messagesToHeaders messages >=> setStatusCode 401) earlyReturn ctx
@@ -195,7 +195,7 @@ module Error =
         handleContext (fun ctx ->
             if isHtmx ctx then
                 let messages = [|
-                    { UserMessage.error with message = $"The URL {ctx.Request.Path.Value} was not found" }
+                    { UserMessage.error with Message = $"The URL {ctx.Request.Path.Value} was not found" }
                 |]
                 (messagesToHeaders messages >=> setStatusCode 404) earlyReturn ctx
             else
@@ -216,7 +216,7 @@ let requireAccess level : HttpHandler = fun next ctx -> task {
             | Some lvl ->
                 $"The page you tried to access requires {AccessLevel.toString level} privileges; your account only has {AccessLevel.toString lvl} privileges"
             | None -> "The page you tried to access required you to be logged on"
-        do! addMessage ctx { UserMessage.warning with message = message }
+        do! addMessage ctx { UserMessage.warning with Message = message }
         printfn "Added message to context"
         do! commitSession ctx
         return! Error.notAuthorized next ctx
@@ -232,7 +232,7 @@ open MyWebLog.Data
 
 /// Get the templates available for the current web log's theme (in a key/value pair list)
 let templatesForTheme (ctx : HttpContext) (typ : string) = backgroundTask {
-    match! ctx.Data.Theme.findByIdWithoutText (ThemeId ctx.WebLog.themePath) with
+    match! ctx.Data.Theme.FindByIdWithoutText (ThemeId ctx.WebLog.themePath) with
     | Some theme ->
         return seq {
             KeyValuePair.Create ("", $"- Default (single-{typ}) -")
@@ -251,7 +251,7 @@ let getAuthors (webLog : WebLog) (posts : Post list) (data : IData) =
     posts
     |> List.map (fun p -> p.authorId)
     |> List.distinct
-    |> data.WebLogUser.findNames webLog.id
+    |> data.WebLogUser.FindNames webLog.id
 
 /// Get all tag mappings for a list of posts as metadata items
 let getTagMappings (webLog : WebLog) (posts : Post list) (data : IData) =
@@ -259,17 +259,17 @@ let getTagMappings (webLog : WebLog) (posts : Post list) (data : IData) =
     |> List.map (fun p -> p.tags)
     |> List.concat
     |> List.distinct
-    |> fun tags -> data.TagMap.findMappingForTags tags webLog.id
+    |> fun tags -> data.TagMap.FindMappingForTags tags webLog.id
 
 /// Get all category IDs for the given slug (includes owned subcategories)   
 let getCategoryIds slug ctx =
     let allCats = CategoryCache.get ctx
-    let cat     = allCats |> Array.find (fun cat -> cat.slug = slug)
+    let cat     = allCats |> Array.find (fun cat -> cat.Slug = slug)
     // Category pages include posts in subcategories
     allCats
     |> Seq.ofArray
-    |> Seq.filter (fun c -> c.id = cat.id || Array.contains cat.name c.parentNames)
-    |> Seq.map (fun c -> CategoryId c.id)
+    |> Seq.filter (fun c -> c.Id = cat.Id || Array.contains cat.Name c.ParentNames)
+    |> Seq.map (fun c -> CategoryId c.Id)
     |> List.ofSeq
 
 open System

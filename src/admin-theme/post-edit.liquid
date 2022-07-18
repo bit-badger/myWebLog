@@ -2,17 +2,17 @@
 <article>
   <form action="{{ "admin/post/save" | relative_link }}" method="post" hx-push-url="true">
     <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
-    <input type="hidden" name="postId" value="{{ model.post_id }}">
+    <input type="hidden" name="PostId" value="{{ model.post_id }}">
     <div class="container">
       <div class="row mb-3">
         <div class="col-12 col-lg-9">
           <div class="form-floating pb-3">
-            <input type="text" name="title" id="title" class="form-control" placeholder="Title" autofocus required
+            <input type="text" name="Title" id="title" class="form-control" placeholder="Title" autofocus required
                    value="{{ model.title }}">
             <label for="title">Title</label>
           </div>
           <div class="form-floating pb-3">
-            <input type="text" name="permalink" id="permalink" class="form-control" placeholder="Permalink" required
+            <input type="text" name="Permalink" id="permalink" class="form-control" placeholder="Permalink" required
                    value="{{ model.permalink }}">
             <label for="permalink">Permalink</label>
             {%- if model.post_id != "new" %}
@@ -30,26 +30,26 @@
           <div class="mb-2">
             <label for="text">Text</label> &nbsp; &nbsp;
             <div class="btn-group btn-group-sm" role="group" aria-label="Text format button group">
-              <input type="radio" name="source" id="source_html" class="btn-check" value="HTML"
+              <input type="radio" name="Source" id="source_html" class="btn-check" value="HTML"
               {%- if model.source == "HTML" %} checked="checked"{% endif %}>
               <label class="btn btn-sm btn-outline-secondary" for="source_html">HTML</label>
-              <input type="radio" name="source" id="source_md" class="btn-check" value="Markdown"
+              <input type="radio" name="Source" id="source_md" class="btn-check" value="Markdown"
               {%- if model.source == "Markdown" %} checked="checked"{% endif %}>
               <label class="btn btn-sm btn-outline-secondary" for="source_md">Markdown</label>
             </div>
           </div>
           <div class="pb-3">
-            <textarea name="text" id="text" class="form-control" rows="20">{{ model.text }}</textarea>
+            <textarea name="Text" id="text" class="form-control" rows="20">{{ model.text }}</textarea>
           </div>
           <div class="form-floating pb-3">
-            <input type="text" name="tags" id="tags" class="form-control" placeholder="Tags"
+            <input type="text" name="Tags" id="tags" class="form-control" placeholder="Tags"
                    value="{{ model.tags }}">
             <label for="tags">Tags</label>
             <div class="form-text">comma-delimited</div>
           </div>
           {% if model.status == "Draft" %}
             <div class="form-check form-switch pb-2">
-              <input type="checkbox" name="doPublish" id="doPublish" class="form-check-input" value="true">
+              <input type="checkbox" name="DoPublish" id="doPublish" class="form-check-input" value="true">
               <label for="doPublish" class="form-check-label">Publish This Post</label>
             </div>
           {% endif %}
@@ -59,7 +59,7 @@
             <legend>
               <span class="form-check form-switch">
                 <small>
-                  <input type="checkbox" name="isEpisode" id="isEpisode" class="form-check-input" value="true"
+                  <input type="checkbox" name="IsEpisode" id="isEpisode" class="form-check-input" value="true"
                          data-bs-toggle="collapse" data-bs-target="#episodeItems" onclick="Admin.toggleEpisodeFields()"
                          {%- if model.is_episode %}checked="checked"{% endif %}>
                 </small>
@@ -70,7 +70,7 @@
               <div class="row">
                 <div class="col-12 col-md-8 pb-3">
                   <div class="form-floating">
-                    <input type="text" name="media" id="media" class="form-control" placeholder="Media" required
+                    <input type="text" name="Media" id="media" class="form-control" placeholder="Media" required
                            value="{{ model.media }}">
                     <label for="media">Media File</label>
                     <div class="form-text">
@@ -80,7 +80,7 @@
                 </div>
                 <div class="col-12 col-md-4 pb-3">
                   <div class="form-floating">
-                    <input type="text" name="mediaType" id="mediaType" class="form-control" placeholder="Media Type"
+                    <input type="text" name="MediaType" id="mediaType" class="form-control" placeholder="Media Type"
                            value="{{ model.media_type }}">
                     <label for="mediaType">Media MIME Type</label>
                     <div class="form-text">Optional; overrides podcast default</div>
@@ -90,7 +90,7 @@
               <div class="row pb-3">
                 <div class="col">
                   <div class="form-floating">
-                    <input type="number" name="length" id="length" class="form-control" placeholder="Length" required
+                    <input type="number" name="Length" id="length" class="form-control" placeholder="Length" required
                            value="{{ model.length }}">
                     <label for="length">Media Length (bytes)</label>
                     <div class="form-text">TODO: derive from above file name</div>
@@ -98,7 +98,7 @@
                 </div>
                 <div class="col">
                   <div class="form-floating">
-                    <input type="text" name="duration" id="duration" class="form-control" placeholder="Duration"
+                    <input type="text" name="Duration" id="duration" class="form-control" placeholder="Duration"
                            value="{{ model.duration }}">
                     <label for="duration">Duration</label>
                     <div class="form-text">Recommended; enter in <code>HH:MM:SS</code> format</div>
@@ -108,7 +108,7 @@
               <div class="row pb-3">
                 <div class="col">
                   <div class="form-floating">
-                    <input type="text" name="subtitle" id="subtitle" class="form-control" placeholder="Subtitle"
+                    <input type="text" name="Subtitle" id="subtitle" class="form-control" placeholder="Subtitle"
                            value="{{ model.subtitle }}">
                     <label for="subtitle">Subtitle</label>
                     <div class="form-text">Optional; a subtitle for this episode</div>
@@ -118,7 +118,7 @@
               <div class="row">
                 <div class="col-12 col-md-8 pb-3">
                   <div class="form-floating">
-                    <input type="text" name="imageUrl" id="imageUrl" class="form-control" placeholder="Image URL"
+                    <input type="text" name="ImageUrl" id="imageUrl" class="form-control" placeholder="Image URL"
                            value="{{ model.image_url }}">
                     <label for="imageUrl">Image URL</label>
                     <div class="form-text">
@@ -128,7 +128,7 @@
                 </div>
                 <div class="col-12 col-md-4 pb-3">
                   <div class="form-floating">
-                    <select name="explicit" id="explicit" class="form-control">
+                    <select name="Explicit" id="explicit" class="form-control">
                       {% for exp_value in explicit_values %}
                         <option value="{{ exp_value[0] }}"
                                 {%- if model.explicit == exp_value[0] %} selected="selected"{% endif -%}>
@@ -144,7 +144,7 @@
               <div class="row">
                 <div class="col-12 col-md-8 pb-3">
                   <div class="form-floating">
-                    <input type="text" name="chapterFile" id="chapterFile" class="form-control"
+                    <input type="text" name="ChapterFile" id="chapterFile" class="form-control"
                            placeholder="Chapter File" value="{{ model.chapter_file }}">
                     <label for="chapterFile">Chapter File</label>
                     <div class="form-text">Optional; relative URL served from this web log</div>
@@ -152,7 +152,7 @@
                 </div>
                 <div class="col-12 col-md-4 pb-3">
                   <div class="form-floating">
-                    <input type="text" name="chapterType" id="chapterType" class="form-control"
+                    <input type="text" name="ChapterType" id="chapterType" class="form-control"
                            placeholder="Chapter Type" value="{{ model.chapter_type }}">
                     <label for="chapterType">Chapter MIME Type</label>
                     <div class="form-text">
@@ -165,7 +165,7 @@
               <div class="row">
                 <div class="col-12 col-md-8 pb-3">
                   <div class="form-floating">
-                    <input type="text" name="transcriptUrl" id="transcriptUrl" class="form-control"
+                    <input type="text" name="TranscriptUrl" id="transcriptUrl" class="form-control"
                            placeholder="Transcript URL" value="{{ model.transcript_url }}"
                            onkeyup="Admin.requireTranscriptType()">
                     <label for="transcriptUrl">Transcript URL</label>
@@ -174,7 +174,7 @@
                 </div>
                 <div class="col-12 col-md-4 pb-3">
                   <div class="form-floating">
-                    <input type="text" name="transcriptType" id="transcriptType" class="form-control"
+                    <input type="text" name="TranscriptType" id="transcriptType" class="form-control"
                            placeholder="Transcript Type" value="{{ model.transcript_type }}"
                            {%- if model.transcript_url != "" %} required{% endif %}>
                     <label for="transcriptType">Transcript MIME Type</label>
@@ -185,7 +185,7 @@
               <div class="row pb-3">
                 <div class="col">
                   <div class="form-floating">
-                    <input type="text" name="transcriptLang" id="transcriptLang" class="form-control"
+                    <input type="text" name="TranscriptLang" id="transcriptLang" class="form-control"
                            placeholder="Transcript Language" value="{{ model.transcript_lang }}">
                     <label for="transcriptLang">Transcript Language</label>
                     <div class="form-text">Optional; overrides podcast default</div>
@@ -193,7 +193,7 @@
                 </div>
                 <div class="col d-flex justify-content-center">
                   <div class="form-check form-switch align-self-center pb-3">
-                    <input type="checkbox" name="transcriptCaptions" id="transcriptCaptions" class="form-check-input"
+                    <input type="checkbox" name="TranscriptCaptions" id="transcriptCaptions" class="form-check-input"
                            value="true" {% if model.transcript_captions %} checked="checked"{% endif %}>
                     <label for="transcriptCaptions">This is a captions file</label>
                   </div>
@@ -202,7 +202,7 @@
               <div class="row pb-3">
                 <div class="col col-md-4">
                   <div class="form-floating">
-                    <input type="number" name="seasonNumber" id="seasonNumber" class="form-control"
+                    <input type="number" name="SeasonNumber" id="seasonNumber" class="form-control"
                            placeholder="Season Number" value="{{ model.season_number }}">
                     <label for="seasonNumber">Season Number</label>
                     <div class="form-text">Optional</div>
@@ -210,7 +210,7 @@
                 </div>
                 <div class="col col-md-8">
                   <div class="form-floating">
-                    <input type="text" name="seasonDescription" id="seasonDescription" class="form-control"
+                    <input type="text" name="SeasonDescription" id="seasonDescription" class="form-control"
                            placeholder="Season Description" maxlength="128" value="{{ model.season_description }}">
                     <label for="seasonDescription">Season Description</label>
                     <div class="form-text">Optional</div>
@@ -220,7 +220,7 @@
               <div class="row pb-3">
                 <div class="col col-md-4">
                   <div class="form-floating">
-                    <input type="number" name="episodeNumber" id="episodeNumber" class="form-control" step="0.01"
+                    <input type="number" name="EpisodeNumber" id="episodeNumber" class="form-control" step="0.01"
                            placeholder="Episode Number" value="{{ model.episode_number }}">
                     <label for="episodeNumber">Episode Number</label>
                     <div class="form-text">Optional; up to 2 decimal points</div>
@@ -228,7 +228,7 @@
                 </div>
                 <div class="col col-md-8">
                   <div class="form-floating">
-                    <input type="text" name="episodeDescription" id="episodeDescription" class="form-control"
+                    <input type="text" name="EpisodeDescription" id="episodeDescription" class="form-control"
                            placeholder="Episode Description" maxlength="128" value="{{ model.episode_description }}">
                     <label for="episodeDescription">Episode Description</label>
                     <div class="form-text">Optional</div>
@@ -259,14 +259,14 @@
                     </div>
                     <div class="col-3">
                       <div class="form-floating">
-                        <input type="text" name="metaNames" id="metaNames_{{ meta[0] }}" class="form-control"
+                        <input type="text" name="MetaNames" id="metaNames_{{ meta[0] }}" class="form-control"
                                placeholder="Name" value="{{ meta[1] }}">
                         <label for="metaNames_{{ meta[0] }}">Name</label>
                       </div>
                     </div>
                     <div class="col-8">
                       <div class="form-floating">
-                        <input type="text" name="metaValues" id="metaValues_{{ meta[0] }}" class="form-control"
+                        <input type="text" name="MetaValues" id="metaValues_{{ meta[0] }}" class="form-control"
                                placeholder="Value" value="{{ meta[2] }}">
                         <label for="metaValues_{{ meta[0] }}">Value</label>
                       </div>
@@ -287,14 +287,14 @@
                 <div class="row">
                   <div class="col align-self-center">
                     <div class="form-check form-switch pb-2">
-                      <input type="checkbox" name="setPublished" id="setPublished" class="form-check-input"
+                      <input type="checkbox" name="SetPublished" id="setPublished" class="form-check-input"
                              value="true">
                       <label for="setPublished" class="form-check-label">Set Published Date</label>
                     </div>
                   </div>
                   <div class="col-4">
                     <div class="form-floating">
-                      <input type="datetime-local" name="pubOverride" id="pubOverride" class="form-control"
+                      <input type="datetime-local" name="PubOverride" id="pubOverride" class="form-control"
                              placeholder="Override Date"
                              {%- if model.pub_override -%}
                                value="{{ model.pub_override | date: "yyyy-MM-dd\THH:mm" }}"
@@ -304,7 +304,7 @@
                   </div>
                   <div class="col-5 align-self-center">
                     <div class="form-check form-switch pb-2">
-                      <input type="checkbox" name="setUpdated" id="setUpdated" class="form-check-input" value="true">
+                      <input type="checkbox" name="SetUpdated" id="setUpdated" class="form-check-input" value="true">
                       <label for="setUpdated" class="form-check-label">
                         Purge revisions and<br>set as updated date as well
                       </label>
@@ -317,7 +317,7 @@
         </div>
         <div class="col-12 col-lg-3">
           <div class="form-floating pb-3">
-            <select name="template" id="template" class="form-control">
+            <select name="Template" id="template" class="form-control">
               {% for tmpl in templates -%}
                 <option value="{{ tmpl[0] }}"{% if model.template == tmpl[0] %} selected="selected"{% endif %}>
                   {{ tmpl[1] }}
@@ -330,7 +330,7 @@
             <legend>Categories</legend>
             {% for cat in categories %}
               <div class="form-check">
-                <input type="checkbox" name="categoryIds" id="categoryId_{{ cat.id }}" class="form-check-input"
+                <input type="checkbox" name="CategoryIds" id="categoryId_{{ cat.id }}" class="form-check-input"
                        value="{{ cat.id }}" {% if model.category_ids contains cat.id %} checked="checked"{% endif %}>
                 <label for="categoryId_{{ cat.id }}" class="form-check-label"
                        {%- if cat.description %} title="{{ cat.description.value | strip_html | escape }}"{% endif %}>

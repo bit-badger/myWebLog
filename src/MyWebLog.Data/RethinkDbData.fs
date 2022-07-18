@@ -66,6 +66,7 @@ module private RethinkHelpers =
     let objList<'T> (objects : 'T list) = objects |> List.map (fun it -> it :> obj)
 
 
+open System
 open Microsoft.Extensions.Logging
 open MyWebLog.ViewModels
 open RethinkDb.Driver.FSharp
@@ -158,20 +159,20 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
         member _.Category = {
             new ICategoryData with
                 
-                member _.add cat = rethink {
+                member _.Add cat = rethink {
                     withTable Table.Category
                     insert cat
                     write; withRetryDefault; ignoreResult conn
                 }
                 
-                member _.countAll webLogId = rethink<int> {
+                member _.CountAll webLogId = rethink<int> {
                     withTable Table.Category
                     getAll [ webLogId ] (nameof webLogId)
                     count
                     result; withRetryDefault conn
                 }
 
-                member _.countTopLevel webLogId = rethink<int> {
+                member _.CountTopLevel webLogId = rethink<int> {
                     withTable Table.Category
                     getAll [ webLogId ] (nameof webLogId)
                     filter "parentId" None
@@ -179,7 +180,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     result; withRetryDefault conn
                 }
                 
-                member _.findAllForView webLogId = backgroundTask {
+                member _.FindAllForView webLogId = backgroundTask {
                     let! cats = rethink<Category list> {
                         withTable Table.Category
                         getAll [ webLogId ] (nameof webLogId)
@@ -193,9 +194,9 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                             // Parent category post counts include posts in subcategories
                             let catIds =
                                 ordered
-                                |> Seq.filter (fun cat -> cat.parentNames |> Array.contains it.name)
-                                |> Seq.map (fun cat -> cat.id :> obj)
-                                |> Seq.append (Seq.singleton it.id)
+                                |> Seq.filter (fun cat -> cat.ParentNames |> Array.contains it.Name)
+                                |> Seq.map (fun cat -> cat.Id :> obj)
+                                |> Seq.append (Seq.singleton it.Id)
                                 |> List.ofSeq
                             let! count = rethink<int> {
                                 withTable Table.Post
@@ -205,22 +206,22 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                                 count
                                 result; withRetryDefault conn
                             }
-                            return it.id, count
+                            return it.Id, count
                             })
                         |> Task.WhenAll
                     return
                         ordered
                         |> Seq.map (fun cat ->
                             { cat with
-                                postCount = counts
-                                            |> Array.tryFind (fun c -> fst c = cat.id)
+                                PostCount = counts
+                                            |> Array.tryFind (fun c -> fst c = cat.Id)
                                             |> Option.map snd
                                             |> Option.defaultValue 0
                             })
                         |> Array.ofSeq
                 }
                 
-                member _.findById catId webLogId =
+                member _.FindById catId webLogId =
                     rethink<Category> {
                         withTable Table.Category
                         get catId
@@ -228,14 +229,14 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     }
                     |> verifyWebLog webLogId (fun c -> c.webLogId) <| conn
                 
-                member _.findByWebLog webLogId = rethink<Category list> {
+                member _.FindByWebLog webLogId = rethink<Category list> {
                     withTable Table.Category
                     getAll [ webLogId ] (nameof webLogId)
                     result; withRetryDefault conn
                 }
                 
-                member this.delete catId webLogId = backgroundTask {
-                    match! this.findById catId webLogId with
+                member this.Delete catId webLogId = backgroundTask {
+                    match! this.FindById catId webLogId with
                     | Some _ ->
                         // Delete the category off all posts where it is assigned
                         do! rethink {
@@ -256,7 +257,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     | None -> return false
                 }
                 
-                member _.restore cats = backgroundTask {
+                member _.Restore cats = backgroundTask {
                     for batch in cats |> List.chunkBySize restoreBatchSize do
                         do! rethink {
                             withTable Table.Category
@@ -265,7 +266,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                         }
                 }
                 
-                member _.update cat = rethink {
+                member _.Update cat = rethink {
                     withTable Table.Category
                     get cat.id
                     update [ "name",        cat.name :> obj
@@ -280,13 +281,13 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
         member _.Page = {
             new IPageData with
                 
-                member _.add page = rethink {
+                member _.Add page = rethink {
                     withTable Table.Page
                     insert page
                     write; withRetryDefault; ignoreResult conn
                 }
 
-                member _.all webLogId = rethink<Page list> {
+                member _.All webLogId = rethink<Page list> {
                     withTable Table.Page
                     getAll [ webLogId ] (nameof webLogId)
                     without [ "text"; "metadata"; "revisions"; "priorPermalinks" ]
@@ -294,14 +295,14 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     result; withRetryDefault conn
                 }
                 
-                member _.countAll webLogId = rethink<int> {
+                member _.CountAll webLogId = rethink<int> {
                     withTable Table.Page
                     getAll [ webLogId ] (nameof webLogId)
                     count
                     result; withRetryDefault conn
                 }
 
-                member _.countListed webLogId = rethink<int> {
+                member _.CountListed webLogId = rethink<int> {
                     withTable Table.Page
                     getAll [ webLogId ] (nameof webLogId)
                     filter "showInPageList" true
@@ -309,7 +310,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     result; withRetryDefault conn
                 }
 
-                member _.delete pageId webLogId = backgroundTask {
+                member _.Delete pageId webLogId = backgroundTask {
                     let! result = rethink<Model.Result> {
                         withTable Table.Page
                         getAll [ pageId ]
@@ -320,7 +321,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     return result.Deleted > 0UL
                 }
                 
-                member _.findById pageId webLogId =
+                member _.FindById pageId webLogId =
                     rethink<Page> {
                         withTable Table.Page
                         get pageId
@@ -329,7 +330,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     }
                     |> verifyWebLog webLogId (fun it -> it.webLogId) <| conn
 
-                member _.findByPermalink permalink webLogId =
+                member _.FindByPermalink permalink webLogId =
                     rethink<Page list> {
                         withTable Table.Page
                         getAll [ r.Array (webLogId, permalink) ] (nameof permalink)
@@ -339,7 +340,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     }
                     |> tryFirst <| conn
                 
-                member _.findCurrentPermalink permalinks webLogId = backgroundTask {
+                member _.FindCurrentPermalink permalinks webLogId = backgroundTask {
                     let! result =
                         (rethink<Page list> {
                             withTable Table.Page
@@ -353,7 +354,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     return result |> Option.map (fun pg -> pg.permalink)
                 }
                 
-                member _.findFullById pageId webLogId =
+                member _.FindFullById pageId webLogId =
                     rethink<Page> {
                         withTable Table.Page
                         get pageId
@@ -361,13 +362,13 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     }
                     |> verifyWebLog webLogId (fun it -> it.webLogId) <| conn
                 
-                member _.findFullByWebLog webLogId = rethink<Page> {
+                member _.FindFullByWebLog webLogId = rethink<Page> {
                     withTable Table.Page
                     getAll [ webLogId ] (nameof webLogId)
                     resultCursor; withRetryCursorDefault; toList conn
                 }
                 
-                member _.findListed webLogId = rethink<Page list> {
+                member _.FindListed webLogId = rethink<Page list> {
                     withTable Table.Page
                     getAll [ webLogId ] (nameof webLogId)
                     filter [ "showInPageList", true :> obj ]
@@ -376,7 +377,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     result; withRetryDefault conn
                 }
 
-                member _.findPageOfPages webLogId pageNbr = rethink<Page list> {
+                member _.FindPageOfPages webLogId pageNbr = rethink<Page list> {
                     withTable Table.Page
                     getAll [ webLogId ] (nameof webLogId)
                     without [ "metadata"; "priorPermalinks"; "revisions" ]
@@ -386,7 +387,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     result; withRetryDefault conn
                 }
                 
-                member _.restore pages = backgroundTask {
+                member _.Restore pages = backgroundTask {
                     for batch in pages |> List.chunkBySize restoreBatchSize do
                         do! rethink {
                             withTable Table.Page
@@ -395,7 +396,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                         }
                 }
                 
-                member _.update page = rethink {
+                member _.Update page = rethink {
                     withTable Table.Page
                     get page.id
                     update [
@@ -412,8 +413,8 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     write; withRetryDefault; ignoreResult conn
                 }
                 
-                member this.updatePriorPermalinks pageId webLogId permalinks = backgroundTask {
-                    match! this.findById pageId webLogId with
+                member this.UpdatePriorPermalinks pageId webLogId permalinks = backgroundTask {
+                    match! this.FindById pageId webLogId with
                     | Some _ ->
                         do! rethink {
                             withTable Table.Page
@@ -429,13 +430,13 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
         member _.Post = {
             new IPostData with
                 
-                member _.add post = rethink {
+                member _.Add post = rethink {
                     withTable Table.Post
                     insert post
                     write; withRetryDefault; ignoreResult conn
                 }
                 
-                member _.countByStatus status webLogId = rethink<int> {
+                member _.CountByStatus status webLogId = rethink<int> {
                     withTable Table.Post
                     getAll [ webLogId ] (nameof webLogId)
                     filter "status" status
@@ -443,7 +444,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     result; withRetryDefault conn
                 }
 
-                member _.delete postId webLogId = backgroundTask {
+                member _.Delete postId webLogId = backgroundTask {
                     let! result = rethink<Model.Result> {
                         withTable Table.Post
                         getAll [ postId ]
@@ -454,7 +455,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     return result.Deleted > 0UL
                 }
                 
-                member _.findById postId webLogId =
+                member _.FindById postId webLogId =
                     rethink<Post> {
                         withTable Table.Post
                         get postId
@@ -463,7 +464,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     }
                     |> verifyWebLog webLogId (fun p -> p.webLogId) <| conn
                 
-                member _.findByPermalink permalink webLogId =
+                member _.FindByPermalink permalink webLogId =
                     rethink<Post list> {
                         withTable Table.Post
                         getAll [ r.Array (webLogId, permalink) ] (nameof permalink)
@@ -473,7 +474,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     }
                     |> tryFirst <| conn
                 
-                member _.findFullById postId webLogId =
+                member _.FindFullById postId webLogId =
                     rethink<Post> {
                         withTable Table.Post
                         get postId
@@ -481,7 +482,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     }
                     |> verifyWebLog webLogId (fun p -> p.webLogId) <| conn
 
-                member _.findCurrentPermalink permalinks webLogId = backgroundTask {
+                member _.FindCurrentPermalink permalinks webLogId = backgroundTask {
                     let! result =
                         (rethink<Post list> {
                             withTable Table.Post
@@ -495,13 +496,13 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     return result |> Option.map (fun post -> post.permalink)
                 }
                 
-                member _.findFullByWebLog webLogId = rethink<Post> {
+                member _.FindFullByWebLog webLogId = rethink<Post> {
                     withTable Table.Post
                     getAll [ webLogId ] (nameof webLogId)
                     resultCursor; withRetryCursorDefault; toList conn
                 }
                 
-                member _.findPageOfCategorizedPosts webLogId categoryIds pageNbr postsPerPage = rethink<Post list> {
+                member _.FindPageOfCategorizedPosts webLogId categoryIds pageNbr postsPerPage = rethink<Post list> {
                     withTable Table.Post
                     getAll (objList categoryIds) "categoryIds"
                     filter "webLogId" webLogId
@@ -514,7 +515,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     result; withRetryDefault conn
                 }
                 
-                member _.findPageOfPosts webLogId pageNbr postsPerPage = rethink<Post list> {
+                member _.FindPageOfPosts webLogId pageNbr postsPerPage = rethink<Post list> {
                     withTable Table.Post
                     getAll [ webLogId ] (nameof webLogId)
                     without [ "priorPermalinks"; "revisions" ]
@@ -524,7 +525,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     result; withRetryDefault conn
                 }
 
-                member _.findPageOfPublishedPosts webLogId pageNbr postsPerPage = rethink<Post list> {
+                member _.FindPageOfPublishedPosts webLogId pageNbr postsPerPage = rethink<Post list> {
                     withTable Table.Post
                     getAll [ webLogId ] (nameof webLogId)
                     filter "status" Published
@@ -535,7 +536,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     result; withRetryDefault conn
                 }
                 
-                member _.findPageOfTaggedPosts webLogId tag pageNbr postsPerPage = rethink<Post list> {
+                member _.FindPageOfTaggedPosts webLogId tag pageNbr postsPerPage = rethink<Post list> {
                     withTable Table.Post
                     getAll [ tag ] "tags"
                     filter "webLogId" webLogId
@@ -547,7 +548,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     result; withRetryDefault conn
                 }
                 
-                member _.findSurroundingPosts webLogId publishedOn = backgroundTask {
+                member _.FindSurroundingPosts webLogId publishedOn = backgroundTask {
                     let! older =
                         rethink<Post list> {
                             withTable Table.Post
@@ -573,7 +574,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     return older, newer
                 }
                 
-                member _.restore pages = backgroundTask {
+                member _.Restore pages = backgroundTask {
                     for batch in pages |> List.chunkBySize restoreBatchSize do
                         do! rethink {
                             withTable Table.Post
@@ -582,14 +583,14 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                         }
                 }
                 
-                member _.update post = rethink {
+                member _.Update post = rethink {
                     withTable Table.Post
                     get post.id
                     replace post
                     write; withRetryDefault; ignoreResult conn
                 }
 
-                member _.updatePriorPermalinks postId webLogId permalinks = backgroundTask {
+                member _.UpdatePriorPermalinks postId webLogId permalinks = backgroundTask {
                     match! (
                         rethink<Post> {
                             withTable Table.Post
@@ -613,7 +614,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
         member _.TagMap = {
             new ITagMapData with
                 
-                member _.delete tagMapId webLogId = backgroundTask {
+                member _.Delete tagMapId webLogId = backgroundTask {
                     let! result = rethink<Model.Result> {
                         withTable Table.TagMap
                         getAll [ tagMapId ]
@@ -624,7 +625,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     return result.Deleted > 0UL
                 }
                 
-                member _.findById tagMapId webLogId =
+                member _.FindById tagMapId webLogId =
                     rethink<TagMap> {
                         withTable Table.TagMap
                         get tagMapId
@@ -632,7 +633,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     }
                     |> verifyWebLog webLogId (fun tm -> tm.webLogId) <| conn
                 
-                member _.findByUrlValue urlValue webLogId =
+                member _.FindByUrlValue urlValue webLogId =
                     rethink<TagMap list> {
                         withTable Table.TagMap
                         getAll [ r.Array (webLogId, urlValue) ] "webLogAndUrl"
@@ -641,20 +642,20 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     }
                     |> tryFirst <| conn
                 
-                member _.findByWebLog webLogId = rethink<TagMap list> {
+                member _.FindByWebLog webLogId = rethink<TagMap list> {
                     withTable Table.TagMap
                     between (r.Array (webLogId, r.Minval ())) (r.Array (webLogId, r.Maxval ())) [ Index "webLogAndTag" ]
                     orderBy "tag"
                     result; withRetryDefault conn
                 }
                 
-                member _.findMappingForTags tags webLogId = rethink<TagMap list> {
+                member _.FindMappingForTags tags webLogId = rethink<TagMap list> {
                     withTable Table.TagMap
                     getAll (tags |> List.map (fun tag -> r.Array (webLogId, tag) :> obj)) "webLogAndTag"
                     result; withRetryDefault conn
                 }
                 
-                member _.restore tagMaps = backgroundTask {
+                member _.Restore tagMaps = backgroundTask {
                     for batch in tagMaps |> List.chunkBySize restoreBatchSize do
                         do! rethink {
                             withTable Table.TagMap
@@ -663,7 +664,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                         }
                 }
                 
-                member _.save tagMap = rethink {
+                member _.Save tagMap = rethink {
                     withTable Table.TagMap
                     get tagMap.id
                     replace tagMap
@@ -674,7 +675,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
         member _.Theme = {
             new IThemeData with
                 
-                member _.all () = rethink<Theme list> {
+                member _.All () = rethink<Theme list> {
                     withTable Table.Theme
                     filter (fun row -> row["id"].Ne "admin" :> obj)
                     without [ "templates" ]
@@ -682,20 +683,20 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     result; withRetryDefault conn
                 }
                 
-                member _.findById themeId = rethink<Theme> {
+                member _.FindById themeId = rethink<Theme> {
                     withTable Table.Theme
                     get themeId
                     resultOption; withRetryOptionDefault conn
                 }
                 
-                member _.findByIdWithoutText themeId = rethink<Theme> {
+                member _.FindByIdWithoutText themeId = rethink<Theme> {
                     withTable Table.Theme
                     get themeId
                     merge (fun row -> r.HashMap ("templates", row["templates"].Without [| "text" |]))
                     resultOption; withRetryOptionDefault conn
                 }
                 
-                member _.save theme = rethink {
+                member _.Save theme = rethink {
                     withTable Table.Theme
                     get theme.id
                     replace theme
@@ -706,39 +707,39 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
         member _.ThemeAsset = {
             new IThemeAssetData with
                 
-                member _.all () = rethink<ThemeAsset list> {
+                member _.All () = rethink<ThemeAsset list> {
                     withTable Table.ThemeAsset
                     without [ "data" ]
                     result; withRetryDefault conn
                 }
                 
-                member _.deleteByTheme themeId = rethink {
+                member _.DeleteByTheme themeId = rethink {
                     withTable Table.ThemeAsset
                     filter (matchAssetByThemeId themeId)
                     delete
                     write; withRetryDefault; ignoreResult conn
                 }
                 
-                member _.findById assetId = rethink<ThemeAsset> {
+                member _.FindById assetId = rethink<ThemeAsset> {
                     withTable Table.ThemeAsset
                     get assetId
                     resultOption; withRetryOptionDefault conn
                 }
                 
-                member _.findByTheme themeId = rethink<ThemeAsset list> {
+                member _.FindByTheme themeId = rethink<ThemeAsset list> {
                     withTable Table.ThemeAsset
                     filter (matchAssetByThemeId themeId)
                     without [ "data" ]
                     result; withRetryDefault conn
                 }
                 
-                member _.findByThemeWithData themeId = rethink<ThemeAsset> {
+                member _.FindByThemeWithData themeId = rethink<ThemeAsset> {
                     withTable Table.ThemeAsset
                     filter (matchAssetByThemeId themeId)
                     resultCursor; withRetryCursorDefault; toList conn
                 }
                 
-                member _.save asset = rethink {
+                member _.Save asset = rethink {
                     withTable Table.ThemeAsset
                     get asset.id
                     replace asset
@@ -749,13 +750,13 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
         member _.Upload = {
             new IUploadData with
                 
-                member _.add upload = rethink {
+                member _.Add upload = rethink {
                     withTable Table.Upload
                     insert upload
                     write; withRetryDefault; ignoreResult conn
                 }
                 
-                member _.delete uploadId webLogId = backgroundTask {
+                member _.Delete uploadId webLogId = backgroundTask {
                     let! upload =
                         rethink<Upload> {
                             withTable Table.Upload
@@ -775,7 +776,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     | None -> return Result.Error $"Upload ID {UploadId.toString uploadId} not found"
                 }
                 
-                member _.findByPath path webLogId =
+                member _.FindByPath path webLogId =
                     rethink<Upload> {
                         withTable Table.Upload
                         getAll [ r.Array (webLogId, path) ] "webLogAndPath"
@@ -783,7 +784,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     }
                     |> tryFirst <| conn
                 
-                member _.findByWebLog webLogId = rethink<Upload> {
+                member _.FindByWebLog webLogId = rethink<Upload> {
                     withTable Table.Upload
                     between (r.Array (webLogId, r.Minval ())) (r.Array (webLogId, r.Maxval ()))
                         [ Index "webLogAndPath" ]
@@ -791,14 +792,14 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     resultCursor; withRetryCursorDefault; toList conn
                 }
                 
-                member _.findByWebLogWithData webLogId = rethink<Upload> {
+                member _.FindByWebLogWithData webLogId = rethink<Upload> {
                     withTable Table.Upload
                     between (r.Array (webLogId, r.Minval ())) (r.Array (webLogId, r.Maxval ()))
                         [ Index "webLogAndPath" ]
                     resultCursor; withRetryCursorDefault; toList conn
                 }
                 
-                member _.restore uploads = backgroundTask {
+                member _.Restore uploads = backgroundTask {
                     // Files can be large; we'll do 5 at a time
                     for batch in uploads |> List.chunkBySize 5 do
                         do! rethink {
@@ -812,18 +813,18 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
         member _.WebLog = {
             new IWebLogData with
                 
-                member _.add webLog = rethink {
+                member _.Add webLog = rethink {
                     withTable Table.WebLog
                     insert webLog
                     write; withRetryOnce; ignoreResult conn
                 }
                 
-                member _.all () = rethink<WebLog list> {
+                member _.All () = rethink<WebLog list> {
                     withTable Table.WebLog
                     result; withRetryDefault conn
                 }
                 
-                member _.delete webLogId = backgroundTask {
+                member _.Delete webLogId = backgroundTask {
                      // Comments should be deleted by post IDs
                      let! thePostIds = rethink<{| id : string |} list> {
                          withTable Table.Post
@@ -870,7 +871,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                      }
                 }
                 
-                member _.findByHost url =
+                member _.FindByHost url =
                     rethink<WebLog list> {
                         withTable Table.WebLog
                         getAll [ url ] "urlBase"
@@ -879,20 +880,20 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     }
                     |> tryFirst <| conn
 
-                member _.findById webLogId = rethink<WebLog> {
+                member _.FindById webLogId = rethink<WebLog> {
                     withTable Table.WebLog
                     get webLogId
                     resultOption; withRetryOptionDefault conn
                 }
                 
-                member _.updateRssOptions webLog = rethink {
+                member _.UpdateRssOptions webLog = rethink {
                     withTable Table.WebLog
                     get webLog.id
                     update [ "rss", webLog.rss :> obj ]
                     write; withRetryDefault; ignoreResult conn
                 }
                 
-                member _.updateSettings webLog = rethink {
+                member _.UpdateSettings webLog = rethink {
                     withTable Table.WebLog
                     get webLog.id
                     update [
@@ -913,13 +914,13 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
         member _.WebLogUser = {
             new IWebLogUserData with
                 
-                member _.add user = rethink {
+                member _.Add user = rethink {
                     withTable Table.WebLogUser
                     insert user
                     write; withRetryDefault; ignoreResult conn
                 }
                 
-                member _.findByEmail email webLogId =
+                member _.FindByEmail email webLogId =
                     rethink<WebLogUser list> {
                         withTable Table.WebLogUser
                         getAll [ r.Array (webLogId, email) ] "logOn"
@@ -928,7 +929,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     }
                     |> tryFirst <| conn
                 
-                member _.findById userId webLogId =
+                member _.FindById userId webLogId =
                     rethink<WebLogUser> {
                         withTable Table.WebLogUser
                         get userId
@@ -936,13 +937,13 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     }
                     |> verifyWebLog webLogId (fun u -> u.webLogId) <| conn
                 
-                member _.findByWebLog webLogId = rethink<WebLogUser list> {
+                member _.FindByWebLog webLogId = rethink<WebLogUser list> {
                     withTable Table.WebLogUser
                     getAll [ webLogId ] (nameof webLogId)
                     result; withRetryDefault conn
                 }
                 
-                member _.findNames webLogId userIds = backgroundTask {
+                member _.FindNames webLogId userIds = backgroundTask {
                     let! users = rethink<WebLogUser list> {
                         withTable Table.WebLogUser
                         getAll (objList userIds)
@@ -954,7 +955,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                         |> List.map (fun u -> { name = WebLogUserId.toString u.id; value = WebLogUser.displayName u })
                 }
                 
-                member _.restore users = backgroundTask {
+                member _.Restore users = backgroundTask {
                     for batch in users |> List.chunkBySize restoreBatchSize do
                         do! rethink {
                             withTable Table.WebLogUser
@@ -963,7 +964,19 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                         }
                 }
                 
-                member _.update user = rethink {
+                member this.SetLastSeen userId webLogId = backgroundTask {
+                    match! this.FindById userId webLogId with
+                    | Some _ ->
+                        do! rethink {
+                            withTable Table.WebLogUser
+                            get userId
+                            update [ "lastSeenOn", DateTime.UtcNow :> obj ]
+                            write; withRetryOnce; ignoreResult conn
+                        }
+                    | None -> ()
+                }
+                
+                member _.Update user = rethink {
                     withTable Table.WebLogUser
                     get user.id
                     update [
@@ -978,7 +991,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                 }
         }
         
-        member _.startUp () = backgroundTask {
+        member _.StartUp () = backgroundTask {
             let! dbs = rethink<string list> { dbList; result; withRetryOnce conn }
             if not (dbs |> List.contains config.Database) then
                 log.LogInformation $"Creating database {config.Database}..."

@@ -325,10 +325,10 @@ type SQLiteWebLogData (conn : SqliteConnection) =
     }
     
     interface IWebLogData with
-        member _.add webLog = add webLog
-        member _.all () = all ()
-        member _.delete webLogId = delete webLogId
-        member _.findByHost url = findByHost url
-        member _.findById webLogId = findById webLogId
-        member _.updateSettings webLog = updateSettings webLog
-        member _.updateRssOptions webLog = updateRssOptions webLog
+        member _.Add webLog = add webLog
+        member _.All () = all ()
+        member _.Delete webLogId = delete webLogId
+        member _.FindByHost url = findByHost url
+        member _.FindById webLogId = findById webLogId
+        member _.UpdateSettings webLog = updateSettings webLog
+        member _.UpdateRssOptions webLog = updateRssOptions webLog

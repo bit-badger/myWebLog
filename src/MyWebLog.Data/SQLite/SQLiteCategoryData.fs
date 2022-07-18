@@ -78,24 +78,24 @@ type SQLiteCategoryData (conn : SqliteConnection) =
                        AND p.status     = 'Published'
                        AND pc.category_id IN ("""
                 ordered
-                |> Seq.filter (fun cat -> cat.parentNames |> Array.contains it.name)
-                |> Seq.map (fun cat -> cat.id)
-                |> Seq.append (Seq.singleton it.id)
+                |> Seq.filter (fun cat -> cat.ParentNames |> Array.contains it.Name)
+                |> Seq.map (fun cat -> cat.Id)
+                |> Seq.append (Seq.singleton it.Id)
                 |> Seq.iteri (fun idx item ->
                     if idx > 0 then cmd.CommandText <- $"{cmd.CommandText}, "
                     cmd.CommandText <- $"{cmd.CommandText}@catId{idx}"
                     cmd.Parameters.AddWithValue ($"@catId{idx}", item) |> ignore)
                 cmd.CommandText <- $"{cmd.CommandText})"
                 let! postCount = count cmd
-                return it.id, postCount
+                return it.Id, postCount
                 })
             |> Task.WhenAll
         return
             ordered
             |> Seq.map (fun cat ->
                 { cat with
-                    postCount = counts
-                                |> Array.tryFind (fun c -> fst c = cat.id)
+                    PostCount = counts
+                                |> Array.tryFind (fun c -> fst c = cat.Id)
                                 |> Option.map snd
                                 |> Option.defaultValue 0
                 })
@@ -163,12 +163,12 @@ type SQLiteCategoryData (conn : SqliteConnection) =
     }
     
     interface ICategoryData with
-        member _.add cat = add cat
-        member _.countAll webLogId = countAll webLogId
-        member _.countTopLevel webLogId = countTopLevel webLogId
-        member _.findAllForView webLogId = findAllForView webLogId
-        member _.findById catId webLogId = findById catId webLogId
-        member _.findByWebLog webLogId = findByWebLog webLogId
-        member _.delete catId webLogId = delete catId webLogId
-        member _.restore cats = restore cats
-        member _.update cat = update cat
+        member _.Add cat = add cat
+        member _.CountAll webLogId = countAll webLogId
+        member _.CountTopLevel webLogId = countTopLevel webLogId
+        member _.FindAllForView webLogId = findAllForView webLogId
+        member _.FindById catId webLogId = findById catId webLogId
+        member _.FindByWebLog webLogId = findByWebLog webLogId
+        member _.Delete catId webLogId = delete catId webLogId
+        member _.Restore cats = restore cats
+        member _.Update cat = update cat

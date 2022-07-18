@@ -349,18 +349,18 @@ type SQLitePageData (conn : SqliteConnection) =
     }
     
     interface IPageData with
-        member _.add page = add page
-        member _.all webLogId = all webLogId
-        member _.countAll webLogId = countAll webLogId
-        member _.countListed webLogId = countListed webLogId
-        member _.delete pageId webLogId = delete pageId webLogId
-        member _.findById pageId webLogId = findById pageId webLogId
-        member _.findByPermalink permalink webLogId = findByPermalink permalink webLogId
-        member _.findCurrentPermalink permalinks webLogId = findCurrentPermalink permalinks webLogId
-        member _.findFullById pageId webLogId = findFullById pageId webLogId
-        member _.findFullByWebLog webLogId = findFullByWebLog webLogId
-        member _.findListed webLogId = findListed webLogId
-        member _.findPageOfPages webLogId pageNbr = findPageOfPages webLogId pageNbr
-        member _.restore pages = restore pages
-        member _.update page = update page
-        member _.updatePriorPermalinks pageId webLogId permalinks = updatePriorPermalinks pageId webLogId permalinks
+        member _.Add page = add page
+        member _.All webLogId = all webLogId
+        member _.CountAll webLogId = countAll webLogId
+        member _.CountListed webLogId = countListed webLogId
+        member _.Delete pageId webLogId = delete pageId webLogId
+        member _.FindById pageId webLogId = findById pageId webLogId
+        member _.FindByPermalink permalink webLogId = findByPermalink permalink webLogId
+        member _.FindCurrentPermalink permalinks webLogId = findCurrentPermalink permalinks webLogId
+        member _.FindFullById pageId webLogId = findFullById pageId webLogId
+        member _.FindFullByWebLog webLogId = findFullByWebLog webLogId
+        member _.FindListed webLogId = findListed webLogId
+        member _.FindPageOfPages webLogId pageNbr = findPageOfPages webLogId pageNbr
+        member _.Restore pages = restore pages
+        member _.Update page = update page
+        member _.UpdatePriorPermalinks pageId webLogId permalinks = updatePriorPermalinks pageId webLogId permalinks

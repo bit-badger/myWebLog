@@ -16,8 +16,7 @@ let private parseSlugAndPage webLog (slugAndPage : string seq) =
             || (webLog.rss.tagEnabled      && fullPath.StartsWith "/tag/"     ))
            && slugPath.EndsWith feedName then
             notBlank (slugPath.Replace(feedName, "").Split "/"), true
-        else
-            notBlank (slugPath.Split "/"), false
+        else notBlank (slugPath.Split "/"), false
     let pageIdx = Array.IndexOf (slugs, "page")
     let pageNbr =
         match pageIdx with
@@ -56,7 +55,7 @@ let preparePostList webLog posts listType (url : string) pageNbr perPage ctx (da
         | SinglePost ->
             let post     = List.head posts
             let dateTime = defaultArg post.publishedOn post.updatedOn
-            data.Post.findSurroundingPosts webLog.id dateTime
+            data.Post.FindSurroundingPosts webLog.id dateTime
         | _ -> Task.FromResult (None, None)
     let newerLink =
         match listType, pageNbr with
@@ -68,7 +67,7 @@ let preparePostList webLog posts listType (url : string) pageNbr perPage ctx (da
         | CategoryList, _ -> relUrl $"category/{url}/page/{pageNbr - 1}"
         | TagList,      2 -> relUrl $"tag/{url}/"
         | TagList,      _ -> relUrl $"tag/{url}/page/{pageNbr - 1}"
-        | AdminList,    2 -> relUrl "admin/posts"
+        | AdminList,    2 -> relUrl  "admin/posts"
         | AdminList,    _ -> relUrl $"admin/posts/page/{pageNbr - 1}"
     let olderLink =
         match listType, List.length posts > perPage with
@@ -79,13 +78,13 @@ let preparePostList webLog posts listType (url : string) pageNbr perPage ctx (da
         | TagList,      true  -> relUrl $"tag/{url}/page/{pageNbr + 1}"
         | AdminList,    true  -> relUrl $"admin/posts/page/{pageNbr + 1}"
     let model =
-        { posts      = postItems
-          authors    = authors
-          subtitle   = None
-          newerLink  = newerLink
-          newerName  = newerPost |> Option.map (fun p -> p.title)
-          olderLink  = olderLink
-          olderName  = olderPost |> Option.map (fun p -> p.title)
+        { Posts      = postItems
+          Authors    = authors
+          Subtitle   = None
+          NewerLink  = newerLink
+          NewerName  = newerPost |> Option.map (fun p -> p.title)
+          OlderLink  = olderLink
+          OlderName  = olderPost |> Option.map (fun p -> p.title)
         }
     return Hash.FromAnonymousObject {|
         model        = model
@@ -101,7 +100,7 @@ open Giraffe
 let pageOfPosts pageNbr : HttpHandler = fun next ctx -> task {
     let  count = ctx.WebLog.postsPerPage
     let  data  = ctx.Data
-    let! posts = data.Post.findPageOfPublishedPosts ctx.WebLog.id pageNbr count
+    let! posts = data.Post.FindPageOfPublishedPosts ctx.WebLog.id pageNbr count
     let! hash  = preparePostList ctx.WebLog posts PostList "" pageNbr count ctx data
     let  title =
         match pageNbr, ctx.WebLog.defaultPage with
@@ -124,23 +123,24 @@ let pageOfCategorizedPosts slugAndPage : HttpHandler = fun next ctx -> task {
     let data   = ctx.Data
     match parseSlugAndPage webLog slugAndPage with
     | Some pageNbr, slug, isFeed ->
-        match CategoryCache.get ctx |> Array.tryFind (fun cat -> cat.slug = slug) with
+        match CategoryCache.get ctx |> Array.tryFind (fun cat -> cat.Slug = slug) with
         | Some cat when isFeed ->
-            return! Feed.generate (Feed.CategoryFeed ((CategoryId cat.id), $"category/{slug}/{webLog.rss.feedName}"))
+            return! Feed.generate (Feed.CategoryFeed ((CategoryId cat.Id), $"category/{slug}/{webLog.rss.feedName}"))
                         (defaultArg webLog.rss.itemsInFeed webLog.postsPerPage) next ctx
         | Some cat ->
             // Category pages include posts in subcategories
-            match! data.Post.findPageOfCategorizedPosts webLog.id (getCategoryIds slug ctx) pageNbr webLog.postsPerPage
+            match! data.Post.FindPageOfCategorizedPosts webLog.id (getCategoryIds slug ctx) pageNbr webLog.postsPerPage
                 with
             | posts when List.length posts > 0 ->
-                let! hash = preparePostList webLog posts CategoryList cat.slug pageNbr webLog.postsPerPage ctx data
+                let! hash = preparePostList webLog posts CategoryList cat.Slug pageNbr webLog.postsPerPage ctx data
                 let pgTitle = if pageNbr = 1 then "" else $""" <small class="archive-pg-nbr">(Page {pageNbr})</small>"""
-                hash.Add ("page_title", $"{cat.name}: Category Archive{pgTitle}")
-                hash.Add ("subtitle", defaultArg cat.description "")
-                hash.Add ("is_category", true)
-                hash.Add ("is_category_home", (pageNbr = 1))
-                hash.Add ("slug", slug)
-                return! themedView "index" next ctx hash
+                return!
+                    addToHash    "page_title"       $"{cat.Name}: Category Archive{pgTitle}" hash
+                    |> addToHash "subtitle"         (defaultArg cat.Description "")
+                    |> addToHash "is_category"      true
+                    |> addToHash "is_category_home" (pageNbr = 1)
+                    |> addToHash "slug"             slug
+                    |> themedView "index" next ctx
             | _ -> return! Error.notFound next ctx
         | None -> return! Error.notFound next ctx
     | None, _, _ -> return! Error.notFound next ctx
@@ -157,7 +157,7 @@ let pageOfTaggedPosts slugAndPage : HttpHandler = fun next ctx -> task {
     | Some pageNbr, rawTag, isFeed -> 
         let  urlTag = HttpUtility.UrlDecode rawTag
         let! tag    = backgroundTask {
-            match! data.TagMap.findByUrlValue urlTag webLog.id with
+            match! data.TagMap.FindByUrlValue urlTag webLog.id with
             | Some m -> return m.tag
             | None   -> return urlTag
         }
@@ -165,19 +165,20 @@ let pageOfTaggedPosts slugAndPage : HttpHandler = fun next ctx -> task {
             return! Feed.generate (Feed.TagFeed (tag, $"tag/{rawTag}/{webLog.rss.feedName}"))
                         (defaultArg webLog.rss.itemsInFeed webLog.postsPerPage) next ctx
         else
-            match! data.Post.findPageOfTaggedPosts webLog.id tag pageNbr webLog.postsPerPage with
+            match! data.Post.FindPageOfTaggedPosts webLog.id tag pageNbr webLog.postsPerPage with
             | posts when List.length posts > 0 ->
                 let! hash    = preparePostList webLog posts TagList rawTag pageNbr webLog.postsPerPage ctx data
                 let  pgTitle = if pageNbr = 1 then "" else $""" <small class="archive-pg-nbr">(Page {pageNbr})</small>"""
-                hash.Add ("page_title", $"Posts Tagged &ldquo;{tag}&rdquo;{pgTitle}")
-                hash.Add ("is_tag", true)
-                hash.Add ("is_tag_home", (pageNbr = 1))
-                hash.Add ("slug", rawTag)
-                return! themedView "index" next ctx hash
+                return!
+                       addToHash "page_title"  $"Posts Tagged &ldquo;{tag}&rdquo;{pgTitle}" hash
+                    |> addToHash "is_tag"      true
+                    |> addToHash "is_tag_home" (pageNbr = 1)
+                    |> addToHash "slug"        rawTag
+                    |> themedView "index" next ctx
             // Other systems use hyphens for spaces; redirect if this is an old tag link
             | _ ->
                 let spacedTag = tag.Replace ("-", " ")
-                match! data.Post.findPageOfTaggedPosts webLog.id spacedTag pageNbr 1 with
+                match! data.Post.FindPageOfTaggedPosts webLog.id spacedTag pageNbr 1 with
                 | posts when List.length posts > 0 ->
                     let endUrl = if pageNbr = 1 then "" else $"page/{pageNbr}"
                     return!
@@ -194,7 +195,7 @@ let home : HttpHandler = fun next ctx -> task {
     match webLog.defaultPage with
     | "posts" -> return! pageOfPosts 1 next ctx
     | pageId ->
-        match! ctx.Data.Page.findById (PageId pageId) webLog.id with
+        match! ctx.Data.Page.FindById (PageId pageId) webLog.id with
         | Some page ->
             return!
                 Hash.FromAnonymousObject {|
@@ -211,11 +212,12 @@ let home : HttpHandler = fun next ctx -> task {
 // GET /admin/posts/page/{pageNbr}
 let all pageNbr : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     let  data  = ctx.Data
-    let! posts = data.Post.findPageOfPosts ctx.WebLog.id pageNbr 25
+    let! posts = data.Post.FindPageOfPosts ctx.WebLog.id pageNbr 25
     let! hash  = preparePostList ctx.WebLog posts AdminList "" pageNbr 25 ctx data
-    hash.Add ("page_title", "Posts")
-    hash.Add ("csrf", ctx.CsrfTokenSet)
-    return! viewForTheme "admin" "post-list" next ctx hash
+    return!
+           addToHash "page_title" "Posts" hash
+        |> addToHash "csrf"       ctx.CsrfTokenSet
+        |> viewForTheme "admin" "post-list" next ctx
 }
 
 // GET /admin/post/{id}/edit
@@ -225,13 +227,13 @@ let edit postId : HttpHandler = requireAccess Author >=> fun next ctx -> task {
         match postId with
         | "new" -> return Some ("Write a New Post", { Post.empty with id = PostId "new" })
         | _ ->
-            match! data.Post.findFullById (PostId postId) ctx.WebLog.id with
+            match! data.Post.FindFullById (PostId postId) ctx.WebLog.id with
             | Some post -> return Some ("Edit Post", post)
             | None -> return None
     }
     match result with
     | Some (title, post) when canEdit post.authorId ctx ->
-        let! cats      = data.Category.findAllForView ctx.WebLog.id
+        let! cats      = data.Category.FindAllForView ctx.WebLog.id
         let! templates = templatesForTheme ctx "post"
         let  model     = EditPostModel.fromPost ctx.WebLog post
         return!
@@ -239,7 +241,7 @@ let edit postId : HttpHandler = requireAccess Author >=> fun next ctx -> task {
                 page_title      = title
                 csrf            = ctx.CsrfTokenSet
                 model           = model
-                metadata        = Array.zip model.metaNames model.metaValues
+                metadata        = Array.zip model.MetaNames model.MetaValues
                                   |> Array.mapi (fun idx (name, value) -> [| string idx; name; value |])
                 templates       = templates
                 categories      = cats
@@ -257,15 +259,15 @@ let edit postId : HttpHandler = requireAccess Author >=> fun next ctx -> task {
 
 // POST /admin/post/{id}/delete
 let delete postId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
-    match! ctx.Data.Post.delete (PostId postId) ctx.WebLog.id with
-    | true  -> do! addMessage ctx { UserMessage.success with message = "Post deleted successfully" }
-    | false -> do! addMessage ctx { UserMessage.error with message = "Post not found; nothing deleted" }
+    match! ctx.Data.Post.Delete (PostId postId) ctx.WebLog.id with
+    | true  -> do! addMessage ctx { UserMessage.success with Message = "Post deleted successfully" }
+    | false -> do! addMessage ctx { UserMessage.error with Message = "Post not found; nothing deleted" }
     return! redirectToGet "admin/posts" next ctx
 }
 
 // GET /admin/post/{id}/permalinks
 let editPermalinks postId : HttpHandler = requireAccess Author >=> fun next ctx -> task {
-    match! ctx.Data.Post.findFullById (PostId postId) ctx.WebLog.id with
+    match! ctx.Data.Post.FindFullById (PostId postId) ctx.WebLog.id with
     | Some post when canEdit post.authorId ctx ->
         return!
             Hash.FromAnonymousObject {|
@@ -281,14 +283,14 @@ let editPermalinks postId : HttpHandler = requireAccess Author >=> fun next ctx 
 // POST /admin/post/permalinks
 let savePermalinks : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     let! model  = ctx.BindFormAsync<ManagePermalinksModel> ()
-    let  postId = PostId model.id
-    match! ctx.Data.Post.findById postId ctx.WebLog.id with
+    let  postId = PostId model.Id
+    match! ctx.Data.Post.FindById postId ctx.WebLog.id with
     | Some post when canEdit post.authorId ctx ->
-        let  links  = model.prior |> Array.map Permalink |> List.ofArray
-        match! ctx.Data.Post.updatePriorPermalinks (PostId model.id) ctx.WebLog.id links with
+        let  links  = model.Prior |> Array.map Permalink |> List.ofArray
+        match! ctx.Data.Post.UpdatePriorPermalinks postId ctx.WebLog.id links with
         | true ->
-            do! addMessage ctx { UserMessage.success with message = "Post permalinks saved successfully" }
-            return! redirectToGet $"admin/post/{model.id}/permalinks" next ctx
+            do! addMessage ctx { UserMessage.success with Message = "Post permalinks saved successfully" }
+            return! redirectToGet $"admin/post/{model.Id}/permalinks" next ctx
         | false -> return! Error.notFound next ctx
     | Some _ -> return! Error.notAuthorized next ctx
     | None -> return! Error.notFound next ctx
@@ -296,7 +298,7 @@ let savePermalinks : HttpHandler = requireAccess Author >=> fun next ctx -> task
 
 // GET /admin/post/{id}/revisions
 let editRevisions postId : HttpHandler = requireAccess Author >=> fun next ctx -> task {
-    match! ctx.Data.Post.findFullById (PostId postId) ctx.WebLog.id with
+    match! ctx.Data.Post.FindFullById (PostId postId) ctx.WebLog.id with
     | Some post when canEdit post.authorId ctx ->
         return!
             Hash.FromAnonymousObject {|
@@ -312,10 +314,10 @@ let editRevisions postId : HttpHandler = requireAccess Author >=> fun next ctx -
 // GET /admin/post/{id}/revisions/purge
 let purgeRevisions postId : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     let data = ctx.Data
-    match! data.Post.findFullById (PostId postId) ctx.WebLog.id with
+    match! data.Post.FindFullById (PostId postId) ctx.WebLog.id with
     | Some post when canEdit post.authorId ctx ->
-        do! data.Post.update { post with revisions = [ List.head post.revisions ] }
-        do! addMessage ctx { UserMessage.success with message = "Prior revisions purged successfully" }
+        do! data.Post.Update { post with revisions = [ List.head post.revisions ] }
+        do! addMessage ctx { UserMessage.success with Message = "Prior revisions purged successfully" }
         return! redirectToGet $"admin/post/{postId}/revisions" next ctx
     | Some _ -> return! Error.notAuthorized next ctx
     | None -> return! Error.notFound next ctx
@@ -325,7 +327,7 @@ open Microsoft.AspNetCore.Http
 
 /// Find the post and the requested revision
 let private findPostRevision postId revDate (ctx : HttpContext) = task {
-    match! ctx.Data.Post.findFullById (PostId postId) ctx.WebLog.id with
+    match! ctx.Data.Post.FindFullById (PostId postId) ctx.WebLog.id with
     | Some post ->
         let asOf = parseToUtc revDate
         return Some post, post.revisions |> List.tryFind (fun r -> r.asOf = asOf)
@@ -350,12 +352,12 @@ let previewRevision (postId, revDate) : HttpHandler = requireAccess Author >=> f
 let restoreRevision (postId, revDate) : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     match! findPostRevision postId revDate ctx with
     | Some post, Some rev when canEdit post.authorId ctx ->
-        do! ctx.Data.Post.update
+        do! ctx.Data.Post.Update
                 { post with
                     revisions = { rev with asOf = DateTime.UtcNow }
                                   :: (post.revisions |> List.filter (fun r -> r.asOf <> rev.asOf))
                 }
-        do! addMessage ctx { UserMessage.success with message = "Revision restored successfully" }
+        do! addMessage ctx { UserMessage.success with Message = "Revision restored successfully" }
         return! redirectToGet $"admin/post/{postId}/revisions" next ctx
     | Some _, Some _ -> return! Error.notAuthorized next ctx
     | None, _
@@ -366,64 +368,62 @@ let restoreRevision (postId, revDate) : HttpHandler = requireAccess Author >=> f
 let deleteRevision (postId, revDate) : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     match! findPostRevision postId revDate ctx with
     | Some post, Some rev when canEdit post.authorId ctx ->
-        do! ctx.Data.Post.update { post with revisions = post.revisions |> List.filter (fun r -> r.asOf <> rev.asOf) }
-        do! addMessage ctx { UserMessage.success with message = "Revision deleted successfully" }
+        do! ctx.Data.Post.Update { post with revisions = post.revisions |> List.filter (fun r -> r.asOf <> rev.asOf) }
+        do! addMessage ctx { UserMessage.success with Message = "Revision deleted successfully" }
         return! bareForTheme "admin" "" next ctx (Hash.FromAnonymousObject {| content = "" |})
     | Some _, Some _ -> return! Error.notAuthorized next ctx
     | None, _
     | _, None -> return! Error.notFound next ctx
 }
 
-#nowarn "3511"
+//#nowarn "3511"
 
 // POST /admin/post/save
 let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
-    let! model = ctx.BindFormAsync<EditPostModel> ()
-    let  data  = ctx.Data
-    let  now   = DateTime.UtcNow
-    let! pst   = task {
-        match model.postId with
-        | "new" ->
-            return Some
-                { Post.empty with
-                    id        = PostId.create ()
-                    webLogId  = ctx.WebLog.id
-                    authorId  = ctx.UserId
-                }
-        | postId -> return! data.Post.findFullById (PostId postId) ctx.WebLog.id
-    }
-    match pst with
+    let! model   = ctx.BindFormAsync<EditPostModel> ()
+    let  data    = ctx.Data
+    let  now     = DateTime.UtcNow
+    let  tryPost =
+        if model.PostId = "new" then
+            Task.FromResult (
+                Some
+                    { Post.empty with
+                        id        = PostId.create ()
+                        webLogId  = ctx.WebLog.id
+                        authorId  = ctx.UserId
+                    })
+        else data.Post.FindFullById (PostId model.PostId) ctx.WebLog.id
+    match! tryPost with
     | Some post when canEdit post.authorId ctx ->
-        let revision = { asOf = now; text = MarkupText.parse $"{model.source}: {model.text}" }
+        let priorCats = post.categoryIds
+        let revision  = { asOf = now; text = MarkupText.parse $"{model.Source}: {model.Text}" }
         // Detect a permalink change, and add the prior one to the prior list
         let post =
             match Permalink.toString post.permalink with
             | "" -> post
-            | link when link = model.permalink -> post
+            | link when link = model.Permalink -> post
             | _ -> { post with priorPermalinks = post.permalink :: post.priorPermalinks }
         let post = model.updatePost post revision now
         let post =
-            match model.setPublished with
-            | true ->
-                let dt = parseToUtc (model.pubOverride.Value.ToString "o")
-                match model.setUpdated with
-                | true ->
+            if model.SetPublished then
+                let dt = parseToUtc (model.PubOverride.Value.ToString "o")
+                if model.SetUpdated then
                     { post with
                         publishedOn = Some dt
                         updatedOn   = dt
                         revisions   = [ { (List.head post.revisions) with asOf = dt } ]
                     }
-                | false -> { post with publishedOn = Some dt }
-            | false -> post
-        do! (if model.postId = "new" then data.Post.add else data.Post.update) post
+                else { post with publishedOn = Some dt }
+            else post
+        do! (if model.PostId = "new" then data.Post.Add else data.Post.Update) post
         // If the post was published or its categories changed, refresh the category cache
-        if model.doPublish
-           || not (pst.Value.categoryIds
+        if model.DoPublish
+           || not (priorCats
                    |> List.append post.categoryIds
                    |> List.distinct
-                   |> List.length = List.length pst.Value.categoryIds) then
+                   |> List.length = List.length priorCats) then
             do! CategoryCache.update ctx
-        do! addMessage ctx { UserMessage.success with message = "Post saved successfully" }
+        do! addMessage ctx { UserMessage.success with Message = "Post saved successfully" }
         return! redirectToGet $"admin/post/{PostId.toString post.id}/edit" next ctx
     | Some _ -> return! Error.notAuthorized next ctx
     | None -> return! Error.notFound next ctx

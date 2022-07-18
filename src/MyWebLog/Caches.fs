@@ -77,7 +77,7 @@ module WebLogCache =
     
     /// Fill the web log cache from the database
     let fill (data : IData) = backgroundTask {
-        let! webLogs = data.WebLog.all ()
+        let! webLogs = data.WebLog.All ()
         _cache <- webLogs
     }
 
@@ -99,7 +99,7 @@ module PageListCache =
     /// Update the pages for the current web log
     let update (ctx : HttpContext) = backgroundTask {
         let  webLog = ctx.WebLog
-        let! pages  = ctx.Data.Page.findListed webLog.id
+        let! pages  = ctx.Data.Page.FindListed webLog.id
         _cache[webLog.urlBase] <-
             pages
             |> List.map (fun pg -> DisplayPage.fromPage webLog { pg with text = "" })
@@ -123,7 +123,7 @@ module CategoryCache =
     
     /// Update the cache with fresh data
     let update (ctx : HttpContext) = backgroundTask {
-        let! cats = ctx.Data.Category.findAllForView ctx.WebLog.id
+        let! cats = ctx.Data.Category.FindAllForView ctx.WebLog.id
         _cache[ctx.WebLog.urlBase] <- cats
     }
 
@@ -147,7 +147,7 @@ module TemplateCache =
         match _cache.ContainsKey templatePath with
         | true -> ()
         | false ->
-            match! data.Theme.findById (ThemeId themeId) with
+            match! data.Theme.FindById (ThemeId themeId) with
             | Some theme ->
                 let mutable text = (theme.templates |> List.find (fun t -> t.name = templateName)).text
                 while hasInclude.IsMatch text do
@@ -178,13 +178,13 @@ module ThemeAssetCache =
     
     /// Refresh the list of assets for the given theme
     let refreshTheme themeId (data : IData) = backgroundTask {
-        let! assets = data.ThemeAsset.findByTheme themeId
+        let! assets = data.ThemeAsset.FindByTheme themeId
         _cache[themeId] <- assets |> List.map (fun a -> match a.id with ThemeAssetId (_, path) -> path)
     }
     
     /// Fill the theme asset cache
     let fill (data : IData) = backgroundTask {
-        let! assets = data.ThemeAsset.all ()
+        let! assets = data.ThemeAsset.All ()
         for asset in assets do
             let (ThemeAssetId (themeId, path)) = asset.id
             if not (_cache.ContainsKey themeId) then _cache[themeId] <- []

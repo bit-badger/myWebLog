@@ -2,17 +2,17 @@
 <article>
   <form action="{{ "admin/page/save" | relative_link }}" method="post" hx-push-url="true">
     <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
-    <input type="hidden" name="pageId" value="{{ model.page_id }}">
+    <input type="hidden" name="PageId" value="{{ model.page_id }}">
     <div class="container">
       <div class="row mb-3">
         <div class="col-9">
           <div class="form-floating pb-3">
-            <input type="text" name="title" id="title" class="form-control" autofocus required
+            <input type="text" name="Title" id="title" class="form-control" autofocus required
                    value="{{ model.title }}">
             <label for="title">Title</label>
           </div>
           <div class="form-floating pb-3">
-            <input type="text" name="permalink" id="permalink" class="form-control" required
+            <input type="text" name="Permalink" id="permalink" class="form-control" required
                    value="{{ model.permalink }}">
             <label for="permalink">Permalink</label>
             {%- if model.page_id != "new" %}
@@ -29,20 +29,20 @@
           </div>
           <div class="mb-2">
             <label for="text">Text</label> &nbsp; &nbsp;
-            <input type="radio" name="source" id="source_html" class="btn-check" value="HTML"
+            <input type="radio" name="Source" id="source_html" class="btn-check" value="HTML"
             {%- if model.source == "HTML" %} checked="checked"{% endif %}>
             <label class="btn btn-sm btn-outline-secondary" for="source_html">HTML</label>
-            <input type="radio" name="source" id="source_md" class="btn-check" value="Markdown"
+            <input type="radio" name="Source" id="source_md" class="btn-check" value="Markdown"
             {%- if model.source == "Markdown" %} checked="checked"{% endif %}>
             <label class="btn btn-sm btn-outline-secondary" for="source_md">Markdown</label>
           </div>
           <div class="mb-3">
-            <textarea name="text" id="text" class="form-control">{{ model.text }}</textarea>
+            <textarea name="Text" id="text" class="form-control">{{ model.text }}</textarea>
           </div>
         </div>
         <div class="col-3">
           <div class="form-floating pb-3">
-            <select name="template" id="template" class="form-control">
+            <select name="Template" id="template" class="form-control">
               {% for tmpl in templates -%}
                 <option value="{{ tmpl[0] }}"{% if model.template == tmpl[0] %} selected="selected"{% endif %}>
                   {{ tmpl[1] }}
@@ -52,7 +52,7 @@
             <label for="template">Page Template</label>
           </div>
           <div class="form-check form-switch">
-            <input type="checkbox" name="isShownInPageList" id="showList" class="form-check-input" value="true"
+            <input type="checkbox" name="IsShownInPageList" id="showList" class="form-check-input" value="true"
                    {%- if model.is_shown_in_page_list %} checked="checked"{% endif %}>
             <label for="showList" class="form-check-label">Show in Page List</label>
           </div>
@@ -84,14 +84,14 @@
                     </div>
                     <div class="col-3">
                       <div class="form-floating">
-                        <input type="text" name="metaNames" id="metaNames_{{ meta[0] }}" class="form-control"
+                        <input type="text" name="MetaNames" id="metaNames_{{ meta[0] }}" class="form-control"
                                placeholder="Name" value="{{ meta[1] }}">
                         <label for="metaNames_{{ meta[0] }}">Name</label>
                       </div>
                     </div>
                     <div class="col-8">
                       <div class="form-floating">
-                        <input type="text" name="metaValues" id="metaValues_{{ meta[0] }}" class="form-control"
+                        <input type="text" name="MetaValues" id="metaValues_{{ meta[0] }}" class="form-control"
                                placeholder="Value" value="{{ meta[2] }}">
                         <label for="metaValues_{{ meta[0] }}">Value</label>
                       </div>

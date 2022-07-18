@@ -92,10 +92,10 @@ type SQLiteUploadData (conn : SqliteConnection) =
     }
     
     interface IUploadData with
-        member _.add upload = add upload
-        member _.delete uploadId webLogId = delete uploadId webLogId
-        member _.findByPath path webLogId = findByPath path webLogId
-        member _.findByWebLog webLogId = findByWebLog webLogId
-        member _.findByWebLogWithData webLogId = findByWebLogWithData webLogId
-        member _.restore uploads = restore uploads
+        member _.Add upload = add upload
+        member _.Delete uploadId webLogId = delete uploadId webLogId
+        member _.FindByPath path webLogId = findByPath path webLogId
+        member _.FindByWebLog webLogId = findByWebLog webLogId
+        member _.FindByWebLogWithData webLogId = findByWebLogWithData webLogId
+        member _.Restore uploads = restore uploads
         

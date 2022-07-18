@@ -8,18 +8,18 @@
           <fieldset class="d-flex justify-content-evenly flex-row">
             <legend>Feeds Enabled</legend>
             <div class="form-check form-switch pb-2">
-              <input type="checkbox" name="feedEnabled" id="feedEnabled" class="form-check-input" value="true"
-                     {% if model.feed_enabled %}checked="checked"{% endif %}>
+              <input type="checkbox" name="IsFeedEnabled" id="feedEnabled" class="form-check-input" value="true"
+                     {%- if model.is_feed_enabled %} checked="checked"{% endif %}>
               <label for="feedEnabled" class="form-check-label">All Posts</label>
             </div>
             <div class="form-check form-switch pb-2">
-              <input type="checkbox" name="categoryEnabled" id="categoryEnabled" class="form-check-input" value="true"
-                     {% if model.category_enabled %}checked="checked"{% endif %}>
+              <input type="checkbox" name="IsCategoryEnabled" id="categoryEnabled" class="form-check-input" value="true"
+                     {%- if model.is_category_enabled %} checked="checked"{% endif %}>
               <label for="categoryEnabled" class="form-check-label">Posts by Category</label>
             </div>
             <div class="form-check form-switch pb-2">
-              <input type="checkbox" name="tagEnabled" id="tagEnabled" class="form-check-input" value="true"
-                     {% if model.tag_enabled %}checked="checked"{% endif %}>
+              <input type="checkbox" name="IsTagEnabled" id="tagEnabled" class="form-check-input" value="true"
+                     {%- if model.tag_enabled %} checked="checked"{% endif %}>
               <label for="tagEnabled" class="form-check-label">Posts by Tag</label>
             </div>
           </fieldset>
@@ -28,7 +28,7 @@
       <div class="row">
         <div class="col-12 col-sm-6 col-md-3 col-xl-2 offset-xl-2 pb-3">
           <div class="form-floating">
-            <input type="text" name="feedName" id="feedName" class="form-control" placeholder="Feed File Name"
+            <input type="text" name="FeedName" id="feedName" class="form-control" placeholder="Feed File Name"
                    value="{{ model.feed_name }}">
             <label for="feedName">Feed File Name</label>
             <span class="form-text">Default is <code>feed.xml</code></span>
@@ -36,7 +36,7 @@
         </div>
         <div class="col-12 col-sm-6 col-md-4 col-xl-2 pb-3">
           <div class="form-floating">
-            <input type="number" name="itemsInFeed" id="itemsInFeed" class="form-control" min="0"
+            <input type="number" name="ItemsInFeed" id="itemsInFeed" class="form-control" min="0"
                    placeholder="Items in Feed" required value="{{ model.items_in_feed }}">
             <label for="itemsInFeed">Items in Feed</label>
             <span class="form-text">Set to &ldquo;0&rdquo; to use &ldquo;Posts per Page&rdquo; setting ({{ web_log.posts_per_page }})</span>
@@ -44,7 +44,7 @@
         </div>
         <div class="col-12 col-md-5 col-xl-4 pb-3">
           <div class="form-floating">
-            <input type="text" name="copyright" id="copyright" class="form-control" placeholder="Copyright String"
+            <input type="text" name="Copyright" id="copyright" class="form-control" placeholder="Copyright String"
                    value="{{ model.copyright }}">
             <label for="copyright">Copyright String</label>
             <span class="form-text">

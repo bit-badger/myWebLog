@@ -571,22 +571,22 @@ type SQLitePostData (conn : SqliteConnection) =
     }
     
     interface IPostData with
-        member _.add post = add post
-        member _.countByStatus status webLogId = countByStatus status webLogId
-        member _.delete postId webLogId = delete postId webLogId
-        member _.findById postId webLogId = findById postId webLogId
-        member _.findByPermalink permalink webLogId = findByPermalink permalink webLogId
-        member _.findCurrentPermalink permalinks webLogId = findCurrentPermalink permalinks webLogId
-        member _.findFullById postId webLogId = findFullById postId webLogId
-        member _.findFullByWebLog webLogId = findFullByWebLog webLogId
-        member _.findPageOfCategorizedPosts webLogId categoryIds pageNbr postsPerPage =
+        member _.Add post = add post
+        member _.CountByStatus status webLogId = countByStatus status webLogId
+        member _.Delete postId webLogId = delete postId webLogId
+        member _.FindById postId webLogId = findById postId webLogId
+        member _.FindByPermalink permalink webLogId = findByPermalink permalink webLogId
+        member _.FindCurrentPermalink permalinks webLogId = findCurrentPermalink permalinks webLogId
+        member _.FindFullById postId webLogId = findFullById postId webLogId
+        member _.FindFullByWebLog webLogId = findFullByWebLog webLogId
+        member _.FindPageOfCategorizedPosts webLogId categoryIds pageNbr postsPerPage =
             findPageOfCategorizedPosts webLogId categoryIds pageNbr postsPerPage
-        member _.findPageOfPosts webLogId pageNbr postsPerPage = findPageOfPosts webLogId pageNbr postsPerPage
-        member _.findPageOfPublishedPosts webLogId pageNbr postsPerPage =
+        member _.FindPageOfPosts webLogId pageNbr postsPerPage = findPageOfPosts webLogId pageNbr postsPerPage
+        member _.FindPageOfPublishedPosts webLogId pageNbr postsPerPage =
             findPageOfPublishedPosts webLogId pageNbr postsPerPage
-        member _.findPageOfTaggedPosts webLogId tag pageNbr postsPerPage =
+        member _.FindPageOfTaggedPosts webLogId tag pageNbr postsPerPage =
             findPageOfTaggedPosts webLogId tag pageNbr postsPerPage
-        member _.findSurroundingPosts webLogId publishedOn = findSurroundingPosts webLogId publishedOn
-        member _.restore posts = restore posts
-        member _.update post = update post
-        member _.updatePriorPermalinks postId webLogId permalinks = updatePriorPermalinks postId webLogId permalinks
+        member _.FindSurroundingPosts webLogId publishedOn = findSurroundingPosts webLogId publishedOn
+        member _.Restore posts = restore posts
+        member _.Update post = update post
+        member _.UpdatePriorPermalinks postId webLogId permalinks = updatePriorPermalinks postId webLogId permalinks
