@@ -36,14 +36,14 @@
         </div>
         <div class="col-12 col-md-6 col-xl-4 offset-xl-1 pb-3">
           <div class="form-floating">
-            <select name="ThemePath" id="themePath" class="form-control" required>
+            <select name="ThemeId" id="themeId" class="form-control" required>
               {% for theme in themes -%}
-                <option value="{{ theme[0] }}"{% if model.theme_path == theme[0] %} selected="selected"{% endif %}>
+                <option value="{{ theme[0] }}"{% if model.theme_id == theme[0] %} selected="selected"{% endif %}>
                   {{ theme[1] }}
                 </option>
               {%- endfor %}
             </select>
-            <label for="themePath">Theme</label>
+            <label for="themeId">Theme</label>
           </div>
         </div>
         <div class="col-12 col-md-6 offset-md-1 col-xl-4 offset-xl-0 pb-3">

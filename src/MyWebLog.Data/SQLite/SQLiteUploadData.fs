@@ -10,11 +10,11 @@ type SQLiteUploadData (conn : SqliteConnection) =
 
     /// Add parameters for uploaded file INSERT and UPDATE statements
     let addUploadParameters (cmd : SqliteCommand) (upload : Upload) =
-        [ cmd.Parameters.AddWithValue ("@id", UploadId.toString upload.id)
-          cmd.Parameters.AddWithValue ("@webLogId", WebLogId.toString upload.webLogId)
-          cmd.Parameters.AddWithValue ("@path", Permalink.toString upload.path)
-          cmd.Parameters.AddWithValue ("@updatedOn", upload.updatedOn)
-          cmd.Parameters.AddWithValue ("@dataLength", upload.data.Length)
+        [ cmd.Parameters.AddWithValue ("@id", UploadId.toString upload.Id)
+          cmd.Parameters.AddWithValue ("@webLogId", WebLogId.toString upload.WebLogId)
+          cmd.Parameters.AddWithValue ("@path", Permalink.toString upload.Path)
+          cmd.Parameters.AddWithValue ("@updatedOn", upload.UpdatedOn)
+          cmd.Parameters.AddWithValue ("@dataLength", upload.Data.Length)
         ] |> ignore
     
     /// Save an uploaded file
@@ -32,7 +32,7 @@ type SQLiteUploadData (conn : SqliteConnection) =
         cmd.CommandText <- "SELECT ROWID FROM upload WHERE id = @id"
         let! rowId = cmd.ExecuteScalarAsync ()
         
-        use dataStream = new MemoryStream (upload.data)
+        use dataStream = new MemoryStream (upload.Data)
         use blobStream = new SqliteBlob (conn, "upload", "data", rowId :?> int64)
         do! dataStream.CopyToAsync blobStream
     }
@@ -53,7 +53,7 @@ type SQLiteUploadData (conn : SqliteConnection) =
             do! rdr.CloseAsync ()
             cmd.CommandText <- "DELETE FROM upload WHERE id = @id AND web_log_id = @webLogId"
             do! write cmd
-            return Ok (Permalink.toString upload.path)
+            return Ok (Permalink.toString upload.Path)
         else
             return Error $"""Upload ID {cmd.Parameters["@id"]} not found"""
     }

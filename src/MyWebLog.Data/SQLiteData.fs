@@ -86,23 +86,23 @@ type SQLiteData (conn : SqliteConnection, log : ILogger<SQLiteData>) =
                 log.LogInformation "Creating web_log table..."
                 cmd.CommandText <- """
                     CREATE TABLE web_log (
-                        id                TEXT PRIMARY KEY,
-                        name              TEXT NOT NULL,
-                        slug              TEXT NOT NULL,
-                        subtitle          TEXT,
-                        default_page      TEXT NOT NULL,
-                        posts_per_page    INTEGER NOT NULL,
-                        theme_id          TEXT NOT NULL REFERENCES theme (id),
-                        url_base          TEXT NOT NULL,
-                        time_zone         TEXT NOT NULL,
-                        auto_htmx         INTEGER NOT NULL DEFAULT 0,
-                        uploads           TEXT NOT NULL,
-                        feed_enabled      INTEGER NOT NULL DEFAULT 0,
-                        feed_name         TEXT NOT NULL,
-                        items_in_feed     INTEGER,
-                        category_enabled  INTEGER NOT NULL DEFAULT 0,
-                        tag_enabled       INTEGER NOT NULL DEFAULT 0,
-                        copyright         TEXT);
+                        id                   TEXT PRIMARY KEY,
+                        name                 TEXT NOT NULL,
+                        slug                 TEXT NOT NULL,
+                        subtitle             TEXT,
+                        default_page         TEXT NOT NULL,
+                        posts_per_page       INTEGER NOT NULL,
+                        theme_id             TEXT NOT NULL REFERENCES theme (id),
+                        url_base             TEXT NOT NULL,
+                        time_zone            TEXT NOT NULL,
+                        auto_htmx            INTEGER NOT NULL DEFAULT 0,
+                        uploads              TEXT NOT NULL,
+                        is_feed_enabled      INTEGER NOT NULL DEFAULT 0,
+                        feed_name            TEXT NOT NULL,
+                        items_in_feed        INTEGER,
+                        is_category_enabled  INTEGER NOT NULL DEFAULT 0,
+                        is_tag_enabled       INTEGER NOT NULL DEFAULT 0,
+                        copyright            TEXT);
                     CREATE INDEX web_log_theme_idx ON web_log (theme_id)"""
                 do! write cmd
             match! tableExists "web_log_feed" with
@@ -131,12 +131,12 @@ type SQLiteData (conn : SqliteConnection, log : ILogger<SQLiteData>) =
                         displayed_author    TEXT NOT NULL,
                         email               TEXT NOT NULL,
                         image_url           TEXT NOT NULL,
-                        itunes_category     TEXT NOT NULL,
-                        itunes_subcategory  TEXT,
+                        apple_category      TEXT NOT NULL,
+                        apple_subcategory   TEXT,
                         explicit            TEXT NOT NULL,
                         default_media_type  TEXT,
                         media_base_url      TEXT,
-                        guid                TEXT,
+                        podcast_guid        TEXT,
                         funding_url         TEXT,
                         funding_text        TEXT,
                         medium              TEXT)"""
@@ -149,12 +149,12 @@ type SQLiteData (conn : SqliteConnection, log : ILogger<SQLiteData>) =
                 log.LogInformation "Creating category table..."
                 cmd.CommandText <- """
                     CREATE TABLE category (
-                        id          TEXT PRIMARY KEY,
-                        web_log_id  TEXT NOT NULL REFERENCES web_log (id),
-                        name        TEXT NOT NULL,
-                        slug        TEXT NOT NULL,
-                        description TEXT,
-                        parent_id   TEXT);
+                        id           TEXT PRIMARY KEY,
+                        web_log_id   TEXT NOT NULL REFERENCES web_log (id),
+                        name         TEXT NOT NULL,
+                        slug         TEXT NOT NULL,
+                        description  TEXT,
+                        parent_id    TEXT);
                     CREATE INDEX category_web_log_idx ON category (web_log_id)"""
                 do! write cmd
             
@@ -165,20 +165,20 @@ type SQLiteData (conn : SqliteConnection, log : ILogger<SQLiteData>) =
                 log.LogInformation "Creating web_log_user table..."
                 cmd.CommandText <- """
                     CREATE TABLE web_log_user (
-                        id             TEXT PRIMARY KEY,
-                        web_log_id     TEXT NOT NULL REFERENCES web_log (id),
-                        user_name      TEXT NOT NULL,
-                        first_name     TEXT NOT NULL,
-                        last_name      TEXT NOT NULL,
-                        preferred_name TEXT NOT NULL,
-                        password_hash  TEXT NOT NULL,
-                        salt           TEXT NOT NULL,
-                        url            TEXT,
-                        access_level   TEXT NOT NULL,
-                        created_on     TEXT NOT NULL,
-                        last_seen_on   TEXT NOT NULL);
-                    CREATE INDEX web_log_user_web_log_idx   ON web_log_user (web_log_id);
-                    CREATE INDEX web_log_user_user_name_idx ON web_log_user (web_log_id, user_name)"""
+                        id              TEXT PRIMARY KEY,
+                        web_log_id      TEXT NOT NULL REFERENCES web_log (id),
+                        email           TEXT NOT NULL,
+                        first_name      TEXT NOT NULL,
+                        last_name       TEXT NOT NULL,
+                        preferred_name  TEXT NOT NULL,
+                        password_hash   TEXT NOT NULL,
+                        salt            TEXT NOT NULL,
+                        url             TEXT,
+                        access_level    TEXT NOT NULL,
+                        created_on      TEXT NOT NULL,
+                        last_seen_on    TEXT);
+                    CREATE INDEX web_log_user_web_log_idx ON web_log_user (web_log_id);
+                    CREATE INDEX web_log_user_email_idx   ON web_log_user (web_log_id, email)"""
                 do! write cmd
             
             // Page tables
@@ -188,16 +188,16 @@ type SQLiteData (conn : SqliteConnection, log : ILogger<SQLiteData>) =
                 log.LogInformation "Creating page table..."
                 cmd.CommandText <- """
                     CREATE TABLE page (
-                        id                 TEXT PRIMARY KEY,
-                        web_log_id         TEXT NOT NULL REFERENCES web_log (id),
-                        author_id          TEXT NOT NULL REFERENCES web_log_user (id),
-                        title              TEXT NOT NULL,
-                        permalink          TEXT NOT NULL,
-                        published_on       TEXT NOT NULL,
-                        updated_on         TEXT NOT NULL,
-                        show_in_page_list  INTEGER NOT NULL DEFAULT 0,
-                        template           TEXT,
-                        page_text          TEXT NOT NULL);
+                        id               TEXT PRIMARY KEY,
+                        web_log_id       TEXT NOT NULL REFERENCES web_log (id),
+                        author_id        TEXT NOT NULL REFERENCES web_log_user (id),
+                        title            TEXT NOT NULL,
+                        permalink        TEXT NOT NULL,
+                        published_on     TEXT NOT NULL,
+                        updated_on       TEXT NOT NULL,
+                        is_in_page_list  INTEGER NOT NULL DEFAULT 0,
+                        template         TEXT,
+                        page_text        TEXT NOT NULL);
                     CREATE INDEX page_web_log_idx   ON page (web_log_id);
                     CREATE INDEX page_author_idx    ON page (author_id);
                     CREATE INDEX page_permalink_idx ON page (web_log_id, permalink)"""

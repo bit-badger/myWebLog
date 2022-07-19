@@ -13,7 +13,7 @@ type SQLiteTagMapData (conn : SqliteConnection) =
         cmd.CommandText <- "SELECT * FROM tag_map WHERE id = @id"
         cmd.Parameters.AddWithValue ("@id", TagMapId.toString tagMapId) |> ignore
         use! rdr = cmd.ExecuteReaderAsync ()
-        return Helpers.verifyWebLog<TagMap> webLogId (fun tm -> tm.webLogId) Map.toTagMap rdr
+        return Helpers.verifyWebLog<TagMap> webLogId (fun tm -> tm.WebLogId) Map.toTagMap rdr
     }
     
     /// Delete a tag mapping for the given web log
@@ -69,7 +69,7 @@ type SQLiteTagMapData (conn : SqliteConnection) =
     /// Save a tag mapping
     let save (tagMap : TagMap) = backgroundTask {
         use cmd = conn.CreateCommand ()
-        match! findById tagMap.id tagMap.webLogId with
+        match! findById tagMap.Id tagMap.WebLogId with
         | Some _ ->
             cmd.CommandText <- """
                 UPDATE tag_map
@@ -84,10 +84,10 @@ type SQLiteTagMapData (conn : SqliteConnection) =
                 ) VALUES (
                     @id, @webLogId, @tag, @urlValue
                 )"""
-        addWebLogId cmd tagMap.webLogId
-        [ cmd.Parameters.AddWithValue ("@id", TagMapId.toString tagMap.id)
-          cmd.Parameters.AddWithValue ("@tag", tagMap.tag)
-          cmd.Parameters.AddWithValue ("@urlValue", tagMap.urlValue)
+        addWebLogId cmd tagMap.WebLogId
+        [ cmd.Parameters.AddWithValue ("@id", TagMapId.toString tagMap.Id)
+          cmd.Parameters.AddWithValue ("@tag", tagMap.Tag)
+          cmd.Parameters.AddWithValue ("@urlValue", tagMap.UrlValue)
         ] |> ignore
         do! write cmd
     }
@@ -105,4 +105,4 @@ type SQLiteTagMapData (conn : SqliteConnection) =
         member _.FindByWebLog webLogId = findByWebLog webLogId
         member _.FindMappingForTags tags webLogId = findMappingForTags tags webLogId
         member _.Save tagMap = save tagMap
-        member this.Restore tagMaps = restore tagMaps
+        member _.Restore tagMaps = restore tagMaps

@@ -28,7 +28,7 @@ type SQLiteThemeData (conn : SqliteConnection) =
             templateCmd.CommandText <- "SELECT * FROM theme_template WHERE theme_id = @id"
             templateCmd.Parameters.Add cmd.Parameters["@id"] |> ignore
             use! templateRdr = templateCmd.ExecuteReaderAsync ()
-            return Some { theme with templates = toList Map.toThemeTemplate templateRdr }
+            return Some { theme with Templates = toList Map.toThemeTemplate templateRdr }
         else
             return None
     }
@@ -38,7 +38,7 @@ type SQLiteThemeData (conn : SqliteConnection) =
         match! findById themeId with
         | Some theme ->
             return Some {
-                theme with templates = theme.templates |> List.map (fun t -> { t with text = "" })
+                theme with Templates = theme.Templates |> List.map (fun t -> { t with Text = "" })
             }
         | None -> return None
     }
@@ -46,36 +46,36 @@ type SQLiteThemeData (conn : SqliteConnection) =
     /// Save a theme
     let save (theme : Theme) = backgroundTask {
         use cmd = conn.CreateCommand ()
-        let! oldTheme = findById theme.id
+        let! oldTheme = findById theme.Id
         cmd.CommandText <-
             match oldTheme with
             | Some _ -> "UPDATE theme SET name = @name, version = @version WHERE id = @id"
             | None -> "INSERT INTO theme VALUES (@id, @name, @version)"
-        [ cmd.Parameters.AddWithValue ("@id", ThemeId.toString theme.id)
-          cmd.Parameters.AddWithValue ("@name", theme.name)
-          cmd.Parameters.AddWithValue ("@version", theme.version)
+        [ cmd.Parameters.AddWithValue ("@id", ThemeId.toString theme.Id)
+          cmd.Parameters.AddWithValue ("@name", theme.Name)
+          cmd.Parameters.AddWithValue ("@version", theme.Version)
         ] |> ignore
         do! write cmd
         
         let toDelete, toAdd =
-            diffLists (oldTheme |> Option.map (fun t -> t.templates) |> Option.defaultValue [])
-                      theme.templates (fun t -> t.name)
+            diffLists (oldTheme |> Option.map (fun t -> t.Templates) |> Option.defaultValue [])
+                      theme.Templates (fun t -> t.Name)
         let toUpdate =
-            theme.templates
+            theme.Templates
             |> List.filter (fun t ->
-                not (toDelete |> List.exists (fun d -> d.name = t.name))
-                && not (toAdd |> List.exists (fun a -> a.name = t.name)))
+                not (toDelete |> List.exists (fun d -> d.Name = t.Name))
+                && not (toAdd |> List.exists (fun a -> a.Name = t.Name)))
         cmd.CommandText <-
             "UPDATE theme_template SET template = @template WHERE theme_id = @themeId AND name = @name"
         cmd.Parameters.Clear ()
-        [ cmd.Parameters.AddWithValue ("@themeId", ThemeId.toString theme.id)
+        [ cmd.Parameters.AddWithValue ("@themeId", ThemeId.toString theme.Id)
           cmd.Parameters.Add ("@name", SqliteType.Text)
           cmd.Parameters.Add ("@template", SqliteType.Text)
         ] |> ignore
         toUpdate
         |> List.map (fun template -> backgroundTask {
-            cmd.Parameters["@name"    ].Value <- template.name
-            cmd.Parameters["@template"].Value <- template.text
+            cmd.Parameters["@name"    ].Value <- template.Name
+            cmd.Parameters["@template"].Value <- template.Text
             do! write cmd
         })
         |> Task.WhenAll
@@ -83,8 +83,8 @@ type SQLiteThemeData (conn : SqliteConnection) =
         cmd.CommandText <- "INSERT INTO theme_template VALUES (@themeId, @name, @template)"
         toAdd
         |> List.map (fun template -> backgroundTask {
-            cmd.Parameters["@name"    ].Value <- template.name
-            cmd.Parameters["@template"].Value <- template.text
+            cmd.Parameters["@name"    ].Value <- template.Name
+            cmd.Parameters["@template"].Value <- template.Text
             do! write cmd
         })
         |> Task.WhenAll
@@ -93,7 +93,7 @@ type SQLiteThemeData (conn : SqliteConnection) =
         cmd.Parameters.Remove cmd.Parameters["@template"]
         toDelete
         |> List.map (fun template -> backgroundTask {
-            cmd.Parameters["@name"].Value <- template.name
+            cmd.Parameters["@name"].Value <- template.Name
             do! write cmd
         })
         |> Task.WhenAll
@@ -163,7 +163,7 @@ type SQLiteThemeAssetData (conn : SqliteConnection) =
         use sideCmd = conn.CreateCommand ()
         sideCmd.CommandText <-
             "SELECT COUNT(path) FROM theme_asset WHERE theme_id = @themeId AND path = @path"
-        let (ThemeAssetId (ThemeId themeId, path)) = asset.id
+        let (ThemeAssetId (ThemeId themeId, path)) = asset.Id
         [ sideCmd.Parameters.AddWithValue ("@themeId", themeId)
           sideCmd.Parameters.AddWithValue ("@path", path)
         ] |> ignore
@@ -185,15 +185,15 @@ type SQLiteThemeAssetData (conn : SqliteConnection) =
                    )"""
         [ cmd.Parameters.AddWithValue ("@themeId", themeId)
           cmd.Parameters.AddWithValue ("@path", path)
-          cmd.Parameters.AddWithValue ("@updatedOn", asset.updatedOn)
-          cmd.Parameters.AddWithValue ("@dataLength", asset.data.Length)
+          cmd.Parameters.AddWithValue ("@updatedOn", asset.UpdatedOn)
+          cmd.Parameters.AddWithValue ("@dataLength", asset.Data.Length)
         ] |> ignore
         do! write cmd
         
         sideCmd.CommandText <- "SELECT ROWID FROM theme_asset WHERE theme_id = @themeId AND path = @path"
         let! rowId = sideCmd.ExecuteScalarAsync ()
         
-        use dataStream = new MemoryStream (asset.data)
+        use dataStream = new MemoryStream (asset.Data)
         use blobStream = new SqliteBlob (conn, "theme_asset", "data", rowId :?> int64)
         do! dataStream.CopyToAsync blobStream
     }

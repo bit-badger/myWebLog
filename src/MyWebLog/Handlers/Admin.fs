@@ -9,7 +9,7 @@ open MyWebLog.ViewModels
 
 // GET /admin
 let dashboard : HttpHandler = requireAccess Author >=> fun next ctx -> task {
-    let getCount (f : WebLogId -> Task<int>) = f ctx.WebLog.id
+    let getCount (f : WebLogId -> Task<int>) = f ctx.WebLog.Id
     let data    = ctx.Data
     let posts   = getCount (data.Post.CountByStatus Published)
     let drafts  = getCount (data.Post.CountByStatus Draft)
@@ -30,7 +30,7 @@ let dashboard : HttpHandler = requireAccess Author >=> fun next ctx -> task {
                   TopLevelCategories = topCats.Result
                 }
         |}
-        |> viewForTheme "admin" "dashboard" next ctx
+        |> adminView "dashboard" next ctx
 }
 
 // -- CATEGORIES --
@@ -44,8 +44,9 @@ let listCategories : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx ->
         web_log    = ctx.WebLog
         categories = CategoryCache.get ctx
     |}
-    hash.Add ("category_list", catListTemplate.Render hash)
-    return! viewForTheme "admin" "category-list" next ctx hash
+    return!
+        addToHash "category_list" (catListTemplate.Render hash) hash
+     |> adminView "category-list" next ctx
 }
 
 // GET /admin/categories/bare
@@ -54,16 +55,16 @@ let listCategoriesBare : HttpHandler = requireAccess WebLogAdmin >=> fun next ct
         categories = CategoryCache.get ctx
         csrf       = ctx.CsrfTokenSet
     |}
-    |> bareForTheme "admin" "category-list-body" next ctx
+    |> adminBareView "category-list-body" next ctx
 
 
 // GET /admin/category/{id}/edit
 let editCategory catId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     let! result = task {
         match catId with
-        | "new" -> return Some ("Add a New Category", { Category.empty with id = CategoryId "new" })
+        | "new" -> return Some ("Add a New Category", { Category.empty with Id = CategoryId "new" })
         | _ ->
-            match! ctx.Data.Category.FindById (CategoryId catId) ctx.WebLog.id with
+            match! ctx.Data.Category.FindById (CategoryId catId) ctx.WebLog.Id with
             | Some cat -> return Some ("Edit Category", cat)
             | None -> return None
     }
@@ -76,7 +77,7 @@ let editCategory catId : HttpHandler = requireAccess WebLogAdmin >=> fun next ct
                 model      = EditCategoryModel.fromCategory cat
                 categories = CategoryCache.get ctx
             |}
-            |> bareForTheme "admin" "category-edit" next ctx
+            |> adminBareView "category-edit" next ctx
     | None -> return! Error.notFound next ctx
 }
 
@@ -86,16 +87,16 @@ let saveCategory : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> t
     let! model    = ctx.BindFormAsync<EditCategoryModel> ()
     let  category =
         match model.CategoryId with
-        | "new" -> Task.FromResult (Some { Category.empty with id = CategoryId.create (); webLogId = ctx.WebLog.id })
-        | catId -> data.Category.FindById (CategoryId catId) ctx.WebLog.id
+        | "new" -> Task.FromResult (Some { Category.empty with Id = CategoryId.create (); WebLogId = ctx.WebLog.Id })
+        | catId -> data.Category.FindById (CategoryId catId) ctx.WebLog.Id
     match! category with
     | Some cat ->
         let cat =
             { cat with
-                name        = model.Name
-                slug        = model.Slug
-                description = if model.Description = "" then None else Some model.Description
-                parentId    = if model.ParentId    = "" then None else Some (CategoryId model.ParentId)
+                Name        = model.Name
+                Slug        = model.Slug
+                Description = if model.Description = "" then None else Some model.Description
+                ParentId    = if model.ParentId    = "" then None else Some (CategoryId model.ParentId)
             }
         do! (match model.CategoryId with "new" -> data.Category.Add | _ -> data.Category.Update) cat
         do! CategoryCache.update ctx
@@ -106,7 +107,7 @@ let saveCategory : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> t
 
 // POST /admin/category/{id}/delete
 let deleteCategory catId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
-    match! ctx.Data.Category.Delete (CategoryId catId) ctx.WebLog.id with
+    match! ctx.Data.Category.Delete (CategoryId catId) ctx.WebLog.Id with
     | true ->
         do! CategoryCache.update ctx
         do! addMessage ctx { UserMessage.success with Message = "Category deleted successfully" }
@@ -120,12 +121,12 @@ open Microsoft.AspNetCore.Http
 
 /// Get the hash necessary to render the tag mapping list
 let private tagMappingHash (ctx : HttpContext) = task {
-    let! mappings = ctx.Data.TagMap.FindByWebLog ctx.WebLog.id
+    let! mappings = ctx.Data.TagMap.FindByWebLog ctx.WebLog.Id
     return Hash.FromAnonymousObject {|
         csrf        = ctx.CsrfTokenSet
         web_log     = ctx.WebLog
         mappings    = mappings
-        mapping_ids = mappings |> List.map (fun it -> { name = it.tag; value = TagMapId.toString it.id })
+        mapping_ids = mappings |> List.map (fun it -> { Name = it.Tag; Value = TagMapId.toString it.Id })
     |}
 }
 
@@ -136,30 +137,30 @@ let tagMappings : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> ta
     return!
            addToHash "tag_mapping_list" (listTemplate.Render hash) hash
         |> addToHash "page_title"       "Tag Mappings"
-        |> viewForTheme "admin" "tag-mapping-list" next ctx
+        |> adminView "tag-mapping-list" next ctx
 }
 
 // GET /admin/settings/tag-mappings/bare
 let tagMappingsBare : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     let! hash = tagMappingHash ctx
-    return! bareForTheme "admin" "tag-mapping-list-body" next ctx hash
+    return! adminBareView "tag-mapping-list-body" next ctx hash
 }
 
 // GET /admin/settings/tag-mapping/{id}/edit
 let editMapping tagMapId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     let isNew  = tagMapId = "new"
     let tagMap =
-        if isNew then Task.FromResult (Some { TagMap.empty with id = TagMapId "new" })
-        else ctx.Data.TagMap.FindById (TagMapId tagMapId) ctx.WebLog.id
+        if isNew then Task.FromResult (Some { TagMap.empty with Id = TagMapId "new" })
+        else ctx.Data.TagMap.FindById (TagMapId tagMapId) ctx.WebLog.Id
     match! tagMap with
     | Some tm ->
         return!
             Hash.FromAnonymousObject {|
-                page_title = if isNew then "Add Tag Mapping" else $"Mapping for {tm.tag} Tag" 
+                page_title = if isNew then "Add Tag Mapping" else $"Mapping for {tm.Tag} Tag" 
                 csrf       = ctx.CsrfTokenSet
                 model      = EditTagMapModel.fromMapping tm
             |}
-            |> bareForTheme "admin" "tag-mapping-edit" next ctx
+            |> adminBareView "tag-mapping-edit" next ctx
     | None -> return! Error.notFound next ctx
 }
 
@@ -169,11 +170,11 @@ let saveMapping : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> ta
     let! model  = ctx.BindFormAsync<EditTagMapModel> ()
     let  tagMap =
         if model.IsNew then
-            Task.FromResult (Some { TagMap.empty with id = TagMapId.create (); webLogId = ctx.WebLog.id })
-        else data.TagMap.FindById (TagMapId model.Id) ctx.WebLog.id
+            Task.FromResult (Some { TagMap.empty with Id = TagMapId.create (); WebLogId = ctx.WebLog.Id })
+        else data.TagMap.FindById (TagMapId model.Id) ctx.WebLog.Id
     match! tagMap with
     | Some tm ->
-        do! data.TagMap.Save { tm with tag = model.Tag.ToLower (); urlValue = model.UrlValue.ToLower () }
+        do! data.TagMap.Save { tm with Tag = model.Tag.ToLower (); UrlValue = model.UrlValue.ToLower () }
         do! addMessage ctx { UserMessage.success with Message = "Tag mapping saved successfully" }
         return! tagMappingsBare next ctx
     | None -> return! Error.notFound next ctx
@@ -181,7 +182,7 @@ let saveMapping : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> ta
 
 // POST /admin/settings/tag-mapping/{id}/delete
 let deleteMapping tagMapId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
-    match! ctx.Data.TagMap.Delete (TagMapId tagMapId) ctx.WebLog.id with
+    match! ctx.Data.TagMap.Delete (TagMapId tagMapId) ctx.WebLog.Id with
     | true  -> do! addMessage ctx { UserMessage.success with Message = "Tag mapping deleted successfully" }
     | false -> do! addMessage ctx { UserMessage.error with Message = "Tag mapping not found; nothing deleted" }
     return! tagMappingsBare next ctx
@@ -201,7 +202,7 @@ let themeUpdatePage : HttpHandler = requireAccess Administrator >=> fun next ctx
         page_title = "Upload Theme"
         csrf       = ctx.CsrfTokenSet
     |}
-    |> viewForTheme "admin" "upload-theme" next ctx
+    |> adminView "upload-theme" next ctx
 
 /// Update the name and version for a theme based on the version.txt file, if present
 let private updateNameAndVersion (theme : Theme) (zip : ZipArchive) = backgroundTask {
@@ -211,17 +212,17 @@ let private updateNameAndVersion (theme : Theme) (zip : ZipArchive) = background
         use  versionFile = new StreamReader(versionItem.Open ())
         let! versionText = versionFile.ReadToEndAsync ()
         let  parts       = versionText.Trim().Replace("\r", "").Split "\n"
-        let  displayName = if parts[0] > "" then parts[0] else ThemeId.toString theme.id
+        let  displayName = if parts[0] > "" then parts[0] else ThemeId.toString theme.Id
         let  version     = if parts.Length > 1 && parts[1] > "" then parts[1] else now ()
-        return { theme with name = displayName; version = version }
-    | None -> return { theme with name = ThemeId.toString theme.id; version = now () }
+        return { theme with Name = displayName; Version = version }
+    | None -> return { theme with Name = ThemeId.toString theme.Id; Version = now () }
 }
 
 /// Delete all theme assets, and remove templates from theme
 let private checkForCleanLoad (theme : Theme) cleanLoad (data : IData) = backgroundTask {
     if cleanLoad then
-        do! data.ThemeAsset.DeleteByTheme theme.id
-        return { theme with templates = [] }
+        do! data.ThemeAsset.DeleteByTheme theme.Id
+        return { theme with Templates = [] }
     else return theme
 }
 
@@ -233,13 +234,13 @@ let private updateTemplates (theme : Theme) (zip : ZipArchive) = backgroundTask 
         |> Seq.map (fun templateItem -> backgroundTask {
             use templateFile = new StreamReader (templateItem.Open ())
             let! template = templateFile.ReadToEndAsync ()
-            return { name = templateItem.Name.Replace (".liquid", ""); text = template }
+            return { Name = templateItem.Name.Replace (".liquid", ""); Text = template }
         })
     let! templates = Task.WhenAll tasks
     return
         templates
         |> Array.fold (fun t template ->
-            { t with templates = template :: (t.templates |> List.filter (fun it -> it.name <> template.name)) })
+            { t with Templates = template :: (t.Templates |> List.filter (fun it -> it.Name <> template.Name)) })
             theme
 }
 
@@ -251,9 +252,9 @@ let private updateAssets themeId (zip : ZipArchive) (data : IData) = backgroundT
             use stream = new MemoryStream ()
             do! asset.Open().CopyToAsync stream
             do! data.ThemeAsset.Save
-                    { id        = ThemeAssetId (themeId, assetName)
-                      updatedOn = asset.LastWriteTime.DateTime
-                      data      = stream.ToArray ()
+                    { Id        = ThemeAssetId (themeId, assetName)
+                      UpdatedOn = asset.LastWriteTime.DateTime
+                      Data      = stream.ToArray ()
                     }
 }
 
@@ -269,7 +270,7 @@ let loadThemeFromZip themeName file clean (data : IData) = backgroundTask {
     let! theme   = backgroundTask {
         match! data.Theme.FindById themeId with
         | Some t -> return t
-        | None   -> return { Theme.empty with id = themeId }
+        | None   -> return { Theme.empty with Id = themeId }
     }
     let! theme = updateNameAndVersion theme   zip
     let! theme = checkForCleanLoad    theme   clean data
@@ -308,7 +309,7 @@ open System.Collections.Generic
 // GET /admin/settings
 let settings : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     let  data     = ctx.Data
-    let! allPages = data.Page.All ctx.WebLog.id
+    let! allPages = data.Page.All ctx.WebLog.Id
     let! themes   = data.Theme.All ()
     return!
         Hash.FromAnonymousObject {|
@@ -318,41 +319,41 @@ let settings : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task 
             pages      = seq
                 {   KeyValuePair.Create ("posts", "- First Page of Posts -")
                     yield! allPages
-                           |> List.sortBy (fun p -> p.title.ToLower ())
-                           |> List.map (fun p -> KeyValuePair.Create (PageId.toString p.id, p.title))
+                           |> List.sortBy (fun p -> p.Title.ToLower ())
+                           |> List.map (fun p -> KeyValuePair.Create (PageId.toString p.Id, p.Title))
                 }
                 |> Array.ofSeq
             themes =
                 themes
                  |> Seq.ofList
-                 |> Seq.map (fun it -> KeyValuePair.Create (ThemeId.toString it.id, $"{it.name} (v{it.version})"))
+                 |> Seq.map (fun it -> KeyValuePair.Create (ThemeId.toString it.Id, $"{it.Name} (v{it.Version})"))
                  |> Array.ofSeq
             upload_values = [|
                     KeyValuePair.Create (UploadDestination.toString Database, "Database")
                     KeyValuePair.Create (UploadDestination.toString Disk,     "Disk")
                 |]
         |}
-        |> viewForTheme "admin" "settings" next ctx
+        |> adminView "settings" next ctx
 }
 
 // POST /admin/settings
 let saveSettings : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     let  data  = ctx.Data
     let! model = ctx.BindFormAsync<SettingsModel> ()
-    match! data.WebLog.FindById ctx.WebLog.id with
+    match! data.WebLog.FindById ctx.WebLog.Id with
     | Some webLog ->
-        let oldSlug = webLog.slug
+        let oldSlug = webLog.Slug
         let webLog  = model.update webLog
         do! data.WebLog.UpdateSettings webLog
 
         // Update cache
         WebLogCache.set webLog
         
-        if oldSlug <> webLog.slug then
+        if oldSlug <> webLog.Slug then
             // Rename disk directory if it exists
             let uploadRoot = Path.Combine ("wwwroot", "upload")
             let oldDir     = Path.Combine (uploadRoot, oldSlug)
-            if Directory.Exists oldDir then Directory.Move (oldDir, Path.Combine (uploadRoot, webLog.slug))
+            if Directory.Exists oldDir then Directory.Move (oldDir, Path.Combine (uploadRoot, webLog.Slug))
     
         do! addMessage ctx { UserMessage.success with Message = "Web log settings saved successfully" }
         return! redirectToGet "admin/settings" next ctx

@@ -15,57 +15,57 @@ type SQLiteWebLogData (conn : SqliteConnection) =
     
     /// Add parameters for web log INSERT or web log/RSS options UPDATE statements
     let addWebLogRssParameters (cmd : SqliteCommand) (webLog : WebLog) =
-        [ cmd.Parameters.AddWithValue ("@feedEnabled", webLog.rss.feedEnabled)
-          cmd.Parameters.AddWithValue ("@feedName", webLog.rss.feedName)
-          cmd.Parameters.AddWithValue ("@itemsInFeed", maybe webLog.rss.itemsInFeed)
-          cmd.Parameters.AddWithValue ("@categoryEnabled", webLog.rss.categoryEnabled)
-          cmd.Parameters.AddWithValue ("@tagEnabled", webLog.rss.tagEnabled)
-          cmd.Parameters.AddWithValue ("@copyright", maybe webLog.rss.copyright)
+        [ cmd.Parameters.AddWithValue ("@isFeedEnabled", webLog.Rss.IsFeedEnabled)
+          cmd.Parameters.AddWithValue ("@feedName", webLog.Rss.FeedName)
+          cmd.Parameters.AddWithValue ("@itemsInFeed", maybe webLog.Rss.ItemsInFeed)
+          cmd.Parameters.AddWithValue ("@isCategoryEnabled", webLog.Rss.IsCategoryEnabled)
+          cmd.Parameters.AddWithValue ("@isTagEnabled", webLog.Rss.IsTagEnabled)
+          cmd.Parameters.AddWithValue ("@copyright", maybe webLog.Rss.Copyright)
         ] |> ignore
     
     /// Add parameters for web log INSERT or UPDATE statements
     let addWebLogParameters (cmd : SqliteCommand) (webLog : WebLog) =
-        [ cmd.Parameters.AddWithValue ("@id", WebLogId.toString webLog.id)
-          cmd.Parameters.AddWithValue ("@name", webLog.name)
-          cmd.Parameters.AddWithValue ("@slug", webLog.slug)
-          cmd.Parameters.AddWithValue ("@subtitle", maybe webLog.subtitle)
-          cmd.Parameters.AddWithValue ("@defaultPage", webLog.defaultPage)
-          cmd.Parameters.AddWithValue ("@postsPerPage", webLog.postsPerPage)
-          cmd.Parameters.AddWithValue ("@themeId", webLog.themePath)
-          cmd.Parameters.AddWithValue ("@urlBase", webLog.urlBase)
-          cmd.Parameters.AddWithValue ("@timeZone", webLog.timeZone)
-          cmd.Parameters.AddWithValue ("@autoHtmx", webLog.autoHtmx)
-          cmd.Parameters.AddWithValue ("@uploads", UploadDestination.toString webLog.uploads)
+        [ cmd.Parameters.AddWithValue ("@id", WebLogId.toString webLog.Id)
+          cmd.Parameters.AddWithValue ("@name", webLog.Name)
+          cmd.Parameters.AddWithValue ("@slug", webLog.Slug)
+          cmd.Parameters.AddWithValue ("@subtitle", maybe webLog.Subtitle)
+          cmd.Parameters.AddWithValue ("@defaultPage", webLog.DefaultPage)
+          cmd.Parameters.AddWithValue ("@postsPerPage", webLog.PostsPerPage)
+          cmd.Parameters.AddWithValue ("@themeId", ThemeId.toString webLog.ThemeId)
+          cmd.Parameters.AddWithValue ("@urlBase", webLog.UrlBase)
+          cmd.Parameters.AddWithValue ("@timeZone", webLog.TimeZone)
+          cmd.Parameters.AddWithValue ("@autoHtmx", webLog.AutoHtmx)
+          cmd.Parameters.AddWithValue ("@uploads", UploadDestination.toString webLog.Uploads)
         ] |> ignore
         addWebLogRssParameters cmd webLog
     
     /// Add parameters for custom feed INSERT or UPDATE statements
     let addCustomFeedParameters (cmd : SqliteCommand) webLogId (feed : CustomFeed) =
-        [ cmd.Parameters.AddWithValue ("@id", CustomFeedId.toString feed.id)
+        [ cmd.Parameters.AddWithValue ("@id", CustomFeedId.toString feed.Id)
           cmd.Parameters.AddWithValue ("@webLogId", WebLogId.toString webLogId)
-          cmd.Parameters.AddWithValue ("@source", CustomFeedSource.toString feed.source)
-          cmd.Parameters.AddWithValue ("@path", Permalink.toString feed.path)
+          cmd.Parameters.AddWithValue ("@source", CustomFeedSource.toString feed.Source)
+          cmd.Parameters.AddWithValue ("@path", Permalink.toString feed.Path)
         ] |> ignore
     
     /// Add parameters for podcast INSERT or UPDATE statements
     let addPodcastParameters (cmd : SqliteCommand) feedId (podcast : PodcastOptions) =
         [ cmd.Parameters.AddWithValue ("@feedId", CustomFeedId.toString feedId)
-          cmd.Parameters.AddWithValue ("@title", podcast.title)
-          cmd.Parameters.AddWithValue ("@subtitle", maybe podcast.subtitle)
-          cmd.Parameters.AddWithValue ("@itemsInFeed", podcast.itemsInFeed)
-          cmd.Parameters.AddWithValue ("@summary", podcast.summary)
-          cmd.Parameters.AddWithValue ("@displayedAuthor", podcast.displayedAuthor)
-          cmd.Parameters.AddWithValue ("@email", podcast.email)
-          cmd.Parameters.AddWithValue ("@imageUrl", Permalink.toString podcast.imageUrl)
-          cmd.Parameters.AddWithValue ("@iTunesCategory", podcast.iTunesCategory)
-          cmd.Parameters.AddWithValue ("@iTunesSubcategory", maybe podcast.iTunesSubcategory)
-          cmd.Parameters.AddWithValue ("@explicit", ExplicitRating.toString podcast.explicit)
-          cmd.Parameters.AddWithValue ("@defaultMediaType", maybe podcast.defaultMediaType)
-          cmd.Parameters.AddWithValue ("@mediaBaseUrl", maybe podcast.mediaBaseUrl)
-          cmd.Parameters.AddWithValue ("@guid", maybe podcast.guid)
-          cmd.Parameters.AddWithValue ("@fundingUrl", maybe podcast.fundingUrl)
-          cmd.Parameters.AddWithValue ("@fundingText", maybe podcast.fundingText)
-          cmd.Parameters.AddWithValue ("@medium", maybe (podcast.medium |> Option.map PodcastMedium.toString))
+          cmd.Parameters.AddWithValue ("@title", podcast.Title)
+          cmd.Parameters.AddWithValue ("@subtitle", maybe podcast.Subtitle)
+          cmd.Parameters.AddWithValue ("@itemsInFeed", podcast.ItemsInFeed)
+          cmd.Parameters.AddWithValue ("@summary", podcast.Summary)
+          cmd.Parameters.AddWithValue ("@displayedAuthor", podcast.DisplayedAuthor)
+          cmd.Parameters.AddWithValue ("@email", podcast.Email)
+          cmd.Parameters.AddWithValue ("@imageUrl", Permalink.toString podcast.ImageUrl)
+          cmd.Parameters.AddWithValue ("@appleCategory", podcast.AppleCategory)
+          cmd.Parameters.AddWithValue ("@appleSubcategory", maybe podcast.AppleSubcategory)
+          cmd.Parameters.AddWithValue ("@explicit", ExplicitRating.toString podcast.Explicit)
+          cmd.Parameters.AddWithValue ("@defaultMediaType", maybe podcast.DefaultMediaType)
+          cmd.Parameters.AddWithValue ("@mediaBaseUrl", maybe podcast.MediaBaseUrl)
+          cmd.Parameters.AddWithValue ("@podcastGuid", maybe podcast.PodcastGuid)
+          cmd.Parameters.AddWithValue ("@fundingUrl", maybe podcast.FundingUrl)
+          cmd.Parameters.AddWithValue ("@fundingText", maybe podcast.FundingText)
+          cmd.Parameters.AddWithValue ("@medium", maybe (podcast.Medium |> Option.map PodcastMedium.toString))
         ] |> ignore
 
     /// Get the current custom feeds for a web log
@@ -76,7 +76,7 @@ type SQLiteWebLogData (conn : SqliteConnection) =
               FROM web_log_feed f
                    LEFT JOIN web_log_feed_podcast p ON p.feed_id = f.id
              WHERE f.web_log_id = @webLogId"""
-        addWebLogId cmd webLog.id
+        addWebLogId cmd webLog.Id
         use! rdr = cmd.ExecuteReaderAsync ()
         return toList Map.toCustomFeed rdr
     }
@@ -84,7 +84,7 @@ type SQLiteWebLogData (conn : SqliteConnection) =
     /// Append custom feeds to a web log
     let appendCustomFeeds (webLog : WebLog) = backgroundTask {
         let! feeds = getCustomFeeds webLog
-        return { webLog with rss = { webLog.rss with customFeeds = feeds } }
+        return { webLog with Rss = { webLog.Rss with CustomFeeds = feeds } }
     }
     
     /// Add a podcast to a custom feed
@@ -93,12 +93,12 @@ type SQLiteWebLogData (conn : SqliteConnection) =
         cmd.CommandText <- """
             INSERT INTO web_log_feed_podcast (
                 feed_id, title, subtitle, items_in_feed, summary, displayed_author, email, image_url,
-                itunes_category, itunes_subcategory, explicit, default_media_type, media_base_url, guid, funding_url,
-                funding_text, medium
+                apple_category, apple_subcategory, explicit, default_media_type, media_base_url, podcast_guid,
+                funding_url, funding_text, medium
             ) VALUES (
                 @feedId, @title, @subtitle, @itemsInFeed, @summary, @displayedAuthor, @email, @imageUrl,
-                @iTunesCategory, @iTunesSubcategory, @explicit, @defaultMediaType, @mediaBaseUrl, @guid, @fundingUrl,
-                @fundingText, @medium
+                @appleCategory, @appleSubcategory, @explicit, @defaultMediaType, @mediaBaseUrl, @podcastGuid,
+                @fundingUrl, @fundingText, @medium
             )"""
         addPodcastParameters cmd feedId podcast
         do! write cmd
@@ -107,12 +107,12 @@ type SQLiteWebLogData (conn : SqliteConnection) =
     /// Update the custom feeds for a web log
     let updateCustomFeeds (webLog : WebLog) = backgroundTask {
         let! feeds = getCustomFeeds webLog
-        let toDelete, toAdd = diffLists feeds webLog.rss.customFeeds (fun it -> $"{CustomFeedId.toString it.id}")
-        let toId (feed : CustomFeed) = feed.id
+        let toDelete, toAdd = diffLists feeds webLog.Rss.CustomFeeds (fun it -> $"{CustomFeedId.toString it.Id}")
+        let toId (feed : CustomFeed) = feed.Id
         let toUpdate =
-            webLog.rss.customFeeds
+            webLog.Rss.CustomFeeds
             |> List.filter (fun f ->
-                not (toDelete |> List.map toId |> List.append (toAdd |> List.map toId) |> List.contains f.id))
+                not (toDelete |> List.map toId |> List.append (toAdd |> List.map toId) |> List.contains f.Id))
         use cmd = conn.CreateCommand ()
         cmd.Parameters.Add ("@id", SqliteType.Text) |> ignore
         toDelete
@@ -120,7 +120,7 @@ type SQLiteWebLogData (conn : SqliteConnection) =
             cmd.CommandText <- """
                 DELETE FROM web_log_feed_podcast WHERE feed_id = @id;
                 DELETE FROM web_log_feed         WHERE id      = @id"""
-            cmd.Parameters["@id"].Value <- CustomFeedId.toString it.id
+            cmd.Parameters["@id"].Value <- CustomFeedId.toString it.Id
             do! write cmd
         })
         |> Task.WhenAll
@@ -135,10 +135,10 @@ type SQLiteWebLogData (conn : SqliteConnection) =
                     @id, @webLogId, @source, @path
                 )"""
             cmd.Parameters.Clear ()
-            addCustomFeedParameters cmd webLog.id it
+            addCustomFeedParameters cmd webLog.Id it
             do! write cmd
-            match it.podcast with
-            | Some podcast -> do! addPodcast it.id podcast
+            match it.Podcast with
+            | Some podcast -> do! addPodcast it.Id podcast
             | None -> ()
         })
         |> Task.WhenAll
@@ -152,10 +152,10 @@ type SQLiteWebLogData (conn : SqliteConnection) =
                  WHERE id         = @id
                    AND web_log_id = @webLogId"""
             cmd.Parameters.Clear ()
-            addCustomFeedParameters cmd webLog.id it
+            addCustomFeedParameters cmd webLog.Id it
             do! write cmd
-            let hadPodcast = Option.isSome (feeds |> List.find (fun f -> f.id = it.id)).podcast
-            match it.podcast with
+            let hadPodcast = Option.isSome (feeds |> List.find (fun f -> f.Id = it.Id)).Podcast
+            match it.Podcast with
             | Some podcast ->
                 if hadPodcast then
                     cmd.CommandText <- """
@@ -167,26 +167,26 @@ type SQLiteWebLogData (conn : SqliteConnection) =
                                displayed_author   = @displayedAuthor,
                                email              = @email,
                                image_url          = @imageUrl,
-                               itunes_category    = @iTunesCategory,
-                               itunes_subcategory = @iTunesSubcategory,
+                               apple_category     = @appleCategory,
+                               apple_subcategory  = @appleSubcategory,
                                explicit           = @explicit,
                                default_media_type = @defaultMediaType,
                                media_base_url     = @mediaBaseUrl,
-                               guid               = @guid,
+                               podcast_guid       = @podcastGuid,
                                funding_url        = @fundingUrl,
                                funding_text       = @fundingText,
                                medium             = @medium
                          WHERE feed_id = @feedId"""
                     cmd.Parameters.Clear ()
-                    addPodcastParameters cmd it.id podcast
+                    addPodcastParameters cmd it.Id podcast
                     do! write cmd
                 else
-                    do! addPodcast it.id podcast
+                    do! addPodcast it.Id podcast
             | None ->
                 if hadPodcast then
                     cmd.CommandText <- "DELETE FROM web_log_feed_podcast WHERE feed_id = @id"
                     cmd.Parameters.Clear ()
-                    cmd.Parameters.AddWithValue ("@id", CustomFeedId.toString it.id) |> ignore
+                    cmd.Parameters.AddWithValue ("@id", CustomFeedId.toString it.Id) |> ignore
                     do! write cmd
                 else
                     ()
@@ -203,10 +203,10 @@ type SQLiteWebLogData (conn : SqliteConnection) =
         cmd.CommandText <- """
             INSERT INTO web_log (
                 id, name, slug, subtitle, default_page, posts_per_page, theme_id, url_base, time_zone, auto_htmx,
-                uploads, feed_enabled, feed_name, items_in_feed, category_enabled, tag_enabled, copyright
+                uploads, is_feed_enabled, feed_name, items_in_feed, is_category_enabled, is_tag_enabled, copyright
             ) VALUES (
                 @id, @name, @slug, @subtitle, @defaultPage, @postsPerPage, @themeId, @urlBase, @timeZone, @autoHtmx,
-                @uploads, @feedEnabled, @feedName, @itemsInFeed, @categoryEnabled, @tagEnabled, @copyright
+                @uploads, @isFeedEnabled, @feedName, @itemsInFeed, @isCategoryEnabled, @isTagEnabled, @copyright
             )"""
         addWebLogParameters cmd webLog
         do! write cmd
@@ -286,22 +286,22 @@ type SQLiteWebLogData (conn : SqliteConnection) =
         use cmd = conn.CreateCommand ()
         cmd.CommandText <- """
             UPDATE web_log
-               SET name             = @name,
-                   slug             = @slug,
-                   subtitle         = @subtitle,
-                   default_page     = @defaultPage,
-                   posts_per_page   = @postsPerPage,
-                   theme_id         = @themeId,
-                   url_base         = @urlBase,
-                   time_zone        = @timeZone,
-                   auto_htmx        = @autoHtmx,
-                   uploads          = @uploads,
-                   feed_enabled     = @feedEnabled,
-                   feed_name        = @feedName,
-                   items_in_feed    = @itemsInFeed,
-                   category_enabled = @categoryEnabled,
-                   tag_enabled      = @tagEnabled,
-                   copyright        = @copyright
+               SET name                = @name,
+                   slug                = @slug,
+                   subtitle            = @subtitle,
+                   default_page        = @defaultPage,
+                   posts_per_page      = @postsPerPage,
+                   theme_id            = @themeId,
+                   url_base            = @urlBase,
+                   time_zone           = @timeZone,
+                   auto_htmx           = @autoHtmx,
+                   uploads             = @uploads,
+                   is_feed_enabled     = @isFeedEnabled,
+                   feed_name           = @feedName,
+                   items_in_feed       = @itemsInFeed,
+                   is_category_enabled = @isCategoryEnabled,
+                   is_tag_enabled      = @isTagEnabled,
+                   copyright           = @copyright
              WHERE id = @id"""
         addWebLogParameters cmd webLog
         do! write cmd
@@ -312,12 +312,12 @@ type SQLiteWebLogData (conn : SqliteConnection) =
         use cmd = conn.CreateCommand ()
         cmd.CommandText <- """
             UPDATE web_log
-               SET feed_enabled     = @feedEnabled,
-                   feed_name        = @feedName,
-                   items_in_feed    = @itemsInFeed,
-                   category_enabled = @categoryEnabled,
-                   tag_enabled      = @tagEnabled,
-                   copyright        = @copyright
+               SET is_feed_enabled     = @isFeedEnabled,
+                   feed_name           = @feedName,
+                   items_in_feed       = @itemsInFeed,
+                   is_category_enabled = @isCategoryEnabled,
+                   is_tag_enabled      = @isTagEnabled,
+                   copyright           = @copyright
              WHERE id = @id"""
         addWebLogRssParameters cmd webLog
         do! write cmd

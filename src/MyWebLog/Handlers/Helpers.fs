@@ -58,7 +58,7 @@ open DotLiquid
 /// Add a key to the hash, returning the modified hash
 //    (note that the hash itself is mutated; this is only used to make it pipeable)
 let addToHash key (value : obj) (hash : Hash) =
-    hash.Add (key, value)
+    if hash.ContainsKey key then hash[key] <- value else hash.Add (key, value)
     hash
 
 open System.Security.Claims
@@ -101,11 +101,11 @@ let isHtmx (ctx : HttpContext) =
     ctx.Request.IsHtmx && not ctx.Request.IsHtmxRefresh
 
 /// Render a view for the specified theme, using the specified template, layout, and hash
-let viewForTheme theme template next ctx (hash : Hash) = task {
-    if not (hash.ContainsKey "web_log") then
+let viewForTheme themeId template next ctx (hash : Hash) = task {
+    if not (hash.ContainsKey "htmx_script") then
         let! _ = populateHash hash ctx
         ()
-    
+    let (ThemeId theme) = themeId
     // NOTE: DotLiquid does not support {% render %} or {% include %} in its templates, so we will do a 2-pass render;
     //       the net effect is a "layout" capability similar to Razor or Pug
     
@@ -134,8 +134,9 @@ let messagesToHeaders (messages : UserMessage array) : HttpHandler =
     |> Seq.reduce (>=>)
 
 /// Render a bare view for the specified theme, using the specified template and hash
-let bareForTheme theme template next ctx (hash : Hash) = task {
+let bareForTheme themeId template next ctx (hash : Hash) = task {
     let! hash = populateHash hash ctx
+    let (ThemeId theme) = themeId
     
     if not (hash.ContainsKey "content") then
         let! contentTemplate = TemplateCache.get theme template ctx.Data
@@ -151,9 +152,16 @@ let bareForTheme theme template next ctx (hash : Hash) = task {
 /// Return a view for the web log's default theme
 let themedView template next ctx hash = task {
     let! hash = populateHash hash ctx
-    return! viewForTheme (hash["web_log"] :?> WebLog).themePath template next ctx hash
+    return! viewForTheme (hash["web_log"] :?> WebLog).ThemeId template next ctx hash
 }
 
+/// Display a view for the admin theme
+let adminView template =
+    viewForTheme (ThemeId "admin") template
+
+/// Display a bare view for the admin theme
+let adminBareView template =
+    bareForTheme (ThemeId "admin") template
 
 /// Redirect after doing some action; commits session and issues a temporary redirect
 let redirectToGet url : HttpHandler = fun _ ctx -> task {
@@ -232,15 +240,15 @@ open MyWebLog.Data
 
 /// Get the templates available for the current web log's theme (in a key/value pair list)
 let templatesForTheme (ctx : HttpContext) (typ : string) = backgroundTask {
-    match! ctx.Data.Theme.FindByIdWithoutText (ThemeId ctx.WebLog.themePath) with
+    match! ctx.Data.Theme.FindByIdWithoutText ctx.WebLog.ThemeId with
     | Some theme ->
         return seq {
             KeyValuePair.Create ("", $"- Default (single-{typ}) -")
             yield!
-                theme.templates
+                theme.Templates
                 |> Seq.ofList
-                |> Seq.filter (fun it -> it.name.EndsWith $"-{typ}" && it.name <> $"single-{typ}")
-                |> Seq.map (fun it -> KeyValuePair.Create (it.name, it.name))
+                |> Seq.filter (fun it -> it.Name.EndsWith $"-{typ}" && it.Name <> $"single-{typ}")
+                |> Seq.map (fun it -> KeyValuePair.Create (it.Name, it.Name))
         }
         |> Array.ofSeq
     | None -> return [| KeyValuePair.Create ("", $"- Default (single-{typ}) -") |]
@@ -249,17 +257,17 @@ let templatesForTheme (ctx : HttpContext) (typ : string) = backgroundTask {
 /// Get all authors for a list of posts as metadata items
 let getAuthors (webLog : WebLog) (posts : Post list) (data : IData) =
     posts
-    |> List.map (fun p -> p.authorId)
+    |> List.map (fun p -> p.AuthorId)
     |> List.distinct
-    |> data.WebLogUser.FindNames webLog.id
+    |> data.WebLogUser.FindNames webLog.Id
 
 /// Get all tag mappings for a list of posts as metadata items
 let getTagMappings (webLog : WebLog) (posts : Post list) (data : IData) =
     posts
-    |> List.map (fun p -> p.tags)
+    |> List.map (fun p -> p.Tags)
     |> List.concat
     |> List.distinct
-    |> fun tags -> data.TagMap.FindMappingForTags tags webLog.id
+    |> fun tags -> data.TagMap.FindMappingForTags tags webLog.Id
 
 /// Get all category IDs for the given slug (includes owned subcategories)   
 let getCategoryIds slug ctx =

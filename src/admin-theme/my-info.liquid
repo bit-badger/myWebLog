@@ -1,8 +1,21 @@
 <h2 class="my-3">{{ page_title }}</h2>
 <article>
-  <form action="{{ "admin/user/save" | relative_link }}" method="post">
+  <form action="{{ "admin/user/my-info" | relative_link }}" method="post">
     <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
+    <div class="d-flex flex-row flex-wrap justify-content-around">
+      <div class="text-center mb-3 lh-sm">
+        <strong class="text-decoration-underline">Access Level</strong><br>{{ access_level }}
+      </div>
+      <div class="text-center mb-3 lh-sm">
+        <strong class="text-decoration-underline">Created</strong><br>{{ created_on | date: "MMMM d, yyyy" }}
+      </div>
+      <div class="text-center mb-3 lh-sm">
+        <strong class="text-decoration-underline">Last Log On</strong><br>
+        {{ last_seen_on | date: "MMMM d, yyyy" }} at {{ last_seen_on | date: "h:mmtt" | downcase }}
+      </div>
+    </div>
     <div class="container">
+      <div class="row"><div class="col"><hr class="mt-0"></div></div>
       <div class="row mb-3">
         <div class="col-12 col-md-6 col-lg-4 pb-3">
           <div class="form-floating">
@@ -28,8 +41,8 @@
       </div>
       <div class="row mb-3">
         <div class="col">
-          <fieldset class="container">
-            <legend>Change Password</legend>
+          <fieldset class="p-2">
+            <legend class="ps-1">Change Password</legend>
             <div class="row">
               <div class="col">
                 <p class="form-text">Optional; leave blank to keep your current password</p>

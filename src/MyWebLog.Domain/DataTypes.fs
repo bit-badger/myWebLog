@@ -7,22 +7,22 @@ open MyWebLog
 [<CLIMutable; NoComparison; NoEquality>]
 type Category =
     {   /// The ID of the category
-        id : CategoryId
+        Id : CategoryId
 
         /// The ID of the web log to which the category belongs
-        webLogId : WebLogId
+        WebLogId : WebLogId
 
         /// The displayed name
-        name : string
+        Name : string
 
         /// The slug (used in category URLs)
-        slug : string
+        Slug : string
 
         /// A longer description of the category
-        description : string option
+        Description : string option
 
         /// The parent ID of this category (if a subcategory)
-        parentId : CategoryId option
+        ParentId : CategoryId option
     }
 
 /// Functions to support categories
@@ -30,12 +30,12 @@ module Category =
     
     /// An empty category
     let empty =
-        { id          = CategoryId.empty
-          webLogId    = WebLogId.empty
-          name        = ""
-          slug        = ""
-          description = None
-          parentId    = None
+        { Id          = CategoryId.empty
+          WebLogId    = WebLogId.empty
+          Name        = ""
+          Slug        = ""
+          Description = None
+          ParentId    = None
         }
 
 
@@ -43,31 +43,31 @@ module Category =
 [<CLIMutable; NoComparison; NoEquality>]
 type Comment =
     {   /// The ID of the comment
-        id : CommentId
+        Id : CommentId
 
         /// The ID of the post to which this comment applies
-        postId : PostId
+        PostId : PostId
 
         /// The ID of the comment to which this comment is a reply
-        inReplyToId : CommentId option
+        InReplyToId : CommentId option
 
         /// The name of the commentor
-        name : string
+        Name : string
 
         /// The e-mail address of the commentor
-        email : string
+        Email : string
 
         /// The URL of the commentor's personal website
-        url : string option
+        Url : string option
 
         /// The status of the comment
-        status : CommentStatus
+        Status : CommentStatus
 
         /// When the comment was posted
-        postedOn : DateTime
+        PostedOn : DateTime
 
         /// The text of the comment
-        text : string
+        Text : string
     }
 
 /// Functions to support comments
@@ -75,15 +75,15 @@ module Comment =
     
     /// An empty comment
     let empty =
-        { id          = CommentId.empty
-          postId      = PostId.empty
-          inReplyToId = None
-          name        = ""
-          email       = ""
-          url         = None
-          status      = Pending
-          postedOn    = DateTime.UtcNow
-          text        = ""
+        { Id          = CommentId.empty
+          PostId      = PostId.empty
+          InReplyToId = None
+          Name        = ""
+          Email       = ""
+          Url         = None
+          Status      = Pending
+          PostedOn    = DateTime.UtcNow
+          Text        = ""
         }
 
 
@@ -91,43 +91,43 @@ module Comment =
 [<CLIMutable; NoComparison; NoEquality>]
 type Page =
     {   /// The ID of this page
-        id : PageId
+        Id : PageId
 
         /// The ID of the web log to which this page belongs
-        webLogId : WebLogId
+        WebLogId : WebLogId
 
         /// The ID of the author of this page
-        authorId : WebLogUserId
+        AuthorId : WebLogUserId
 
         /// The title of the page
-        title : string
+        Title : string
 
         /// The link at which this page is displayed
-        permalink : Permalink
+        Permalink : Permalink
 
         /// When this page was published
-        publishedOn : DateTime
+        PublishedOn : DateTime
 
         /// When this page was last updated
-        updatedOn : DateTime
+        UpdatedOn : DateTime
 
         /// Whether this page shows as part of the web log's navigation
-        showInPageList : bool
+        IsInPageList : bool
 
         /// The template to use when rendering this page
-        template : string option
+        Template : string option
 
         /// The current text of the page
-        text : string
+        Text : string
 
         /// Metadata for this page
-        metadata : MetaItem list
+        Metadata : MetaItem list
         
         /// Permalinks at which this page may have been previously served (useful for migrated content)
-        priorPermalinks : Permalink list
+        PriorPermalinks : Permalink list
 
         /// Revisions of this page
-        revisions : Revision list
+        Revisions : Revision list
     }
 
 /// Functions to support pages
@@ -135,19 +135,19 @@ module Page =
     
     /// An empty page
     let empty =
-        { id              = PageId.empty
-          webLogId        = WebLogId.empty
-          authorId        = WebLogUserId.empty
-          title           = ""
-          permalink       = Permalink.empty
-          publishedOn     = DateTime.MinValue
-          updatedOn       = DateTime.MinValue
-          showInPageList  = false
-          template        = None
-          text            = ""
-          metadata        = []
-          priorPermalinks = []
-          revisions       = []
+        { Id              = PageId.empty
+          WebLogId        = WebLogId.empty
+          AuthorId        = WebLogUserId.empty
+          Title           = ""
+          Permalink       = Permalink.empty
+          PublishedOn     = DateTime.MinValue
+          UpdatedOn       = DateTime.MinValue
+          IsInPageList    = false
+          Template        = None
+          Text            = ""
+          Metadata        = []
+          PriorPermalinks = []
+          Revisions       = []
         }
 
 
@@ -155,52 +155,52 @@ module Page =
 [<CLIMutable; NoComparison; NoEquality>]
 type Post =
     {   /// The ID of this post
-        id : PostId
+        Id : PostId
 
         /// The ID of the web log to which this post belongs
-        webLogId : WebLogId
+        WebLogId : WebLogId
 
         /// The ID of the author of this post
-        authorId : WebLogUserId
+        AuthorId : WebLogUserId
 
         /// The status
-        status : PostStatus
+        Status : PostStatus
 
         /// The title
-        title : string
+        Title : string
 
         /// The link at which the post resides
-        permalink : Permalink
+        Permalink : Permalink
 
         /// The instant on which the post was originally published
-        publishedOn : DateTime option
+        PublishedOn : DateTime option
 
         /// The instant on which the post was last updated
-        updatedOn : DateTime
+        UpdatedOn : DateTime
 
         /// The template to use in displaying the post
-        template : string option
+        Template : string option
         
         /// The text of the post in HTML (ready to display) format
-        text : string
+        Text : string
 
         /// The Ids of the categories to which this is assigned
-        categoryIds : CategoryId list
+        CategoryIds : CategoryId list
 
         /// The tags for the post
-        tags : string list
+        Tags : string list
 
         /// Podcast episode information for this post
-        episode : Episode option
+        Episode : Episode option
         
         /// Metadata for the post
-        metadata : MetaItem list
+        Metadata : MetaItem list
         
         /// Permalinks at which this post may have been previously served (useful for migrated content)
-        priorPermalinks : Permalink list
+        PriorPermalinks : Permalink list
 
         /// The revisions for this post
-        revisions : Revision list
+        Revisions : Revision list
     }
 
 /// Functions to support posts
@@ -208,38 +208,38 @@ module Post =
     
     /// An empty post
     let empty =
-        { id              = PostId.empty
-          webLogId        = WebLogId.empty
-          authorId        = WebLogUserId.empty
-          status          = Draft
-          title           = ""
-          permalink       = Permalink.empty
-          publishedOn     = None
-          updatedOn       = DateTime.MinValue
-          text            = ""
-          template        = None
-          categoryIds     = []
-          tags            = []
-          episode         = None
-          metadata        = []
-          priorPermalinks = []
-          revisions       = []
+        { Id              = PostId.empty
+          WebLogId        = WebLogId.empty
+          AuthorId        = WebLogUserId.empty
+          Status          = Draft
+          Title           = ""
+          Permalink       = Permalink.empty
+          PublishedOn     = None
+          UpdatedOn       = DateTime.MinValue
+          Text            = ""
+          Template        = None
+          CategoryIds     = []
+          Tags            = []
+          Episode         = None
+          Metadata        = []
+          PriorPermalinks = []
+          Revisions       = []
         }
 
 
 /// A mapping between a tag and its URL value, used to translate restricted characters (ex. "#1" -> "number-1")
 type TagMap =
     {   /// The ID of this tag mapping
-        id : TagMapId
+        Id : TagMapId
         
         /// The ID of the web log to which this tag mapping belongs
-        webLogId : WebLogId
+        WebLogId : WebLogId
         
         /// The tag which should be mapped to a different value in links
-        tag : string
+        Tag : string
         
         /// The value by which the tag should be linked
-        urlValue : string
+        UrlValue : string
     }
 
 /// Functions to support tag mappings
@@ -247,26 +247,26 @@ module TagMap =
     
     /// An empty tag mapping
     let empty =
-        { id       = TagMapId.empty
-          webLogId = WebLogId.empty
-          tag      = ""
-          urlValue = ""
+        { Id       = TagMapId.empty
+          WebLogId = WebLogId.empty
+          Tag      = ""
+          UrlValue = ""
         }
 
 
 /// A theme
 type Theme =
     {   /// The ID / path of the theme
-        id : ThemeId
+        Id : ThemeId
         
         /// A long name of the theme
-        name : string
+        Name : string
         
         /// The version of the theme
-        version : string
+        Version : string
         
         /// The templates for this theme
-        templates: ThemeTemplate list
+        Templates: ThemeTemplate list
     }
 
 /// Functions to support themes
@@ -274,10 +274,10 @@ module Theme =
     
     /// An empty theme
     let empty =
-        { id        = ThemeId ""
-          name      = ""
-          version   = ""
-          templates = []
+        { Id        = ThemeId ""
+          Name      = ""
+          Version   = ""
+          Templates = []
         }
 
 
@@ -285,32 +285,42 @@ module Theme =
 type ThemeAsset =
     {
         /// The ID of the asset (consists of theme and path)
-        id : ThemeAssetId
+        Id : ThemeAssetId
         
         /// The updated date (set from the file date from the ZIP archive)
-        updatedOn : DateTime
+        UpdatedOn : DateTime
         
         /// The data for the asset
-        data : byte[]
+        Data : byte[]
     }
+
+/// Functions to support theme assets
+module ThemeAsset =
+    
+    /// An empty theme asset
+    let empty =
+        { Id        = ThemeAssetId (ThemeId "", "")
+          UpdatedOn = DateTime.MinValue
+          Data      = [||]
+        }
 
 
 /// An uploaded file
 type Upload =
     {   /// The ID of the upload
-        id : UploadId
+        Id : UploadId
         
         /// The ID of the web log to which this upload belongs
-        webLogId : WebLogId
+        WebLogId : WebLogId
         
         /// The link at which this upload is served
-        path : Permalink
+        Path : Permalink
         
         /// The updated date/time for this upload
-        updatedOn : DateTime
+        UpdatedOn : DateTime
         
         /// The data for the upload
-        data : byte[]
+        Data : byte[]
     }
 
 /// Functions to support uploaded files
@@ -318,11 +328,11 @@ module Upload =
     
     /// An empty upload
     let empty = {
-        id        = UploadId.empty
-        webLogId  = WebLogId.empty
-        path      = Permalink.empty
-        updatedOn = DateTime.MinValue
-        data      = [||]
+        Id        = UploadId.empty
+        WebLogId  = WebLogId.empty
+        Path      = Permalink.empty
+        UpdatedOn = DateTime.MinValue
+        Data      = [||]
     }
 
 
@@ -330,40 +340,40 @@ module Upload =
 [<CLIMutable; NoComparison; NoEquality>]
 type WebLog =
     {   /// The ID of the web log
-        id : WebLogId
+        Id : WebLogId
 
         /// The name of the web log
-        name : string
+        Name : string
 
         /// The slug of the web log
-        slug : string
+        Slug : string
         
         /// A subtitle for the web log
-        subtitle : string option
+        Subtitle : string option
 
         /// The default page ("posts" or a page Id)
-        defaultPage : string
+        DefaultPage : string
 
         /// The number of posts to display on pages of posts
-        postsPerPage : int
+        PostsPerPage : int
 
-        /// The path of the theme (within /themes)
-        themePath : string
+        /// The ID of the theme (also the path within /themes)
+        ThemeId : ThemeId
 
         /// The URL base
-        urlBase : string
+        UrlBase : string
 
         /// The time zone in which dates/times should be displayed
-        timeZone : string
+        TimeZone : string
         
         /// The RSS options for this web log
-        rss : RssOptions
+        Rss : RssOptions
         
         /// Whether to automatically load htmx
-        autoHtmx : bool
+        AutoHtmx : bool
         
         /// Where uploads are placed
-        uploads : UploadDestination
+        Uploads : UploadDestination
     }
 
 /// Functions to support web logs
@@ -371,29 +381,29 @@ module WebLog =
     
     /// An empty web log
     let empty =
-        { id           = WebLogId.empty
-          name         = ""
-          slug         = ""
-          subtitle     = None
-          defaultPage  = ""
-          postsPerPage = 10
-          themePath    = "default"
-          urlBase      = ""
-          timeZone     = ""
-          rss          = RssOptions.empty
-          autoHtmx     = false
-          uploads      = Database
+        { Id           = WebLogId.empty
+          Name         = ""
+          Slug         = ""
+          Subtitle     = None
+          DefaultPage  = ""
+          PostsPerPage = 10
+          ThemeId      = ThemeId "default"
+          UrlBase      = ""
+          TimeZone     = ""
+          Rss          = RssOptions.empty
+          AutoHtmx     = false
+          Uploads      = Database
         }
     
     /// Get the host (including scheme) and extra path from the URL base
     let hostAndPath webLog =
-        let scheme = webLog.urlBase.Split "://"
+        let scheme = webLog.UrlBase.Split "://"
         let host   = scheme[1].Split "/"
         $"{scheme[0]}://{host[0]}", if host.Length > 1 then $"""/{String.Join ("/", host |> Array.skip 1)}""" else ""
     
     /// Generate an absolute URL for the given link
     let absoluteUrl webLog permalink =
-        $"{webLog.urlBase}/{Permalink.toString permalink}"
+        $"{webLog.UrlBase}/{Permalink.toString permalink}"
 
     /// Generate a relative URL for the given link
     let relativeUrl webLog permalink =
@@ -403,47 +413,47 @@ module WebLog =
     /// Convert a UTC date/time to the web log's local date/time
     let localTime webLog (date : DateTime) =
         TimeZoneInfo.ConvertTimeFromUtc
-            (DateTime (date.Ticks, DateTimeKind.Utc), TimeZoneInfo.FindSystemTimeZoneById webLog.timeZone) 
+            (DateTime (date.Ticks, DateTimeKind.Utc), TimeZoneInfo.FindSystemTimeZoneById webLog.TimeZone) 
 
 
 /// A user of the web log
 [<CLIMutable; NoComparison; NoEquality>]
 type WebLogUser =
     {   /// The ID of the user
-        id : WebLogUserId
+        Id : WebLogUserId
 
         /// The ID of the web log to which this user belongs
-        webLogId : WebLogId
+        WebLogId : WebLogId
 
         /// The user name (e-mail address)
-        userName : string
+        Email : string
 
         /// The user's first name
-        firstName : string
+        FirstName : string
 
         /// The user's last name
-        lastName : string
+        LastName : string
 
         /// The user's preferred name
-        preferredName : string
+        PreferredName : string
 
         /// The hash of the user's password
-        passwordHash : string
+        PasswordHash : string
 
         /// Salt used to calculate the user's password hash
-        salt : Guid
+        Salt : Guid
 
         /// The URL of the user's personal site
-        url : string option
+        Url : string option
 
         /// The user's access level
-        accessLevel : AccessLevel
+        AccessLevel : AccessLevel
         
         /// When the user was created
-        createdOn : DateTime
+        CreatedOn : DateTime
         
         /// When the user last logged on
-        lastSeenOn : DateTime option
+        LastSeenOn : DateTime option
     }
 
 /// Functions to support web log users
@@ -451,27 +461,27 @@ module WebLogUser =
     
     /// An empty web log user
     let empty =
-        { id            = WebLogUserId.empty
-          webLogId      = WebLogId.empty
-          userName      = ""
-          firstName     = ""
-          lastName      = ""
-          preferredName = ""
-          passwordHash  = ""
-          salt          = Guid.Empty
-          url           = None
-          accessLevel   = Author
-          createdOn     = DateTime.UnixEpoch
-          lastSeenOn    = None
+        { Id            = WebLogUserId.empty
+          WebLogId      = WebLogId.empty
+          Email         = ""
+          FirstName     = ""
+          LastName      = ""
+          PreferredName = ""
+          PasswordHash  = ""
+          Salt          = Guid.Empty
+          Url           = None
+          AccessLevel   = Author
+          CreatedOn     = DateTime.UnixEpoch
+          LastSeenOn    = None
         }
     
     /// Get the user's displayed name
     let displayName user =
         let name =
-            seq { match user.preferredName with "" -> user.firstName | n -> n; " "; user.lastName }
+            seq { match user.PreferredName with "" -> user.FirstName | n -> n; " "; user.LastName }
             |> Seq.reduce (+)
         name.Trim ()
     
     /// Does a user have the required access level?
     let hasAccess level user =
-        AccessLevel.hasAccess level user.accessLevel
+        AccessLevel.hasAccess level user.AccessLevel

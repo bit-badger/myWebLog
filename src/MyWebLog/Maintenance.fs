@@ -32,12 +32,12 @@ let private doCreateWebLog (args : string[]) (sp : IServiceProvider) = task {
         
     do! data.WebLog.Add
             { WebLog.empty with
-                id          = webLogId
-                name        = args[2]
-                slug        = slug
-                urlBase     = args[1]
-                defaultPage = PageId.toString homePageId
-                timeZone    = timeZone
+                Id          = webLogId
+                Name        = args[2]
+                Slug        = slug
+                UrlBase     = args[1]
+                DefaultPage = PageId.toString homePageId
+                TimeZone    = timeZone
             }
     
     // Create the admin user
@@ -46,32 +46,32 @@ let private doCreateWebLog (args : string[]) (sp : IServiceProvider) = task {
     
     do! data.WebLogUser.Add 
             { WebLogUser.empty with
-                id            = userId
-                webLogId      = webLogId
-                userName      = args[3]
-                firstName     = "Admin"
-                lastName      = "User"
-                preferredName = "Admin"
-                passwordHash  = Handlers.User.hashedPassword args[4] args[3] salt
-                salt          = salt
-                accessLevel   = accessLevel
-                createdOn     = now
+                Id            = userId
+                WebLogId      = webLogId
+                Email         = args[3]
+                FirstName     = "Admin"
+                LastName      = "User"
+                PreferredName = "Admin"
+                PasswordHash  = Handlers.User.hashedPassword args[4] args[3] salt
+                Salt          = salt
+                AccessLevel   = accessLevel
+                CreatedOn     = now
             }
 
     // Create the default home page
     do! data.Page.Add
             { Page.empty with
-                id          = homePageId
-                webLogId    = webLogId
-                authorId    = userId
-                title       = "Welcome to myWebLog!"
-                permalink   = Permalink "welcome-to-myweblog.html"
-                publishedOn = now
-                updatedOn   = now
-                text        = "<p>This is your default home page.</p>"
-                revisions   = [
-                    { asOf = now
-                      text = Html "<p>This is your default home page.</p>"
+                Id          = homePageId
+                WebLogId    = webLogId
+                AuthorId    = userId
+                Title       = "Welcome to myWebLog!"
+                Permalink   = Permalink "welcome-to-myweblog.html"
+                PublishedOn = now
+                UpdatedOn   = now
+                Text        = "<p>This is your default home page.</p>"
+                Revisions   = [
+                    { AsOf = now
+                      Text = Html "<p>This is your default home page.</p>"
                     }
                 ]
             }
@@ -107,11 +107,11 @@ let private importPriorPermalinks urlBase file (sp : IServiceProvider) = task {
                 Permalink parts[0], Permalink parts[1])
         
         for old, current in mapping do
-            match! data.Post.FindByPermalink current webLog.id with
+            match! data.Post.FindByPermalink current webLog.Id with
             | Some post ->
-                let! withLinks = data.Post.FindFullById post.id post.webLogId
-                let! _ = data.Post.UpdatePriorPermalinks post.id post.webLogId
-                             (old :: withLinks.Value.priorPermalinks)
+                let! withLinks = data.Post.FindFullById post.Id post.WebLogId
+                let! _ = data.Post.UpdatePriorPermalinks post.Id post.WebLogId
+                             (old :: withLinks.Value.PriorPermalinks)
                 printfn $"{Permalink.toString old} -> {Permalink.toString current}"
             | None -> eprintfn $"Cannot find current post for {Permalink.toString current}"
         printfn "Done!"
@@ -160,93 +160,93 @@ module Backup =
     /// A theme asset, with the data base-64 encoded
     type EncodedAsset =
         {   /// The ID of the theme asset
-            id : ThemeAssetId
+            Id : ThemeAssetId
             
             /// The updated date for this asset
-            updatedOn : DateTime
+            UpdatedOn : DateTime
             
             /// The data for this asset, base-64 encoded
-            data : string
+            Data : string
         }
         
         /// Create an encoded theme asset from the original theme asset
         static member fromAsset (asset : ThemeAsset) =
-            { id        = asset.id
-              updatedOn = asset.updatedOn
-              data      = Convert.ToBase64String asset.data
+            { Id        = asset.Id
+              UpdatedOn = asset.UpdatedOn
+              Data      = Convert.ToBase64String asset.Data
             }
     
         /// Create a theme asset from an encoded theme asset
-        static member fromEncoded (encoded : EncodedAsset) : ThemeAsset =
-            { id        = encoded.id
-              updatedOn = encoded.updatedOn
-              data      = Convert.FromBase64String encoded.data
+        static member toAsset (encoded : EncodedAsset) : ThemeAsset =
+            { Id        = encoded.Id
+              UpdatedOn = encoded.UpdatedOn
+              Data      = Convert.FromBase64String encoded.Data
             }
     
     /// An uploaded file, with the data base-64 encoded
     type EncodedUpload =
         {   /// The ID of the upload
-            id : UploadId
+            Id : UploadId
             
             /// The ID of the web log to which the upload belongs
-            webLogId : WebLogId
+            WebLogId : WebLogId
             
             /// The path at which this upload is served
-            path : Permalink
+            Path : Permalink
             
             /// The date/time this upload was last updated (file time)
-            updatedOn : DateTime
+            UpdatedOn : DateTime
             
             /// The data for the upload, base-64 encoded
-            data : string
+            Data : string
         }
         
         /// Create an encoded uploaded file from the original uploaded file
         static member fromUpload (upload : Upload) : EncodedUpload =
-            { id        = upload.id
-              webLogId  = upload.webLogId
-              path      = upload.path
-              updatedOn = upload.updatedOn
-              data      = Convert.ToBase64String upload.data
+            { Id        = upload.Id
+              WebLogId  = upload.WebLogId
+              Path      = upload.Path
+              UpdatedOn = upload.UpdatedOn
+              Data      = Convert.ToBase64String upload.Data
             }
         
         /// Create an uploaded file from an encoded uploaded file
-        static member fromEncoded (encoded : EncodedUpload) : Upload =
-            { id        = encoded.id
-              webLogId  = encoded.webLogId
-              path      = encoded.path
-              updatedOn = encoded.updatedOn
-              data      = Convert.FromBase64String encoded.data
+        static member toUpload (encoded : EncodedUpload) : Upload =
+            { Id        = encoded.Id
+              WebLogId  = encoded.WebLogId
+              Path      = encoded.Path
+              UpdatedOn = encoded.UpdatedOn
+              Data      = Convert.FromBase64String encoded.Data
             }
     
     /// A unified archive for a web log
     type Archive =
         {   /// The web log to which this archive belongs
-            webLog : WebLog
+            WebLog : WebLog
             
             /// The users for this web log
-            users : WebLogUser list
+            Users : WebLogUser list
             
             /// The theme used by this web log at the time the archive was made
-            theme : Theme
+            Theme : Theme
             
             /// Assets for the theme used by this web log at the time the archive was made
-            assets : EncodedAsset list
+            Assets : EncodedAsset list
             
             /// The categories for this web log
-            categories : Category list
+            Categories : Category list
             
             /// The tag mappings for this web log
-            tagMappings : TagMap list
+            TagMappings : TagMap list
             
             /// The pages for this web log (containing only the most recent revision)
-            pages : Page list
+            Pages : Page list
             
             /// The posts for this web log (containing only the most recent revision)
-            posts : Post list
+            Posts : Post list
             
             /// The uploaded files for this web log
-            uploads : EncodedUpload list
+            Uploads : EncodedUpload list
         }
     
     /// Create a JSON serializer (uses RethinkDB data implementation's JSON converters)
@@ -259,21 +259,21 @@ module Backup =
     /// Display statistics for a backup archive
     let private displayStats (msg : string) (webLog : WebLog) archive =
 
-        let userCount     = List.length archive.users
-        let assetCount    = List.length archive.assets
-        let categoryCount = List.length archive.categories
-        let tagMapCount   = List.length archive.tagMappings
-        let pageCount     = List.length archive.pages
-        let postCount     = List.length archive.posts
-        let uploadCount   = List.length archive.uploads
+        let userCount     = List.length archive.Users
+        let assetCount    = List.length archive.Assets
+        let categoryCount = List.length archive.Categories
+        let tagMapCount   = List.length archive.TagMappings
+        let pageCount     = List.length archive.Pages
+        let postCount     = List.length archive.Posts
+        let uploadCount   = List.length archive.Uploads
         
         // Create a pluralized output based on the count
         let plural count ifOne ifMany =
             if count = 1 then ifOne else ifMany
             
         printfn ""
-        printfn $"""{msg.Replace ("<>NAME<>", webLog.name)}"""
-        printfn $""" - The theme "{archive.theme.name}" with {assetCount} asset{plural assetCount "" "s"}"""
+        printfn $"""{msg.Replace ("<>NAME<>", webLog.Name)}"""
+        printfn $""" - The theme "{archive.Theme.Name}" with {assetCount} asset{plural assetCount "" "s"}"""
         printfn $""" - {userCount} user{plural userCount "" "s"}"""
         printfn $""" - {categoryCount} categor{plural categoryCount "y" "ies"}"""
         printfn $""" - {tagMapCount} tag mapping{plural tagMapCount "" "s"}"""
@@ -284,39 +284,37 @@ module Backup =
     /// Create a backup archive
     let private createBackup webLog (fileName : string) prettyOutput (data : IData) = task {
         // Create the data structure
-        let themeId = ThemeId webLog.themePath
-        
         printfn "- Exporting theme..."
-        let! theme  = data.Theme.FindById themeId
-        let! assets = data.ThemeAsset.FindByThemeWithData themeId
+        let! theme  = data.Theme.FindById webLog.ThemeId
+        let! assets = data.ThemeAsset.FindByThemeWithData webLog.ThemeId
         
         printfn "- Exporting users..."
-        let! users = data.WebLogUser.FindByWebLog webLog.id
+        let! users = data.WebLogUser.FindByWebLog webLog.Id
         
         printfn "- Exporting categories and tag mappings..."
-        let! categories = data.Category.FindByWebLog webLog.id
-        let! tagMaps    = data.TagMap.FindByWebLog webLog.id
+        let! categories = data.Category.FindByWebLog webLog.Id
+        let! tagMaps    = data.TagMap.FindByWebLog webLog.Id
         
         printfn "- Exporting pages..."
-        let! pages = data.Page.FindFullByWebLog webLog.id
+        let! pages = data.Page.FindFullByWebLog webLog.Id
         
         printfn "- Exporting posts..."
-        let! posts = data.Post.FindFullByWebLog webLog.id
+        let! posts = data.Post.FindFullByWebLog webLog.Id
         
         printfn "- Exporting uploads..."
-        let! uploads = data.Upload.FindByWebLogWithData webLog.id
+        let! uploads = data.Upload.FindByWebLogWithData webLog.Id
         
         printfn "- Writing archive..."
         let  archive    = {
-            webLog      = webLog
-            users       = users
-            theme       = Option.get theme
-            assets      = assets |> List.map EncodedAsset.fromAsset
-            categories  = categories
-            tagMappings = tagMaps
-            pages       = pages   |> List.map (fun p -> { p with revisions = List.truncate 1 p.revisions })
-            posts       = posts   |> List.map (fun p -> { p with revisions = List.truncate 1 p.revisions })
-            uploads     = uploads |> List.map EncodedUpload.fromUpload
+            WebLog      = webLog
+            Users       = users
+            Theme       = Option.get theme
+            Assets      = assets |> List.map EncodedAsset.fromAsset
+            Categories  = categories
+            TagMappings = tagMaps
+            Pages       = pages   |> List.map (fun p -> { p with Revisions = List.truncate 1 p.Revisions })
+            Posts       = posts   |> List.map (fun p -> { p with Revisions = List.truncate 1 p.Revisions })
+            Uploads     = uploads |> List.map EncodedUpload.fromUpload
         }
         
         // Write the structure to the backup file
@@ -331,83 +329,83 @@ module Backup =
     
     let private doRestore archive newUrlBase (data : IData) = task {
         let! restore = task {
-            match! data.WebLog.FindById archive.webLog.id with
-            | Some webLog when defaultArg newUrlBase webLog.urlBase = webLog.urlBase ->
-                do! data.WebLog.Delete webLog.id
-                return { archive with webLog = { archive.webLog with urlBase = defaultArg newUrlBase webLog.urlBase } }
+            match! data.WebLog.FindById archive.WebLog.Id with
+            | Some webLog when defaultArg newUrlBase webLog.UrlBase = webLog.UrlBase ->
+                do! data.WebLog.Delete webLog.Id
+                return { archive with WebLog = { archive.WebLog with UrlBase = defaultArg newUrlBase webLog.UrlBase } }
             | Some _ ->
                 // Err'body gets new IDs...
                 let newWebLogId = WebLogId.create ()
-                let newCatIds   = archive.categories  |> List.map (fun cat  -> cat.id,  CategoryId.create   ()) |> dict
-                let newMapIds   = archive.tagMappings |> List.map (fun tm   -> tm.id,   TagMapId.create     ()) |> dict
-                let newPageIds  = archive.pages       |> List.map (fun page -> page.id, PageId.create       ()) |> dict
-                let newPostIds  = archive.posts       |> List.map (fun post -> post.id, PostId.create       ()) |> dict
-                let newUserIds  = archive.users       |> List.map (fun user -> user.id, WebLogUserId.create ()) |> dict
-                let newUpIds    = archive.uploads     |> List.map (fun up   -> up.id,   UploadId.create     ()) |> dict
+                let newCatIds   = archive.Categories  |> List.map (fun cat  -> cat.Id,  CategoryId.create   ()) |> dict
+                let newMapIds   = archive.TagMappings |> List.map (fun tm   -> tm.Id,   TagMapId.create     ()) |> dict
+                let newPageIds  = archive.Pages       |> List.map (fun page -> page.Id, PageId.create       ()) |> dict
+                let newPostIds  = archive.Posts       |> List.map (fun post -> post.Id, PostId.create       ()) |> dict
+                let newUserIds  = archive.Users       |> List.map (fun user -> user.Id, WebLogUserId.create ()) |> dict
+                let newUpIds    = archive.Uploads     |> List.map (fun up   -> up.Id,   UploadId.create     ()) |> dict
                 return
                     { archive with
-                        webLog      = { archive.webLog with id = newWebLogId; urlBase = Option.get newUrlBase }
-                        users       = archive.users
-                                      |> List.map (fun u -> { u with id = newUserIds[u.id]; webLogId = newWebLogId })
-                        categories  = archive.categories
-                                      |> List.map (fun c -> { c with id = newCatIds[c.id]; webLogId = newWebLogId })
-                        tagMappings = archive.tagMappings
-                                      |> List.map (fun tm -> { tm with id = newMapIds[tm.id]; webLogId = newWebLogId })
-                        pages       = archive.pages
+                        WebLog      = { archive.WebLog with Id = newWebLogId; UrlBase = Option.get newUrlBase }
+                        Users       = archive.Users
+                                      |> List.map (fun u -> { u with Id = newUserIds[u.Id]; WebLogId = newWebLogId })
+                        Categories  = archive.Categories
+                                      |> List.map (fun c -> { c with Id = newCatIds[c.Id]; WebLogId = newWebLogId })
+                        TagMappings = archive.TagMappings
+                                      |> List.map (fun tm -> { tm with Id = newMapIds[tm.Id]; WebLogId = newWebLogId })
+                        Pages       = archive.Pages
                                       |> List.map (fun page ->
                                           { page with
-                                              id       = newPageIds[page.id]
-                                              webLogId = newWebLogId
-                                              authorId = newUserIds[page.authorId]
+                                              Id       = newPageIds[page.Id]
+                                              WebLogId = newWebLogId
+                                              AuthorId = newUserIds[page.AuthorId]
                                           })
-                        posts       = archive.posts
+                        Posts       = archive.Posts
                                       |> List.map (fun post ->
                                           { post with
-                                              id          = newPostIds[post.id]
-                                              webLogId    = newWebLogId
-                                              authorId    = newUserIds[post.authorId]
-                                              categoryIds = post.categoryIds |> List.map (fun c -> newCatIds[c])
+                                              Id          = newPostIds[post.Id]
+                                              WebLogId    = newWebLogId
+                                              AuthorId    = newUserIds[post.AuthorId]
+                                              CategoryIds = post.CategoryIds |> List.map (fun c -> newCatIds[c])
                                           })
-                        uploads     = archive.uploads
-                                      |> List.map (fun u -> { u with id = newUpIds[u.id]; webLogId = newWebLogId })
+                        Uploads     = archive.Uploads
+                                      |> List.map (fun u -> { u with Id = newUpIds[u.Id]; WebLogId = newWebLogId })
                     }
             | None ->
                 return
                     { archive with
-                        webLog = { archive.webLog with urlBase = defaultArg newUrlBase archive.webLog.urlBase }
+                        WebLog = { archive.WebLog with UrlBase = defaultArg newUrlBase archive.WebLog.UrlBase }
                     }
         }
         
         // Restore theme and assets (one at a time, as assets can be large)
         printfn ""
         printfn "- Importing theme..."
-        do! data.Theme.Save restore.theme
-        let! _ = restore.assets |> List.map (EncodedAsset.fromEncoded >> data.ThemeAsset.Save) |> Task.WhenAll
+        do! data.Theme.Save restore.Theme
+        let! _ = restore.Assets |> List.map (EncodedAsset.toAsset >> data.ThemeAsset.Save) |> Task.WhenAll
         
         // Restore web log data
         
         printfn "- Restoring web log..."
-        do! data.WebLog.Add restore.webLog
+        do! data.WebLog.Add restore.WebLog
         
         printfn "- Restoring users..."
-        do! data.WebLogUser.Restore restore.users
+        do! data.WebLogUser.Restore restore.Users
         
         printfn "- Restoring categories and tag mappings..."
-        do! data.TagMap.Restore   restore.tagMappings
-        do! data.Category.Restore restore.categories
+        do! data.TagMap.Restore   restore.TagMappings
+        do! data.Category.Restore restore.Categories
         
         printfn "- Restoring pages..."
-        do! data.Page.Restore restore.pages
+        do! data.Page.Restore restore.Pages
         
         printfn "- Restoring posts..."
-        do! data.Post.Restore restore.posts
+        do! data.Post.Restore restore.Posts
         
         // TODO: comments not yet implemented
         
         printfn "- Restoring uploads..."
-        do! data.Upload.Restore (restore.uploads |> List.map EncodedUpload.fromEncoded)
+        do! data.Upload.Restore (restore.Uploads |> List.map EncodedUpload.toUpload)
         
-        displayStats "Restored for <>NAME<>:" restore.webLog restore
+        displayStats "Restored for <>NAME<>:" restore.WebLog restore
     }
     
     /// Decide whether to restore a backup
@@ -431,7 +429,7 @@ module Backup =
         if doOverwrite then
             do! doRestore archive newUrlBase data
         else
-            printfn $"{archive.webLog.name} backup restoration canceled"
+            printfn $"{archive.WebLog.Name} backup restoration canceled"
     }
         
     /// Generate a backup archive
@@ -442,7 +440,7 @@ module Backup =
             | Some webLog ->
                 let fileName =
                     if args.Length = 2 || (args.Length = 3 && args[2] = "pretty") then
-                        $"{webLog.slug}.json"
+                        $"{webLog.Slug}.json"
                     elif args[2].EndsWith ".json" then
                         args[2]
                     else
@@ -473,11 +471,11 @@ module Backup =
 let private doUserUpgrade urlBase email (data : IData) = task {
     match! data.WebLog.FindByHost urlBase with
     | Some webLog ->
-        match! data.WebLogUser.FindByEmail email webLog.id with
+        match! data.WebLogUser.FindByEmail email webLog.Id with
         | Some user ->
-            match user.accessLevel with
+            match user.AccessLevel with
             | WebLogAdmin ->
-                do! data.WebLogUser.Update { user with accessLevel = Administrator }
+                do! data.WebLogUser.Update { user with AccessLevel = Administrator }
                 printfn $"{email} is now an Administrator user"
             | other -> eprintfn $"ERROR: {email} is an {AccessLevel.toString other}, not a WebLogAdmin"
         | None -> eprintfn $"ERROR: no user {email} found at {urlBase}"

@@ -12,18 +12,18 @@ type SQLiteWebLogUserData (conn : SqliteConnection) =
 
     /// Add parameters for web log user INSERT or UPDATE statements
     let addWebLogUserParameters (cmd : SqliteCommand) (user : WebLogUser) =
-        [ cmd.Parameters.AddWithValue ("@id", WebLogUserId.toString user.id)
-          cmd.Parameters.AddWithValue ("@webLogId", WebLogId.toString user.webLogId)
-          cmd.Parameters.AddWithValue ("@userName", user.userName)
-          cmd.Parameters.AddWithValue ("@firstName", user.firstName)
-          cmd.Parameters.AddWithValue ("@lastName", user.lastName)
-          cmd.Parameters.AddWithValue ("@preferredName", user.preferredName)
-          cmd.Parameters.AddWithValue ("@passwordHash", user.passwordHash)
-          cmd.Parameters.AddWithValue ("@salt", user.salt)
-          cmd.Parameters.AddWithValue ("@url", maybe user.url)
-          cmd.Parameters.AddWithValue ("@accessLevel", AccessLevel.toString user.accessLevel)
-          cmd.Parameters.AddWithValue ("@createdOn", user.createdOn)
-          cmd.Parameters.AddWithValue ("@lastSeenOn", maybe user.lastSeenOn)
+        [ cmd.Parameters.AddWithValue ("@id", WebLogUserId.toString user.Id)
+          cmd.Parameters.AddWithValue ("@webLogId", WebLogId.toString user.WebLogId)
+          cmd.Parameters.AddWithValue ("@email", user.Email)
+          cmd.Parameters.AddWithValue ("@firstName", user.FirstName)
+          cmd.Parameters.AddWithValue ("@lastName", user.LastName)
+          cmd.Parameters.AddWithValue ("@preferredName", user.PreferredName)
+          cmd.Parameters.AddWithValue ("@passwordHash", user.PasswordHash)
+          cmd.Parameters.AddWithValue ("@salt", user.Salt)
+          cmd.Parameters.AddWithValue ("@url", maybe user.Url)
+          cmd.Parameters.AddWithValue ("@accessLevel", AccessLevel.toString user.AccessLevel)
+          cmd.Parameters.AddWithValue ("@createdOn", user.CreatedOn)
+          cmd.Parameters.AddWithValue ("@lastSeenOn", maybe user.LastSeenOn)
         ] |> ignore
     
     // IMPLEMENTATION FUNCTIONS
@@ -33,11 +33,11 @@ type SQLiteWebLogUserData (conn : SqliteConnection) =
         use cmd = conn.CreateCommand ()
         cmd.CommandText <- """
             INSERT INTO web_log_user (
-                id, web_log_id, user_name, first_name, last_name, preferred_name, password_hash, salt, url,
-                access_level, created_on, last_seen_on
+                id, web_log_id, email, first_name, last_name, preferred_name, password_hash, salt, url, access_level,
+                created_on, last_seen_on
             ) VALUES (
-                @id, @webLogId, @userName, @firstName, @lastName, @preferredName, @passwordHash, @salt, @url,
-                @accessLevel, @createdOn, @lastSeenOn
+                @id, @webLogId, @email, @firstName, @lastName, @preferredName, @passwordHash, @salt, @url, @accessLevel,
+                @createdOn, @lastSeenOn
             )"""
         addWebLogUserParameters cmd user
         do! write cmd
@@ -46,9 +46,9 @@ type SQLiteWebLogUserData (conn : SqliteConnection) =
     /// Find a user by their e-mail address for the given web log
     let findByEmail (email : string) webLogId = backgroundTask {
         use cmd = conn.CreateCommand ()
-        cmd.CommandText <- "SELECT * FROM web_log_user WHERE web_log_id = @webLogId AND user_name = @userName"
+        cmd.CommandText <- "SELECT * FROM web_log_user WHERE web_log_id = @webLogId AND email = @email"
         addWebLogId cmd webLogId
-        cmd.Parameters.AddWithValue ("@userName", email) |> ignore
+        cmd.Parameters.AddWithValue ("@email", email) |> ignore
         use! rdr = cmd.ExecuteReaderAsync ()
         return if rdr.Read () then Some (Map.toWebLogUser rdr) else None
     }
@@ -59,7 +59,7 @@ type SQLiteWebLogUserData (conn : SqliteConnection) =
         cmd.CommandText <- "SELECT * FROM web_log_user WHERE id = @id"
         cmd.Parameters.AddWithValue ("@id", WebLogUserId.toString userId) |> ignore
         use! rdr = cmd.ExecuteReaderAsync ()
-        return Helpers.verifyWebLog<WebLogUser> webLogId (fun u -> u.webLogId) Map.toWebLogUser rdr 
+        return Helpers.verifyWebLog<WebLogUser> webLogId (fun u -> u.WebLogId) Map.toWebLogUser rdr 
     }
     
     /// Get all users for the given web log
@@ -85,7 +85,7 @@ type SQLiteWebLogUserData (conn : SqliteConnection) =
         use! rdr = cmd.ExecuteReaderAsync ()
         return
             toList Map.toWebLogUser rdr
-            |> List.map (fun u -> { name = WebLogUserId.toString u.id; value = WebLogUser.displayName u })
+            |> List.map (fun u -> { Name = WebLogUserId.toString u.Id; Value = WebLogUser.displayName u })
     }
     
     /// Restore users from a backup
@@ -115,7 +115,7 @@ type SQLiteWebLogUserData (conn : SqliteConnection) =
         use cmd = conn.CreateCommand ()
         cmd.CommandText <- """
             UPDATE web_log_user
-               SET user_name      = @userName,
+               SET email          = @email,
                    first_name     = @firstName,
                    last_name      = @lastName,
                    preferred_name = @preferredName,

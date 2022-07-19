@@ -76,13 +76,13 @@ type DisplayCustomFeed =
     /// Create a display version from a custom feed
     static member fromFeed (cats : DisplayCategory[]) (feed : CustomFeed) : DisplayCustomFeed =
         let source =
-            match feed.source with
+            match feed.Source with
             | Category (CategoryId catId) -> $"Category: {(cats |> Array.find (fun cat -> cat.Id = catId)).Name}"
             | Tag tag -> $"Tag: {tag}"
-        { Id        = CustomFeedId.toString feed.id
+        { Id        = CustomFeedId.toString feed.Id
           Source    = source
-          Path      = Permalink.toString feed.path
-          IsPodcast = Option.isSome feed.podcast
+          Path      = Permalink.toString feed.Path
+          IsPodcast = Option.isSome feed.Podcast
         }
 
 
@@ -108,7 +108,7 @@ type DisplayPage =
         UpdatedOn : DateTime
 
         /// Whether this page shows as part of the web log's navigation
-        ShowInPageList : bool
+        IsInPageList : bool
         
         /// Is this the default page?
         IsDefault : bool
@@ -122,33 +122,33 @@ type DisplayPage =
     
     /// Create a minimal display page (no text or metadata) from a database page
     static member fromPageMinimal webLog (page : Page) =
-        let pageId = PageId.toString page.id
-        { Id             = pageId
-          AuthorId       = WebLogUserId.toString page.authorId
-          Title          = page.title
-          Permalink      = Permalink.toString page.permalink
-          PublishedOn    = page.publishedOn
-          UpdatedOn      = page.updatedOn
-          ShowInPageList = page.showInPageList
-          IsDefault      = pageId = webLog.defaultPage
-          Text           = ""
-          Metadata       = []
+        let pageId = PageId.toString page.Id
+        { Id           = pageId
+          AuthorId     = WebLogUserId.toString page.AuthorId
+          Title        = page.Title
+          Permalink    = Permalink.toString page.Permalink
+          PublishedOn  = page.PublishedOn
+          UpdatedOn    = page.UpdatedOn
+          IsInPageList = page.IsInPageList
+          IsDefault    = pageId = webLog.DefaultPage
+          Text         = ""
+          Metadata     = []
         }
     
     /// Create a display page from a database page
     static member fromPage webLog (page : Page) =
         let _, extra = WebLog.hostAndPath webLog
-        let pageId = PageId.toString page.id
-        { Id             = pageId
-          AuthorId       = WebLogUserId.toString page.authorId
-          Title          = page.title
-          Permalink      = Permalink.toString page.permalink
-          PublishedOn    = page.publishedOn
-          UpdatedOn      = page.updatedOn
-          ShowInPageList = page.showInPageList
-          IsDefault      = pageId = webLog.defaultPage
-          Text           = if extra = "" then page.text else page.text.Replace ("href=\"/", $"href=\"{extra}/")
-          Metadata       = page.metadata
+        let pageId = PageId.toString page.Id
+        { Id           = pageId
+          AuthorId     = WebLogUserId.toString page.AuthorId
+          Title        = page.Title
+          Permalink    = Permalink.toString page.Permalink
+          PublishedOn  = page.PublishedOn
+          UpdatedOn    = page.UpdatedOn
+          IsInPageList = page.IsInPageList
+          IsDefault    = pageId = webLog.DefaultPage
+          Text         = if extra = "" then page.Text else page.Text.Replace ("href=\"/", $"href=\"{extra}/")
+          Metadata     = page.Metadata
         }
 
 
@@ -168,9 +168,9 @@ with
 
     /// Create a display revision from an actual revision
     static member fromRevision webLog (rev : Revision) =
-        { AsOf      = rev.asOf
-          AsOfLocal = WebLog.localTime webLog rev.asOf
-          Format    = MarkupText.sourceType rev.text
+        { AsOf      = rev.AsOf
+          AsOfLocal = WebLog.localTime webLog rev.AsOf
+          Format    = MarkupText.sourceType rev.Text
         }
 
 
@@ -197,12 +197,12 @@ type DisplayUpload =
     
     /// Create a display uploaded file
     static member fromUpload webLog source (upload : Upload) =
-        let path = Permalink.toString upload.path
+        let path = Permalink.toString upload.Path
         let name = Path.GetFileName path
-        { Id        = UploadId.toString upload.id
+        { Id        = UploadId.toString upload.Id
           Name      = name
           Path      = path.Replace (name, "")
-          UpdatedOn = Some (WebLog.localTime webLog upload.updatedOn)
+          UpdatedOn = Some (WebLog.localTime webLog upload.UpdatedOn)
           Source    = UploadDestination.toString source
         }
 
@@ -228,11 +228,11 @@ type EditCategoryModel =
     
     /// Create an edit model from an existing category 
     static member fromCategory (cat : Category) =
-        { CategoryId  = CategoryId.toString cat.id
-          Name        = cat.name
-          Slug        = cat.slug
-          Description = defaultArg cat.description ""
-          ParentId    = cat.parentId |> Option.map CategoryId.toString |> Option.defaultValue ""
+        { CategoryId  = CategoryId.toString cat.Id
+          Name        = cat.Name
+          Slug        = cat.Slug
+          Description = defaultArg cat.Description ""
+          ParentId    = cat.ParentId |> Option.map CategoryId.toString |> Option.defaultValue ""
         }
 
 
@@ -275,11 +275,11 @@ type EditCustomFeedModel =
         /// The link to the image for the podcast
         ImageUrl : string
         
-        /// The category from iTunes under which this podcast is categorized
-        iTunesCategory : string
+        /// The category from Apple Podcasts (iTunes) under which this podcast is categorized
+        AppleCategory : string
         
-        /// A further refinement of the categorization of this podcast (iTunes field / values)
-        iTunesSubcategory : string
+        /// A further refinement of the categorization of this podcast (Apple Podcasts/iTunes field / values)
+        AppleSubcategory : string
         
         /// The explictness rating (iTunes field)
         Explicit : string
@@ -305,91 +305,121 @@ type EditCustomFeedModel =
     
     /// An empty custom feed model
     static member empty =
-        { Id                = ""
-          SourceType        = "category"
-          SourceValue       = ""
-          Path              = ""
-          IsPodcast         = false
-          Title             = ""
-          Subtitle          = ""
-          ItemsInFeed       = 25
-          Summary           = ""
-          DisplayedAuthor   = ""
-          Email             = ""
-          ImageUrl          = ""
-          iTunesCategory    = ""
-          iTunesSubcategory = ""
-          Explicit          = "no"
-          DefaultMediaType  = "audio/mpeg"
-          MediaBaseUrl      = ""
-          FundingUrl        = ""
-          FundingText       = ""
-          PodcastGuid       = ""
-          Medium            = ""
+        { Id               = ""
+          SourceType       = "category"
+          SourceValue      = ""
+          Path             = ""
+          IsPodcast        = false
+          Title            = ""
+          Subtitle         = ""
+          ItemsInFeed      = 25
+          Summary          = ""
+          DisplayedAuthor  = ""
+          Email            = ""
+          ImageUrl         = ""
+          AppleCategory    = ""
+          AppleSubcategory = ""
+          Explicit         = "no"
+          DefaultMediaType = "audio/mpeg"
+          MediaBaseUrl     = ""
+          FundingUrl       = ""
+          FundingText      = ""
+          PodcastGuid      = ""
+          Medium           = ""
         }
     
     /// Create a model from a custom feed
     static member fromFeed (feed : CustomFeed) =
         let rss =
             { EditCustomFeedModel.empty with
-                Id          = CustomFeedId.toString feed.id
-                SourceType  = match feed.source with Category _ -> "category" | Tag _ -> "tag"
-                SourceValue = match feed.source with Category (CategoryId catId) -> catId | Tag tag -> tag
-                Path        = Permalink.toString feed.path
+                Id          = CustomFeedId.toString feed.Id
+                SourceType  = match feed.Source with Category _ -> "category" | Tag _ -> "tag"
+                SourceValue = match feed.Source with Category (CategoryId catId) -> catId | Tag tag -> tag
+                Path        = Permalink.toString feed.Path
             }
-        match feed.podcast with
+        match feed.Podcast with
         | Some p ->
             { rss with
-                IsPodcast         = true
-                Title             = p.title
-                Subtitle          = defaultArg p.subtitle ""
-                ItemsInFeed       = p.itemsInFeed
-                Summary           = p.summary
-                DisplayedAuthor   = p.displayedAuthor
-                Email             = p.email
-                ImageUrl          = Permalink.toString p.imageUrl
-                iTunesCategory    = p.iTunesCategory
-                iTunesSubcategory = defaultArg p.iTunesSubcategory ""
-                Explicit          = ExplicitRating.toString p.explicit
-                DefaultMediaType  = defaultArg p.defaultMediaType ""
-                MediaBaseUrl      = defaultArg p.mediaBaseUrl ""
-                FundingUrl        = defaultArg p.fundingUrl ""
-                FundingText       = defaultArg p.fundingText ""
-                PodcastGuid       = p.guid
-                                    |> Option.map (fun it -> it.ToString().ToLowerInvariant ())
-                                    |> Option.defaultValue ""
-                Medium            = p.medium |> Option.map PodcastMedium.toString |> Option.defaultValue ""
+                IsPodcast        = true
+                Title            = p.Title
+                Subtitle         = defaultArg p.Subtitle ""
+                ItemsInFeed      = p.ItemsInFeed
+                Summary          = p.Summary
+                DisplayedAuthor  = p.DisplayedAuthor
+                Email            = p.Email
+                ImageUrl         = Permalink.toString p.ImageUrl
+                AppleCategory    = p.AppleCategory
+                AppleSubcategory = defaultArg p.AppleSubcategory ""
+                Explicit         = ExplicitRating.toString p.Explicit
+                DefaultMediaType = defaultArg p.DefaultMediaType ""
+                MediaBaseUrl     = defaultArg p.MediaBaseUrl ""
+                FundingUrl       = defaultArg p.FundingUrl ""
+                FundingText      = defaultArg p.FundingText ""
+                PodcastGuid      = p.PodcastGuid
+                                   |> Option.map (fun it -> it.ToString().ToLowerInvariant ())
+                                   |> Option.defaultValue ""
+                Medium           = p.Medium |> Option.map PodcastMedium.toString |> Option.defaultValue ""
             }
         | None -> rss
     
     /// Update a feed with values from this model
-    member this.updateFeed (feed : CustomFeed) =
+    member this.UpdateFeed (feed : CustomFeed) =
         { feed with
-            source  = if this.SourceType = "tag" then Tag this.SourceValue else Category (CategoryId this.SourceValue)
-            path    = Permalink this.Path
-            podcast =
+            Source  = if this.SourceType = "tag" then Tag this.SourceValue else Category (CategoryId this.SourceValue)
+            Path    = Permalink this.Path
+            Podcast =
                 if this.IsPodcast then
                     Some {
-                        title             = this.Title
-                        subtitle          = noneIfBlank this.Subtitle
-                        itemsInFeed       = this.ItemsInFeed
-                        summary           = this.Summary
-                        displayedAuthor   = this.DisplayedAuthor
-                        email             = this.Email
-                        imageUrl          = Permalink this.ImageUrl
-                        iTunesCategory    = this.iTunesCategory
-                        iTunesSubcategory = noneIfBlank this.iTunesSubcategory
-                        explicit          = ExplicitRating.parse this.Explicit
-                        defaultMediaType  = noneIfBlank this.DefaultMediaType
-                        mediaBaseUrl      = noneIfBlank this.MediaBaseUrl
-                        guid              = noneIfBlank this.PodcastGuid |> Option.map Guid.Parse
-                        fundingUrl        = noneIfBlank this.FundingUrl
-                        fundingText       = noneIfBlank this.FundingText
-                        medium            = noneIfBlank this.Medium |> Option.map PodcastMedium.parse
+                        Title            = this.Title
+                        Subtitle         = noneIfBlank this.Subtitle
+                        ItemsInFeed      = this.ItemsInFeed
+                        Summary          = this.Summary
+                        DisplayedAuthor  = this.DisplayedAuthor
+                        Email            = this.Email
+                        ImageUrl         = Permalink this.ImageUrl
+                        AppleCategory    = this.AppleCategory
+                        AppleSubcategory = noneIfBlank this.AppleSubcategory
+                        Explicit         = ExplicitRating.parse this.Explicit
+                        DefaultMediaType = noneIfBlank this.DefaultMediaType
+                        MediaBaseUrl     = noneIfBlank this.MediaBaseUrl
+                        PodcastGuid      = noneIfBlank this.PodcastGuid |> Option.map Guid.Parse
+                        FundingUrl       = noneIfBlank this.FundingUrl
+                        FundingText      = noneIfBlank this.FundingText
+                        Medium           = noneIfBlank this.Medium |> Option.map PodcastMedium.parse
                     }
                 else
                     None
         }
+
+
+/// View model for a user to edit their own information
+[<CLIMutable; NoComparison; NoEquality>]
+type EditMyInfoModel =
+    {   /// The user's first name
+        FirstName : string
+        
+        /// The user's last name
+        LastName : string
+        
+        /// The user's preferred name
+        PreferredName : string
+        
+        /// A new password for the user
+        NewPassword : string
+        
+        /// A new password for the user, confirmed
+        NewPasswordConfirm : string
+    }
+    
+    /// Create an edit model from a user
+    static member fromUser (user : WebLogUser) =
+        { FirstName          = user.FirstName
+          LastName           = user.LastName
+          PreferredName      = user.PreferredName
+          NewPassword        = ""
+          NewPasswordConfirm = ""
+        }
+
 
 /// View model to edit a page
 [<CLIMutable; NoComparison; NoEquality>]
@@ -425,19 +455,19 @@ type EditPageModel =
     /// Create an edit model from an existing page
     static member fromPage (page : Page) =
         let latest =
-            match page.revisions |> List.sortByDescending (fun r -> r.asOf) |> List.tryHead with
+            match page.Revisions |> List.sortByDescending (fun r -> r.AsOf) |> List.tryHead with
             | Some rev -> rev
             | None -> Revision.empty
-        let page = if page.metadata |> List.isEmpty then { page with metadata = [ MetaItem.empty ] } else page
-        { PageId            = PageId.toString page.id
-          Title             = page.title
-          Permalink         = Permalink.toString page.permalink
-          Template          = defaultArg page.template ""
-          IsShownInPageList = page.showInPageList
-          Source            = MarkupText.sourceType latest.text
-          Text              = MarkupText.text       latest.text
-          MetaNames         = page.metadata |> List.map (fun m -> m.name)  |> Array.ofList
-          MetaValues        = page.metadata |> List.map (fun m -> m.value) |> Array.ofList
+        let page = if page.Metadata |> List.isEmpty then { page with Metadata = [ MetaItem.empty ] } else page
+        { PageId            = PageId.toString page.Id
+          Title             = page.Title
+          Permalink         = Permalink.toString page.Permalink
+          Template          = defaultArg page.Template ""
+          IsShownInPageList = page.IsInPageList
+          Source            = MarkupText.sourceType latest.Text
+          Text              = MarkupText.text       latest.Text
+          MetaNames         = page.Metadata |> List.map (fun m -> m.Name)  |> Array.ofList
+          MetaValues        = page.Metadata |> List.map (fun m -> m.Value) |> Array.ofList
         }
 
 
@@ -547,94 +577,94 @@ type EditPostModel =
     /// Create an edit model from an existing past
     static member fromPost webLog (post : Post) =
         let latest =
-            match post.revisions |> List.sortByDescending (fun r -> r.asOf) |> List.tryHead with
+            match post.Revisions |> List.sortByDescending (fun r -> r.AsOf) |> List.tryHead with
             | Some rev -> rev
             | None -> Revision.empty
-        let post = if post.metadata |> List.isEmpty then { post with metadata = [ MetaItem.empty ] } else post
-        let episode = defaultArg post.episode Episode.empty
-        { PostId             = PostId.toString post.id
-          Title              = post.title
-          Permalink          = Permalink.toString post.permalink
-          Source             = MarkupText.sourceType latest.text
-          Text               = MarkupText.text       latest.text
-          Tags               = String.Join (", ", post.tags)
-          Template           = defaultArg post.template ""
-          CategoryIds        = post.categoryIds |> List.map CategoryId.toString |> Array.ofList
-          Status             = PostStatus.toString post.status
+        let post = if post.Metadata |> List.isEmpty then { post with Metadata = [ MetaItem.empty ] } else post
+        let episode = defaultArg post.Episode Episode.empty
+        { PostId             = PostId.toString post.Id
+          Title              = post.Title
+          Permalink          = Permalink.toString post.Permalink
+          Source             = MarkupText.sourceType latest.Text
+          Text               = MarkupText.text       latest.Text
+          Tags               = String.Join (", ", post.Tags)
+          Template           = defaultArg post.Template ""
+          CategoryIds        = post.CategoryIds |> List.map CategoryId.toString |> Array.ofList
+          Status             = PostStatus.toString post.Status
           DoPublish          = false
-          MetaNames          = post.metadata |> List.map (fun m -> m.name)  |> Array.ofList
-          MetaValues         = post.metadata |> List.map (fun m -> m.value) |> Array.ofList
+          MetaNames          = post.Metadata |> List.map (fun m -> m.Name)  |> Array.ofList
+          MetaValues         = post.Metadata |> List.map (fun m -> m.Value) |> Array.ofList
           SetPublished       = false
-          PubOverride        = post.publishedOn |> Option.map (WebLog.localTime webLog) |> Option.toNullable
+          PubOverride        = post.PublishedOn |> Option.map (WebLog.localTime webLog) |> Option.toNullable
           SetUpdated         = false
-          IsEpisode          = Option.isSome post.episode
-          Media              = episode.media
-          Length             = episode.length
-          Duration           = defaultArg (episode.duration |> Option.map (fun it -> it.ToString """hh\:mm\:ss""")) ""
-          MediaType          = defaultArg episode.mediaType ""
-          ImageUrl           = defaultArg episode.imageUrl ""
-          Subtitle           = defaultArg episode.subtitle ""
-          Explicit           = defaultArg (episode.explicit |> Option.map ExplicitRating.toString) ""
-          ChapterFile        = defaultArg episode.chapterFile ""
-          ChapterType        = defaultArg episode.chapterType ""
-          TranscriptUrl      = defaultArg episode.transcriptUrl ""
-          TranscriptType     = defaultArg episode.transcriptType ""
-          TranscriptLang     = defaultArg episode.transcriptLang ""
-          TranscriptCaptions = defaultArg episode.transcriptCaptions false
-          SeasonNumber       = defaultArg episode.seasonNumber 0
-          SeasonDescription  = defaultArg episode.seasonDescription ""
-          EpisodeNumber      = defaultArg (episode.episodeNumber |> Option.map string) ""  
-          EpisodeDescription = defaultArg episode.episodeDescription ""
+          IsEpisode          = Option.isSome post.Episode
+          Media              = episode.Media
+          Length             = episode.Length
+          Duration           = defaultArg (episode.Duration |> Option.map (fun it -> it.ToString """hh\:mm\:ss""")) ""
+          MediaType          = defaultArg episode.MediaType ""
+          ImageUrl           = defaultArg episode.ImageUrl ""
+          Subtitle           = defaultArg episode.Subtitle ""
+          Explicit           = defaultArg (episode.Explicit |> Option.map ExplicitRating.toString) ""
+          ChapterFile        = defaultArg episode.ChapterFile ""
+          ChapterType        = defaultArg episode.ChapterType ""
+          TranscriptUrl      = defaultArg episode.TranscriptUrl ""
+          TranscriptType     = defaultArg episode.TranscriptType ""
+          TranscriptLang     = defaultArg episode.TranscriptLang ""
+          TranscriptCaptions = defaultArg episode.TranscriptCaptions false
+          SeasonNumber       = defaultArg episode.SeasonNumber 0
+          SeasonDescription  = defaultArg episode.SeasonDescription ""
+          EpisodeNumber      = defaultArg (episode.EpisodeNumber |> Option.map string) ""  
+          EpisodeDescription = defaultArg episode.EpisodeDescription ""
         }
     
     /// Update a post with values from the submitted form
-    member this.updatePost (post : Post) (revision : Revision) now =
+    member this.UpdatePost (post : Post) (revision : Revision) now =
         { post with
-            title       = this.Title
-            permalink   = Permalink this.Permalink
-            publishedOn = if this.DoPublish then Some now else post.publishedOn
-            updatedOn   = now
-            text        = MarkupText.toHtml revision.text
-            tags        = this.Tags.Split ","
+            Title       = this.Title
+            Permalink   = Permalink this.Permalink
+            PublishedOn = if this.DoPublish then Some now else post.PublishedOn
+            UpdatedOn   = now
+            Text        = MarkupText.toHtml revision.Text
+            Tags        = this.Tags.Split ","
                           |> Seq.ofArray
                           |> Seq.map (fun it -> it.Trim().ToLower ())
                           |> Seq.filter (fun it -> it <> "")
                           |> Seq.sort
                           |> List.ofSeq
-            template    = match this.Template.Trim () with "" -> None | tmpl -> Some tmpl
-            categoryIds = this.CategoryIds |> Array.map CategoryId |> List.ofArray
-            status      = if this.DoPublish then Published else post.status
-            metadata    = Seq.zip this.MetaNames this.MetaValues
+            Template    = match this.Template.Trim () with "" -> None | tmpl -> Some tmpl
+            CategoryIds = this.CategoryIds |> Array.map CategoryId |> List.ofArray
+            Status      = if this.DoPublish then Published else post.Status
+            Metadata    = Seq.zip this.MetaNames this.MetaValues
                           |> Seq.filter (fun it -> fst it > "")
-                          |> Seq.map (fun it -> { name = fst it; value = snd it })
-                          |> Seq.sortBy (fun it -> $"{it.name.ToLower ()} {it.value.ToLower ()}")
+                          |> Seq.map (fun it -> { Name = fst it; Value = snd it })
+                          |> Seq.sortBy (fun it -> $"{it.Name.ToLower ()} {it.Value.ToLower ()}")
                           |> List.ofSeq
-            revisions   = match post.revisions |> List.tryHead with
-                          | Some r when r.text = revision.text -> post.revisions
-                          | _ -> revision :: post.revisions
-            episode     =
+            Revisions   = match post.Revisions |> List.tryHead with
+                          | Some r when r.Text = revision.Text -> post.Revisions
+                          | _ -> revision :: post.Revisions
+            Episode     =
                 if this.IsEpisode then
                     Some {
-                        media              = this.Media
-                        length             = this.Length
-                        duration           = noneIfBlank this.Duration |> Option.map TimeSpan.Parse
-                        mediaType          = noneIfBlank this.MediaType
-                        imageUrl           = noneIfBlank this.ImageUrl
-                        subtitle           = noneIfBlank this.Subtitle
-                        explicit           = noneIfBlank this.Explicit |> Option.map ExplicitRating.parse
-                        chapterFile        = noneIfBlank this.ChapterFile
-                        chapterType        = noneIfBlank this.ChapterType
-                        transcriptUrl      = noneIfBlank this.TranscriptUrl
-                        transcriptType     = noneIfBlank this.TranscriptType
-                        transcriptLang     = noneIfBlank this.TranscriptLang
-                        transcriptCaptions = if this.TranscriptCaptions then Some true else None
-                        seasonNumber       = if this.SeasonNumber = 0 then None else Some this.SeasonNumber
-                        seasonDescription  = noneIfBlank this.SeasonDescription
-                        episodeNumber      = match noneIfBlank this.EpisodeNumber |> Option.map Double.Parse with
+                        Media              = this.Media
+                        Length             = this.Length
+                        Duration           = noneIfBlank this.Duration |> Option.map TimeSpan.Parse
+                        MediaType          = noneIfBlank this.MediaType
+                        ImageUrl           = noneIfBlank this.ImageUrl
+                        Subtitle           = noneIfBlank this.Subtitle
+                        Explicit           = noneIfBlank this.Explicit |> Option.map ExplicitRating.parse
+                        ChapterFile        = noneIfBlank this.ChapterFile
+                        ChapterType        = noneIfBlank this.ChapterType
+                        TranscriptUrl      = noneIfBlank this.TranscriptUrl
+                        TranscriptType     = noneIfBlank this.TranscriptType
+                        TranscriptLang     = noneIfBlank this.TranscriptLang
+                        TranscriptCaptions = if this.TranscriptCaptions then Some true else None
+                        SeasonNumber       = if this.SeasonNumber = 0 then None else Some this.SeasonNumber
+                        SeasonDescription  = noneIfBlank this.SeasonDescription
+                        EpisodeNumber      = match noneIfBlank this.EpisodeNumber |> Option.map Double.Parse with
                                              | Some it when it = 0.0 -> None
                                              | Some it -> Some (double it)
                                              | None -> None
-                        episodeDescription = noneIfBlank this.EpisodeDescription
+                        EpisodeDescription = noneIfBlank this.EpisodeDescription
                     }
                 else
                     None
@@ -665,23 +695,23 @@ type EditRssModel =
     
     /// Create an edit model from a set of RSS options
     static member fromRssOptions (rss : RssOptions) =
-        { IsFeedEnabled     = rss.feedEnabled
-          FeedName          = rss.feedName
-          ItemsInFeed       = defaultArg rss.itemsInFeed 0
-          IsCategoryEnabled = rss.categoryEnabled
-          IsTagEnabled      = rss.tagEnabled
-          Copyright         = defaultArg rss.copyright ""
+        { IsFeedEnabled     = rss.IsFeedEnabled
+          FeedName          = rss.FeedName
+          ItemsInFeed       = defaultArg rss.ItemsInFeed 0
+          IsCategoryEnabled = rss.IsCategoryEnabled
+          IsTagEnabled      = rss.IsTagEnabled
+          Copyright         = defaultArg rss.Copyright ""
         }
     
     /// Update RSS options from values in this mode
-    member this.updateOptions (rss : RssOptions) =
+    member this.UpdateOptions (rss : RssOptions) =
         { rss with
-            feedEnabled     = this.IsFeedEnabled
-            feedName        = this.FeedName
-            itemsInFeed     = if this.ItemsInFeed = 0 then None else Some this.ItemsInFeed
-            categoryEnabled = this.IsCategoryEnabled
-            tagEnabled      = this.IsTagEnabled
-            copyright       = noneIfBlank this.Copyright
+            IsFeedEnabled     = this.IsFeedEnabled
+            FeedName          = this.FeedName
+            ItemsInFeed       = if this.ItemsInFeed = 0 then None else Some this.ItemsInFeed
+            IsCategoryEnabled = this.IsCategoryEnabled
+            IsTagEnabled      = this.IsTagEnabled
+            Copyright         = noneIfBlank this.Copyright
         }
 
 
@@ -703,37 +733,9 @@ type EditTagMapModel =
     
     /// Create an edit model from the tag mapping
     static member fromMapping (tagMap : TagMap) : EditTagMapModel =
-        { Id       = TagMapId.toString tagMap.id
-          Tag      = tagMap.tag
-          UrlValue = tagMap.urlValue
-        }
-
-
-/// View model to edit a user
-[<CLIMutable; NoComparison; NoEquality>]
-type EditUserModel =
-    {   /// The user's first name
-        FirstName : string
-        
-        /// The user's last name
-        LastName : string
-        
-        /// The user's preferred name
-        PreferredName : string
-        
-        /// A new password for the user
-        NewPassword : string
-        
-        /// A new password for the user, confirmed
-        NewPasswordConfirm : string
-    }
-    /// Create an edit model from a user
-    static member fromUser (user : WebLogUser) =
-        { FirstName          = user.firstName
-          LastName           = user.lastName
-          PreferredName      = user.preferredName
-          NewPassword        = ""
-          NewPasswordConfirm = ""
+        { Id       = TagMapId.toString tagMap.Id
+          Tag      = tagMap.Tag
+          UrlValue = tagMap.UrlValue
         }
 
 
@@ -776,20 +778,20 @@ type ManagePermalinksModel =
     
     /// Create a permalink model from a page
     static member fromPage (pg : Page) =
-        { Id               = PageId.toString pg.id
+        { Id               = PageId.toString pg.Id
           Entity           = "page"
-          CurrentTitle     = pg.title
-          CurrentPermalink = Permalink.toString pg.permalink
-          Prior            = pg.priorPermalinks |> List.map Permalink.toString |> Array.ofList
+          CurrentTitle     = pg.Title
+          CurrentPermalink = Permalink.toString pg.Permalink
+          Prior            = pg.PriorPermalinks |> List.map Permalink.toString |> Array.ofList
         }
 
     /// Create a permalink model from a post
     static member fromPost (post : Post) =
-        { Id               = PostId.toString post.id
+        { Id               = PostId.toString post.Id
           Entity           = "post"
-          CurrentTitle     = post.title
-          CurrentPermalink = Permalink.toString post.permalink
-          Prior            = post.priorPermalinks |> List.map Permalink.toString |> Array.ofList
+          CurrentTitle     = post.Title
+          CurrentPermalink = Permalink.toString post.Permalink
+          Prior            = post.PriorPermalinks |> List.map Permalink.toString |> Array.ofList
         }
 
 
@@ -811,18 +813,18 @@ type ManageRevisionsModel =
     
     /// Create a revision model from a page
     static member fromPage webLog (pg : Page) =
-        { Id           = PageId.toString pg.id
+        { Id           = PageId.toString pg.Id
           Entity       = "page"
-          CurrentTitle = pg.title
-          Revisions    = pg.revisions |> List.map (DisplayRevision.fromRevision webLog) |> Array.ofList
+          CurrentTitle = pg.Title
+          Revisions    = pg.Revisions |> List.map (DisplayRevision.fromRevision webLog) |> Array.ofList
         }
 
     /// Create a revision model from a post
     static member fromPost webLog (post : Post) =
-        { Id           = PostId.toString post.id
+        { Id           = PostId.toString post.Id
           Entity       = "post"
-          CurrentTitle = post.title
-          Revisions    = post.revisions |> List.map (DisplayRevision.fromRevision webLog) |> Array.ofList
+          CurrentTitle = post.Title
+          Revisions    = post.Revisions |> List.map (DisplayRevision.fromRevision webLog) |> Array.ofList
         }
 
 
@@ -870,18 +872,18 @@ type PostListItem =
     static member fromPost (webLog : WebLog) (post : Post) =
         let _, extra = WebLog.hostAndPath webLog
         let inTZ     = WebLog.localTime   webLog
-        { Id          = PostId.toString post.id
-          AuthorId    = WebLogUserId.toString post.authorId
-          Status      = PostStatus.toString   post.status
-          Title       = post.title
-          Permalink   = Permalink.toString post.permalink
-          PublishedOn = post.publishedOn |> Option.map inTZ |> Option.toNullable
-          UpdatedOn   = inTZ post.updatedOn
-          Text        = if extra = "" then post.text else post.text.Replace ("href=\"/", $"href=\"{extra}/")
-          CategoryIds = post.categoryIds |> List.map CategoryId.toString
-          Tags        = post.tags
-          Episode     = post.episode
-          Metadata    = post.metadata
+        { Id          = PostId.toString post.Id
+          AuthorId    = WebLogUserId.toString post.AuthorId
+          Status      = PostStatus.toString   post.Status
+          Title       = post.Title
+          Permalink   = Permalink.toString post.Permalink
+          PublishedOn = post.PublishedOn |> Option.map inTZ |> Option.toNullable
+          UpdatedOn   = inTZ post.UpdatedOn
+          Text        = if extra = "" then post.Text else post.Text.Replace ("href=\"/", $"href=\"{extra}/")
+          CategoryIds = post.CategoryIds |> List.map CategoryId.toString
+          Tags        = post.Tags
+          Episode     = post.Episode
+          Metadata    = post.Metadata
         }
 
 
@@ -932,7 +934,7 @@ type SettingsModel =
         TimeZone : string
         
         /// The theme to use to display the web log
-        ThemePath : string
+        ThemeId : string
         
         /// Whether to automatically load htmx
         AutoHtmx : bool
@@ -943,29 +945,29 @@ type SettingsModel =
     
     /// Create a settings model from a web log
     static member fromWebLog (webLog : WebLog) =
-        { Name         = webLog.name
-          Slug         = webLog.slug
-          Subtitle     = defaultArg webLog.subtitle ""
-          DefaultPage  = webLog.defaultPage
-          PostsPerPage = webLog.postsPerPage
-          TimeZone     = webLog.timeZone
-          ThemePath    = webLog.themePath
-          AutoHtmx     = webLog.autoHtmx
-          Uploads      = UploadDestination.toString webLog.uploads
+        { Name         = webLog.Name
+          Slug         = webLog.Slug
+          Subtitle     = defaultArg webLog.Subtitle ""
+          DefaultPage  = webLog.DefaultPage
+          PostsPerPage = webLog.PostsPerPage
+          TimeZone     = webLog.TimeZone
+          ThemeId      = ThemeId.toString webLog.ThemeId
+          AutoHtmx     = webLog.AutoHtmx
+          Uploads      = UploadDestination.toString webLog.Uploads
         }
     
     /// Update a web log with settings from the form
     member this.update (webLog : WebLog) =
         { webLog with
-            name         = this.Name
-            slug         = this.Slug
-            subtitle     = if this.Subtitle = "" then None else Some this.Subtitle
-            defaultPage  = this.DefaultPage
-            postsPerPage = this.PostsPerPage
-            timeZone     = this.TimeZone
-            themePath    = this.ThemePath
-            autoHtmx     = this.AutoHtmx
-            uploads      = UploadDestination.parse this.Uploads
+            Name         = this.Name
+            Slug         = this.Slug
+            Subtitle     = if this.Subtitle = "" then None else Some this.Subtitle
+            DefaultPage  = this.DefaultPage
+            PostsPerPage = this.PostsPerPage
+            TimeZone     = this.TimeZone
+            ThemeId      = ThemeId this.ThemeId
+            AutoHtmx     = this.AutoHtmx
+            Uploads      = UploadDestination.parse this.Uploads
         }
 
 

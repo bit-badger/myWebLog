@@ -8,8 +8,8 @@ module private Helpers =
 
     /// Create a new ID (short GUID)
     // https://www.madskristensen.net/blog/A-shorter-and-URL-friendly-GUID
-    let newId() =
-        Convert.ToBase64String(Guid.NewGuid().ToByteArray()).Replace('/', '_').Replace('+', '-').Substring (0, 22)
+    let newId () =
+        Convert.ToBase64String(Guid.NewGuid().ToByteArray ()).Replace('/', '_').Replace('+', '-').Substring (0, 22)
 
 
 /// A user's access level
@@ -140,55 +140,55 @@ module ExplicitRating =
 /// A podcast episode
 type Episode =
     {   /// The URL to the media file for the episode (may be permalink)
-        media : string
+        Media : string
         
         /// The length of the media file, in bytes
-        length : int64
+        Length : int64
         
         /// The duration of the episode
-        duration : TimeSpan option
+        Duration : TimeSpan option
         
         /// The media type of the file (overrides podcast default if present)
-        mediaType : string option
+        MediaType : string option
         
         /// The URL to the image file for this episode (overrides podcast image if present, may be permalink)
-        imageUrl : string option
+        ImageUrl : string option
         
         /// A subtitle for this episode
-        subtitle : string option
+        Subtitle : string option
         
         /// This episode's explicit rating (overrides podcast rating if present)
-        explicit : ExplicitRating option
+        Explicit : ExplicitRating option
         
         /// A link to a chapter file
-        chapterFile : string option
+        ChapterFile : string option
         
         /// The MIME type for the chapter file
-        chapterType : string option
+        ChapterType : string option
         
         /// The URL for the transcript of the episode (may be permalink)
-        transcriptUrl : string option
+        TranscriptUrl : string option
         
         /// The MIME type of the transcript
-        transcriptType : string option
+        TranscriptType : string option
         
         /// The language in which the transcript is written
-        transcriptLang : string option
+        TranscriptLang : string option
         
         /// If true, the transcript will be declared (in the feed) to be a captions file
-        transcriptCaptions : bool option
+        TranscriptCaptions : bool option
         
         /// The season number (for serialized podcasts)
-        seasonNumber : int option
+        SeasonNumber : int option
         
         /// A description of the season
-        seasonDescription : string option
+        SeasonDescription : string option
         
         /// The episode number
-        episodeNumber : double option
+        EpisodeNumber : double option
         
         /// A description of the episode
-        episodeDescription : string option
+        EpisodeDescription : string option
     }
 
 /// Functions to support episodes
@@ -196,23 +196,23 @@ module Episode =
     
     /// An empty episode
     let empty = {
-        media              = ""
-        length             = 0L
-        duration           = None
-        mediaType          = None
-        imageUrl           = None
-        subtitle           = None
-        explicit           = None
-        chapterFile        = None
-        chapterType        = None
-        transcriptUrl      = None
-        transcriptType     = None
-        transcriptLang     = None
-        transcriptCaptions = None
-        seasonNumber       = None
-        seasonDescription  = None
-        episodeNumber      = None
-        episodeDescription = None
+        Media              = ""
+        Length             = 0L
+        Duration           = None
+        MediaType          = None
+        ImageUrl           = None
+        Subtitle           = None
+        Explicit           = None
+        ChapterFile        = None
+        ChapterType        = None
+        TranscriptUrl      = None
+        TranscriptType     = None
+        TranscriptLang     = None
+        TranscriptCaptions = None
+        SeasonNumber       = None
+        SeasonDescription  = None
+        EpisodeNumber      = None
+        EpisodeDescription = None
     }
 
 
@@ -256,10 +256,10 @@ module MarkupText =
 [<CLIMutable; NoComparison; NoEquality>]
 type MetaItem =
     {   /// The name of the metadata value
-        name : string
+        Name : string
         
         /// The metadata value
-        value : string
+        Value : string
     }
 
 /// Functions to support metadata items
@@ -267,17 +267,17 @@ module MetaItem =
 
     /// An empty metadata item
     let empty =
-        { name = ""; value = "" }
+        { Name = ""; Value = "" }
 
         
 /// A revision of a page or post
 [<CLIMutable; NoComparison; NoEquality>]
 type Revision =
     {   /// When this revision was saved
-        asOf : DateTime
+        AsOf : DateTime
 
         /// The text of the revision
-        text : MarkupText
+        Text : MarkupText
     }
 
 /// Functions to support revisions
@@ -285,8 +285,8 @@ module Revision =
     
     /// An empty revision
     let empty =
-        { asOf = DateTime.UtcNow
-          text = Html ""
+        { AsOf = DateTime.UtcNow
+          Text = Html ""
         }
 
 
@@ -436,68 +436,68 @@ module CustomFeedSource =
 /// Options for a feed that describes a podcast
 type PodcastOptions =
     {   /// The title of the podcast
-        title : string
+        Title : string
         
         /// A subtitle for the podcast
-        subtitle : string option
+        Subtitle : string option
         
         /// The number of items in the podcast feed
-        itemsInFeed : int
+        ItemsInFeed : int
         
         /// A summary of the podcast (iTunes field)
-        summary : string
+        Summary : string
         
         /// The display name of the podcast author (iTunes field)
-        displayedAuthor : string
+        DisplayedAuthor : string
         
         /// The e-mail address of the user who registered the podcast at iTunes
-        email : string
+        Email : string
         
         /// The link to the image for the podcast
-        imageUrl : Permalink
+        ImageUrl : Permalink
         
-        /// The category from iTunes under which this podcast is categorized
-        iTunesCategory : string
+        /// The category from Apple Podcasts (iTunes) under which this podcast is categorized
+        AppleCategory : string
         
-        /// A further refinement of the categorization of this podcast (iTunes field / values)
-        iTunesSubcategory : string option
+        /// A further refinement of the categorization of this podcast (Apple Podcasts/iTunes field / values)
+        AppleSubcategory : string option
         
         /// The explictness rating (iTunes field)
-        explicit : ExplicitRating
+        Explicit : ExplicitRating
         
         /// The default media type for files in this podcast
-        defaultMediaType : string option
+        DefaultMediaType : string option
         
         /// The base URL for relative URL media files for this podcast (optional; defaults to web log base)
-        mediaBaseUrl : string option
+        MediaBaseUrl : string option
         
         /// A GUID for this podcast
-        guid : Guid option
+        PodcastGuid : Guid option
         
         /// A URL at which information on supporting the podcast may be found (supports permalinks)
-        fundingUrl : string option
+        FundingUrl : string option
         
         /// The text to be displayed in the funding item within the feed
-        fundingText : string option
+        FundingText : string option
         
         /// The medium (what the podcast IS, not what it is ABOUT)
-        medium : PodcastMedium option
+        Medium : PodcastMedium option
     }
 
 
 /// A custom feed
 type CustomFeed =
     {   /// The ID of the custom feed
-        id : CustomFeedId
+        Id : CustomFeedId
         
         /// The source for the custom feed
-        source : CustomFeedSource
+        Source : CustomFeedSource
         
         /// The path for the custom feed
-        path : Permalink
+        Path : Permalink
         
         /// Podcast options, if the feed defines a podcast
-        podcast : PodcastOptions option
+        Podcast : PodcastOptions option
     }
 
 /// Functions to support custom feeds
@@ -505,10 +505,10 @@ module CustomFeed =
     
     /// An empty custom feed
     let empty =
-        { id      = CustomFeedId ""
-          source  = Category (CategoryId "")
-          path    = Permalink ""
-          podcast = None
+        { Id      = CustomFeedId ""
+          Source  = Category (CategoryId "")
+          Path    = Permalink ""
+          Podcast = None
         }
 
 
@@ -516,25 +516,25 @@ module CustomFeed =
 [<CLIMutable; NoComparison; NoEquality>]
 type RssOptions =
     {   /// Whether the site feed of posts is enabled
-        feedEnabled : bool
+        IsFeedEnabled : bool
         
         /// The name of the file generated for the site feed
-        feedName : string
+        FeedName : string
         
         /// Override the "posts per page" setting for the site feed
-        itemsInFeed : int option
+        ItemsInFeed : int option
         
         /// Whether feeds are enabled for all categories
-        categoryEnabled : bool
+        IsCategoryEnabled : bool
         
         /// Whether feeds are enabled for all tags
-        tagEnabled : bool
+        IsTagEnabled : bool
         
         /// A copyright string to be placed in all feeds
-        copyright : string option
+        Copyright : string option
         
         /// Custom feeds for this web log
-        customFeeds: CustomFeed list
+        CustomFeeds: CustomFeed list
     }
 
 /// Functions to support RSS options
@@ -542,13 +542,13 @@ module RssOptions =
     
     /// An empty set of RSS options
     let empty =
-        { feedEnabled     = true
-          feedName        = "feed.xml"
-          itemsInFeed     = None
-          categoryEnabled = true
-          tagEnabled      = true
-          copyright       = None
-          customFeeds     = []
+        { IsFeedEnabled     = true
+          FeedName          = "feed.xml"
+          ItemsInFeed       = None
+          IsCategoryEnabled = true
+          IsTagEnabled      = true
+          Copyright         = None
+          CustomFeeds       = []
         }
 
 
@@ -594,10 +594,10 @@ module ThemeAssetId =
 /// A template for a theme
 type ThemeTemplate =
     {   /// The name of the template
-        name : string
+        Name : string
         
         /// The text of the template
-        text : string
+        Text : string
     }
 
 
@@ -610,13 +610,13 @@ type UploadDestination =
 module UploadDestination =
     
     /// Convert an upload destination to its string representation
-    let toString = function Database -> "database" | Disk -> "disk"
+    let toString = function Database -> "Database" | Disk -> "Disk"
     
     /// Parse an upload destination from its string representation
     let parse value =
         match value with
-        | "database" -> Database
-        | "disk"     -> Disk
+        | "Database" -> Database
+        | "Disk"     -> Disk
         | it         -> invalidOp $"{it} is not a valid upload destination"
 
 

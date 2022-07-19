@@ -12,11 +12,13 @@ open MyWebLog.ViewModels
 type Context with
     
     /// Get the current web log from the DotLiquid context
-    member this.WebLog = this.Environments[0].["web_log"] :?> WebLog
+    member this.WebLog =
+        this.Environments[0].["web_log"] :?> WebLog
+
 
 /// Does an asset exist for the current theme?
 let assetExists fileName (webLog : WebLog) =
-    ThemeAssetCache.get (ThemeId webLog.themePath) |> List.exists (fun it -> it = fileName)
+    ThemeAssetCache.get webLog.ThemeId |> List.exists (fun it -> it = fileName)
 
 /// Obtain the link from known types
 let permalink (ctx : Context) (item : obj) (linkFunc : WebLog -> Permalink -> string) =
@@ -24,7 +26,7 @@ let permalink (ctx : Context) (item : obj) (linkFunc : WebLog -> Permalink -> st
     | :? String       as link  -> Some link
     | :? DisplayPage  as page  -> Some page.Permalink
     | :? PostListItem as post  -> Some post.Permalink
-    | :? DropProxy    as proxy -> Option.ofObj proxy["permalink"] |> Option.map string
+    | :? DropProxy    as proxy -> Option.ofObj proxy["Permalink"] |> Option.map string
     | _ -> None
     |> function
     | Some link -> linkFunc ctx.WebLog (Permalink link)
@@ -42,7 +44,7 @@ type CategoryLinkFilter () =
     static member CategoryLink (ctx : Context, catObj : obj) =
         match catObj with
         | :? DisplayCategory as cat   -> Some cat.Slug
-        | :? DropProxy       as proxy -> Option.ofObj proxy["slug"] |> Option.map string
+        | :? DropProxy       as proxy -> Option.ofObj proxy["Slug"] |> Option.map string
         | _ -> None
         |> function
         | Some slug -> WebLog.relativeUrl ctx.WebLog (Permalink $"category/{slug}/")
@@ -54,7 +56,7 @@ type EditPageLinkFilter () =
     static member EditPageLink (ctx : Context, pageObj : obj) =
         match pageObj with
         | :? DisplayPage as page  -> Some page.Id
-        | :? DropProxy   as proxy -> Option.ofObj proxy["id"] |> Option.map string
+        | :? DropProxy   as proxy -> Option.ofObj proxy["Id"] |> Option.map string
         | :? String      as theId -> Some theId
         | _ -> None
         |> function
@@ -67,7 +69,7 @@ type EditPostLinkFilter () =
     static member EditPostLink (ctx : Context, postObj : obj) =
         match postObj with
         | :? PostListItem as post  -> Some post.Id
-        | :? DropProxy    as proxy -> Option.ofObj proxy["id"] |> Option.map string
+        | :? DropProxy    as proxy -> Option.ofObj proxy["Id"] |> Option.map string
         | :? String       as theId -> Some theId
         | _ -> None
         |> function
@@ -89,13 +91,13 @@ type NavLinkFilter () =
             text
             "</a></li>"
         }
-        |> Seq.fold (+) ""
+        |> String.concat ""
 
 
 /// A filter to generate a link for theme asset (image, stylesheet, script, etc.)
 type ThemeAssetFilter () =
     static member ThemeAsset (ctx : Context, asset : string) =
-        WebLog.relativeUrl ctx.WebLog (Permalink $"themes/{ctx.WebLog.themePath}/{asset}")
+        WebLog.relativeUrl ctx.WebLog (Permalink $"themes/{ThemeId.toString ctx.WebLog.ThemeId}/{asset}")
 
 
 /// Create various items in the page header based on the state of the page being generated
@@ -107,7 +109,7 @@ type PageHeadTag () =
         // spacer
         let s      = "    "
         let getBool name =
-            context.Environments[0].[name] |> Option.ofObj |> Option.map Convert.ToBoolean |> Option.defaultValue false
+            defaultArg (context.Environments[0].[name] |> Option.ofObj |> Option.map Convert.ToBoolean) false
         
         result.WriteLine $"""<meta name="generator" content="{context.Environments[0].["generator"]}">"""
         
@@ -123,17 +125,17 @@ type PageHeadTag () =
             let relUrl   = WebLog.relativeUrl webLog (Permalink url)
             $"""{s}<link rel="alternate" type="application/rss+xml" title="{escTitle}" href="{relUrl}">"""
         
-        if webLog.rss.feedEnabled && getBool "is_home" then
-            result.WriteLine (feedLink webLog.name webLog.rss.feedName)
+        if webLog.Rss.IsFeedEnabled && getBool "is_home" then
+            result.WriteLine (feedLink webLog.Name webLog.Rss.FeedName)
             result.WriteLine $"""{s}<link rel="canonical" href="{WebLog.absoluteUrl webLog Permalink.empty}">"""
         
-        if webLog.rss.categoryEnabled && getBool "is_category_home" then
+        if webLog.Rss.IsCategoryEnabled && getBool "is_category_home" then
             let slug = context.Environments[0].["slug"] :?> string
-            result.WriteLine (feedLink webLog.name $"category/{slug}/{webLog.rss.feedName}")
+            result.WriteLine (feedLink webLog.Name $"category/{slug}/{webLog.Rss.FeedName}")
             
-        if webLog.rss.tagEnabled && getBool "is_tag_home" then
+        if webLog.Rss.IsTagEnabled && getBool "is_tag_home" then
             let slug = context.Environments[0].["slug"] :?> string
-            result.WriteLine (feedLink webLog.name $"tag/{slug}/{webLog.rss.feedName}")
+            result.WriteLine (feedLink webLog.Name $"tag/{slug}/{webLog.Rss.FeedName}")
             
         if getBool "is_post" then
             let post = context.Environments[0].["model"] :?> PostDisplay
@@ -155,7 +157,7 @@ type PageFootTag () =
         // spacer
         let s = "    "
         
-        if webLog.autoHtmx then
+        if webLog.AutoHtmx then
             result.WriteLine $"{s}{RenderView.AsString.htmlNode Htmx.Script.minified}"
         
         if assetExists "script.js" webLog then
@@ -172,9 +174,9 @@ type RelativeLinkFilter () =
 type TagLinkFilter () =
     static member TagLink (ctx : Context, tag : string) =
         ctx.Environments[0].["tag_mappings"] :?> TagMap list
-        |> List.tryFind (fun it -> it.tag = tag)
+        |> List.tryFind (fun it -> it.Tag = tag)
         |> function
-        | Some tagMap -> tagMap.urlValue
+        | Some tagMap -> tagMap.UrlValue
         | None        -> tag.Replace (" ", "+")
         |> function tagUrl -> WebLog.relativeUrl ctx.WebLog (Permalink $"tag/{tagUrl}/")
 
@@ -201,8 +203,8 @@ type UserLinksTag () =
 //    (shorter than `{% assign item = list | where: "name", [name] | first %}{{ item.value }}`)
 type ValueFilter () =
     static member Value (_ : Context, items : MetaItem list, name : string) =
-        match items |> List.tryFind (fun it -> it.name = name) with
-        | Some item -> item.value
+        match items |> List.tryFind (fun it -> it.Name = name) with
+        | Some item -> item.Value
         | None -> $"-- {name} not found --"
 
 
@@ -225,11 +227,11 @@ let register () =
       typeof<CustomFeed>; typeof<Episode>; typeof<Episode option>;    typeof<MetaItem>; typeof<Page>
       typeof<RssOptions>; typeof<TagMap>;  typeof<UploadDestination>; typeof<WebLog>
       // View models
-      typeof<DashboardModel>;  typeof<DisplayCategory>;  typeof<DisplayCustomFeed>;     typeof<DisplayPage>
-      typeof<DisplayRevision>; typeof<DisplayUpload>;    typeof<EditCategoryModel>;     typeof<EditCustomFeedModel>
-      typeof<EditPageModel>;   typeof<EditPostModel>;    typeof<EditRssModel>;          typeof<EditTagMapModel>
-      typeof<EditUserModel>;   typeof<LogOnModel>;       typeof<ManagePermalinksModel>; typeof<ManageRevisionsModel>
-      typeof<PostDisplay>;     typeof<PostListItem>;     typeof<SettingsModel>;         typeof<UserMessage>
+      typeof<DashboardModel>;  typeof<DisplayCategory>; typeof<DisplayCustomFeed>;     typeof<DisplayPage>
+      typeof<DisplayRevision>; typeof<DisplayUpload>;   typeof<EditCategoryModel>;     typeof<EditCustomFeedModel>
+      typeof<EditMyInfoModel>; typeof<EditPageModel>;   typeof<EditPostModel>;         typeof<EditRssModel>
+      typeof<EditTagMapModel>; typeof<LogOnModel>;      typeof<ManagePermalinksModel>; typeof<ManageRevisionsModel>
+      typeof<PostDisplay>;     typeof<PostListItem>;    typeof<SettingsModel>;         typeof<UserMessage>
       // Framework types
       typeof<AntiforgeryTokenSet>; typeof<DateTime option>; typeof<int option>;    typeof<KeyValuePair>
       typeof<MetaItem list>;       typeof<string list>;     typeof<string option>; typeof<TagMap list>

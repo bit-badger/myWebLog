@@ -67,13 +67,13 @@ module WebLogCache =
     /// Try to get the web log for the current request (longest matching URL base wins)
     let tryGet (path : string) =
         _cache
-        |> List.filter (fun wl -> path.StartsWith wl.urlBase)
-        |> List.sortByDescending (fun wl -> wl.urlBase.Length)
+        |> List.filter (fun wl -> path.StartsWith wl.UrlBase)
+        |> List.sortByDescending (fun wl -> wl.UrlBase.Length)
         |> List.tryHead
 
     /// Cache the web log for a particular host
     let set webLog =
-        _cache <- webLog :: (_cache |> List.filter (fun wl -> wl.id <> webLog.id))
+        _cache <- webLog :: (_cache |> List.filter (fun wl -> wl.Id <> webLog.Id))
     
     /// Fill the web log cache from the database
     let fill (data : IData) = backgroundTask {
@@ -91,18 +91,18 @@ module PageListCache =
     let private _cache = ConcurrentDictionary<string, DisplayPage[]> ()
     
     /// Are there pages cached for this web log?
-    let exists (ctx : HttpContext) = _cache.ContainsKey ctx.WebLog.urlBase
+    let exists (ctx : HttpContext) = _cache.ContainsKey ctx.WebLog.UrlBase
     
     /// Get the pages for the web log for this request
-    let get (ctx : HttpContext) = _cache[ctx.WebLog.urlBase]
+    let get (ctx : HttpContext) = _cache[ctx.WebLog.UrlBase]
     
     /// Update the pages for the current web log
     let update (ctx : HttpContext) = backgroundTask {
         let  webLog = ctx.WebLog
-        let! pages  = ctx.Data.Page.FindListed webLog.id
-        _cache[webLog.urlBase] <-
+        let! pages  = ctx.Data.Page.FindListed webLog.Id
+        _cache[webLog.UrlBase] <-
             pages
-            |> List.map (fun pg -> DisplayPage.fromPage webLog { pg with text = "" })
+            |> List.map (fun pg -> DisplayPage.fromPage webLog { pg with Text = "" })
             |> Array.ofList
     }
 
@@ -116,15 +116,15 @@ module CategoryCache =
     let private _cache = ConcurrentDictionary<string, DisplayCategory[]> ()
     
     /// Are there categories cached for this web log?
-    let exists (ctx : HttpContext) = _cache.ContainsKey ctx.WebLog.urlBase
+    let exists (ctx : HttpContext) = _cache.ContainsKey ctx.WebLog.UrlBase
     
     /// Get the categories for the web log for this request
-    let get (ctx : HttpContext) = _cache[ctx.WebLog.urlBase]
+    let get (ctx : HttpContext) = _cache[ctx.WebLog.UrlBase]
     
     /// Update the cache with fresh data
     let update (ctx : HttpContext) = backgroundTask {
-        let! cats = ctx.Data.Category.FindAllForView ctx.WebLog.id
-        _cache[ctx.WebLog.urlBase] <- cats
+        let! cats = ctx.Data.Category.FindAllForView ctx.WebLog.Id
+        _cache[ctx.WebLog.UrlBase] <- cats
     }
 
 
@@ -149,10 +149,10 @@ module TemplateCache =
         | false ->
             match! data.Theme.FindById (ThemeId themeId) with
             | Some theme ->
-                let mutable text = (theme.templates |> List.find (fun t -> t.name = templateName)).text
+                let mutable text = (theme.Templates |> List.find (fun t -> t.Name = templateName)).Text
                 while hasInclude.IsMatch text do
                     let child = hasInclude.Match text
-                    let childText  = (theme.templates |> List.find (fun t -> t.name = child.Groups[1].Value)).text
+                    let childText  = (theme.Templates |> List.find (fun t -> t.Name = child.Groups[1].Value)).Text
                     text <- text.Replace (child.Value, childText)
                 _cache[templatePath] <- Template.Parse (text, SyntaxCompatibility.DotLiquid22)
             | None -> ()
@@ -179,14 +179,14 @@ module ThemeAssetCache =
     /// Refresh the list of assets for the given theme
     let refreshTheme themeId (data : IData) = backgroundTask {
         let! assets = data.ThemeAsset.FindByTheme themeId
-        _cache[themeId] <- assets |> List.map (fun a -> match a.id with ThemeAssetId (_, path) -> path)
+        _cache[themeId] <- assets |> List.map (fun a -> match a.Id with ThemeAssetId (_, path) -> path)
     }
     
     /// Fill the theme asset cache
     let fill (data : IData) = backgroundTask {
         let! assets = data.ThemeAsset.All ()
         for asset in assets do
-            let (ThemeAssetId (themeId, path)) = asset.id
+            let (ThemeAssetId (themeId, path)) = asset.Id
             if not (_cache.ContainsKey themeId) then _cache[themeId] <- []
             _cache[themeId] <- path :: _cache[themeId]
     }

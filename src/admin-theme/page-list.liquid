@@ -20,7 +20,7 @@
           <div class="{{ title_col }}">
             {{ pg.title }}
             {%- if pg.is_default %} &nbsp; <span class="badge bg-success">HOME PAGE</span>{% endif -%}
-            {%- if pg.show_in_page_list %} &nbsp; <span class="badge bg-primary">IN PAGE LIST</span> {% endif -%}<br>
+            {%- if pg.is_in_page_list %} &nbsp; <span class="badge bg-primary">IN PAGE LIST</span> {% endif -%}<br>
             <small>
               {%- capture pg_link %}{% unless pg.is_default %}{{ pg.permalink }}{% endunless %}{% endcapture -%}
               <a href="{{ pg_link | relative_link }}" target="_blank">View Page</a>

@@ -27,25 +27,25 @@ module CatchAll =
             if textLink = "" then yield redirectTo true (WebLog.relativeUrl webLog Permalink.empty)
             let permalink = Permalink (textLink.Substring 1)
             // Current post
-            match data.Post.FindByPermalink permalink webLog.id |> await with
+            match data.Post.FindByPermalink permalink webLog.Id |> await with
             | Some post ->
                 debug (fun () -> "Found post by permalink")
                 let model = Post.preparePostList webLog [ post ] Post.ListType.SinglePost "" 1 1 ctx data |> await
-                model.Add ("page_title", post.title)
-                yield fun next ctx -> themedView (defaultArg post.template "single-post") next ctx model
+                model.Add ("page_title", post.Title)
+                yield fun next ctx -> themedView (defaultArg post.Template "single-post") next ctx model
             | None -> ()
             // Current page
-            match data.Page.FindByPermalink permalink webLog.id |> await with
+            match data.Page.FindByPermalink permalink webLog.Id |> await with
             | Some page ->
                 debug (fun () -> "Found page by permalink")
                 yield fun next ctx ->
                     Hash.FromAnonymousObject {|
-                        page_title = page.title
+                        page_title = page.Title
                         page       = DisplayPage.fromPage webLog page
                         categories = CategoryCache.get ctx
                         is_page    = true
                     |}
-                    |> themedView (defaultArg page.template "single-page") next ctx
+                    |> themedView (defaultArg page.Template "single-page") next ctx
             | None -> ()
             // RSS feed
             match Feed.deriveFeedType ctx textLink with
@@ -56,25 +56,25 @@ module CatchAll =
             // Post differing only by trailing slash
             let altLink =
                 Permalink (if textLink.EndsWith "/" then textLink[1..textLink.Length - 2] else $"{textLink[1..]}/")
-            match data.Post.FindByPermalink altLink webLog.id |> await with
+            match data.Post.FindByPermalink altLink webLog.Id |> await with
             | Some post ->
                 debug (fun () -> "Found post by trailing-slash-agnostic permalink")
-                yield redirectTo true (WebLog.relativeUrl webLog post.permalink)
+                yield redirectTo true (WebLog.relativeUrl webLog post.Permalink)
             | None -> ()
             // Page differing only by trailing slash
-            match data.Page.FindByPermalink altLink webLog.id |> await with
+            match data.Page.FindByPermalink altLink webLog.Id |> await with
             | Some page ->
                 debug (fun () -> "Found page by trailing-slash-agnostic permalink")
-                yield redirectTo true (WebLog.relativeUrl webLog page.permalink)
+                yield redirectTo true (WebLog.relativeUrl webLog page.Permalink)
             | None -> ()
             // Prior post
-            match data.Post.FindCurrentPermalink [ permalink; altLink ] webLog.id |> await with
+            match data.Post.FindCurrentPermalink [ permalink; altLink ] webLog.Id |> await with
             | Some link ->
                 debug (fun () -> "Found post by prior permalink")
                 yield redirectTo true (WebLog.relativeUrl webLog link)
             | None -> ()
             // Prior page
-            match data.Page.FindCurrentPermalink [ permalink; altLink ] webLog.id |> await with
+            match data.Page.FindCurrentPermalink [ permalink; altLink ] webLog.Id |> await with
             | Some link ->
                 debug (fun () -> "Found page by prior permalink")
                 yield redirectTo true (WebLog.relativeUrl webLog link)
@@ -95,9 +95,9 @@ module Asset =
         let path = urlParts |> Seq.skip 1 |> Seq.head
         match! ctx.Data.ThemeAsset.FindById (ThemeAssetId.ofString path) with
         | Some asset ->
-            match Upload.checkModified asset.updatedOn ctx with
+            match Upload.checkModified asset.UpdatedOn ctx with
             | Some threeOhFour -> return! threeOhFour next ctx
-            | None -> return! Upload.sendFile asset.updatedOn path asset.data next ctx
+            | None -> return! Upload.sendFile asset.UpdatedOn path asset.Data next ctx
         | None -> return! Error.notFound next ctx
     }
 
@@ -148,7 +148,9 @@ let router : HttpHandler = choose [
                 route "s"    >=> Upload.list
                 route "/new" >=> Upload.showNew
             ])
-            route    "/user/edit"    >=> User.edit
+            subRoute "/user" (choose [
+                route "/my-info" >=> User.myInfo
+            ])
         ]
         POST >=> validateCsrf >=> choose [
             subRoute "/category" (choose [
@@ -189,7 +191,9 @@ let router : HttpHandler = choose [
                 routexp "/delete/(.*)"     Upload.deleteFromDisk
                 routef  "/%s/delete"       Upload.deleteFromDb
             ])
-            route    "/user/save"    >=> User.save
+            subRoute "/user" (choose [
+                route "/my-info" >=> User.saveMyInfo
+            ])
         ]
     ])
     GET_HEAD >=> routexp "/category/(.*)"  Post.pageOfCategorizedPosts

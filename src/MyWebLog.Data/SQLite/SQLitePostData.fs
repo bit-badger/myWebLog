@@ -13,72 +13,72 @@ type SQLitePostData (conn : SqliteConnection) =
     
     /// Add parameters for post INSERT or UPDATE statements
     let addPostParameters (cmd : SqliteCommand) (post : Post) =
-        [ cmd.Parameters.AddWithValue ("@id", PostId.toString post.id)
-          cmd.Parameters.AddWithValue ("@webLogId", WebLogId.toString post.webLogId)
-          cmd.Parameters.AddWithValue ("@authorId", WebLogUserId.toString post.authorId)
-          cmd.Parameters.AddWithValue ("@status", PostStatus.toString post.status)
-          cmd.Parameters.AddWithValue ("@title", post.title)
-          cmd.Parameters.AddWithValue ("@permalink", Permalink.toString post.permalink)
-          cmd.Parameters.AddWithValue ("@publishedOn", maybe post.publishedOn)
-          cmd.Parameters.AddWithValue ("@updatedOn", post.updatedOn)
-          cmd.Parameters.AddWithValue ("@template", maybe post.template)
-          cmd.Parameters.AddWithValue ("@text", post.text)
+        [ cmd.Parameters.AddWithValue ("@id", PostId.toString post.Id)
+          cmd.Parameters.AddWithValue ("@webLogId", WebLogId.toString post.WebLogId)
+          cmd.Parameters.AddWithValue ("@authorId", WebLogUserId.toString post.AuthorId)
+          cmd.Parameters.AddWithValue ("@status", PostStatus.toString post.Status)
+          cmd.Parameters.AddWithValue ("@title", post.Title)
+          cmd.Parameters.AddWithValue ("@permalink", Permalink.toString post.Permalink)
+          cmd.Parameters.AddWithValue ("@publishedOn", maybe post.PublishedOn)
+          cmd.Parameters.AddWithValue ("@updatedOn", post.UpdatedOn)
+          cmd.Parameters.AddWithValue ("@template", maybe post.Template)
+          cmd.Parameters.AddWithValue ("@text", post.Text)
         ] |> ignore
     
     /// Add parameters for episode INSERT or UPDATE statements
     let addEpisodeParameters (cmd : SqliteCommand) (ep : Episode) =
-        [ cmd.Parameters.AddWithValue ("@media", ep.media)
-          cmd.Parameters.AddWithValue ("@length", ep.length)
-          cmd.Parameters.AddWithValue ("@duration", maybe ep.duration)
-          cmd.Parameters.AddWithValue ("@mediaType", maybe ep.mediaType)
-          cmd.Parameters.AddWithValue ("@imageUrl", maybe ep.imageUrl)
-          cmd.Parameters.AddWithValue ("@subtitle", maybe ep.subtitle)
-          cmd.Parameters.AddWithValue ("@explicit", maybe (ep.explicit |> Option.map ExplicitRating.toString))
-          cmd.Parameters.AddWithValue ("@chapterFile", maybe ep.chapterFile)
-          cmd.Parameters.AddWithValue ("@chapterType", maybe ep.chapterType)
-          cmd.Parameters.AddWithValue ("@transcriptUrl", maybe ep.transcriptUrl)
-          cmd.Parameters.AddWithValue ("@transcriptType", maybe ep.transcriptType)
-          cmd.Parameters.AddWithValue ("@transcriptLang", maybe ep.transcriptLang)
-          cmd.Parameters.AddWithValue ("@transcriptCaptions", maybe ep.transcriptCaptions)
-          cmd.Parameters.AddWithValue ("@seasonNumber", maybe ep.seasonNumber)
-          cmd.Parameters.AddWithValue ("@seasonDescription", maybe ep.seasonDescription)
-          cmd.Parameters.AddWithValue ("@episodeNumber", maybe (ep.episodeNumber |> Option.map string))
-          cmd.Parameters.AddWithValue ("@episodeDescription", maybe ep.episodeDescription)
+        [ cmd.Parameters.AddWithValue ("@media", ep.Media)
+          cmd.Parameters.AddWithValue ("@length", ep.Length)
+          cmd.Parameters.AddWithValue ("@duration", maybe ep.Duration)
+          cmd.Parameters.AddWithValue ("@mediaType", maybe ep.MediaType)
+          cmd.Parameters.AddWithValue ("@imageUrl", maybe ep.ImageUrl)
+          cmd.Parameters.AddWithValue ("@subtitle", maybe ep.Subtitle)
+          cmd.Parameters.AddWithValue ("@explicit", maybe (ep.Explicit |> Option.map ExplicitRating.toString))
+          cmd.Parameters.AddWithValue ("@chapterFile", maybe ep.ChapterFile)
+          cmd.Parameters.AddWithValue ("@chapterType", maybe ep.ChapterType)
+          cmd.Parameters.AddWithValue ("@transcriptUrl", maybe ep.TranscriptUrl)
+          cmd.Parameters.AddWithValue ("@transcriptType", maybe ep.TranscriptType)
+          cmd.Parameters.AddWithValue ("@transcriptLang", maybe ep.TranscriptLang)
+          cmd.Parameters.AddWithValue ("@transcriptCaptions", maybe ep.TranscriptCaptions)
+          cmd.Parameters.AddWithValue ("@seasonNumber", maybe ep.SeasonNumber)
+          cmd.Parameters.AddWithValue ("@seasonDescription", maybe ep.SeasonDescription)
+          cmd.Parameters.AddWithValue ("@episodeNumber", maybe (ep.EpisodeNumber |> Option.map string))
+          cmd.Parameters.AddWithValue ("@episodeDescription", maybe ep.EpisodeDescription)
         ] |> ignore
         
     /// Append category IDs, tags, and meta items to a post
     let appendPostCategoryTagAndMeta (post : Post) = backgroundTask {
         use cmd = conn.CreateCommand ()
-        cmd.Parameters.AddWithValue ("@id", PostId.toString post.id) |> ignore
+        cmd.Parameters.AddWithValue ("@id", PostId.toString post.Id) |> ignore
         
         cmd.CommandText <- "SELECT category_id AS id FROM post_category WHERE post_id = @id"
         use! rdr = cmd.ExecuteReaderAsync ()
-        let post = { post with categoryIds = toList Map.toCategoryId rdr }
+        let post = { post with CategoryIds = toList Map.toCategoryId rdr }
         do! rdr.CloseAsync ()
         
         cmd.CommandText <- "SELECT tag FROM post_tag WHERE post_id = @id"
         use! rdr = cmd.ExecuteReaderAsync ()
-        let post = { post with tags = toList (Map.getString "tag") rdr }
+        let post = { post with Tags = toList (Map.getString "tag") rdr }
         do! rdr.CloseAsync ()
         
         cmd.CommandText <- "SELECT name, value FROM post_meta WHERE post_id = @id"
         use! rdr = cmd.ExecuteReaderAsync ()
-        return { post with metadata = toList Map.toMetaItem rdr }
+        return { post with Metadata = toList Map.toMetaItem rdr }
     }
     
     /// Append revisions and permalinks to a post
     let appendPostRevisionsAndPermalinks (post : Post) = backgroundTask {
         use cmd = conn.CreateCommand ()
-        cmd.Parameters.AddWithValue ("@postId", PostId.toString post.id) |> ignore
+        cmd.Parameters.AddWithValue ("@postId", PostId.toString post.Id) |> ignore
         
         cmd.CommandText <- "SELECT permalink FROM post_permalink WHERE post_id = @postId"
         use! rdr = cmd.ExecuteReaderAsync ()
-        let post = { post with priorPermalinks = toList Map.toPermalink rdr }
+        let post = { post with PriorPermalinks = toList Map.toPermalink rdr }
         do! rdr.CloseAsync ()
         
         cmd.CommandText <- "SELECT as_of, revision_text FROM post_revision WHERE post_id = @postId ORDER BY as_of DESC"
         use! rdr = cmd.ExecuteReaderAsync ()
-        return { post with revisions = toList Map.toRevision rdr }
+        return { post with Revisions = toList Map.toRevision rdr }
     }
     
     /// The SELECT statement for a post that will include episode data, if it exists
@@ -90,12 +90,12 @@ type SQLitePostData (conn : SqliteConnection) =
         cmd.CommandText <- $"{selectPost} WHERE p.id = @id"
         cmd.Parameters.AddWithValue ("@id", PostId.toString postId) |> ignore
         use! rdr = cmd.ExecuteReaderAsync ()
-        return Helpers.verifyWebLog<Post> webLogId (fun p -> p.webLogId) Map.toPost rdr
+        return Helpers.verifyWebLog<Post> webLogId (fun p -> p.WebLogId) Map.toPost rdr
     }
     
     /// Return a post with no revisions, prior permalinks, or text
     let postWithoutText rdr =
-        { Map.toPost rdr with text = "" }
+        { Map.toPost rdr with Text = "" }
     
     /// Update a post's assigned categories
     let updatePostCategories postId oldCats newCats = backgroundTask {
@@ -153,10 +153,10 @@ type SQLitePostData (conn : SqliteConnection) =
     let updatePostEpisode (post : Post) = backgroundTask {
         use cmd = conn.CreateCommand ()
         cmd.CommandText <- "SELECT COUNT(post_id) FROM post_episode WHERE post_id = @postId"
-        cmd.Parameters.AddWithValue ("@postId", PostId.toString post.id) |> ignore
+        cmd.Parameters.AddWithValue ("@postId", PostId.toString post.Id) |> ignore
         let! count = count cmd
         if count = 1 then
-            match post.episode with
+            match post.Episode with
             | Some ep ->
                 cmd.CommandText <- """
                     UPDATE post_episode
@@ -184,7 +184,7 @@ type SQLitePostData (conn : SqliteConnection) =
                 cmd.CommandText <- "DELETE FROM post_episode WHERE post_id = @postId"
                 do! write cmd
         else
-            match post.episode with
+            match post.Episode with
             | Some ep ->
                 cmd.CommandText <- """
                     INSERT INTO post_episode (
@@ -213,8 +213,8 @@ type SQLitePostData (conn : SqliteConnection) =
               cmd.Parameters.Add ("@value", SqliteType.Text)
             ] |> ignore
             let runCmd (item : MetaItem) = backgroundTask {
-                cmd.Parameters["@name" ].Value <- item.name
-                cmd.Parameters["@value"].Value <- item.value
+                cmd.Parameters["@name" ].Value <- item.Name
+                cmd.Parameters["@value"].Value <- item.Value
                 do! write cmd
             }
             cmd.CommandText <- "DELETE FROM post_meta WHERE post_id = @postId AND name = @name AND value = @value" 
@@ -265,9 +265,9 @@ type SQLitePostData (conn : SqliteConnection) =
             let runCmd withText rev = backgroundTask {
                 cmd.Parameters.Clear ()
                 [ cmd.Parameters.AddWithValue ("@postId", PostId.toString postId)
-                  cmd.Parameters.AddWithValue ("@asOf", rev.asOf)
+                  cmd.Parameters.AddWithValue ("@asOf", rev.AsOf)
                 ] |> ignore
-                if withText then cmd.Parameters.AddWithValue ("@text", MarkupText.toString rev.text) |> ignore
+                if withText then cmd.Parameters.AddWithValue ("@text", MarkupText.toString rev.Text) |> ignore
                 do! write cmd
             }
             cmd.CommandText <- "DELETE FROM post_revision WHERE post_id = @postId AND as_of = @asOf" 
@@ -295,12 +295,12 @@ type SQLitePostData (conn : SqliteConnection) =
             )"""
         addPostParameters cmd post
         do! write cmd
-        do! updatePostCategories post.id [] post.categoryIds
-        do! updatePostTags       post.id [] post.tags
+        do! updatePostCategories post.Id [] post.CategoryIds
+        do! updatePostTags       post.Id [] post.Tags
         do! updatePostEpisode    post
-        do! updatePostMeta       post.id [] post.metadata
-        do! updatePostPermalinks post.id [] post.priorPermalinks
-        do! updatePostRevisions  post.id [] post.revisions
+        do! updatePostMeta       post.Id [] post.Metadata
+        do! updatePostPermalinks post.Id [] post.PriorPermalinks
+        do! updatePostRevisions  post.Id [] post.Revisions
     }
     
     /// Count posts in a status for the given web log
@@ -535,7 +535,7 @@ type SQLitePostData (conn : SqliteConnection) =
     
     /// Update a post
     let update (post : Post) = backgroundTask {
-        match! findFullById post.id post.webLogId with
+        match! findFullById post.Id post.WebLogId with
         | Some oldPost ->
             use cmd = conn.CreateCommand ()
             cmd.CommandText <- """
@@ -552,12 +552,12 @@ type SQLitePostData (conn : SqliteConnection) =
                    AND web_log_id = @webLogId"""
             addPostParameters cmd post
             do! write cmd
-            do! updatePostCategories post.id oldPost.categoryIds     post.categoryIds
-            do! updatePostTags       post.id oldPost.tags            post.tags
+            do! updatePostCategories post.Id oldPost.CategoryIds     post.CategoryIds
+            do! updatePostTags       post.Id oldPost.Tags            post.Tags
             do! updatePostEpisode    post
-            do! updatePostMeta       post.id oldPost.metadata        post.metadata
-            do! updatePostPermalinks post.id oldPost.priorPermalinks post.priorPermalinks
-            do! updatePostRevisions  post.id oldPost.revisions       post.revisions
+            do! updatePostMeta       post.Id oldPost.Metadata        post.Metadata
+            do! updatePostPermalinks post.Id oldPost.PriorPermalinks post.PriorPermalinks
+            do! updatePostRevisions  post.Id oldPost.Revisions       post.Revisions
         | None -> return ()
     }
     
@@ -565,7 +565,7 @@ type SQLitePostData (conn : SqliteConnection) =
     let updatePriorPermalinks postId webLogId permalinks = backgroundTask {
         match! findFullById postId webLogId with
         | Some post ->
-            do! updatePostPermalinks postId post.priorPermalinks permalinks
+            do! updatePostPermalinks postId post.PriorPermalinks permalinks
             return true
         | None -> return false
     }

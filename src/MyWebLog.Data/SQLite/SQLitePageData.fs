@@ -12,45 +12,45 @@ type SQLitePageData (conn : SqliteConnection) =
     
     /// Add parameters for page INSERT or UPDATE statements
     let addPageParameters (cmd : SqliteCommand) (page : Page) =
-        [ cmd.Parameters.AddWithValue ("@id", PageId.toString page.id)
-          cmd.Parameters.AddWithValue ("@webLogId", WebLogId.toString page.webLogId)
-          cmd.Parameters.AddWithValue ("@authorId", WebLogUserId.toString page.authorId)
-          cmd.Parameters.AddWithValue ("@title", page.title)
-          cmd.Parameters.AddWithValue ("@permalink", Permalink.toString page.permalink)
-          cmd.Parameters.AddWithValue ("@publishedOn", page.publishedOn)
-          cmd.Parameters.AddWithValue ("@updatedOn", page.updatedOn)
-          cmd.Parameters.AddWithValue ("@showInPageList", page.showInPageList)
-          cmd.Parameters.AddWithValue ("@template", maybe page.template)
-          cmd.Parameters.AddWithValue ("@text", page.text)
+        [ cmd.Parameters.AddWithValue ("@id", PageId.toString page.Id)
+          cmd.Parameters.AddWithValue ("@webLogId", WebLogId.toString page.WebLogId)
+          cmd.Parameters.AddWithValue ("@authorId", WebLogUserId.toString page.AuthorId)
+          cmd.Parameters.AddWithValue ("@title", page.Title)
+          cmd.Parameters.AddWithValue ("@permalink", Permalink.toString page.Permalink)
+          cmd.Parameters.AddWithValue ("@publishedOn", page.PublishedOn)
+          cmd.Parameters.AddWithValue ("@updatedOn", page.UpdatedOn)
+          cmd.Parameters.AddWithValue ("@isInPageList", page.IsInPageList)
+          cmd.Parameters.AddWithValue ("@template", maybe page.Template)
+          cmd.Parameters.AddWithValue ("@text", page.Text)
         ] |> ignore
     
     /// Append meta items to a page
     let appendPageMeta (page : Page) = backgroundTask {
         use cmd = conn.CreateCommand ()
         cmd.CommandText <- "SELECT name, value FROM page_meta WHERE page_id = @id"
-        cmd.Parameters.AddWithValue ("@id", PageId.toString page.id) |> ignore
+        cmd.Parameters.AddWithValue ("@id", PageId.toString page.Id) |> ignore
         use! rdr = cmd.ExecuteReaderAsync ()
-        return { page with metadata = toList Map.toMetaItem rdr }
+        return { page with Metadata = toList Map.toMetaItem rdr }
     }
     
     /// Append revisions and permalinks to a page
     let appendPageRevisionsAndPermalinks (page : Page) = backgroundTask {
         use cmd = conn.CreateCommand ()
-        cmd.Parameters.AddWithValue ("@pageId", PageId.toString page.id) |> ignore
+        cmd.Parameters.AddWithValue ("@pageId", PageId.toString page.Id) |> ignore
         
         cmd.CommandText <- "SELECT permalink FROM page_permalink WHERE page_id = @pageId"
         use! rdr = cmd.ExecuteReaderAsync ()
-        let page = { page with priorPermalinks = toList Map.toPermalink rdr }
+        let page = { page with PriorPermalinks = toList Map.toPermalink rdr }
         do! rdr.CloseAsync ()
         
         cmd.CommandText <- "SELECT as_of, revision_text FROM page_revision WHERE page_id = @pageId ORDER BY as_of DESC"
         use! rdr = cmd.ExecuteReaderAsync ()
-        return { page with revisions = toList Map.toRevision rdr }
+        return { page with Revisions = toList Map.toRevision rdr }
     }
     
     /// Return a page with no text (or meta items, prior permalinks, or revisions)
     let pageWithoutTextOrMeta rdr =
-        { Map.toPage rdr with text = "" }
+        { Map.toPage rdr with Text = "" }
     
     /// Update a page's metadata items
     let updatePageMeta pageId oldItems newItems = backgroundTask {
@@ -64,8 +64,8 @@ type SQLitePageData (conn : SqliteConnection) =
               cmd.Parameters.Add ("@value", SqliteType.Text)
             ] |> ignore
             let runCmd (item : MetaItem) = backgroundTask {
-                cmd.Parameters["@name" ].Value <- item.name
-                cmd.Parameters["@value"].Value <- item.value
+                cmd.Parameters["@name" ].Value <- item.Name
+                cmd.Parameters["@value"].Value <- item.Value
                 do! write cmd
             }
             cmd.CommandText <- "DELETE FROM page_meta WHERE page_id = @pageId AND name = @name AND value = @value" 
@@ -116,9 +116,9 @@ type SQLitePageData (conn : SqliteConnection) =
             let runCmd withText rev = backgroundTask {
                 cmd.Parameters.Clear ()
                 [ cmd.Parameters.AddWithValue ("@pageId", PageId.toString pageId)
-                  cmd.Parameters.AddWithValue ("@asOf", rev.asOf)
+                  cmd.Parameters.AddWithValue ("@asOf", rev.AsOf)
                 ] |> ignore
-                if withText then cmd.Parameters.AddWithValue ("@text", MarkupText.toString rev.text) |> ignore
+                if withText then cmd.Parameters.AddWithValue ("@text", MarkupText.toString rev.Text) |> ignore
                 do! write cmd
             }
             cmd.CommandText <- "DELETE FROM page_revision WHERE page_id = @pageId AND as_of = @asOf" 
@@ -141,17 +141,17 @@ type SQLitePageData (conn : SqliteConnection) =
         // The page itself
         cmd.CommandText <- """
             INSERT INTO page (
-                id, web_log_id, author_id, title, permalink, published_on, updated_on, show_in_page_list, template,
+                id, web_log_id, author_id, title, permalink, published_on, updated_on, is_in_page_list, template,
                 page_text
             ) VALUES (
-                @id, @webLogId, @authorId, @title, @permalink, @publishedOn, @updatedOn, @showInPageList, @template,
+                @id, @webLogId, @authorId, @title, @permalink, @publishedOn, @updatedOn, @isInPageList, @template,
                 @text
             )"""
         addPageParameters cmd page
         do! write cmd
-        do! updatePageMeta       page.id [] page.metadata
-        do! updatePagePermalinks page.id [] page.priorPermalinks
-        do! updatePageRevisions  page.id [] page.revisions
+        do! updatePageMeta       page.Id [] page.Metadata
+        do! updatePagePermalinks page.Id [] page.PriorPermalinks
+        do! updatePageRevisions  page.Id [] page.Revisions
     }
     
     /// Get all pages for a web log (without text, revisions, prior permalinks, or metadata)
@@ -177,10 +177,10 @@ type SQLitePageData (conn : SqliteConnection) =
         cmd.CommandText <- """
             SELECT COUNT(id)
               FROM page
-             WHERE web_log_id        = @webLogId
-               AND show_in_page_list = @showInPageList"""
+             WHERE web_log_id      = @webLogId
+               AND is_in_page_list = @isInPageList"""
         addWebLogId cmd webLogId
-        cmd.Parameters.AddWithValue ("@showInPageList", true) |> ignore
+        cmd.Parameters.AddWithValue ("@isInPageList", true) |> ignore
         return! count cmd
     }
     
@@ -190,7 +190,7 @@ type SQLitePageData (conn : SqliteConnection) =
         cmd.CommandText <- "SELECT * FROM page WHERE id = @id"
         cmd.Parameters.AddWithValue ("@id", PageId.toString pageId) |> ignore
         use! rdr = cmd.ExecuteReaderAsync ()
-        match Helpers.verifyWebLog<Page> webLogId (fun it -> it.webLogId) Map.toPage rdr with
+        match Helpers.verifyWebLog<Page> webLogId (fun it -> it.WebLogId) Map.toPage rdr with
         | Some page ->
             let! page = appendPageMeta page
             return Some page
@@ -277,11 +277,11 @@ type SQLitePageData (conn : SqliteConnection) =
         cmd.CommandText <- """
             SELECT *
               FROM page
-             WHERE web_log_id        = @webLogId
-               AND show_in_page_list = @showInPageList
+             WHERE web_log_id      = @webLogId
+               AND is_in_page_list = @isInPageList
              ORDER BY LOWER(title)"""
         addWebLogId cmd webLogId
-        cmd.Parameters.AddWithValue ("@showInPageList", true) |> ignore
+        cmd.Parameters.AddWithValue ("@isInPageList", true) |> ignore
         use! rdr = cmd.ExecuteReaderAsync ()
         let! pages =
             toList pageWithoutTextOrMeta rdr
@@ -315,26 +315,26 @@ type SQLitePageData (conn : SqliteConnection) =
     
     /// Update a page
     let update (page : Page) = backgroundTask {
-        match! findFullById page.id page.webLogId with
+        match! findFullById page.Id page.WebLogId with
         | Some oldPage ->
             use cmd = conn.CreateCommand ()
             cmd.CommandText <- """
                 UPDATE page
-                   SET author_id         = @authorId,
-                       title             = @title,
-                       permalink         = @permalink,
-                       published_on      = @publishedOn,
-                       updated_on        = @updatedOn,
-                       show_in_page_list = @showInPageList,
-                       template          = @template,
-                       page_text         = @text
+                   SET author_id       = @authorId,
+                       title           = @title,
+                       permalink       = @permalink,
+                       published_on    = @publishedOn,
+                       updated_on      = @updatedOn,
+                       is_in_page_list = @isInPageList,
+                       template        = @template,
+                       page_text       = @text
                  WHERE id         = @pageId
                    AND web_log_id = @webLogId"""
             addPageParameters cmd page
             do! write cmd
-            do! updatePageMeta       page.id oldPage.metadata        page.metadata
-            do! updatePagePermalinks page.id oldPage.priorPermalinks page.priorPermalinks
-            do! updatePageRevisions  page.id oldPage.revisions       page.revisions
+            do! updatePageMeta       page.Id oldPage.Metadata        page.Metadata
+            do! updatePagePermalinks page.Id oldPage.PriorPermalinks page.PriorPermalinks
+            do! updatePageRevisions  page.Id oldPage.Revisions       page.Revisions
             return ()
         | None -> return ()
     }
@@ -343,7 +343,7 @@ type SQLitePageData (conn : SqliteConnection) =
     let updatePriorPermalinks pageId webLogId permalinks = backgroundTask {
         match! findFullById pageId webLogId with
         | Some page ->
-            do! updatePagePermalinks pageId page.priorPermalinks permalinks
+            do! updatePagePermalinks pageId page.PriorPermalinks permalinks
             return true
         | None -> return false
     }

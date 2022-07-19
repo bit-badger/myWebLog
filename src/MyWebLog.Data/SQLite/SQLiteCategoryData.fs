@@ -10,12 +10,12 @@ type SQLiteCategoryData (conn : SqliteConnection) =
     
     /// Add parameters for category INSERT or UPDATE statements
     let addCategoryParameters (cmd : SqliteCommand) (cat : Category) =
-        [ cmd.Parameters.AddWithValue ("@id", CategoryId.toString cat.id)
-          cmd.Parameters.AddWithValue ("@webLogId", WebLogId.toString cat.webLogId)
-          cmd.Parameters.AddWithValue ("@name", cat.name)
-          cmd.Parameters.AddWithValue ("@slug", cat.slug)
-          cmd.Parameters.AddWithValue ("@description", maybe cat.description)
-          cmd.Parameters.AddWithValue ("@parentId", maybe (cat.parentId |> Option.map CategoryId.toString))
+        [ cmd.Parameters.AddWithValue ("@id", CategoryId.toString cat.Id)
+          cmd.Parameters.AddWithValue ("@webLogId", WebLogId.toString cat.WebLogId)
+          cmd.Parameters.AddWithValue ("@name", cat.Name)
+          cmd.Parameters.AddWithValue ("@slug", cat.Slug)
+          cmd.Parameters.AddWithValue ("@description", maybe cat.Description)
+          cmd.Parameters.AddWithValue ("@parentId", maybe (cat.ParentId |> Option.map CategoryId.toString))
         ] |> ignore
     
     /// Add a category
@@ -60,7 +60,7 @@ type SQLiteCategoryData (conn : SqliteConnection) =
                 while rdr.Read () do
                     Map.toCategory rdr
             }
-            |> Seq.sortBy (fun cat -> cat.name.ToLowerInvariant ())
+            |> Seq.sortBy (fun cat -> cat.Name.ToLowerInvariant ())
             |> List.ofSeq
         do! rdr.CloseAsync ()
         let  ordered = Utils.orderByHierarchy cats None None []
@@ -107,7 +107,7 @@ type SQLiteCategoryData (conn : SqliteConnection) =
         cmd.CommandText <- "SELECT * FROM category WHERE id = @id"
         cmd.Parameters.AddWithValue ("@id", CategoryId.toString catId) |> ignore
         use! rdr = cmd.ExecuteReaderAsync ()
-        return Helpers.verifyWebLog<Category> webLogId (fun c -> c.webLogId) Map.toCategory rdr
+        return Helpers.verifyWebLog<Category> webLogId (fun c -> c.WebLogId) Map.toCategory rdr
     }
     
     /// Find all categories for the given web log

@@ -100,13 +100,6 @@ module Json =
         override _.ReadJson (reader : JsonReader, _ : Type, _ : ThemeId, _ : bool, _ : JsonSerializer) =
             (string >> ThemeId) reader.Value
     
-    type UploadDestinationConverter () =
-        inherit JsonConverter<UploadDestination> ()
-        override _.WriteJson (writer : JsonWriter, value : UploadDestination, _ : JsonSerializer) =
-            writer.WriteValue (UploadDestination.toString value)
-        override _.ReadJson (reader : JsonReader, _ : Type, _ : UploadDestination, _ : bool, _ : JsonSerializer) =
-            (string >> UploadDestination.parse) reader.Value
-    
     type UploadIdConverter () =
         inherit JsonConverter<UploadId> ()
         override _.WriteJson (writer : JsonWriter, value : UploadId, _ : JsonSerializer) =
@@ -134,23 +127,22 @@ module Json =
     let all () : JsonConverter seq =
         seq {
             // Our converters
-            CategoryIdConverter        ()
-            CommentIdConverter         ()
-            CustomFeedIdConverter      ()
-            CustomFeedSourceConverter  ()
-            ExplicitRatingConverter    ()
-            MarkupTextConverter        ()
-            PermalinkConverter         ()
-            PageIdConverter            ()
-            PodcastMediumConverter     ()
-            PostIdConverter            ()
-            TagMapIdConverter          ()
-            ThemeAssetIdConverter      ()
-            ThemeIdConverter           ()
-            UploadDestinationConverter ()
-            UploadIdConverter          ()
-            WebLogIdConverter          ()
-            WebLogUserIdConverter      ()
+            CategoryIdConverter       ()
+            CommentIdConverter        ()
+            CustomFeedIdConverter     ()
+            CustomFeedSourceConverter ()
+            ExplicitRatingConverter   ()
+            MarkupTextConverter       ()
+            PermalinkConverter        ()
+            PageIdConverter           ()
+            PodcastMediumConverter    ()
+            PostIdConverter           ()
+            TagMapIdConverter         ()
+            ThemeAssetIdConverter     ()
+            ThemeIdConverter          ()
+            UploadIdConverter         ()
+            WebLogIdConverter         ()
+            WebLogUserIdConverter     ()
             // Handles DUs with no associated data, as well as option fields
-            CompactUnionJsonConverter  ()
+            CompactUnionJsonConverter ()
         }
