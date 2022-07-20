@@ -39,26 +39,27 @@ module DataImplementation =
 
     /// Get the configured data implementation
     let get (sp : IServiceProvider) : IData =
-        let config = sp.GetRequiredService<IConfiguration> ()
-        if (config.GetConnectionString >> isNull >> not) "SQLite" then
+        let config   = sp.GetRequiredService<IConfiguration> ()
+        let await it = (Async.AwaitTask >> Async.RunSynchronously) it
+        let connStr    name = config.GetConnectionString name
+        let hasConnStr name = (connStr >> isNull >> not) name
+        let createSQLite connStr =
             let log  = sp.GetRequiredService<ILogger<SQLiteData>> ()
-            let conn = new SqliteConnection (config.GetConnectionString "SQLite")
+            let conn = new SqliteConnection (connStr)
             log.LogInformation $"Using SQL database {conn.DataSource}"
-            SQLiteData.setUpConnection conn |> Async.AwaitTask |> Async.RunSynchronously
-            upcast SQLiteData (conn, sp.GetRequiredService<ILogger<SQLiteData>> ())
-        elif (config.GetSection "RethinkDB").Exists () then
+            await (SQLiteData.setUpConnection conn)
+            SQLiteData (conn, log)
+        
+        if hasConnStr "SQLite" then
+            upcast createSQLite (connStr "SQLite")
+        elif hasConnStr "RethinkDB" then
             let log = sp.GetRequiredService<ILogger<RethinkDbData>> ()
             Json.all () |> Seq.iter Converter.Serializer.Converters.Add 
-            let rethinkCfg = DataConfig.FromConfiguration (config.GetSection "RethinkDB")
-            let conn       = rethinkCfg.CreateConnectionAsync () |> Async.AwaitTask |> Async.RunSynchronously
-            log.LogInformation $"Using RethinkDB database {rethinkCfg.Database}"
-            upcast RethinkDbData (conn, rethinkCfg, sp.GetRequiredService<ILogger<RethinkDbData>> ())
+            let rethinkCfg = DataConfig.FromUri (connStr "RethinkDB")
+            let conn       = await (rethinkCfg.CreateConnectionAsync log)
+            upcast RethinkDbData (conn, rethinkCfg, log)
         else
-            let log  = sp.GetRequiredService<ILogger<SQLiteData>> ()
-            log.LogInformation "Using default SQLite database myweblog.db"
-            let conn = new SqliteConnection ("Data Source=./myweblog.db;Cache=Shared")
-            SQLiteData.setUpConnection conn |> Async.AwaitTask |> Async.RunSynchronously
-            upcast SQLiteData (conn, log)
+            upcast createSQLite "Data Source=./myweblog.db;Cache=Shared"
 
 
 open Giraffe

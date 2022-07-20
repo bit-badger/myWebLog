@@ -172,55 +172,28 @@ let deleteRevision (pgId, revDate) : HttpHandler = requireAccess Author >=> fun 
     | _, None -> return! Error.notFound next ctx
 }
 
-//#nowarn "3511"
-
 open System.Threading.Tasks
 
 // POST /admin/page/save
 let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
-    let! model = ctx.BindFormAsync<EditPageModel> ()
-    let  data  = ctx.Data
-    let  now   = DateTime.UtcNow
-    let  pg    =
-        match model.PageId with
-        | "new" ->
-            Task.FromResult (
-                Some
-                    { Page.empty with
-                        Id          = PageId.create ()
-                        WebLogId    = ctx.WebLog.Id
-                        AuthorId    = ctx.UserId
-                        PublishedOn = now
-                    })
-        | pgId -> data.Page.FindFullById (PageId pgId) ctx.WebLog.Id
-    match! pg with
+    let! model   = ctx.BindFormAsync<EditPageModel> ()
+    let  data    = ctx.Data
+    let  now     = DateTime.UtcNow
+    let  tryPage =
+        if model.IsNew then Task.FromResult (
+            Some
+                { Page.empty with
+                    Id          = PageId.create ()
+                    WebLogId    = ctx.WebLog.Id
+                    AuthorId    = ctx.UserId
+                    PublishedOn = now
+                })
+        else data.Page.FindFullById (PageId model.PageId) ctx.WebLog.Id
+    match! tryPage with
     | Some page when canEdit page.AuthorId ctx ->
-        let updateList = page.IsInPageList <> model.IsShownInPageList
-        let revision   = { AsOf = now; Text = MarkupText.parse $"{model.Source}: {model.Text}" }
-        // Detect a permalink change, and add the prior one to the prior list
-        let page =
-            match Permalink.toString page.Permalink with
-            | "" -> page
-            | link when link = model.Permalink -> page
-            | _ -> { page with PriorPermalinks = page.Permalink :: page.PriorPermalinks }
-        let page =
-            { page with
-                Title          = model.Title
-                Permalink      = Permalink model.Permalink
-                UpdatedOn      = now
-                IsInPageList = model.IsShownInPageList
-                Template       = match model.Template with "" -> None | tmpl -> Some tmpl
-                Text           = MarkupText.toHtml revision.Text
-                Metadata       = Seq.zip model.MetaNames model.MetaValues
-                                 |> Seq.filter (fun it -> fst it > "")
-                                 |> Seq.map (fun it -> { Name = fst it; Value = snd it })
-                                 |> Seq.sortBy (fun it -> $"{it.Name.ToLower ()} {it.Value.ToLower ()}")
-                                 |> List.ofSeq
-                Revisions      = match page.Revisions |> List.tryHead with
-                                 | Some r when r.Text = revision.Text -> page.Revisions
-                                 | _ -> revision :: page.Revisions
-            }
-        do! (if model.PageId = "new" then data.Page.Add else data.Page.Update) page
+        let updateList  = page.IsInPageList <> model.IsShownInPageList
+        let updatedPage = model.UpdatePage page now
+        do! (if model.PageId = "new" then data.Page.Add else data.Page.Update) updatedPage
         if updateList then do! PageListCache.update ctx
         do! addMessage ctx { UserMessage.success with Message = "Page saved successfully" }
         return! redirectToGet $"admin/page/{PageId.toString page.Id}/edit" next ctx

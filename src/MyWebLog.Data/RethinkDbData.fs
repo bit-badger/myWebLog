@@ -676,7 +676,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                 
                 member _.FindByWebLog webLogId = rethink<TagMap list> {
                     withTable Table.TagMap
-                    between [| webLogId :> obj; r.Minval () |] [| webLogId :> obj, r.Maxval () |]
+                    between [| webLogId :> obj; r.Minval () |] [| webLogId :> obj; r.Maxval () |]
                             [ Index Index.WebLogAndTag ]
                     orderBy (nameof TagMap.empty.Tag)
                     result; withRetryDefault conn

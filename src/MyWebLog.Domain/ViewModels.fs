@@ -469,6 +469,36 @@ type EditPageModel =
           MetaNames         = page.Metadata |> List.map (fun m -> m.Name)  |> Array.ofList
           MetaValues        = page.Metadata |> List.map (fun m -> m.Value) |> Array.ofList
         }
+    
+    /// Whether this is a new page
+    member this.IsNew = this.PageId = "new"
+    
+    /// Update a page with values from this model
+    member this.UpdatePage (page : Page) now =
+        let revision = { AsOf = now; Text = MarkupText.parse $"{this.Source}: {this.Text}" }
+        // Detect a permalink change, and add the prior one to the prior list
+        match Permalink.toString page.Permalink with
+        | "" -> page
+        | link when link = this.Permalink -> page
+        | _ -> { page with PriorPermalinks = page.Permalink :: page.PriorPermalinks }
+        |> function
+        | page ->
+            { page with
+                Title        = this.Title
+                Permalink    = Permalink this.Permalink
+                UpdatedOn    = now
+                IsInPageList = this.IsShownInPageList
+                Template     = match this.Template with "" -> None | tmpl -> Some tmpl
+                Text         = MarkupText.toHtml revision.Text
+                Metadata     = Seq.zip this.MetaNames this.MetaValues
+                               |> Seq.filter (fun it -> fst it > "")
+                               |> Seq.map (fun it -> { Name = fst it; Value = snd it })
+                               |> Seq.sortBy (fun it -> $"{it.Name.ToLower ()} {it.Value.ToLower ()}")
+                               |> List.ofSeq
+                Revisions    = match page.Revisions |> List.tryHead with
+                               | Some r when r.Text = revision.Text -> page.Revisions
+                               | _ -> revision :: page.Revisions
+            }
 
 
 /// View model to edit a post
@@ -617,58 +647,69 @@ type EditPostModel =
           EpisodeDescription = defaultArg episode.EpisodeDescription ""
         }
     
+    /// Whether this is a new post
+    member this.IsNew = this.PostId = "new"
+    
     /// Update a post with values from the submitted form
-    member this.UpdatePost (post : Post) (revision : Revision) now =
-        { post with
-            Title       = this.Title
-            Permalink   = Permalink this.Permalink
-            PublishedOn = if this.DoPublish then Some now else post.PublishedOn
-            UpdatedOn   = now
-            Text        = MarkupText.toHtml revision.Text
-            Tags        = this.Tags.Split ","
-                          |> Seq.ofArray
-                          |> Seq.map (fun it -> it.Trim().ToLower ())
-                          |> Seq.filter (fun it -> it <> "")
-                          |> Seq.sort
-                          |> List.ofSeq
-            Template    = match this.Template.Trim () with "" -> None | tmpl -> Some tmpl
-            CategoryIds = this.CategoryIds |> Array.map CategoryId |> List.ofArray
-            Status      = if this.DoPublish then Published else post.Status
-            Metadata    = Seq.zip this.MetaNames this.MetaValues
-                          |> Seq.filter (fun it -> fst it > "")
-                          |> Seq.map (fun it -> { Name = fst it; Value = snd it })
-                          |> Seq.sortBy (fun it -> $"{it.Name.ToLower ()} {it.Value.ToLower ()}")
-                          |> List.ofSeq
-            Revisions   = match post.Revisions |> List.tryHead with
-                          | Some r when r.Text = revision.Text -> post.Revisions
-                          | _ -> revision :: post.Revisions
-            Episode     =
-                if this.IsEpisode then
-                    Some {
-                        Media              = this.Media
-                        Length             = this.Length
-                        Duration           = noneIfBlank this.Duration |> Option.map TimeSpan.Parse
-                        MediaType          = noneIfBlank this.MediaType
-                        ImageUrl           = noneIfBlank this.ImageUrl
-                        Subtitle           = noneIfBlank this.Subtitle
-                        Explicit           = noneIfBlank this.Explicit |> Option.map ExplicitRating.parse
-                        ChapterFile        = noneIfBlank this.ChapterFile
-                        ChapterType        = noneIfBlank this.ChapterType
-                        TranscriptUrl      = noneIfBlank this.TranscriptUrl
-                        TranscriptType     = noneIfBlank this.TranscriptType
-                        TranscriptLang     = noneIfBlank this.TranscriptLang
-                        TranscriptCaptions = if this.TranscriptCaptions then Some true else None
-                        SeasonNumber       = if this.SeasonNumber = 0 then None else Some this.SeasonNumber
-                        SeasonDescription  = noneIfBlank this.SeasonDescription
-                        EpisodeNumber      = match noneIfBlank this.EpisodeNumber |> Option.map Double.Parse with
-                                             | Some it when it = 0.0 -> None
-                                             | Some it -> Some (double it)
-                                             | None -> None
-                        EpisodeDescription = noneIfBlank this.EpisodeDescription
-                    }
-                else
-                    None
-        }
+    member this.UpdatePost (post : Post) now =
+        let revision  = { AsOf = now; Text = MarkupText.parse $"{this.Source}: {this.Text}" }
+        // Detect a permalink change, and add the prior one to the prior list
+        match Permalink.toString post.Permalink with
+        | "" -> post
+        | link when link = this.Permalink -> post
+        | _ -> { post with PriorPermalinks = post.Permalink :: post.PriorPermalinks }
+        |> function
+        | post ->
+            { post with
+                Title       = this.Title
+                Permalink   = Permalink this.Permalink
+                PublishedOn = if this.DoPublish then Some now else post.PublishedOn
+                UpdatedOn   = now
+                Text        = MarkupText.toHtml revision.Text
+                Tags        = this.Tags.Split ","
+                              |> Seq.ofArray
+                              |> Seq.map (fun it -> it.Trim().ToLower ())
+                              |> Seq.filter (fun it -> it <> "")
+                              |> Seq.sort
+                              |> List.ofSeq
+                Template    = match this.Template.Trim () with "" -> None | tmpl -> Some tmpl
+                CategoryIds = this.CategoryIds |> Array.map CategoryId |> List.ofArray
+                Status      = if this.DoPublish then Published else post.Status
+                Metadata    = Seq.zip this.MetaNames this.MetaValues
+                              |> Seq.filter (fun it -> fst it > "")
+                              |> Seq.map (fun it -> { Name = fst it; Value = snd it })
+                              |> Seq.sortBy (fun it -> $"{it.Name.ToLower ()} {it.Value.ToLower ()}")
+                              |> List.ofSeq
+                Revisions   = match post.Revisions |> List.tryHead with
+                              | Some r when r.Text = revision.Text -> post.Revisions
+                              | _ -> revision :: post.Revisions
+                Episode     =
+                    if this.IsEpisode then
+                        Some {
+                            Media              = this.Media
+                            Length             = this.Length
+                            Duration           = noneIfBlank this.Duration |> Option.map TimeSpan.Parse
+                            MediaType          = noneIfBlank this.MediaType
+                            ImageUrl           = noneIfBlank this.ImageUrl
+                            Subtitle           = noneIfBlank this.Subtitle
+                            Explicit           = noneIfBlank this.Explicit |> Option.map ExplicitRating.parse
+                            ChapterFile        = noneIfBlank this.ChapterFile
+                            ChapterType        = noneIfBlank this.ChapterType
+                            TranscriptUrl      = noneIfBlank this.TranscriptUrl
+                            TranscriptType     = noneIfBlank this.TranscriptType
+                            TranscriptLang     = noneIfBlank this.TranscriptLang
+                            TranscriptCaptions = if this.TranscriptCaptions then Some true else None
+                            SeasonNumber       = if this.SeasonNumber = 0 then None else Some this.SeasonNumber
+                            SeasonDescription  = noneIfBlank this.SeasonDescription
+                            EpisodeNumber      = match noneIfBlank this.EpisodeNumber |> Option.map Double.Parse with
+                                                 | Some it when it = 0.0 -> None
+                                                 | Some it -> Some (double it)
+                                                 | None -> None
+                            EpisodeDescription = noneIfBlank this.EpisodeDescription
+                        }
+                    else
+                        None
+            }
 
 
 /// View model to edit RSS settings

@@ -91,30 +91,29 @@ let saveMyInfo : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     let! model = ctx.BindFormAsync<EditMyInfoModel> ()
     let  data  = ctx.Data
     match! data.WebLogUser.FindById ctx.UserId ctx.WebLog.Id with
+    | Some user when model.NewPassword = model.NewPasswordConfirm ->
+        let pw, salt =
+            if model.NewPassword = "" then
+                user.PasswordHash, user.Salt
+            else
+                let newSalt = Guid.NewGuid ()
+                hashedPassword model.NewPassword user.Email newSalt, newSalt
+        let user =
+            { user with
+                FirstName     = model.FirstName
+                LastName      = model.LastName
+                PreferredName = model.PreferredName
+                PasswordHash  = pw
+                Salt          = salt
+            }
+        do! data.WebLogUser.Update user
+        let pwMsg = if model.NewPassword = "" then "" else " and updated your password"
+        do! addMessage ctx { UserMessage.success with Message = $"Saved your information{pwMsg} successfully" }
+        return! redirectToGet "admin/user/my-info" next ctx
     | Some user ->
-        if model.NewPassword = model.NewPasswordConfirm then
-            let pw, salt =
-                if model.NewPassword = "" then
-                    user.PasswordHash, user.Salt
-                else
-                    let newSalt = Guid.NewGuid ()
-                    hashedPassword model.NewPassword user.Email newSalt, newSalt
-            let user =
-                { user with
-                    FirstName     = model.FirstName
-                    LastName      = model.LastName
-                    PreferredName = model.PreferredName
-                    PasswordHash  = pw
-                    Salt          = salt
-                }
-            do! data.WebLogUser.Update user
-            let pwMsg = if model.NewPassword = "" then "" else " and updated your password"
-            do! addMessage ctx { UserMessage.success with Message = $"Saved your information{pwMsg} successfully" }
-            return! redirectToGet "admin/user/my-info" next ctx
-        else
-            do! addMessage ctx { UserMessage.error with Message = "Passwords did not match; no updates made" }
-            return! showMyInfo user (Hash.FromAnonymousObject {|
-                    model = { model with NewPassword = ""; NewPasswordConfirm = "" }
-                |}) next ctx
+        do! addMessage ctx { UserMessage.error with Message = "Passwords did not match; no updates made" }
+        return! showMyInfo user (Hash.FromAnonymousObject {|
+                model = { model with NewPassword = ""; NewPasswordConfirm = "" }
+            |}) next ctx
     | None -> return! Error.notFound next ctx
 }

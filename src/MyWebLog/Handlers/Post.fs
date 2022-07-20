@@ -376,50 +376,42 @@ let deleteRevision (postId, revDate) : HttpHandler = requireAccess Author >=> fu
     | _, None -> return! Error.notFound next ctx
 }
 
-//#nowarn "3511"
-
 // POST /admin/post/save
 let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     let! model   = ctx.BindFormAsync<EditPostModel> ()
     let  data    = ctx.Data
     let  now     = DateTime.UtcNow
     let  tryPost =
-        if model.PostId = "new" then
-            Task.FromResult (
-                Some
-                    { Post.empty with
-                        Id        = PostId.create ()
-                        WebLogId  = ctx.WebLog.Id
-                        AuthorId  = ctx.UserId
-                    })
+        if model.IsNew then Task.FromResult (
+            Some
+                { Post.empty with
+                    Id        = PostId.create ()
+                    WebLogId  = ctx.WebLog.Id
+                    AuthorId  = ctx.UserId
+                })
         else data.Post.FindFullById (PostId model.PostId) ctx.WebLog.Id
     match! tryPost with
     | Some post when canEdit post.AuthorId ctx ->
-        let priorCats = post.CategoryIds
-        let revision  = { AsOf = now; Text = MarkupText.parse $"{model.Source}: {model.Text}" }
-        // Detect a permalink change, and add the prior one to the prior list
-        let post =
-            match Permalink.toString post.Permalink with
-            | "" -> post
-            | link when link = model.Permalink -> post
-            | _ -> { post with PriorPermalinks = post.Permalink :: post.PriorPermalinks }
-        let post = model.UpdatePost post revision now
-        let post =
-            if model.SetPublished then
-                let dt = parseToUtc (model.PubOverride.Value.ToString "o")
-                if model.SetUpdated then
-                    { post with
-                        PublishedOn = Some dt
-                        UpdatedOn   = dt
-                        Revisions   = [ { (List.head post.Revisions) with AsOf = dt } ]
-                    }
-                else { post with PublishedOn = Some dt }
-            else post
-        do! (if model.PostId = "new" then data.Post.Add else data.Post.Update) post
+        let priorCats   = post.CategoryIds
+        let updatedPost =
+            model.UpdatePost post now
+            |> function
+            | post ->
+                if model.SetPublished then
+                    let dt = parseToUtc (model.PubOverride.Value.ToString "o")
+                    if model.SetUpdated then
+                        { post with
+                            PublishedOn = Some dt
+                            UpdatedOn   = dt
+                            Revisions   = [ { (List.head post.Revisions) with AsOf = dt } ]
+                        }
+                    else { post with PublishedOn = Some dt }
+                else post
+        do! (if model.PostId = "new" then data.Post.Add else data.Post.Update) updatedPost
         // If the post was published or its categories changed, refresh the category cache
         if model.DoPublish
            || not (priorCats
-                   |> List.append post.CategoryIds
+                   |> List.append updatedPost.CategoryIds
                    |> List.distinct
                    |> List.length = List.length priorCats) then
             do! CategoryCache.update ctx
