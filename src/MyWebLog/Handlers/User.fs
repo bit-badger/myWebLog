@@ -5,6 +5,8 @@ open System
 open System.Security.Cryptography
 open System.Text
 
+// ~~ LOG ON / LOG OFF ~~
+
 /// Hash a password for a given user
 let hashedPassword (plainText : string) (email : string) (salt : Guid) =
     let allSalt = Array.concat [ salt.ToByteArray (); Encoding.UTF8.GetBytes email ] 
@@ -67,6 +69,24 @@ let logOff : HttpHandler = fun next ctx -> task {
     do! ctx.SignOutAsync CookieAuthenticationDefaults.AuthenticationScheme
     do! addMessage ctx { UserMessage.info with Message = "Log off successful" }
     return! redirectToGet "" next ctx
+}
+
+// ~~ ADMINISTRATION ~~
+
+// GET /admin/users
+let all : HttpHandler = fun next ctx -> task {
+    let  data   = ctx.Data
+    let! tmpl   = TemplateCache.get "admin" "user-list-body" data 
+    let! users  = data.WebLogUser.FindByWebLog ctx.WebLog.Id
+    let  hash   = Hash.FromAnonymousObject {|
+        page_title = "User Administration"
+        csrf       = ctx.CsrfTokenSet
+        web_log    = ctx.WebLog
+        users      = users |> List.map (DisplayUser.fromUser ctx.WebLog) |> Array.ofList
+    |}
+    return!
+           addToHash "user_list" (tmpl.Render hash) hash
+        |> adminView "user-list" next ctx
 }
 
 /// Display the user "my info" page, with information possibly filled in

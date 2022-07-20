@@ -28,10 +28,10 @@ module AccessLevel =
     
     /// Weightings for access levels
     let private weights =
-        [ Author,        10
-          Editor,        20
-          WebLogAdmin,   30
-          Administrator, 40
+        [   Author,        10
+            Editor,        20
+            WebLogAdmin,   30
+            Administrator, 40
         ]
         |> Map.ofList
     
@@ -195,25 +195,25 @@ type Episode =
 module Episode =
     
     /// An empty episode
-    let empty = {
-        Media              = ""
-        Length             = 0L
-        Duration           = None
-        MediaType          = None
-        ImageUrl           = None
-        Subtitle           = None
-        Explicit           = None
-        ChapterFile        = None
-        ChapterType        = None
-        TranscriptUrl      = None
-        TranscriptType     = None
-        TranscriptLang     = None
-        TranscriptCaptions = None
-        SeasonNumber       = None
-        SeasonDescription  = None
-        EpisodeNumber      = None
-        EpisodeDescription = None
-    }
+    let empty =
+        {   Media              = ""
+            Length             = 0L
+            Duration           = None
+            MediaType          = None
+            ImageUrl           = None
+            Subtitle           = None
+            Explicit           = None
+            ChapterFile        = None
+            ChapterType        = None
+            TranscriptUrl      = None
+            TranscriptType     = None
+            TranscriptLang     = None
+            TranscriptCaptions = None
+            SeasonNumber       = None
+            SeasonDescription  = None
+            EpisodeNumber      = None
+            EpisodeDescription = None
+        }
 
 
 open Markdig
@@ -285,8 +285,8 @@ module Revision =
     
     /// An empty revision
     let empty =
-        { AsOf = DateTime.UtcNow
-          Text = Html ""
+        {   AsOf = DateTime.UtcNow
+            Text = Html ""
         }
 
 
@@ -505,10 +505,10 @@ module CustomFeed =
     
     /// An empty custom feed
     let empty =
-        { Id      = CustomFeedId ""
-          Source  = Category (CategoryId "")
-          Path    = Permalink ""
-          Podcast = None
+        {   Id      = CustomFeedId ""
+            Source  = Category (CategoryId "")
+            Path    = Permalink ""
+            Podcast = None
         }
 
 
@@ -542,13 +542,13 @@ module RssOptions =
     
     /// An empty set of RSS options
     let empty =
-        { IsFeedEnabled     = true
-          FeedName          = "feed.xml"
-          ItemsInFeed       = None
-          IsCategoryEnabled = true
-          IsTagEnabled      = true
-          Copyright         = None
-          CustomFeeds       = []
+        {   IsFeedEnabled     = true
+            FeedName          = "feed.xml"
+            ItemsInFeed       = None
+            IsCategoryEnabled = true
+            IsTagEnabled      = true
+            Copyright         = None
+            CustomFeeds       = []
         }
 
 

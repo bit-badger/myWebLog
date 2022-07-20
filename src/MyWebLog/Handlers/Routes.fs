@@ -149,6 +149,7 @@ let router : HttpHandler = choose [
                 route "/new" >=> Upload.showNew
             ])
             subRoute "/user" (choose [
+                route "s"        >=> User.all
                 route "/my-info" >=> User.myInfo
             ])
         ]

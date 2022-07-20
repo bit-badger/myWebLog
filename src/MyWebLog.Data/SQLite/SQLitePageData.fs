@@ -12,16 +12,16 @@ type SQLitePageData (conn : SqliteConnection) =
     
     /// Add parameters for page INSERT or UPDATE statements
     let addPageParameters (cmd : SqliteCommand) (page : Page) =
-        [ cmd.Parameters.AddWithValue ("@id", PageId.toString page.Id)
-          cmd.Parameters.AddWithValue ("@webLogId", WebLogId.toString page.WebLogId)
-          cmd.Parameters.AddWithValue ("@authorId", WebLogUserId.toString page.AuthorId)
-          cmd.Parameters.AddWithValue ("@title", page.Title)
-          cmd.Parameters.AddWithValue ("@permalink", Permalink.toString page.Permalink)
-          cmd.Parameters.AddWithValue ("@publishedOn", page.PublishedOn)
-          cmd.Parameters.AddWithValue ("@updatedOn", page.UpdatedOn)
-          cmd.Parameters.AddWithValue ("@isInPageList", page.IsInPageList)
-          cmd.Parameters.AddWithValue ("@template", maybe page.Template)
-          cmd.Parameters.AddWithValue ("@text", page.Text)
+        [   cmd.Parameters.AddWithValue ("@id", PageId.toString page.Id)
+            cmd.Parameters.AddWithValue ("@webLogId", WebLogId.toString page.WebLogId)
+            cmd.Parameters.AddWithValue ("@authorId", WebLogUserId.toString page.AuthorId)
+            cmd.Parameters.AddWithValue ("@title", page.Title)
+            cmd.Parameters.AddWithValue ("@permalink", Permalink.toString page.Permalink)
+            cmd.Parameters.AddWithValue ("@publishedOn", page.PublishedOn)
+            cmd.Parameters.AddWithValue ("@updatedOn", page.UpdatedOn)
+            cmd.Parameters.AddWithValue ("@isInPageList", page.IsInPageList)
+            cmd.Parameters.AddWithValue ("@template", maybe page.Template)
+            cmd.Parameters.AddWithValue ("@text", page.Text)
         ] |> ignore
     
     /// Append meta items to a page

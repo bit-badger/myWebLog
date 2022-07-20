@@ -12,18 +12,18 @@ type SQLiteWebLogUserData (conn : SqliteConnection) =
 
     /// Add parameters for web log user INSERT or UPDATE statements
     let addWebLogUserParameters (cmd : SqliteCommand) (user : WebLogUser) =
-        [ cmd.Parameters.AddWithValue ("@id", WebLogUserId.toString user.Id)
-          cmd.Parameters.AddWithValue ("@webLogId", WebLogId.toString user.WebLogId)
-          cmd.Parameters.AddWithValue ("@email", user.Email)
-          cmd.Parameters.AddWithValue ("@firstName", user.FirstName)
-          cmd.Parameters.AddWithValue ("@lastName", user.LastName)
-          cmd.Parameters.AddWithValue ("@preferredName", user.PreferredName)
-          cmd.Parameters.AddWithValue ("@passwordHash", user.PasswordHash)
-          cmd.Parameters.AddWithValue ("@salt", user.Salt)
-          cmd.Parameters.AddWithValue ("@url", maybe user.Url)
-          cmd.Parameters.AddWithValue ("@accessLevel", AccessLevel.toString user.AccessLevel)
-          cmd.Parameters.AddWithValue ("@createdOn", user.CreatedOn)
-          cmd.Parameters.AddWithValue ("@lastSeenOn", maybe user.LastSeenOn)
+        [   cmd.Parameters.AddWithValue ("@id", WebLogUserId.toString user.Id)
+            cmd.Parameters.AddWithValue ("@webLogId", WebLogId.toString user.WebLogId)
+            cmd.Parameters.AddWithValue ("@email", user.Email)
+            cmd.Parameters.AddWithValue ("@firstName", user.FirstName)
+            cmd.Parameters.AddWithValue ("@lastName", user.LastName)
+            cmd.Parameters.AddWithValue ("@preferredName", user.PreferredName)
+            cmd.Parameters.AddWithValue ("@passwordHash", user.PasswordHash)
+            cmd.Parameters.AddWithValue ("@salt", user.Salt)
+            cmd.Parameters.AddWithValue ("@url", maybe user.Url)
+            cmd.Parameters.AddWithValue ("@accessLevel", AccessLevel.toString user.AccessLevel)
+            cmd.Parameters.AddWithValue ("@createdOn", user.CreatedOn)
+            cmd.Parameters.AddWithValue ("@lastSeenOn", maybe user.LastSeenOn)
         ] |> ignore
     
     // IMPLEMENTATION FUNCTIONS

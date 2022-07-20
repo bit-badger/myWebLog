@@ -30,12 +30,12 @@ module Category =
     
     /// An empty category
     let empty =
-        { Id          = CategoryId.empty
-          WebLogId    = WebLogId.empty
-          Name        = ""
-          Slug        = ""
-          Description = None
-          ParentId    = None
+        {   Id          = CategoryId.empty
+            WebLogId    = WebLogId.empty
+            Name        = ""
+            Slug        = ""
+            Description = None
+            ParentId    = None
         }
 
 
@@ -75,15 +75,15 @@ module Comment =
     
     /// An empty comment
     let empty =
-        { Id          = CommentId.empty
-          PostId      = PostId.empty
-          InReplyToId = None
-          Name        = ""
-          Email       = ""
-          Url         = None
-          Status      = Pending
-          PostedOn    = DateTime.UtcNow
-          Text        = ""
+        {   Id          = CommentId.empty
+            PostId      = PostId.empty
+            InReplyToId = None
+            Name        = ""
+            Email       = ""
+            Url         = None
+            Status      = Pending
+            PostedOn    = DateTime.UtcNow
+            Text        = ""
         }
 
 
@@ -135,19 +135,19 @@ module Page =
     
     /// An empty page
     let empty =
-        { Id              = PageId.empty
-          WebLogId        = WebLogId.empty
-          AuthorId        = WebLogUserId.empty
-          Title           = ""
-          Permalink       = Permalink.empty
-          PublishedOn     = DateTime.MinValue
-          UpdatedOn       = DateTime.MinValue
-          IsInPageList    = false
-          Template        = None
-          Text            = ""
-          Metadata        = []
-          PriorPermalinks = []
-          Revisions       = []
+        {   Id              = PageId.empty
+            WebLogId        = WebLogId.empty
+            AuthorId        = WebLogUserId.empty
+            Title           = ""
+            Permalink       = Permalink.empty
+            PublishedOn     = DateTime.MinValue
+            UpdatedOn       = DateTime.MinValue
+            IsInPageList    = false
+            Template        = None
+            Text            = ""
+            Metadata        = []
+            PriorPermalinks = []
+            Revisions       = []
         }
 
 
@@ -208,22 +208,22 @@ module Post =
     
     /// An empty post
     let empty =
-        { Id              = PostId.empty
-          WebLogId        = WebLogId.empty
-          AuthorId        = WebLogUserId.empty
-          Status          = Draft
-          Title           = ""
-          Permalink       = Permalink.empty
-          PublishedOn     = None
-          UpdatedOn       = DateTime.MinValue
-          Text            = ""
-          Template        = None
-          CategoryIds     = []
-          Tags            = []
-          Episode         = None
-          Metadata        = []
-          PriorPermalinks = []
-          Revisions       = []
+        {   Id              = PostId.empty
+            WebLogId        = WebLogId.empty
+            AuthorId        = WebLogUserId.empty
+            Status          = Draft
+            Title           = ""
+            Permalink       = Permalink.empty
+            PublishedOn     = None
+            UpdatedOn       = DateTime.MinValue
+            Text            = ""
+            Template        = None
+            CategoryIds     = []
+            Tags            = []
+            Episode         = None
+            Metadata        = []
+            PriorPermalinks = []
+            Revisions       = []
         }
 
 
@@ -247,10 +247,10 @@ module TagMap =
     
     /// An empty tag mapping
     let empty =
-        { Id       = TagMapId.empty
-          WebLogId = WebLogId.empty
-          Tag      = ""
-          UrlValue = ""
+        {   Id       = TagMapId.empty
+            WebLogId = WebLogId.empty
+            Tag      = ""
+            UrlValue = ""
         }
 
 
@@ -274,10 +274,10 @@ module Theme =
     
     /// An empty theme
     let empty =
-        { Id        = ThemeId ""
-          Name      = ""
-          Version   = ""
-          Templates = []
+        {   Id        = ThemeId ""
+            Name      = ""
+            Version   = ""
+            Templates = []
         }
 
 
@@ -299,9 +299,9 @@ module ThemeAsset =
     
     /// An empty theme asset
     let empty =
-        { Id        = ThemeAssetId (ThemeId "", "")
-          UpdatedOn = DateTime.MinValue
-          Data      = [||]
+        {   Id        = ThemeAssetId (ThemeId "", "")
+            UpdatedOn = DateTime.MinValue
+            Data      = [||]
         }
 
 
@@ -327,13 +327,13 @@ type Upload =
 module Upload =
     
     /// An empty upload
-    let empty = {
-        Id        = UploadId.empty
-        WebLogId  = WebLogId.empty
-        Path      = Permalink.empty
-        UpdatedOn = DateTime.MinValue
-        Data      = [||]
-    }
+    let empty =
+        {   Id        = UploadId.empty
+            WebLogId  = WebLogId.empty
+            Path      = Permalink.empty
+            UpdatedOn = DateTime.MinValue
+            Data      = [||]
+        }
 
 
 /// A web log
@@ -381,18 +381,18 @@ module WebLog =
     
     /// An empty web log
     let empty =
-        { Id           = WebLogId.empty
-          Name         = ""
-          Slug         = ""
-          Subtitle     = None
-          DefaultPage  = ""
-          PostsPerPage = 10
-          ThemeId      = ThemeId "default"
-          UrlBase      = ""
-          TimeZone     = ""
-          Rss          = RssOptions.empty
-          AutoHtmx     = false
-          Uploads      = Database
+        {   Id           = WebLogId.empty
+            Name         = ""
+            Slug         = ""
+            Subtitle     = None
+            DefaultPage  = ""
+            PostsPerPage = 10
+            ThemeId      = ThemeId "default"
+            UrlBase      = ""
+            TimeZone     = ""
+            Rss          = RssOptions.empty
+            AutoHtmx     = false
+            Uploads      = Database
         }
     
     /// Get the host (including scheme) and extra path from the URL base
@@ -461,18 +461,18 @@ module WebLogUser =
     
     /// An empty web log user
     let empty =
-        { Id            = WebLogUserId.empty
-          WebLogId      = WebLogId.empty
-          Email         = ""
-          FirstName     = ""
-          LastName      = ""
-          PreferredName = ""
-          PasswordHash  = ""
-          Salt          = Guid.Empty
-          Url           = None
-          AccessLevel   = Author
-          CreatedOn     = DateTime.UnixEpoch
-          LastSeenOn    = None
+        {   Id            = WebLogUserId.empty
+            WebLogId      = WebLogId.empty
+            Email         = ""
+            FirstName     = ""
+            LastName      = ""
+            PreferredName = ""
+            PasswordHash  = ""
+            Salt          = Guid.Empty
+            Url           = None
+            AccessLevel   = Author
+            CreatedOn     = DateTime.UnixEpoch
+            LastSeenOn    = None
         }
     
     /// Get the user's displayed name

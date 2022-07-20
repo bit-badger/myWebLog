@@ -15,57 +15,57 @@ type SQLiteWebLogData (conn : SqliteConnection) =
     
     /// Add parameters for web log INSERT or web log/RSS options UPDATE statements
     let addWebLogRssParameters (cmd : SqliteCommand) (webLog : WebLog) =
-        [ cmd.Parameters.AddWithValue ("@isFeedEnabled", webLog.Rss.IsFeedEnabled)
-          cmd.Parameters.AddWithValue ("@feedName", webLog.Rss.FeedName)
-          cmd.Parameters.AddWithValue ("@itemsInFeed", maybe webLog.Rss.ItemsInFeed)
-          cmd.Parameters.AddWithValue ("@isCategoryEnabled", webLog.Rss.IsCategoryEnabled)
-          cmd.Parameters.AddWithValue ("@isTagEnabled", webLog.Rss.IsTagEnabled)
-          cmd.Parameters.AddWithValue ("@copyright", maybe webLog.Rss.Copyright)
+        [   cmd.Parameters.AddWithValue ("@isFeedEnabled", webLog.Rss.IsFeedEnabled)
+            cmd.Parameters.AddWithValue ("@feedName", webLog.Rss.FeedName)
+            cmd.Parameters.AddWithValue ("@itemsInFeed", maybe webLog.Rss.ItemsInFeed)
+            cmd.Parameters.AddWithValue ("@isCategoryEnabled", webLog.Rss.IsCategoryEnabled)
+            cmd.Parameters.AddWithValue ("@isTagEnabled", webLog.Rss.IsTagEnabled)
+            cmd.Parameters.AddWithValue ("@copyright", maybe webLog.Rss.Copyright)
         ] |> ignore
     
     /// Add parameters for web log INSERT or UPDATE statements
     let addWebLogParameters (cmd : SqliteCommand) (webLog : WebLog) =
-        [ cmd.Parameters.AddWithValue ("@id", WebLogId.toString webLog.Id)
-          cmd.Parameters.AddWithValue ("@name", webLog.Name)
-          cmd.Parameters.AddWithValue ("@slug", webLog.Slug)
-          cmd.Parameters.AddWithValue ("@subtitle", maybe webLog.Subtitle)
-          cmd.Parameters.AddWithValue ("@defaultPage", webLog.DefaultPage)
-          cmd.Parameters.AddWithValue ("@postsPerPage", webLog.PostsPerPage)
-          cmd.Parameters.AddWithValue ("@themeId", ThemeId.toString webLog.ThemeId)
-          cmd.Parameters.AddWithValue ("@urlBase", webLog.UrlBase)
-          cmd.Parameters.AddWithValue ("@timeZone", webLog.TimeZone)
-          cmd.Parameters.AddWithValue ("@autoHtmx", webLog.AutoHtmx)
-          cmd.Parameters.AddWithValue ("@uploads", UploadDestination.toString webLog.Uploads)
+        [   cmd.Parameters.AddWithValue ("@id", WebLogId.toString webLog.Id)
+            cmd.Parameters.AddWithValue ("@name", webLog.Name)
+            cmd.Parameters.AddWithValue ("@slug", webLog.Slug)
+            cmd.Parameters.AddWithValue ("@subtitle", maybe webLog.Subtitle)
+            cmd.Parameters.AddWithValue ("@defaultPage", webLog.DefaultPage)
+            cmd.Parameters.AddWithValue ("@postsPerPage", webLog.PostsPerPage)
+            cmd.Parameters.AddWithValue ("@themeId", ThemeId.toString webLog.ThemeId)
+            cmd.Parameters.AddWithValue ("@urlBase", webLog.UrlBase)
+            cmd.Parameters.AddWithValue ("@timeZone", webLog.TimeZone)
+            cmd.Parameters.AddWithValue ("@autoHtmx", webLog.AutoHtmx)
+            cmd.Parameters.AddWithValue ("@uploads", UploadDestination.toString webLog.Uploads)
         ] |> ignore
         addWebLogRssParameters cmd webLog
     
     /// Add parameters for custom feed INSERT or UPDATE statements
     let addCustomFeedParameters (cmd : SqliteCommand) webLogId (feed : CustomFeed) =
-        [ cmd.Parameters.AddWithValue ("@id", CustomFeedId.toString feed.Id)
-          cmd.Parameters.AddWithValue ("@webLogId", WebLogId.toString webLogId)
-          cmd.Parameters.AddWithValue ("@source", CustomFeedSource.toString feed.Source)
-          cmd.Parameters.AddWithValue ("@path", Permalink.toString feed.Path)
+        [   cmd.Parameters.AddWithValue ("@id", CustomFeedId.toString feed.Id)
+            cmd.Parameters.AddWithValue ("@webLogId", WebLogId.toString webLogId)
+            cmd.Parameters.AddWithValue ("@source", CustomFeedSource.toString feed.Source)
+            cmd.Parameters.AddWithValue ("@path", Permalink.toString feed.Path)
         ] |> ignore
     
     /// Add parameters for podcast INSERT or UPDATE statements
     let addPodcastParameters (cmd : SqliteCommand) feedId (podcast : PodcastOptions) =
-        [ cmd.Parameters.AddWithValue ("@feedId", CustomFeedId.toString feedId)
-          cmd.Parameters.AddWithValue ("@title", podcast.Title)
-          cmd.Parameters.AddWithValue ("@subtitle", maybe podcast.Subtitle)
-          cmd.Parameters.AddWithValue ("@itemsInFeed", podcast.ItemsInFeed)
-          cmd.Parameters.AddWithValue ("@summary", podcast.Summary)
-          cmd.Parameters.AddWithValue ("@displayedAuthor", podcast.DisplayedAuthor)
-          cmd.Parameters.AddWithValue ("@email", podcast.Email)
-          cmd.Parameters.AddWithValue ("@imageUrl", Permalink.toString podcast.ImageUrl)
-          cmd.Parameters.AddWithValue ("@appleCategory", podcast.AppleCategory)
-          cmd.Parameters.AddWithValue ("@appleSubcategory", maybe podcast.AppleSubcategory)
-          cmd.Parameters.AddWithValue ("@explicit", ExplicitRating.toString podcast.Explicit)
-          cmd.Parameters.AddWithValue ("@defaultMediaType", maybe podcast.DefaultMediaType)
-          cmd.Parameters.AddWithValue ("@mediaBaseUrl", maybe podcast.MediaBaseUrl)
-          cmd.Parameters.AddWithValue ("@podcastGuid", maybe podcast.PodcastGuid)
-          cmd.Parameters.AddWithValue ("@fundingUrl", maybe podcast.FundingUrl)
-          cmd.Parameters.AddWithValue ("@fundingText", maybe podcast.FundingText)
-          cmd.Parameters.AddWithValue ("@medium", maybe (podcast.Medium |> Option.map PodcastMedium.toString))
+        [   cmd.Parameters.AddWithValue ("@feedId", CustomFeedId.toString feedId)
+            cmd.Parameters.AddWithValue ("@title", podcast.Title)
+            cmd.Parameters.AddWithValue ("@subtitle", maybe podcast.Subtitle)
+            cmd.Parameters.AddWithValue ("@itemsInFeed", podcast.ItemsInFeed)
+            cmd.Parameters.AddWithValue ("@summary", podcast.Summary)
+            cmd.Parameters.AddWithValue ("@displayedAuthor", podcast.DisplayedAuthor)
+            cmd.Parameters.AddWithValue ("@email", podcast.Email)
+            cmd.Parameters.AddWithValue ("@imageUrl", Permalink.toString podcast.ImageUrl)
+            cmd.Parameters.AddWithValue ("@appleCategory", podcast.AppleCategory)
+            cmd.Parameters.AddWithValue ("@appleSubcategory", maybe podcast.AppleSubcategory)
+            cmd.Parameters.AddWithValue ("@explicit", ExplicitRating.toString podcast.Explicit)
+            cmd.Parameters.AddWithValue ("@defaultMediaType", maybe podcast.DefaultMediaType)
+            cmd.Parameters.AddWithValue ("@mediaBaseUrl", maybe podcast.MediaBaseUrl)
+            cmd.Parameters.AddWithValue ("@podcastGuid", maybe podcast.PodcastGuid)
+            cmd.Parameters.AddWithValue ("@fundingUrl", maybe podcast.FundingUrl)
+            cmd.Parameters.AddWithValue ("@fundingText", maybe podcast.FundingText)
+            cmd.Parameters.AddWithValue ("@medium", maybe (podcast.Medium |> Option.map PodcastMedium.toString))
         ] |> ignore
 
     /// Get the current custom feeds for a web log

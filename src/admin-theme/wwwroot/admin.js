@@ -334,13 +334,10 @@ htmx.on("htmx:afterOnLoad", function (evt) {
 })
 
 htmx.on("htmx:responseError", function (evt) {
-  /** @type {XMLHttpRequest} */
   const xhr = evt.detail.xhr
   const hdrs = xhr.getAllResponseHeaders()
-  // Show messages if there were any in the response
-  if (hdrs.indexOf("x-message") >= 0) {
-    Admin.showMessage(evt.detail.xhr.getResponseHeader("x-message"))
-  } else {
+  // Show an error message if there were none in the response
+  if (hdrs.indexOf("x-message") < 0) {
     Admin.showMessage(`danger|||${xhr.status}: ${xhr.statusText}`)
   }
 })

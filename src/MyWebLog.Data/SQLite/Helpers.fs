@@ -105,47 +105,47 @@ module Map =
     
     /// Create a category from the current row in the given data reader
     let toCategory rdr : Category =
-        { Id          = toCategoryId            rdr
-          WebLogId    = getString "web_log_id"  rdr |> WebLogId
-          Name        = getString "name"        rdr
-          Slug        = getString "slug"        rdr
-          Description = tryString "description" rdr
-          ParentId    = tryString "parent_id"   rdr |> Option.map CategoryId
+        {   Id          = toCategoryId            rdr
+            WebLogId    = getString "web_log_id"  rdr |> WebLogId
+            Name        = getString "name"        rdr
+            Slug        = getString "slug"        rdr
+            Description = tryString "description" rdr
+            ParentId    = tryString "parent_id"   rdr |> Option.map CategoryId
         }
     
     /// Create a custom feed from the current row in the given data reader
     let toCustomFeed rdr : CustomFeed =
-        { Id      = getString "id"     rdr |> CustomFeedId
-          Source  = getString "source" rdr |> CustomFeedSource.parse
-          Path    = getString "path"   rdr |> Permalink
-          Podcast =
-              if rdr.IsDBNull (rdr.GetOrdinal "title") then
-                  None
-              else
-                  Some {
-                      Title             = getString "title"              rdr
-                      Subtitle          = tryString "subtitle"           rdr
-                      ItemsInFeed       = getInt    "items_in_feed"      rdr
-                      Summary           = getString "summary"            rdr
-                      DisplayedAuthor   = getString "displayed_author"   rdr
-                      Email             = getString "email"              rdr
-                      ImageUrl          = getString "image_url"          rdr |> Permalink
-                      AppleCategory     = getString "apple_category"     rdr
-                      AppleSubcategory  = tryString "apple_subcategory"  rdr
-                      Explicit          = getString "explicit"           rdr |> ExplicitRating.parse
-                      DefaultMediaType  = tryString "default_media_type" rdr
-                      MediaBaseUrl      = tryString "media_base_url"     rdr
-                      PodcastGuid       = tryGuid   "podcast_guid"       rdr
-                      FundingUrl        = tryString "funding_url"        rdr
-                      FundingText       = tryString "funding_text"       rdr
-                      Medium            = tryString "medium"             rdr |> Option.map PodcastMedium.parse
-                  }
+        {   Id      = getString "id"     rdr |> CustomFeedId
+            Source  = getString "source" rdr |> CustomFeedSource.parse
+            Path    = getString "path"   rdr |> Permalink
+            Podcast =
+                if rdr.IsDBNull (rdr.GetOrdinal "title") then
+                    None
+                else
+                    Some {
+                        Title             = getString "title"              rdr
+                        Subtitle          = tryString "subtitle"           rdr
+                        ItemsInFeed       = getInt    "items_in_feed"      rdr
+                        Summary           = getString "summary"            rdr
+                        DisplayedAuthor   = getString "displayed_author"   rdr
+                        Email             = getString "email"              rdr
+                        ImageUrl          = getString "image_url"          rdr |> Permalink
+                        AppleCategory     = getString "apple_category"     rdr
+                        AppleSubcategory  = tryString "apple_subcategory"  rdr
+                        Explicit          = getString "explicit"           rdr |> ExplicitRating.parse
+                        DefaultMediaType  = tryString "default_media_type" rdr
+                        MediaBaseUrl      = tryString "media_base_url"     rdr
+                        PodcastGuid       = tryGuid   "podcast_guid"       rdr
+                        FundingUrl        = tryString "funding_url"        rdr
+                        FundingText       = tryString "funding_text"       rdr
+                        Medium            = tryString "medium"             rdr |> Option.map PodcastMedium.parse
+                    }
         }
     
     /// Create a meta item from the current row in the given data reader
     let toMetaItem rdr : MetaItem =
-        { Name  = getString "name"  rdr
-          Value = getString "value" rdr
+        {   Name  = getString "name"  rdr
+            Value = getString "value" rdr
         }
     
     /// Create a permalink from the current row in the given data reader
@@ -206,16 +206,16 @@ module Map =
     
     /// Create a revision from the current row in the given data reader
     let toRevision rdr : Revision =
-        { AsOf = getDateTime "as_of"         rdr
-          Text = getString   "revision_text" rdr |> MarkupText.parse
+        {   AsOf = getDateTime "as_of"         rdr
+            Text = getString   "revision_text" rdr |> MarkupText.parse
         }
     
     /// Create a tag mapping from the current row in the given data reader
     let toTagMap rdr : TagMap =
-        { Id       = getString "id"         rdr |> TagMapId
-          WebLogId = getString "web_log_id" rdr |> WebLogId
-          Tag      = getString "tag"        rdr
-          UrlValue = getString "url_value"  rdr
+        {   Id       = getString "id"         rdr |> TagMapId
+            WebLogId = getString "web_log_id" rdr |> WebLogId
+            Tag      = getString "tag"        rdr
+            UrlValue = getString "url_value"  rdr
         }
     
     /// Create a theme from the current row in the given data reader (excludes templates)
@@ -236,15 +236,15 @@ module Map =
                 dataStream.ToArray ()
             else
                 [||]
-        { Id        = ThemeAssetId (ThemeId (getString "theme_id" rdr), getString "path" rdr)
-          UpdatedOn = getDateTime "updated_on" rdr
-          Data      = assetData
+        {   Id        = ThemeAssetId (ThemeId (getString "theme_id" rdr), getString "path" rdr)
+            UpdatedOn = getDateTime "updated_on" rdr
+            Data      = assetData
         }
     
     /// Create a theme template from the current row in the given data reader
     let toThemeTemplate rdr : ThemeTemplate =
-        { Name = getString "name"     rdr
-          Text = getString "template" rdr
+        {   Name = getString "name"     rdr
+            Text = getString "template" rdr
         }
     
     /// Create an uploaded file from the current row in the given data reader
@@ -257,51 +257,51 @@ module Map =
                 dataStream.ToArray ()
             else
                 [||]
-        { Id        = getString   "id"           rdr |> UploadId
-          WebLogId  = getString   "web_log_id"   rdr |> WebLogId
-          Path      = getString   "path"         rdr |> Permalink
-          UpdatedOn = getDateTime "updated_on" rdr
-          Data      = data
+        {   Id        = getString   "id"           rdr |> UploadId
+            WebLogId  = getString   "web_log_id"   rdr |> WebLogId
+            Path      = getString   "path"         rdr |> Permalink
+            UpdatedOn = getDateTime "updated_on" rdr
+            Data      = data
         }
     
     /// Create a web log from the current row in the given data reader
     let toWebLog rdr : WebLog =
-        { Id           = getString  "id"             rdr |> WebLogId
-          Name         = getString  "name"           rdr
-          Slug         = getString  "slug"           rdr
-          Subtitle     = tryString  "subtitle"       rdr
-          DefaultPage  = getString  "default_page"   rdr
-          PostsPerPage = getInt     "posts_per_page" rdr
-          ThemeId      = getString  "theme_id"       rdr |> ThemeId
-          UrlBase      = getString  "url_base"       rdr
-          TimeZone     = getString  "time_zone"      rdr
-          AutoHtmx     = getBoolean "auto_htmx"      rdr
-          Uploads      = getString  "uploads"        rdr |> UploadDestination.parse
-          Rss          = {
-              IsFeedEnabled     = getBoolean "is_feed_enabled"     rdr
-              FeedName          = getString  "feed_name"           rdr
-              ItemsInFeed       = tryInt     "items_in_feed"       rdr
-              IsCategoryEnabled = getBoolean "is_category_enabled" rdr
-              IsTagEnabled      = getBoolean "is_tag_enabled"      rdr
-              Copyright         = tryString  "copyright"           rdr
-              CustomFeeds       = []
-          }
+        {   Id           = getString  "id"             rdr |> WebLogId
+            Name         = getString  "name"           rdr
+            Slug         = getString  "slug"           rdr
+            Subtitle     = tryString  "subtitle"       rdr
+            DefaultPage  = getString  "default_page"   rdr
+            PostsPerPage = getInt     "posts_per_page" rdr
+            ThemeId      = getString  "theme_id"       rdr |> ThemeId
+            UrlBase      = getString  "url_base"       rdr
+            TimeZone     = getString  "time_zone"      rdr
+            AutoHtmx     = getBoolean "auto_htmx"      rdr
+            Uploads      = getString  "uploads"        rdr |> UploadDestination.parse
+            Rss          = {
+                IsFeedEnabled     = getBoolean "is_feed_enabled"     rdr
+                FeedName          = getString  "feed_name"           rdr
+                ItemsInFeed       = tryInt     "items_in_feed"       rdr
+                IsCategoryEnabled = getBoolean "is_category_enabled" rdr
+                IsTagEnabled      = getBoolean "is_tag_enabled"      rdr
+                Copyright         = tryString  "copyright"           rdr
+                CustomFeeds       = []
+            }
         }
     
     /// Create a web log user from the current row in the given data reader
     let toWebLogUser rdr : WebLogUser =
-        { Id            = getString   "id"             rdr |> WebLogUserId
-          WebLogId      = getString   "web_log_id"     rdr |> WebLogId
-          Email         = getString   "email"          rdr
-          FirstName     = getString   "first_name"     rdr
-          LastName      = getString   "last_name"      rdr
-          PreferredName = getString   "preferred_name" rdr
-          PasswordHash  = getString   "password_hash"  rdr
-          Salt          = getGuid     "salt"           rdr
-          Url           = tryString   "url"            rdr
-          AccessLevel   = getString   "access_level"   rdr |> AccessLevel.parse
-          CreatedOn     = getDateTime "created_on"     rdr
-          LastSeenOn    = tryDateTime "last_seen_on"   rdr
+        {   Id            = getString   "id"             rdr |> WebLogUserId
+            WebLogId      = getString   "web_log_id"     rdr |> WebLogId
+            Email         = getString   "email"          rdr
+            FirstName     = getString   "first_name"     rdr
+            LastName      = getString   "last_name"      rdr
+            PreferredName = getString   "preferred_name" rdr
+            PasswordHash  = getString   "password_hash"  rdr
+            Salt          = getGuid     "salt"           rdr
+            Url           = tryString   "url"            rdr
+            AccessLevel   = getString   "access_level"   rdr |> AccessLevel.parse
+            CreatedOn     = getDateTime "created_on"     rdr
+            LastSeenOn    = tryDateTime "last_seen_on"   rdr
         }
 
 /// Add a possibly-missing parameter, substituting null for None

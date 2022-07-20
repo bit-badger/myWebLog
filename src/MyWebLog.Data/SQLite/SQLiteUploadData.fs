@@ -10,11 +10,11 @@ type SQLiteUploadData (conn : SqliteConnection) =
 
     /// Add parameters for uploaded file INSERT and UPDATE statements
     let addUploadParameters (cmd : SqliteCommand) (upload : Upload) =
-        [ cmd.Parameters.AddWithValue ("@id", UploadId.toString upload.Id)
-          cmd.Parameters.AddWithValue ("@webLogId", WebLogId.toString upload.WebLogId)
-          cmd.Parameters.AddWithValue ("@path", Permalink.toString upload.Path)
-          cmd.Parameters.AddWithValue ("@updatedOn", upload.UpdatedOn)
-          cmd.Parameters.AddWithValue ("@dataLength", upload.Data.Length)
+        [   cmd.Parameters.AddWithValue ("@id", UploadId.toString upload.Id)
+            cmd.Parameters.AddWithValue ("@webLogId", WebLogId.toString upload.WebLogId)
+            cmd.Parameters.AddWithValue ("@path", Permalink.toString upload.Path)
+            cmd.Parameters.AddWithValue ("@updatedOn", upload.UpdatedOn)
+            cmd.Parameters.AddWithValue ("@dataLength", upload.Data.Length)
         ] |> ignore
     
     /// Save an uploaded file
