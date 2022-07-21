@@ -2,7 +2,6 @@
 module MyWebLog.Handlers.Admin
 
 open System.Threading.Tasks
-open DotLiquid
 open Giraffe
 open MyWebLog
 open MyWebLog.ViewModels
@@ -19,18 +18,17 @@ let dashboard : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     let topCats = getCount data.Category.CountTopLevel
     let! _ = Task.WhenAll (posts, drafts, pages, listed, cats, topCats)
     return!
-        Hash.FromAnonymousObject {|
-            page_title = "Dashboard"
+        {|  page_title = "Dashboard"
             model      =
-                { Posts              = posts.Result
-                  Drafts             = drafts.Result
-                  Pages              = pages.Result
-                  ListedPages        = listed.Result
-                  Categories         = cats.Result
-                  TopLevelCategories = topCats.Result
+                {   Posts              = posts.Result
+                    Drafts             = drafts.Result
+                    Pages              = pages.Result
+                    ListedPages        = listed.Result
+                    Categories         = cats.Result
+                    TopLevelCategories = topCats.Result
                 }
         |}
-        |> adminView "dashboard" next ctx
+        |> makeHash |> adminView "dashboard" next ctx
 }
 
 // -- CATEGORIES --
@@ -38,24 +36,23 @@ let dashboard : HttpHandler = requireAccess Author >=> fun next ctx -> task {
 // GET /admin/categories
 let listCategories : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     let! catListTemplate = TemplateCache.get "admin" "category-list-body" ctx.Data
-    let hash = Hash.FromAnonymousObject {|
+    let hash = makeHash {|
         page_title = "Categories"
         csrf       = ctx.CsrfTokenSet
         web_log    = ctx.WebLog
         categories = CategoryCache.get ctx
     |}
     return!
-        addToHash "category_list" (catListTemplate.Render hash) hash
-     |> adminView "category-list" next ctx
+           addToHash "category_list" (catListTemplate.Render hash) hash
+        |> adminView "category-list" next ctx
 }
 
 // GET /admin/categories/bare
 let listCategoriesBare : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx ->
-    Hash.FromAnonymousObject {|
-        categories = CategoryCache.get ctx
+    {|  categories = CategoryCache.get ctx
         csrf       = ctx.CsrfTokenSet
     |}
-    |> adminBareView "category-list-body" next ctx
+    |> makeHash |> adminBareView "category-list-body" next ctx
 
 
 // GET /admin/category/{id}/edit
@@ -70,14 +67,13 @@ let editCategory catId : HttpHandler = requireAccess WebLogAdmin >=> fun next ct
     }
     match result with
     | Some (title, cat) ->
-        return!
-            Hash.FromAnonymousObject {|
-                page_title = title
-                csrf       = ctx.CsrfTokenSet
-                model      = EditCategoryModel.fromCategory cat
-                categories = CategoryCache.get ctx
-            |}
-            |> adminBareView "category-edit" next ctx
+        return! {|
+            page_title = title
+            csrf       = ctx.CsrfTokenSet
+            model      = EditCategoryModel.fromCategory cat
+            categories = CategoryCache.get ctx
+        |}
+        |> makeHash |> adminBareView "category-edit" next ctx
     | None -> return! Error.notFound next ctx
 }
 
@@ -86,19 +82,18 @@ let saveCategory : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> t
     let  data     = ctx.Data
     let! model    = ctx.BindFormAsync<EditCategoryModel> ()
     let  category =
-        match model.CategoryId with
-        | "new" -> Task.FromResult (Some { Category.empty with Id = CategoryId.create (); WebLogId = ctx.WebLog.Id })
-        | catId -> data.Category.FindById (CategoryId catId) ctx.WebLog.Id
+        if model.IsNew then someTask { Category.empty with Id = CategoryId.create (); WebLogId = ctx.WebLog.Id }
+        else data.Category.FindById (CategoryId model.CategoryId) ctx.WebLog.Id
     match! category with
     | Some cat ->
-        let cat =
+        let updatedCat =
             { cat with
                 Name        = model.Name
                 Slug        = model.Slug
                 Description = if model.Description = "" then None else Some model.Description
                 ParentId    = if model.ParentId    = "" then None else Some (CategoryId model.ParentId)
             }
-        do! (match model.CategoryId with "new" -> data.Category.Add | _ -> data.Category.Update) cat
+        do! (if model.IsNew then data.Category.Add else data.Category.Update) updatedCat
         do! CategoryCache.update ctx
         do! addMessage ctx { UserMessage.success with Message = "Category saved successfully" }
         return! listCategoriesBare next ctx
@@ -122,7 +117,7 @@ open Microsoft.AspNetCore.Http
 /// Get the hash necessary to render the tag mapping list
 let private tagMappingHash (ctx : HttpContext) = task {
     let! mappings = ctx.Data.TagMap.FindByWebLog ctx.WebLog.Id
-    return Hash.FromAnonymousObject {|
+    return makeHash {|
         csrf        = ctx.CsrfTokenSet
         web_log     = ctx.WebLog
         mappings    = mappings
@@ -150,17 +145,16 @@ let tagMappingsBare : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -
 let editMapping tagMapId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     let isNew  = tagMapId = "new"
     let tagMap =
-        if isNew then Task.FromResult (Some { TagMap.empty with Id = TagMapId "new" })
+        if isNew then someTask { TagMap.empty with Id = TagMapId "new" }
         else ctx.Data.TagMap.FindById (TagMapId tagMapId) ctx.WebLog.Id
     match! tagMap with
     | Some tm ->
-        return!
-            Hash.FromAnonymousObject {|
-                page_title = if isNew then "Add Tag Mapping" else $"Mapping for {tm.Tag} Tag" 
-                csrf       = ctx.CsrfTokenSet
-                model      = EditTagMapModel.fromMapping tm
-            |}
-            |> adminBareView "tag-mapping-edit" next ctx
+        return! {|
+            page_title = if isNew then "Add Tag Mapping" else $"Mapping for {tm.Tag} Tag" 
+            csrf       = ctx.CsrfTokenSet
+            model      = EditTagMapModel.fromMapping tm
+        |}
+        |> makeHash |> adminBareView "tag-mapping-edit" next ctx
     | None -> return! Error.notFound next ctx
 }
 
@@ -169,8 +163,7 @@ let saveMapping : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> ta
     let  data   = ctx.Data
     let! model  = ctx.BindFormAsync<EditTagMapModel> ()
     let  tagMap =
-        if model.IsNew then
-            Task.FromResult (Some { TagMap.empty with Id = TagMapId.create (); WebLogId = ctx.WebLog.Id })
+        if model.IsNew then someTask { TagMap.empty with Id = TagMapId.create (); WebLogId = ctx.WebLog.Id }
         else data.TagMap.FindById (TagMapId model.Id) ctx.WebLog.Id
     match! tagMap with
     | Some tm ->
@@ -198,11 +191,10 @@ open MyWebLog.Data
 
 // GET /admin/theme/update
 let themeUpdatePage : HttpHandler = requireAccess Administrator >=> fun next ctx ->
-    Hash.FromAnonymousObject {|
-        page_title = "Upload Theme"
+    {|  page_title = "Upload Theme"
         csrf       = ctx.CsrfTokenSet
     |}
-    |> adminView "upload-theme" next ctx
+    |> makeHash |> adminView "upload-theme" next ctx
 
 /// Update the name and version for a theme based on the version.txt file, if present
 let private updateNameAndVersion (theme : Theme) (zip : ZipArchive) = backgroundTask {
@@ -311,29 +303,28 @@ let settings : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task 
     let  data     = ctx.Data
     let! allPages = data.Page.All ctx.WebLog.Id
     let! themes   = data.Theme.All ()
-    return!
-        Hash.FromAnonymousObject {|
-            page_title = "Web Log Settings"
-            csrf       = ctx.CsrfTokenSet
-            model      = SettingsModel.fromWebLog ctx.WebLog
-            pages      = seq
-                {   KeyValuePair.Create ("posts", "- First Page of Posts -")
-                    yield! allPages
-                           |> List.sortBy (fun p -> p.Title.ToLower ())
-                           |> List.map (fun p -> KeyValuePair.Create (PageId.toString p.Id, p.Title))
-                }
-                |> Array.ofSeq
-            themes =
-                themes
-                 |> Seq.ofList
-                 |> Seq.map (fun it -> KeyValuePair.Create (ThemeId.toString it.Id, $"{it.Name} (v{it.Version})"))
-                 |> Array.ofSeq
-            upload_values = [|
-                    KeyValuePair.Create (UploadDestination.toString Database, "Database")
-                    KeyValuePair.Create (UploadDestination.toString Disk,     "Disk")
-                |]
-        |}
-        |> adminView "settings" next ctx
+    return! {|
+        page_title = "Web Log Settings"
+        csrf       = ctx.CsrfTokenSet
+        model      = SettingsModel.fromWebLog ctx.WebLog
+        pages      = seq
+            {   KeyValuePair.Create ("posts", "- First Page of Posts -")
+                yield! allPages
+                       |> List.sortBy (fun p -> p.Title.ToLower ())
+                       |> List.map (fun p -> KeyValuePair.Create (PageId.toString p.Id, p.Title))
+            }
+            |> Array.ofSeq
+        themes =
+            themes
+             |> Seq.ofList
+             |> Seq.map (fun it -> KeyValuePair.Create (ThemeId.toString it.Id, $"{it.Name} (v{it.Version})"))
+             |> Array.ofSeq
+        upload_values = [|
+            KeyValuePair.Create (UploadDestination.toString Database, "Database")
+            KeyValuePair.Create (UploadDestination.toString Disk,     "Disk")
+        |]
+    |}
+    |> makeHash |> adminView "settings" next ctx
 }
 
 // POST /admin/settings

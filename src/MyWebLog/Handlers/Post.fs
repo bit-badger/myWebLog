@@ -35,7 +35,6 @@ type ListType =
     | TagList
 
 open System.Threading.Tasks
-open DotLiquid
 open MyWebLog.Data
 open MyWebLog.ViewModels
 
@@ -86,7 +85,7 @@ let preparePostList webLog posts listType (url : string) pageNbr perPage ctx (da
           OlderLink  = olderLink
           OlderName  = olderPost |> Option.map (fun p -> p.Title)
         }
-    return Hash.FromAnonymousObject {|
+    return makeHash {|
         model        = model
         categories   = CategoryCache.get ctx
         tag_mappings = tagMappings
@@ -197,14 +196,13 @@ let home : HttpHandler = fun next ctx -> task {
     | pageId ->
         match! ctx.Data.Page.FindById (PageId pageId) webLog.Id with
         | Some page ->
-            return!
-                Hash.FromAnonymousObject {|
-                    page_title = page.Title
-                    page       = DisplayPage.fromPage webLog page
-                    categories = CategoryCache.get ctx
-                    is_home    = true
-                |}
-                |> themedView (defaultArg page.Template "single-page") next ctx
+            return! {|
+                page_title = page.Title
+                page       = DisplayPage.fromPage webLog page
+                categories = CategoryCache.get ctx
+                is_home    = true
+            |}
+            |> makeHash |> themedView (defaultArg page.Template "single-page") next ctx
         | None -> return! Error.notFound next ctx
 }
 
@@ -236,23 +234,22 @@ let edit postId : HttpHandler = requireAccess Author >=> fun next ctx -> task {
         let! cats      = data.Category.FindAllForView ctx.WebLog.Id
         let! templates = templatesForTheme ctx "post"
         let  model     = EditPostModel.fromPost ctx.WebLog post
-        return!
-            Hash.FromAnonymousObject {|
-                page_title      = title
-                csrf            = ctx.CsrfTokenSet
-                model           = model
-                metadata        = Array.zip model.MetaNames model.MetaValues
-                                  |> Array.mapi (fun idx (name, value) -> [| string idx; name; value |])
-                templates       = templates
-                categories      = cats
-                explicit_values = [|
-                    KeyValuePair.Create ("", "&ndash; Default &ndash;")
-                    KeyValuePair.Create (ExplicitRating.toString Yes,   "Yes")
-                    KeyValuePair.Create (ExplicitRating.toString No,    "No")
-                    KeyValuePair.Create (ExplicitRating.toString Clean, "Clean")
-                |]
-            |}
-            |> adminView "post-edit" next ctx
+        return! {|
+            page_title      = title
+            csrf            = ctx.CsrfTokenSet
+            model           = model
+            metadata        = Array.zip model.MetaNames model.MetaValues
+                              |> Array.mapi (fun idx (name, value) -> [| string idx; name; value |])
+            templates       = templates
+            categories      = cats
+            explicit_values = [|
+                KeyValuePair.Create ("", "&ndash; Default &ndash;")
+                KeyValuePair.Create (ExplicitRating.toString Yes,   "Yes")
+                KeyValuePair.Create (ExplicitRating.toString No,    "No")
+                KeyValuePair.Create (ExplicitRating.toString Clean, "Clean")
+            |]
+        |}
+        |> makeHash |> adminView "post-edit" next ctx
     | Some _ -> return! Error.notAuthorized next ctx
     | None -> return! Error.notFound next ctx
 }
@@ -269,13 +266,12 @@ let delete postId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> 
 let editPermalinks postId : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     match! ctx.Data.Post.FindFullById (PostId postId) ctx.WebLog.Id with
     | Some post when canEdit post.AuthorId ctx ->
-        return!
-            Hash.FromAnonymousObject {|
-                page_title = "Manage Prior Permalinks"
-                csrf       = ctx.CsrfTokenSet
-                model      = ManagePermalinksModel.fromPost post
-            |}
-            |> adminView "permalinks" next ctx
+        return! {|
+            page_title = "Manage Prior Permalinks"
+            csrf       = ctx.CsrfTokenSet
+            model      = ManagePermalinksModel.fromPost post
+        |}
+        |> makeHash |> adminView "permalinks" next ctx
     | Some _ -> return! Error.notAuthorized next ctx
     | None -> return! Error.notFound next ctx
 }
@@ -286,7 +282,7 @@ let savePermalinks : HttpHandler = requireAccess Author >=> fun next ctx -> task
     let  postId = PostId model.Id
     match! ctx.Data.Post.FindById postId ctx.WebLog.Id with
     | Some post when canEdit post.AuthorId ctx ->
-        let  links  = model.Prior |> Array.map Permalink |> List.ofArray
+        let links = model.Prior |> Array.map Permalink |> List.ofArray
         match! ctx.Data.Post.UpdatePriorPermalinks postId ctx.WebLog.Id links with
         | true ->
             do! addMessage ctx { UserMessage.success with Message = "Post permalinks saved successfully" }
@@ -300,13 +296,12 @@ let savePermalinks : HttpHandler = requireAccess Author >=> fun next ctx -> task
 let editRevisions postId : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     match! ctx.Data.Post.FindFullById (PostId postId) ctx.WebLog.Id with
     | Some post when canEdit post.AuthorId ctx ->
-        return!
-            Hash.FromAnonymousObject {|
-                page_title = "Manage Post Revisions"
-                csrf       = ctx.CsrfTokenSet
-                model      = ManageRevisionsModel.fromPost ctx.WebLog post
-            |}
-            |> adminView "revisions" next ctx
+        return! {|
+            page_title = "Manage Post Revisions"
+            csrf       = ctx.CsrfTokenSet
+            model      = ManageRevisionsModel.fromPost ctx.WebLog post
+        |}
+        |> makeHash |> adminView "revisions" next ctx
     | Some _ -> return! Error.notAuthorized next ctx
     | None -> return! Error.notFound next ctx
 }
@@ -338,11 +333,10 @@ let private findPostRevision postId revDate (ctx : HttpContext) = task {
 let previewRevision (postId, revDate) : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     match! findPostRevision postId revDate ctx with
     | Some post, Some rev when canEdit post.AuthorId ctx ->
-        return!
-            Hash.FromAnonymousObject {|
-                content = $"""<div class="mwl-revision-preview mb-3">{MarkupText.toHtml rev.Text}</div>"""
-            |}
-            |> adminBareView "" next ctx
+        return! {|
+            content = $"""<div class="mwl-revision-preview mb-3">{MarkupText.toHtml rev.Text}</div>"""
+        |}
+        |> makeHash |> adminBareView "" next ctx
     | Some _, Some _ -> return! Error.notAuthorized next ctx
     | None, _
     | _, None -> return! Error.notFound next ctx
@@ -370,7 +364,7 @@ let deleteRevision (postId, revDate) : HttpHandler = requireAccess Author >=> fu
     | Some post, Some rev when canEdit post.AuthorId ctx ->
         do! ctx.Data.Post.Update { post with Revisions = post.Revisions |> List.filter (fun r -> r.AsOf <> rev.AsOf) }
         do! addMessage ctx { UserMessage.success with Message = "Revision deleted successfully" }
-        return! adminBareView "" next ctx (Hash.FromAnonymousObject {| content = "" |})
+        return! adminBareView "" next ctx (makeHash {| content = "" |})
     | Some _, Some _ -> return! Error.notAuthorized next ctx
     | None, _
     | _, None -> return! Error.notFound next ctx
@@ -382,13 +376,12 @@ let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     let  data    = ctx.Data
     let  now     = DateTime.UtcNow
     let  tryPost =
-        if model.IsNew then Task.FromResult (
-            Some
-                { Post.empty with
-                    Id        = PostId.create ()
-                    WebLogId  = ctx.WebLog.Id
-                    AuthorId  = ctx.UserId
-                })
+        if model.IsNew then
+            { Post.empty with
+                Id        = PostId.create ()
+                WebLogId  = ctx.WebLog.Id
+                AuthorId  = ctx.UserId
+            } |> someTask
         else data.Post.FindFullById (PostId model.PostId) ctx.WebLog.Id
     match! tryPost with
     | Some post when canEdit post.AuthorId ctx ->

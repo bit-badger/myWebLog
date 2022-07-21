@@ -402,7 +402,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     getAll [ webLogId ] (nameof Page.empty.WebLogId)
                     filter [ nameof Page.empty.IsInPageList, true :> obj ]
                     without [ nameof Page.empty.Text; nameof Page.empty.PriorPermalinks; nameof Page.empty.Revisions ]
-                    orderBy "title"
+                    orderBy (nameof Page.empty.Title)
                     result; withRetryDefault conn
                 }
 
@@ -725,7 +725,9 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                 member _.FindByIdWithoutText themeId = rethink<Theme> {
                     withTable Table.Theme
                     get themeId
-                    merge (fun row -> {| Templates = row[nameof Theme.empty.Templates].Without [| "Text" |] |})
+                    merge (fun row ->
+                        {|  Templates = row[nameof Theme.empty.Templates].Without [| nameof ThemeTemplate.empty.Text |]
+                        |})
                     resultOption; withRetryOptionDefault conn
                 }
                 
@@ -1013,11 +1015,13 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     withTable Table.WebLogUser
                     get user.Id
                     update [
-                        nameof user.FirstName,     user.FirstName :> obj
+                        nameof user.Email,         user.Email :> obj
+                        nameof user.FirstName,     user.FirstName
                         nameof user.LastName,      user.LastName
                         nameof user.PreferredName, user.PreferredName
                         nameof user.PasswordHash,  user.PasswordHash
                         nameof user.Salt,          user.Salt
+                        nameof user.Url,           user.Url
                         nameof user.AccessLevel,   user.AccessLevel
                         ]
                     write; withRetryDefault; ignoreResult conn

@@ -279,6 +279,9 @@ type EditCategoryModel =
             Description = defaultArg cat.Description ""
             ParentId    = cat.ParentId |> Option.map CategoryId.toString |> Option.defaultValue ""
         }
+    
+    /// Is this a new category?
+    member this.IsNew = this.CategoryId = "new"
 
 
 /// View model to edit a custom RSS feed
@@ -789,7 +792,7 @@ type EditRssModel =
             Copyright         = defaultArg rss.Copyright ""
         }
     
-    /// Update RSS options from values in this mode
+    /// Update RSS options from values in this model
     member this.UpdateOptions (rss : RssOptions) =
         { rss with
             IsFeedEnabled     = this.IsFeedEnabled
@@ -822,6 +825,65 @@ type EditTagMapModel =
         {   Id       = TagMapId.toString tagMap.Id
             Tag      = tagMap.Tag
             UrlValue = tagMap.UrlValue
+        }
+
+
+/// View model to display a user's information
+[<CLIMutable; NoComparison; NoEquality>]
+type EditUserModel =
+    {   /// The ID of the user
+        Id : string
+
+        /// The user's access level
+        AccessLevel : string
+        
+        /// The user name (e-mail address)
+        Email : string
+
+        /// The URL of the user's personal site
+        Url : string
+
+        /// The user's first name
+        FirstName : string
+
+        /// The user's last name
+        LastName : string
+
+        /// The user's preferred name
+        PreferredName : string
+        
+        /// The user's password
+        Password : string
+        
+        /// Confirmation of the user's password
+        PasswordConfirm : string
+    }
+    
+    /// Construct a displayed user from a web log user
+    static member fromUser (user : WebLogUser) =
+        {   Id              = WebLogUserId.toString user.Id
+            AccessLevel     = AccessLevel.toString user.AccessLevel
+            Url             = defaultArg user.Url ""
+            Email           = user.Email
+            FirstName       = user.FirstName
+            LastName        = user.LastName
+            PreferredName   = user.PreferredName
+            Password        = ""
+            PasswordConfirm = ""
+        }
+    
+    /// Is this a new user?
+    member this.IsNew = this.Id = "new"
+    
+    /// Update a user with values from this model (excludes password)
+    member this.UpdateUser (user : WebLogUser) =
+        { user with
+            AccessLevel   = AccessLevel.parse this.AccessLevel
+            Email         = this.Email
+            Url           = noneIfBlank this.Url
+            FirstName     = this.FirstName
+            LastName      = this.LastName
+            PreferredName = this.PreferredName
         }
 
 

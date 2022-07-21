@@ -52,8 +52,13 @@ let messages (ctx : HttpContext) = task {
     | None -> return [||]
 }
 
+open System.Collections.Generic
 open MyWebLog
 open DotLiquid
+
+
+let makeHash (values : obj) =
+    Hash.FromAnonymousObject values
 
 /// Add a key to the hash, returning the modified hash
 //    (note that the hash itself is mutated; this is only used to make it pipeable)
@@ -74,9 +79,6 @@ let private populateHash hash ctx = task {
     let! messages = messages ctx
     do! commitSession ctx
     
-    let accessLevel = ctx.UserAccessLevel
-    let hasLevel lvl = accessLevel |> Option.map (AccessLevel.hasAccess lvl) |> Option.defaultValue false
-    
     ctx.User.Claims
     |> Seq.tryFind (fun claim -> claim.Type = ClaimTypes.NameIdentifier)
     |> Option.map (fun claim -> claim.Value)
@@ -90,10 +92,10 @@ let private populateHash hash ctx = task {
         |> addToHash "generator"        ctx.Generator
         |> addToHash "htmx_script"      htmxScript
         |> addToHash "is_logged_on"     ctx.User.Identity.IsAuthenticated
-        |> addToHash "is_author"        (hasLevel Author)
-        |> addToHash "is_editor"        (hasLevel Editor)
-        |> addToHash "is_web_log_admin" (hasLevel WebLogAdmin)
-        |> addToHash "is_administrator" (hasLevel Administrator)
+        |> addToHash "is_author"        (ctx.HasAccessLevel Author)
+        |> addToHash "is_editor"        (ctx.HasAccessLevel Editor)
+        |> addToHash "is_web_log_admin" (ctx.HasAccessLevel WebLogAdmin)
+        |> addToHash "is_administrator" (ctx.HasAccessLevel Administrator)
 }
 
 /// Is the request from htmx?
@@ -215,25 +217,29 @@ let requireUser : HttpHandler = requiresAuthentication Error.notAuthorized
 
 /// Require a specific level of access for a route
 let requireAccess level : HttpHandler = fun next ctx -> task {
-    let userLevel = ctx.UserAccessLevel
-    if defaultArg (userLevel |> Option.map (AccessLevel.hasAccess level)) false then
-        return! next ctx
-    else
-        let message =
-            match userLevel with
-            | Some lvl ->
-                $"The page you tried to access requires {AccessLevel.toString level} privileges; your account only has {AccessLevel.toString lvl} privileges"
-            | None -> "The page you tried to access required you to be logged on"
-        do! addMessage ctx { UserMessage.warning with Message = message }
-        printfn "Added message to context"
-        do! commitSession ctx
+    match ctx.UserAccessLevel with
+    | Some userLevel when AccessLevel.hasAccess level userLevel -> return! next ctx
+    | Some userLevel ->
+        do! addMessage ctx
+                { UserMessage.warning with
+                    Message = $"The page you tried to access requires {AccessLevel.toString level} privileges"
+                    Detail = Some $"Your account only has {AccessLevel.toString userLevel} privileges"
+                }
+        return! Error.notAuthorized next ctx
+    | None ->
+        do! addMessage ctx
+                { UserMessage.warning with Message = "The page you tried to access required you to be logged on" }
         return! Error.notAuthorized next ctx
 }
 
 /// Determine if a user is authorized to edit a page or post, given the author        
 let canEdit authorId (ctx : HttpContext) =
-    if ctx.UserId = authorId then true
-    else defaultArg (ctx.UserAccessLevel |> Option.map (AccessLevel.hasAccess Editor)) false
+    ctx.UserId = authorId || ctx.HasAccessLevel Editor
+
+open System.Threading.Tasks
+
+/// Create a Task with a Some result for the given object
+let someTask<'T> (it : 'T) = Task.FromResult (Some it)
 
 open System.Collections.Generic
 open MyWebLog.Data

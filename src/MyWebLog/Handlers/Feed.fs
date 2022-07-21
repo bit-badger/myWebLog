@@ -414,23 +414,20 @@ let generate (feedType : FeedType) postCount : HttpHandler = fun next ctx -> bac
 
 // ~~ FEED ADMINISTRATION ~~
 
-open DotLiquid
-
-// GET: /admin/settings/rss
+// GET /admin/settings/rss
 let editSettings : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx ->
     let feeds =
         ctx.WebLog.Rss.CustomFeeds
         |> List.map (DisplayCustomFeed.fromFeed (CategoryCache.get ctx))
         |> Array.ofList
-    Hash.FromAnonymousObject {|
-        page_title   = "RSS Settings"
+    {|  page_title   = "RSS Settings"
         csrf         = ctx.CsrfTokenSet
         model        = EditRssModel.fromRssOptions ctx.WebLog.Rss
         custom_feeds = feeds
     |}
-    |> adminView "rss-settings" next ctx
+    |> makeHash |> adminView "rss-settings" next ctx
 
-// POST: /admin/settings/rss
+// POST /admin/settings/rss
 let saveSettings : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     let  data  = ctx.Data
     let! model = ctx.BindFormAsync<EditRssModel> ()
@@ -444,7 +441,7 @@ let saveSettings : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> t
     | None -> return! Error.notFound next ctx
 }
 
-// GET: /admin/settings/rss/{id}/edit
+// GET /admin/settings/rss/{id}/edit
 let editCustomFeed feedId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx ->
     let customFeed =
         match feedId with
@@ -452,8 +449,7 @@ let editCustomFeed feedId : HttpHandler = requireAccess WebLogAdmin >=> fun next
         | _     -> ctx.WebLog.Rss.CustomFeeds |> List.tryFind (fun f -> f.Id = CustomFeedId feedId)
     match customFeed with
     | Some f ->
-        Hash.FromAnonymousObject {|
-            page_title    = $"""{if feedId = "new" then "Add" else "Edit"} Custom RSS Feed"""
+       {|   page_title    = $"""{if feedId = "new" then "Add" else "Edit"} Custom RSS Feed"""
             csrf          = ctx.CsrfTokenSet
             model         = EditCustomFeedModel.fromFeed f
             categories    = CategoryCache.get ctx
@@ -468,10 +464,10 @@ let editCustomFeed feedId : HttpHandler = requireAccess WebLogAdmin >=> fun next
                 KeyValuePair.Create (PodcastMedium.toString Blog, "Blog")
             |]
         |}
-        |> adminView "custom-feed-edit" next ctx
+        |> makeHash |> adminView "custom-feed-edit" next ctx
     | None -> Error.notFound next ctx
 
-// POST: /admin/settings/rss/save
+// POST /admin/settings/rss/save
 let saveCustomFeed : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     let data = ctx.Data
     match! data.WebLog.FindById ctx.WebLog.Id with

@@ -13,7 +13,6 @@ let hashedPassword (plainText : string) (email : string) (salt : Guid) =
     use alg     = new Rfc2898DeriveBytes (plainText, allSalt, 2_048)
     Convert.ToBase64String (alg.GetBytes 64)
 
-open DotLiquid
 open Giraffe
 open MyWebLog
 open MyWebLog.ViewModels
@@ -24,12 +23,11 @@ let logOn returnUrl : HttpHandler = fun next ctx ->
         match returnUrl with
         | Some _ -> returnUrl
         | None -> if ctx.Request.Query.ContainsKey "returnUrl" then Some ctx.Request.Query["returnUrl"].[0] else None
-    Hash.FromAnonymousObject {|
-        page_title = "Log On"
+    {|  page_title = "Log On"
         csrf       = ctx.CsrfTokenSet
         model      = { LogOnModel.empty with ReturnTo = returnTo }
     |}
-    |> adminView "log-on" next ctx
+    |> makeHash |> adminView "log-on" next ctx
 
 
 open System.Security.Claims
@@ -73,20 +71,98 @@ let logOff : HttpHandler = fun next ctx -> task {
 
 // ~~ ADMINISTRATION ~~
 
-// GET /admin/users
-let all : HttpHandler = fun next ctx -> task {
-    let  data   = ctx.Data
-    let! tmpl   = TemplateCache.get "admin" "user-list-body" data 
-    let! users  = data.WebLogUser.FindByWebLog ctx.WebLog.Id
-    let  hash   = Hash.FromAnonymousObject {|
+open System.Collections.Generic
+open DotLiquid
+open Giraffe.Htmx
+open Microsoft.AspNetCore.Http
+
+/// Create the hash needed to display the user list
+let private userListHash (ctx : HttpContext) = task {
+    let! users = ctx.Data.WebLogUser.FindByWebLog ctx.WebLog.Id
+    return makeHash {|
         page_title = "User Administration"
         csrf       = ctx.CsrfTokenSet
         web_log    = ctx.WebLog
         users      = users |> List.map (DisplayUser.fromUser ctx.WebLog) |> Array.ofList
     |}
+}
+    
+// GET /admin/users
+let all : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
+    let! hash = userListHash ctx
+    let! tmpl = TemplateCache.get "admin" "user-list-body" ctx.Data 
     return!
            addToHash "user_list" (tmpl.Render hash) hash
         |> adminView "user-list" next ctx
+}
+
+// GET /admin/users/bare
+let bare : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
+    let! hash = userListHash ctx
+    return! adminBareView "user-list-body" next ctx hash
+}
+
+/// Show the edit user page
+let private showEdit (hash : Hash) : HttpHandler = fun next ctx ->
+    addToHash    "page_title" (if (hash["model"] :?> EditUserModel).IsNew then "Add a New User" else "Edit User") hash
+    |> addToHash "csrf"       ctx.CsrfTokenSet
+    |> addToHash "access_levels"
+            [|  KeyValuePair.Create (AccessLevel.toString Author, "Author")
+                KeyValuePair.Create (AccessLevel.toString Editor, "Editor")
+                KeyValuePair.Create (AccessLevel.toString WebLogAdmin, "Web Log Admin")
+                if ctx.HasAccessLevel Administrator then
+                    KeyValuePair.Create (AccessLevel.toString Administrator, "Administrator")
+            |]
+    |> adminBareView "user-edit" next ctx
+    
+// GET /admin/user/{id}/edit
+let edit usrId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
+    let isNew   = usrId = "new"
+    let userId  = WebLogUserId usrId
+    let tryUser =
+        if isNew then someTask { WebLogUser.empty with Id = userId }
+        else ctx.Data.WebLogUser.FindById userId ctx.WebLog.Id
+    match! tryUser with
+    | Some user -> return! showEdit (makeHash {| model = EditUserModel.fromUser user |}) next ctx
+    | None -> return! Error.notFound next ctx
+}
+
+// POST /admin/user/save
+let save : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
+    let! model   = ctx.BindFormAsync<EditUserModel> ()
+    let  data    = ctx.Data
+    let  tryUser =
+        if model.IsNew then
+            { WebLogUser.empty with
+                Id = WebLogUserId.create ()
+                WebLogId = ctx.WebLog.Id
+                CreatedOn = DateTime.UtcNow
+            } |> someTask
+        else data.WebLogUser.FindById (WebLogUserId model.Id) ctx.WebLog.Id
+    match! tryUser with
+    | Some user when model.Password = model.PasswordConfirm ->
+        let updatedUser = model.UpdateUser user
+        if updatedUser.AccessLevel = Administrator && not (ctx.HasAccessLevel Administrator) then
+            return! RequestErrors.BAD_REQUEST "really?" next ctx
+        else
+            let updatedUser =
+                if model.Password = "" then updatedUser
+                else
+                    let salt = Guid.NewGuid ()
+                    { updatedUser with PasswordHash = hashedPassword model.Password model.Email salt; Salt = salt }
+            do! (if model.IsNew then data.WebLogUser.Add else data.WebLogUser.Update) updatedUser
+            do! addMessage ctx
+                    { UserMessage.success with
+                        Message = $"""{if model.IsNew then "Add" else "Updat"}ed user successfully"""
+                    }
+            return! bare next ctx
+    | Some _ ->
+        do! addMessage ctx { UserMessage.error with Message = "The passwords did not match; nothing saved" }
+        return!
+            (withHxRetarget $"#user_{model.Id}"
+             >=> showEdit (makeHash {| model = { model with Password = ""; PasswordConfirm = "" } |}))
+                next ctx
+    | None -> return! Error.notFound next ctx
 }
 
 /// Display the user "my info" page, with information possibly filled in
@@ -102,7 +178,7 @@ let private showMyInfo (user : WebLogUser) (hash : Hash) : HttpHandler = fun nex
 // GET /admin/user/my-info
 let myInfo : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     match! ctx.Data.WebLogUser.FindById ctx.UserId ctx.WebLog.Id with
-    | Some user -> return! showMyInfo user (Hash.FromAnonymousObject {| model = EditMyInfoModel.fromUser user |}) next ctx
+    | Some user -> return! showMyInfo user (makeHash {| model = EditMyInfoModel.fromUser user |}) next ctx
     | None -> return! Error.notFound next ctx
 }
 
@@ -132,8 +208,7 @@ let saveMyInfo : HttpHandler = requireAccess Author >=> fun next ctx -> task {
         return! redirectToGet "admin/user/my-info" next ctx
     | Some user ->
         do! addMessage ctx { UserMessage.error with Message = "Passwords did not match; no updates made" }
-        return! showMyInfo user (Hash.FromAnonymousObject {|
-                model = { model with NewPassword = ""; NewPasswordConfirm = "" }
-            |}) next ctx
+        return! showMyInfo user (makeHash {| model = { model with NewPassword = ""; NewPasswordConfirm = "" } |})
+                    next ctx
     | None -> return! Error.notFound next ctx
 }

@@ -50,6 +50,11 @@ module Extensions =
 
         /// The web log for the current request
         member this.WebLog = this.Items["webLog"] :?> WebLog
+        
+        /// Does the current user have the requested level of access?
+        member this.HasAccessLevel level =
+            defaultArg (this.UserAccessLevel |> Option.map (AccessLevel.hasAccess level)) false
+
 
 
 open System.Collections.Concurrent

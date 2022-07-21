@@ -8,7 +8,6 @@ open MyWebLog
 /// Module to resolve routes that do not match any other known route (web blog content) 
 module CatchAll =
     
-    open DotLiquid
     open MyWebLog.ViewModels
     
     /// Sequence where the first returned value is the proper handler for the link
@@ -30,22 +29,23 @@ module CatchAll =
             match data.Post.FindByPermalink permalink webLog.Id |> await with
             | Some post ->
                 debug (fun () -> "Found post by permalink")
-                let model = Post.preparePostList webLog [ post ] Post.ListType.SinglePost "" 1 1 ctx data |> await
-                model.Add ("page_title", post.Title)
-                yield fun next ctx -> themedView (defaultArg post.Template "single-post") next ctx model
+                let hash = Post.preparePostList webLog [ post ] Post.ListType.SinglePost "" 1 1 ctx data |> await
+                yield fun next ctx ->
+                       addToHash "page_title" post.Title hash
+                    |> themedView (defaultArg post.Template "single-post") next ctx
             | None -> ()
             // Current page
             match data.Page.FindByPermalink permalink webLog.Id |> await with
             | Some page ->
                 debug (fun () -> "Found page by permalink")
                 yield fun next ctx ->
-                    Hash.FromAnonymousObject {|
+                    {|
                         page_title = page.Title
                         page       = DisplayPage.fromPage webLog page
                         categories = CategoryCache.get ctx
                         is_page    = true
                     |}
-                    |> themedView (defaultArg page.Template "single-page") next ctx
+                    |> makeHash |> themedView (defaultArg page.Template "single-page") next ctx
             | None -> ()
             // RSS feed
             match Feed.deriveFeedType ctx textLink with
@@ -149,8 +149,10 @@ let router : HttpHandler = choose [
                 route "/new" >=> Upload.showNew
             ])
             subRoute "/user" (choose [
-                route "s"        >=> User.all
-                route "/my-info" >=> User.myInfo
+                route  "s"        >=> User.all
+                route  "s/bare"   >=> User.bare
+                route  "/my-info" >=> User.myInfo
+                routef "/%s/edit"     User.edit
             ])
         ]
         POST >=> validateCsrf >=> choose [
@@ -194,6 +196,7 @@ let router : HttpHandler = choose [
             ])
             subRoute "/user" (choose [
                 route "/my-info" >=> User.saveMyInfo
+                route "/save"    >=> User.save
             ])
         ]
     ])

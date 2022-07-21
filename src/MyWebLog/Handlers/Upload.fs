@@ -3,10 +3,7 @@ module MyWebLog.Handlers.Upload
 
 open System
 open System.IO
-open Giraffe
-open Microsoft.AspNetCore.Http
 open Microsoft.Net.Http.Headers
-open MyWebLog
 
 /// Helper functions for this module
 [<AutoOpen>]
@@ -29,6 +26,11 @@ module private Helpers =
     /// The base directory where uploads are stored, relative to the executable
     let uploadDir = Path.Combine ("wwwroot", "upload")
 
+
+// ~~ SERVING UPLOADS ~~
+
+open Giraffe
+open Microsoft.AspNetCore.Http
 
 /// Determine if the file has been modified since the date/time specified by the If-Modified-Since header
 let checkModified since (ctx : HttpContext) : HttpHandler option =
@@ -53,6 +55,8 @@ let sendFile updatedOn path (data : byte[]) : HttpHandler = fun next ctx ->
     streamData true stream None (Some (DateTimeOffset updatedOn)) next ctx
 
 
+open MyWebLog
+
 // GET /upload/{web-log-slug}/{**path}
 let serve (urlParts : string seq) : HttpHandler = fun next ctx -> task {
     let webLog = ctx.WebLog
@@ -75,10 +79,9 @@ let serve (urlParts : string seq) : HttpHandler = fun next ctx -> task {
         return! Error.notFound next ctx
 }
 
-// ADMIN
+// ~~ ADMINISTRATION ~~
 
 open System.Text.RegularExpressions
-open DotLiquid
 open MyWebLog.ViewModels
 
 /// Turn a string into a lowercase URL-safe slug
@@ -98,11 +101,11 @@ let list : HttpHandler = requireAccess Author >=> fun next ctx -> task {
                     match File.GetCreationTime (Path.Combine (path, file)) with
                     | dt when dt > DateTime.UnixEpoch -> Some dt
                     | _ -> None
-                { DisplayUpload.Id = ""
-                  Name             = name
-                  Path             = file.Replace($"{path}{slash}", "").Replace(name, "").Replace (slash, '/')
-                  UpdatedOn        = create
-                  Source           = UploadDestination.toString Disk
+                {   DisplayUpload.Id = ""
+                    Name             = name
+                    Path             = file.Replace($"{path}{slash}", "").Replace(name, "").Replace (slash, '/')
+                    UpdatedOn        = create
+                    Source           = UploadDestination.toString Disk
                 })
             |> List.ofSeq
         with
@@ -116,23 +119,21 @@ let list : HttpHandler = requireAccess Author >=> fun next ctx -> task {
         |> List.append diskUploads
         |> List.sortByDescending (fun file -> file.UpdatedOn, file.Path)
 
-    return!
-        Hash.FromAnonymousObject {|
-            page_title = "Uploaded Files"
-            csrf       = ctx.CsrfTokenSet
-            files      = allFiles
-        |}
-        |> adminView "upload-list" next ctx
-    }
+    return! {|
+        page_title = "Uploaded Files"
+        csrf       = ctx.CsrfTokenSet
+        files      = allFiles
+    |}
+    |> makeHash |> adminView "upload-list" next ctx
+}
 
 // GET /admin/upload/new
 let showNew : HttpHandler = requireAccess Author >=> fun next ctx ->
-    Hash.FromAnonymousObject {|
-        page_title  = "Upload a File"
+    {|  page_title  = "Upload a File"
         csrf        = ctx.CsrfTokenSet
         destination = UploadDestination.toString ctx.WebLog.Uploads
     |}
-    |> adminView "upload-new" next ctx
+    |> makeHash |> adminView "upload-new" next ctx
 
 
 /// Redirect to the upload list
@@ -155,11 +156,11 @@ let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
             use stream = new MemoryStream ()
             do! upload.CopyToAsync stream
             let file =
-                { Id        = UploadId.create ()
-                  WebLogId  = ctx.WebLog.Id
-                  Path      = Permalink $"{year}/{month}/{fileName}"
-                  UpdatedOn = DateTime.UtcNow
-                  Data      = stream.ToArray ()
+                {   Id        = UploadId.create ()
+                    WebLogId  = ctx.WebLog.Id
+                    Path      = Permalink $"{year}/{month}/{fileName}"
+                    UpdatedOn = DateTime.UtcNow
+                    Data      = stream.ToArray ()
                 }
             do! ctx.Data.Upload.Add file
         | Disk ->

@@ -1,7 +1,6 @@
 ﻿/// Handlers to manipulate pages
 module MyWebLog.Handlers.Page
 
-open DotLiquid
 open Giraffe
 open MyWebLog
 open MyWebLog.ViewModels
@@ -10,16 +9,15 @@ open MyWebLog.ViewModels
 // GET /admin/pages/page/{pageNbr}
 let all pageNbr : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     let! pages = ctx.Data.Page.FindPageOfPages ctx.WebLog.Id pageNbr
-    return!
-        Hash.FromAnonymousObject {|
-            page_title = "Pages"
-            csrf       = ctx.CsrfTokenSet
-            pages      = pages |> List.map (DisplayPage.fromPageMinimal ctx.WebLog)
-            page_nbr   = pageNbr
-            prev_page  = if pageNbr = 2 then "" else $"/page/{pageNbr - 1}"
-            next_page  = $"/page/{pageNbr + 1}"
-        |}
-        |> adminView "page-list" next ctx
+    return! {|
+        page_title = "Pages"
+        csrf       = ctx.CsrfTokenSet
+        pages      = pages |> List.map (DisplayPage.fromPageMinimal ctx.WebLog)
+        page_nbr   = pageNbr
+        prev_page  = if pageNbr = 2 then "" else $"/page/{pageNbr - 1}"
+        next_page  = $"/page/{pageNbr + 1}"
+    |}
+    |> makeHash |> adminView "page-list" next ctx
 }
 
 // GET /admin/page/{id}/edit
@@ -36,16 +34,15 @@ let edit pgId : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     | Some (title, page) when canEdit page.AuthorId ctx ->
         let  model     = EditPageModel.fromPage page
         let! templates = templatesForTheme ctx "page"
-        return!
-            Hash.FromAnonymousObject {|
-                page_title = title
-                csrf       = ctx.CsrfTokenSet
-                model      = model
-                metadata   = Array.zip model.MetaNames model.MetaValues
-                             |> Array.mapi (fun idx (name, value) -> [| string idx; name; value |])
-                templates  = templates
-            |}
-            |> adminView "page-edit" next ctx
+        return! {|
+            page_title = title
+            csrf       = ctx.CsrfTokenSet
+            model      = model
+            metadata   = Array.zip model.MetaNames model.MetaValues
+                         |> Array.mapi (fun idx (name, value) -> [| string idx; name; value |])
+            templates  = templates
+        |}
+        |> makeHash |> adminView "page-edit" next ctx
     | Some _ -> return! Error.notAuthorized next ctx
     | None -> return! Error.notFound next ctx
 }
@@ -64,20 +61,19 @@ let delete pgId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> ta
 let editPermalinks pgId : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     match! ctx.Data.Page.FindFullById (PageId pgId) ctx.WebLog.Id with
     | Some pg when canEdit pg.AuthorId ctx ->
-        return!
-            Hash.FromAnonymousObject {|
-                page_title = "Manage Prior Permalinks"
-                csrf       = ctx.CsrfTokenSet
-                model      = ManagePermalinksModel.fromPage pg
-            |}
-            |> adminView "permalinks" next ctx
+        return! {|
+            page_title = "Manage Prior Permalinks"
+            csrf       = ctx.CsrfTokenSet
+            model      = ManagePermalinksModel.fromPage pg
+        |}
+        |> makeHash |> adminView "permalinks" next ctx
     | Some _ -> return! Error.notAuthorized next ctx
     | None -> return! Error.notFound next ctx
 }
 
 // POST /admin/page/permalinks
 let savePermalinks : HttpHandler = requireAccess Author >=> fun next ctx -> task {
-    let! model = ctx.BindFormAsync<ManagePermalinksModel> ()
+    let! model  = ctx.BindFormAsync<ManagePermalinksModel> ()
     let  pageId = PageId model.Id
     match! ctx.Data.Page.FindById pageId ctx.WebLog.Id with
     | Some pg when canEdit pg.AuthorId ctx ->
@@ -95,13 +91,12 @@ let savePermalinks : HttpHandler = requireAccess Author >=> fun next ctx -> task
 let editRevisions pgId : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     match! ctx.Data.Page.FindFullById (PageId pgId) ctx.WebLog.Id with
     | Some pg when canEdit pg.AuthorId ctx ->
-        return!
-            Hash.FromAnonymousObject {|
-                page_title = "Manage Page Revisions"
-                csrf       = ctx.CsrfTokenSet
-                model      = ManageRevisionsModel.fromPage ctx.WebLog pg
-            |}
-            |> adminView "revisions" next ctx
+        return! {|
+            page_title = "Manage Page Revisions"
+            csrf       = ctx.CsrfTokenSet
+            model      = ManageRevisionsModel.fromPage ctx.WebLog pg
+        |}
+        |> makeHash |> adminView "revisions" next ctx
     | Some _ -> return! Error.notAuthorized next ctx
     | None -> return! Error.notFound next ctx
 }
@@ -132,11 +127,10 @@ let private findPageRevision pgId revDate (ctx : HttpContext) = task {
 let previewRevision (pgId, revDate) : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     match! findPageRevision pgId revDate ctx with
     | Some pg, Some rev when canEdit pg.AuthorId ctx ->
-        return!
-            Hash.FromAnonymousObject {|
-                content = $"""<div class="mwl-revision-preview mb-3">{MarkupText.toHtml rev.Text}</div>"""
-            |}
-            |> adminBareView "" next ctx
+        return! {|
+            content = $"""<div class="mwl-revision-preview mb-3">{MarkupText.toHtml rev.Text}</div>"""
+        |}
+        |> makeHash |> adminBareView "" next ctx
     | Some _, Some _ -> return! Error.notAuthorized next ctx
     | None, _
     | _, None -> return! Error.notFound next ctx
@@ -166,13 +160,11 @@ let deleteRevision (pgId, revDate) : HttpHandler = requireAccess Author >=> fun 
     | Some pg, Some rev when canEdit pg.AuthorId ctx ->
         do! ctx.Data.Page.Update { pg with Revisions = pg.Revisions |> List.filter (fun r -> r.AsOf <> rev.AsOf) }
         do! addMessage ctx { UserMessage.success with Message = "Revision deleted successfully" }
-        return! adminBareView "" next ctx (Hash.FromAnonymousObject {| content = "" |})
+        return! adminBareView "" next ctx (makeHash {| content = "" |})
     | Some _, Some _ -> return! Error.notAuthorized next ctx
     | None, _
     | _, None -> return! Error.notFound next ctx
 }
-
-open System.Threading.Tasks
 
 // POST /admin/page/save
 let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
@@ -180,20 +172,19 @@ let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     let  data    = ctx.Data
     let  now     = DateTime.UtcNow
     let  tryPage =
-        if model.IsNew then Task.FromResult (
-            Some
-                { Page.empty with
-                    Id          = PageId.create ()
-                    WebLogId    = ctx.WebLog.Id
-                    AuthorId    = ctx.UserId
-                    PublishedOn = now
-                })
+        if model.IsNew then
+            { Page.empty with
+                Id          = PageId.create ()
+                WebLogId    = ctx.WebLog.Id
+                AuthorId    = ctx.UserId
+                PublishedOn = now
+            } |> someTask
         else data.Page.FindFullById (PageId model.PageId) ctx.WebLog.Id
     match! tryPage with
     | Some page when canEdit page.AuthorId ctx ->
         let updateList  = page.IsInPageList <> model.IsShownInPageList
         let updatedPage = model.UpdatePage page now
-        do! (if model.PageId = "new" then data.Page.Add else data.Page.Update) updatedPage
+        do! (if model.IsNew then data.Page.Add else data.Page.Update) updatedPage
         if updateList then do! PageListCache.update ctx
         do! addMessage ctx { UserMessage.success with Message = "Page saved successfully" }
         return! redirectToGet $"admin/page/{PageId.toString page.Id}/edit" next ctx

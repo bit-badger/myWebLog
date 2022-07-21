@@ -171,16 +171,16 @@ module Backup =
         
         /// Create an encoded theme asset from the original theme asset
         static member fromAsset (asset : ThemeAsset) =
-            { Id        = asset.Id
-              UpdatedOn = asset.UpdatedOn
-              Data      = Convert.ToBase64String asset.Data
+            {   Id        = asset.Id
+                UpdatedOn = asset.UpdatedOn
+                Data      = Convert.ToBase64String asset.Data
             }
     
         /// Create a theme asset from an encoded theme asset
         static member toAsset (encoded : EncodedAsset) : ThemeAsset =
-            { Id        = encoded.Id
-              UpdatedOn = encoded.UpdatedOn
-              Data      = Convert.FromBase64String encoded.Data
+            {   Id        = encoded.Id
+                UpdatedOn = encoded.UpdatedOn
+                Data      = Convert.FromBase64String encoded.Data
             }
     
     /// An uploaded file, with the data base-64 encoded
@@ -203,20 +203,20 @@ module Backup =
         
         /// Create an encoded uploaded file from the original uploaded file
         static member fromUpload (upload : Upload) : EncodedUpload =
-            { Id        = upload.Id
-              WebLogId  = upload.WebLogId
-              Path      = upload.Path
-              UpdatedOn = upload.UpdatedOn
-              Data      = Convert.ToBase64String upload.Data
+            {   Id        = upload.Id
+                WebLogId  = upload.WebLogId
+                Path      = upload.Path
+                UpdatedOn = upload.UpdatedOn
+                Data      = Convert.ToBase64String upload.Data
             }
         
         /// Create an uploaded file from an encoded uploaded file
         static member toUpload (encoded : EncodedUpload) : Upload =
-            { Id        = encoded.Id
-              WebLogId  = encoded.WebLogId
-              Path      = encoded.Path
-              UpdatedOn = encoded.UpdatedOn
-              Data      = Convert.FromBase64String encoded.Data
+            {   Id        = encoded.Id
+                WebLogId  = encoded.WebLogId
+                Path      = encoded.Path
+                UpdatedOn = encoded.UpdatedOn
+                Data      = Convert.FromBase64String encoded.Data
             }
     
     /// A unified archive for a web log
@@ -305,17 +305,17 @@ module Backup =
         let! uploads = data.Upload.FindByWebLogWithData webLog.Id
         
         printfn "- Writing archive..."
-        let  archive    = {
-            WebLog      = webLog
-            Users       = users
-            Theme       = Option.get theme
-            Assets      = assets |> List.map EncodedAsset.fromAsset
-            Categories  = categories
-            TagMappings = tagMaps
-            Pages       = pages   |> List.map (fun p -> { p with Revisions = List.truncate 1 p.Revisions })
-            Posts       = posts   |> List.map (fun p -> { p with Revisions = List.truncate 1 p.Revisions })
-            Uploads     = uploads |> List.map EncodedUpload.fromUpload
-        }
+        let archive =
+            {   WebLog      = webLog
+                Users       = users
+                Theme       = Option.get theme
+                Assets      = assets |> List.map EncodedAsset.fromAsset
+                Categories  = categories
+                TagMappings = tagMaps
+                Pages       = pages   |> List.map (fun p -> { p with Revisions = List.truncate 1 p.Revisions })
+                Posts       = posts   |> List.map (fun p -> { p with Revisions = List.truncate 1 p.Revisions })
+                Uploads     = uploads |> List.map EncodedUpload.fromUpload
+            }
         
         // Write the structure to the backup file
         if File.Exists fileName then File.Delete fileName

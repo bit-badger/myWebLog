@@ -600,6 +600,15 @@ type ThemeTemplate =
         Text : string
     }
 
+/// Functions to support theme templates
+module ThemeTemplate =
+    
+    /// An empty theme template
+    let empty =
+        {   Name = ""
+            Text = ""
+        }
+
 
 /// Where uploads should be placed
 type UploadDestination =
