@@ -19,19 +19,23 @@
         {%- elsif user.access_level == "Author" %}
           <span class="{{ badge }}-dark">AUTHOR</span>
         {%- endif %}<br>
-        <small>
-          {%- assign user_url_base = "admin/user/" | append: user.id -%}
-          <a href="{{ user_url_base | append: "/edit" | relative_link }}" hx-target="#user_{{ user.id }}"
-             hx-swap="innerHTML show:#user_{{ user.id }}:top">
-            Edit
-          </a>
-          <span class="text-muted"> &bull; </span>
-          {%- assign user_del_link = user_url_base | append: "/delete" | relative_link -%}
-          <a href="{{ user_del_link }}" hx-post="{{ user_del_link }}" class="text-danger"
-             hx-confirm="Are you sure you want to delete the category &ldquo;{{ cat.name }}&rdquo;? This action cannot be undone. (This action will not succeed if the user has authored any posts or pages.)">
-            Delete
-          </a>
-        </small>
+        {%- unless is_administrator == false and user.access_level == "Administrator" %}
+          <small>
+            {%- assign user_url_base = "admin/user/" | append: user.id -%}
+            <a href="{{ user_url_base | append: "/edit" | relative_link }}" hx-target="#user_{{ user.id }}"
+               hx-swap="innerHTML show:#user_{{ user.id }}:top">
+              Edit
+            </a>
+            {% unless user_id == user.id %}
+              <span class="text-muted"> &bull; </span>
+              {%- assign user_del_link = user_url_base | append: "/delete" | relative_link -%}
+              <a href="{{ user_del_link }}" hx-post="{{ user_del_link }}" class="text-danger"
+                 hx-confirm="Are you sure you want to delete the user &ldquo;{{ user.preferred_name }}&rdquo;? This action cannot be undone. (This action will not succeed if the user has authored any posts or pages.)">
+                Delete
+              </a>
+            {% endunless %}
+          </small>
+        {%- endunless %}
       </div>
       <div class="{{ email_col }}">
         {{ user.first_name }} {{ user.last_name }}<br>

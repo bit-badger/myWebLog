@@ -118,22 +118,19 @@ let list : HttpHandler = requireAccess Author >=> fun next ctx -> task {
         |> List.map (DisplayUpload.fromUpload webLog Database)
         |> List.append diskUploads
         |> List.sortByDescending (fun file -> file.UpdatedOn, file.Path)
-
-    return! {|
-        page_title = "Uploaded Files"
-        csrf       = ctx.CsrfTokenSet
-        files      = allFiles
-    |}
-    |> makeHash |> adminView "upload-list" next ctx
+    return!
+        hashForPage "Uploaded Files"
+        |> withAntiCsrf ctx
+        |> addToHash "files" allFiles
+        |> adminView "upload-list" next ctx
 }
 
 // GET /admin/upload/new
 let showNew : HttpHandler = requireAccess Author >=> fun next ctx ->
-    {|  page_title  = "Upload a File"
-        csrf        = ctx.CsrfTokenSet
-        destination = UploadDestination.toString ctx.WebLog.Uploads
-    |}
-    |> makeHash |> adminView "upload-new" next ctx
+    hashForPage "Upload a File"
+    |> withAntiCsrf ctx
+    |> addToHash "destination" (UploadDestination.toString ctx.WebLog.Uploads)
+    |> adminView "upload-new" next ctx
 
 
 /// Redirect to the upload list

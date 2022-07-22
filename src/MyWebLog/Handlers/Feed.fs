@@ -416,16 +416,14 @@ let generate (feedType : FeedType) postCount : HttpHandler = fun next ctx -> bac
 
 // GET /admin/settings/rss
 let editSettings : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx ->
-    let feeds =
+    hashForPage "RSS Settings"
+    |> withAntiCsrf ctx
+    |> addToHash ViewContext.Model (EditRssModel.fromRssOptions ctx.WebLog.Rss)
+    |> addToHash "custom_feeds" (
         ctx.WebLog.Rss.CustomFeeds
         |> List.map (DisplayCustomFeed.fromFeed (CategoryCache.get ctx))
-        |> Array.ofList
-    {|  page_title   = "RSS Settings"
-        csrf         = ctx.CsrfTokenSet
-        model        = EditRssModel.fromRssOptions ctx.WebLog.Rss
-        custom_feeds = feeds
-    |}
-    |> makeHash |> adminView "rss-settings" next ctx
+        |> Array.ofList)
+    |> adminView "rss-settings" next ctx
 
 // POST /admin/settings/rss
 let saveSettings : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
@@ -449,22 +447,20 @@ let editCustomFeed feedId : HttpHandler = requireAccess WebLogAdmin >=> fun next
         | _     -> ctx.WebLog.Rss.CustomFeeds |> List.tryFind (fun f -> f.Id = CustomFeedId feedId)
     match customFeed with
     | Some f ->
-       {|   page_title    = $"""{if feedId = "new" then "Add" else "Edit"} Custom RSS Feed"""
-            csrf          = ctx.CsrfTokenSet
-            model         = EditCustomFeedModel.fromFeed f
-            categories    = CategoryCache.get ctx
-            medium_values = [|
-                KeyValuePair.Create ("", "&ndash; Unspecified &ndash;")
-                KeyValuePair.Create (PodcastMedium.toString Podcast, "Podcast")
-                KeyValuePair.Create (PodcastMedium.toString Music, "Music")
-                KeyValuePair.Create (PodcastMedium.toString Video, "Video")
-                KeyValuePair.Create (PodcastMedium.toString Film, "Film")
-                KeyValuePair.Create (PodcastMedium.toString Audiobook, "Audiobook")
-                KeyValuePair.Create (PodcastMedium.toString Newsletter, "Newsletter")
-                KeyValuePair.Create (PodcastMedium.toString Blog, "Blog")
-            |]
-        |}
-        |> makeHash |> adminView "custom-feed-edit" next ctx
+        hashForPage $"""{if feedId = "new" then "Add" else "Edit"} Custom RSS Feed"""
+        |> withAntiCsrf ctx
+        |> addToHash ViewContext.Model (EditCustomFeedModel.fromFeed f)
+        |> addToHash "medium_values" [|
+            KeyValuePair.Create ("", "&ndash; Unspecified &ndash;")
+            KeyValuePair.Create (PodcastMedium.toString Podcast,    "Podcast")
+            KeyValuePair.Create (PodcastMedium.toString Music,      "Music")
+            KeyValuePair.Create (PodcastMedium.toString Video,      "Video")
+            KeyValuePair.Create (PodcastMedium.toString Film,       "Film")
+            KeyValuePair.Create (PodcastMedium.toString Audiobook,  "Audiobook")
+            KeyValuePair.Create (PodcastMedium.toString Newsletter, "Newsletter")
+            KeyValuePair.Create (PodcastMedium.toString Blog,       "Blog")
+        |]
+        |> adminView "custom-feed-edit" next ctx
     | None -> Error.notFound next ctx
 
 // POST /admin/settings/rss/save

@@ -46,7 +46,7 @@ module DataImplementation =
         let createSQLite connStr =
             let log  = sp.GetRequiredService<ILogger<SQLiteData>> ()
             let conn = new SqliteConnection (connStr)
-            log.LogInformation $"Using SQL database {conn.DataSource}"
+            log.LogInformation $"Using SQLite database {conn.DataSource}"
             await (SQLiteData.setUpConnection conn)
             SQLiteData (conn, log)
         
@@ -60,6 +60,26 @@ module DataImplementation =
             upcast RethinkDbData (conn, rethinkCfg, log)
         else
             upcast createSQLite "Data Source=./myweblog.db;Cache=Shared"
+
+
+open System.Threading.Tasks
+
+/// Show a list of valid command-line interface commands
+let showHelp () =
+    printfn " "
+    printfn "COMMAND       WHAT IT DOES"
+    printfn "-----------   ------------------------------------------------------"
+    printfn "backup        Create a JSON file backup of a web log"
+    printfn "do-restore    Restore a JSON file backup (overwrite data silently)"
+    printfn "help          Display this information"
+    printfn "import-links  Import prior permalinks"
+    printfn "init          Initializes a new web log"
+    printfn "load-theme    Load a theme"
+    printfn "restore       Restore a JSON file backup (prompt before overwriting)"
+    printfn "upgrade-user  Upgrade a WebLogAdmin user to a full Administrator"
+    printfn " "
+    printfn "For more information on a particular command, run it with no options."
+    Task.FromResult ()
 
 
 open Giraffe
@@ -138,7 +158,11 @@ let rec main args =
     | Some it when it = "restore"      -> Maintenance.Backup.restoreFromBackup args app.Services
     | Some it when it = "do-restore"   -> Maintenance.Backup.restoreFromBackup args app.Services
     | Some it when it = "upgrade-user" -> Maintenance.upgradeUser              args app.Services
-    | _ ->
+    | Some it when it = "help"         -> showHelp ()
+    | Some it ->
+        printfn $"""Unrecognized command "{it}" - valid commands are:"""
+        showHelp ()
+    | None ->
         let _ = app.UseForwardedHeaders ()
         let _ = app.UseCookiePolicy (CookiePolicyOptions (MinimumSameSitePolicy = SameSiteMode.Strict))
         let _ = app.UseMiddleware<WebLogMiddleware> ()
@@ -148,7 +172,7 @@ let rec main args =
         let _ = app.UseSession ()
         let _ = app.UseGiraffe Handlers.Routes.endpoint
 
-        System.Threading.Tasks.Task.FromResult (app.Run ())
+        Task.FromResult (app.Run ())
     |> Async.AwaitTask |> Async.RunSynchronously
     
     0 // Exit code

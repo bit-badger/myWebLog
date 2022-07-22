@@ -12,12 +12,117 @@ type ISession with
         this.SetString (key, JsonSerializer.Serialize item)
     
     /// Get an item from the session
-    member this.Get<'T> key =
+    member this.TryGet<'T> key =
         match this.GetString key with
         | null -> None
         | item -> Some (JsonSerializer.Deserialize<'T> item)
 
+
+/// Keys used in the myWebLog-standard DotLiquid hash
+module ViewContext =
     
+    /// The anti cross-site request forgery (CSRF) token set to use for form submissions
+    [<Literal>]
+    let AntiCsrfTokens = "csrf"
+    
+    /// The categories for this web log
+    [<Literal>]
+    let Categories = "categories"
+    
+    /// The main content of the view
+    [<Literal>]
+    let Content = "content"
+    
+    /// The current page URL
+    [<Literal>]
+    let CurrentPage = "current_page"
+    
+    /// The generator string for the current version of myWebLog
+    [<Literal>]
+    let Generator = "generator"
+    
+    /// The HTML to load htmx from the unpkg CDN
+    [<Literal>]
+    let HtmxScript = "htmx_script"
+    
+    /// Whether the current user has Administrator privileges
+    [<Literal>]
+    let IsAdministrator = "is_administrator"
+    
+    /// Whether the current user has Author (or above) privileges
+    [<Literal>]
+    let IsAuthor = "is_author"
+    
+    /// Whether the current view is displaying a category archive page
+    [<Literal>]
+    let IsCategory = "is_category"
+    
+    /// Whether the current view is displaying the first page of a category archive
+    [<Literal>]
+    let IsCategoryHome = "is_category_home"
+    
+    /// Whether the current user has Editor (or above) privileges
+    [<Literal>]
+    let IsEditor = "is_editor"
+    
+    /// Whether the current view is the home page for the web log
+    [<Literal>]
+    let IsHome = "is_home"
+    
+    /// Whether there is a user logged on
+    [<Literal>]
+    let IsLoggedOn = "is_logged_on"
+    
+    /// Whether the current view is displaying a page
+    [<Literal>]
+    let IsPage = "is_page"
+    
+    /// Whether the current view is displaying a post
+    [<Literal>]
+    let IsPost = "is_post"
+    
+    /// Whether the current view is a tag archive page
+    [<Literal>]
+    let IsTag = "is_tag"
+    
+    /// Whether the current view is the first page of a tag archive
+    [<Literal>]
+    let IsTagHome = "is_tag_home"
+    
+    /// Whether the current user has Web Log Admin (or above) privileges
+    [<Literal>]
+    let IsWebLogAdmin = "is_web_log_admin"
+    
+    /// Messages to be displayed to the user
+    [<Literal>]
+    let Messages = "messages"
+    
+    /// The view model / form for the page
+    [<Literal>]
+    let Model = "model"
+    
+    /// The listed pages for the web log
+    [<Literal>]
+    let PageList = "page_list"
+    
+    /// The title of the page being displayed
+    [<Literal>]
+    let PageTitle = "page_title"
+    
+    /// The slug for category or tag archive pages
+    [<Literal>]
+    let Slug = "slug"
+    
+    /// The ID of the current user
+    [<Literal>]
+    let UserId = "user_id"
+    
+    /// The current web log
+    [<Literal>]
+    let WebLog = "web_log"
+    
+
+
 /// The HTTP item key for loading the session
 let private sessionLoadedKey = "session-loaded"
 
@@ -38,33 +143,40 @@ open MyWebLog.ViewModels
 /// Add a message to the user's session
 let addMessage (ctx : HttpContext) message = task {
     do! loadSession ctx
-    let msg = match ctx.Session.Get<UserMessage list> "messages" with Some it -> it | None -> []
-    ctx.Session.Set ("messages", message :: msg)
+    let msg = match ctx.Session.TryGet<UserMessage list> ViewContext.Messages with Some it -> it | None -> []
+    ctx.Session.Set (ViewContext.Messages, message :: msg)
 }
 
 /// Get any messages from the user's session, removing them in the process
 let messages (ctx : HttpContext) = task {
     do! loadSession ctx
-    match ctx.Session.Get<UserMessage list> "messages" with
+    match ctx.Session.TryGet<UserMessage list> ViewContext.Messages with
     | Some msg ->
-        ctx.Session.Remove "messages"
+        ctx.Session.Remove ViewContext.Messages
         return msg |> (List.rev >> Array.ofList)
     | None -> return [||]
 }
 
-open System.Collections.Generic
 open MyWebLog
 open DotLiquid
 
-
+/// Shorthand for creating a DotLiquid hash from an anonymous object
 let makeHash (values : obj) =
     Hash.FromAnonymousObject values
+
+/// Create a hash with the page title filled
+let hashForPage (title : string) =
+    makeHash {| page_title = title |}
 
 /// Add a key to the hash, returning the modified hash
 //    (note that the hash itself is mutated; this is only used to make it pipeable)
 let addToHash key (value : obj) (hash : Hash) =
     if hash.ContainsKey key then hash[key] <- value else hash.Add (key, value)
     hash
+
+/// Add anti-CSRF tokens to the given hash
+let withAntiCsrf (ctx : HttpContext) =
+    addToHash ViewContext.AntiCsrfTokens ctx.CsrfTokenSet 
 
 open System.Security.Claims
 open Giraffe
@@ -75,27 +187,31 @@ open Giraffe.ViewEngine
 let private htmxScript = RenderView.AsString.htmlNode Htmx.Script.minified
 
 /// Populate the DotLiquid hash with standard information
-let private populateHash hash ctx = task {
+let addViewContext ctx (hash : Hash) = task {
     let! messages = messages ctx
     do! commitSession ctx
-    
-    ctx.User.Claims
-    |> Seq.tryFind (fun claim -> claim.Type = ClaimTypes.NameIdentifier)
-    |> Option.map (fun claim -> claim.Value)
-    |> Option.iter (fun userId -> addToHash "user_id" userId hash |> ignore)
-    
     return
-        addToHash    "web_log"          ctx.WebLog hash
-        |> addToHash "page_list"        (PageListCache.get ctx)
-        |> addToHash "current_page"     ctx.Request.Path.Value[1..]
-        |> addToHash "messages"         messages
-        |> addToHash "generator"        ctx.Generator
-        |> addToHash "htmx_script"      htmxScript
-        |> addToHash "is_logged_on"     ctx.User.Identity.IsAuthenticated
-        |> addToHash "is_author"        (ctx.HasAccessLevel Author)
-        |> addToHash "is_editor"        (ctx.HasAccessLevel Editor)
-        |> addToHash "is_web_log_admin" (ctx.HasAccessLevel WebLogAdmin)
-        |> addToHash "is_administrator" (ctx.HasAccessLevel Administrator)
+        if hash.ContainsKey ViewContext.HtmxScript && hash.ContainsKey ViewContext.Messages then
+            // We have already populated everything; just update messages
+            hash[ViewContext.Messages] <- Array.concat [ hash[ViewContext.Messages] :?> UserMessage[]; messages ]
+            hash
+        else
+            ctx.User.Claims
+            |> Seq.tryFind (fun claim -> claim.Type = ClaimTypes.NameIdentifier)
+            |> Option.map (fun claim -> addToHash ViewContext.UserId claim.Value hash)
+            |> Option.defaultValue hash
+            |> addToHash ViewContext.WebLog          ctx.WebLog
+            |> addToHash ViewContext.PageList        (PageListCache.get ctx)
+            |> addToHash ViewContext.Categories      (CategoryCache.get ctx)
+            |> addToHash ViewContext.CurrentPage     ctx.Request.Path.Value[1..]
+            |> addToHash ViewContext.Messages        messages
+            |> addToHash ViewContext.Generator       ctx.Generator
+            |> addToHash ViewContext.HtmxScript      htmxScript
+            |> addToHash ViewContext.IsLoggedOn      ctx.User.Identity.IsAuthenticated
+            |> addToHash ViewContext.IsAuthor        (ctx.HasAccessLevel Author)
+            |> addToHash ViewContext.IsEditor        (ctx.HasAccessLevel Editor)
+            |> addToHash ViewContext.IsWebLogAdmin   (ctx.HasAccessLevel WebLogAdmin)
+            |> addToHash ViewContext.IsAdministrator (ctx.HasAccessLevel Administrator)
 }
 
 /// Is the request from htmx?
@@ -104,16 +220,14 @@ let isHtmx (ctx : HttpContext) =
 
 /// Render a view for the specified theme, using the specified template, layout, and hash
 let viewForTheme themeId template next ctx (hash : Hash) = task {
-    if not (hash.ContainsKey "htmx_script") then
-        let! _ = populateHash hash ctx
-        ()
+    let! hash = addViewContext ctx hash
     let (ThemeId theme) = themeId
     // NOTE: DotLiquid does not support {% render %} or {% include %} in its templates, so we will do a 2-pass render;
     //       the net effect is a "layout" capability similar to Razor or Pug
     
     // Render view content...
     let! contentTemplate = TemplateCache.get theme template ctx.Data
-    let _ = addToHash "content" (contentTemplate.Render hash) hash
+    let _ = addToHash ViewContext.Content (contentTemplate.Render hash) hash
     
     // ...then render that content with its layout
     let! layoutTemplate = TemplateCache.get theme (if isHtmx ctx then "layout-partial" else "layout") ctx.Data
@@ -137,24 +251,25 @@ let messagesToHeaders (messages : UserMessage array) : HttpHandler =
 
 /// Render a bare view for the specified theme, using the specified template and hash
 let bareForTheme themeId template next ctx (hash : Hash) = task {
-    let! hash = populateHash hash ctx
+    let! hash = addViewContext ctx hash
     let (ThemeId theme) = themeId
     
-    if not (hash.ContainsKey "content") then
+    if not (hash.ContainsKey ViewContext.Content) then
         let! contentTemplate = TemplateCache.get theme template ctx.Data
-        addToHash "content" (contentTemplate.Render hash) hash |> ignore
+        addToHash ViewContext.Content (contentTemplate.Render hash) hash |> ignore
     
     // Bare templates are rendered with layout-bare
     let! layoutTemplate = TemplateCache.get theme "layout-bare" ctx.Data
-    
     return!
-        (messagesToHeaders (hash["messages"] :?> UserMessage[]) >=> htmlString (layoutTemplate.Render hash)) next ctx
+        (messagesToHeaders (hash[ViewContext.Messages] :?> UserMessage[])
+         >=> htmlString (layoutTemplate.Render hash))
+            next ctx
 }
 
 /// Return a view for the web log's default theme
 let themedView template next ctx hash = task {
-    let! hash = populateHash hash ctx
-    return! viewForTheme (hash["web_log"] :?> WebLog).ThemeId template next ctx hash
+    let! hash = addViewContext ctx hash
+    return! viewForTheme (hash[ViewContext.WebLog] :?> WebLog).ThemeId template next ctx hash
 }
 
 /// Display a view for the admin theme
@@ -171,7 +286,7 @@ let redirectToGet url : HttpHandler = fun _ ctx -> task {
     return! redirectTo false (WebLog.relativeUrl ctx.WebLog (Permalink url)) earlyReturn ctx
 }
 
-/// Validate the cross-site request forgery token in the current request
+/// Validate the anti cross-site request forgery token in the current request
 let validateCsrf : HttpHandler = fun next ctx -> task {
     match! ctx.AntiForgery.IsRequestValidAsync ctx with
     | true -> return! next ctx

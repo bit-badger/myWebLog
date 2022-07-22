@@ -39,7 +39,7 @@ open MyWebLog.Data
 open MyWebLog.ViewModels
 
 /// Convert a list of posts into items ready to be displayed
-let preparePostList webLog posts listType (url : string) pageNbr perPage ctx (data : IData) = task {
+let preparePostList webLog posts listType (url : string) pageNbr perPage (data : IData) = task {
     let! authors     = getAuthors     webLog posts data
     let! tagMappings = getTagMappings webLog posts data
     let  relUrl it   = Some <| WebLog.relativeUrl webLog (Permalink it)
@@ -85,12 +85,11 @@ let preparePostList webLog posts listType (url : string) pageNbr perPage ctx (da
           OlderLink  = olderLink
           OlderName  = olderPost |> Option.map (fun p -> p.Title)
         }
-    return makeHash {|
-        model        = model
-        categories   = CategoryCache.get ctx
-        tag_mappings = tagMappings
-        is_post      = match listType with SinglePost -> true | _ -> false
-    |}
+    return
+        makeHash {||}
+        |> addToHash ViewContext.Model  model
+        |> addToHash "tag_mappings"     tagMappings
+        |> addToHash ViewContext.IsPost (match listType with SinglePost -> true | _ -> false)
 }
 
 open Giraffe
@@ -100,15 +99,18 @@ let pageOfPosts pageNbr : HttpHandler = fun next ctx -> task {
     let  count = ctx.WebLog.PostsPerPage
     let  data  = ctx.Data
     let! posts = data.Post.FindPageOfPublishedPosts ctx.WebLog.Id pageNbr count
-    let! hash  = preparePostList ctx.WebLog posts PostList "" pageNbr count ctx data
+    let! hash  = preparePostList ctx.WebLog posts PostList "" pageNbr count data
     let  title =
         match pageNbr, ctx.WebLog.DefaultPage with
         | 1, "posts" -> None
         | _, "posts" -> Some $"Page {pageNbr}"
         | _,  _      -> Some $"Page {pageNbr} &laquo; Posts"
-    match title with Some ttl -> hash.Add ("page_title", ttl) | None -> ()
-    if pageNbr = 1 && ctx.WebLog.DefaultPage = "posts" then hash.Add ("is_home", true)
-    return! themedView "index" next ctx hash
+    return!
+        match title with Some ttl -> addToHash ViewContext.PageTitle ttl hash | None -> hash
+        |> function
+        | hash ->
+            if pageNbr = 1 && ctx.WebLog.DefaultPage = "posts" then addToHash ViewContext.IsHome true hash else hash
+        |> themedView "index" next ctx
 }
 
 // GET /page/{pageNbr}/
@@ -131,14 +133,14 @@ let pageOfCategorizedPosts slugAndPage : HttpHandler = fun next ctx -> task {
             match! data.Post.FindPageOfCategorizedPosts webLog.Id (getCategoryIds slug ctx) pageNbr webLog.PostsPerPage
                 with
             | posts when List.length posts > 0 ->
-                let! hash = preparePostList webLog posts CategoryList cat.Slug pageNbr webLog.PostsPerPage ctx data
+                let! hash = preparePostList webLog posts CategoryList cat.Slug pageNbr webLog.PostsPerPage data
                 let pgTitle = if pageNbr = 1 then "" else $""" <small class="archive-pg-nbr">(Page {pageNbr})</small>"""
                 return!
-                    addToHash    "page_title"       $"{cat.Name}: Category Archive{pgTitle}" hash
-                    |> addToHash "subtitle"         (defaultArg cat.Description "")
-                    |> addToHash "is_category"      true
-                    |> addToHash "is_category_home" (pageNbr = 1)
-                    |> addToHash "slug"             slug
+                       addToHash ViewContext.PageTitle      $"{cat.Name}: Category Archive{pgTitle}" hash
+                    |> addToHash "subtitle"                 (defaultArg cat.Description "")
+                    |> addToHash ViewContext.IsCategory     true
+                    |> addToHash ViewContext.IsCategoryHome (pageNbr = 1)
+                    |> addToHash ViewContext.Slug           slug
                     |> themedView "index" next ctx
             | _ -> return! Error.notFound next ctx
         | None -> return! Error.notFound next ctx
@@ -166,13 +168,13 @@ let pageOfTaggedPosts slugAndPage : HttpHandler = fun next ctx -> task {
         else
             match! data.Post.FindPageOfTaggedPosts webLog.Id tag pageNbr webLog.PostsPerPage with
             | posts when List.length posts > 0 ->
-                let! hash    = preparePostList webLog posts TagList rawTag pageNbr webLog.PostsPerPage ctx data
+                let! hash    = preparePostList webLog posts TagList rawTag pageNbr webLog.PostsPerPage data
                 let  pgTitle = if pageNbr = 1 then "" else $""" <small class="archive-pg-nbr">(Page {pageNbr})</small>"""
                 return!
-                       addToHash "page_title"  $"Posts Tagged &ldquo;{tag}&rdquo;{pgTitle}" hash
-                    |> addToHash "is_tag"      true
-                    |> addToHash "is_tag_home" (pageNbr = 1)
-                    |> addToHash "slug"        rawTag
+                       addToHash ViewContext.PageTitle $"Posts Tagged &ldquo;{tag}&rdquo;{pgTitle}" hash
+                    |> addToHash ViewContext.IsTag     true
+                    |> addToHash ViewContext.IsTagHome (pageNbr = 1)
+                    |> addToHash ViewContext.Slug      rawTag
                     |> themedView "index" next ctx
             // Other systems use hyphens for spaces; redirect if this is an old tag link
             | _ ->
@@ -196,13 +198,11 @@ let home : HttpHandler = fun next ctx -> task {
     | pageId ->
         match! ctx.Data.Page.FindById (PageId pageId) webLog.Id with
         | Some page ->
-            return! {|
-                page_title = page.Title
-                page       = DisplayPage.fromPage webLog page
-                categories = CategoryCache.get ctx
-                is_home    = true
-            |}
-            |> makeHash |> themedView (defaultArg page.Template "single-page") next ctx
+            return!
+                hashForPage page.Title
+                |> addToHash "page" (DisplayPage.fromPage webLog page)
+                |> addToHash ViewContext.IsHome true
+                |> themedView (defaultArg page.Template "single-page") next ctx
         | None -> return! Error.notFound next ctx
 }
 
@@ -211,10 +211,10 @@ let home : HttpHandler = fun next ctx -> task {
 let all pageNbr : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     let  data  = ctx.Data
     let! posts = data.Post.FindPageOfPosts ctx.WebLog.Id pageNbr 25
-    let! hash  = preparePostList ctx.WebLog posts AdminList "" pageNbr 25 ctx data
+    let! hash  = preparePostList ctx.WebLog posts AdminList "" pageNbr 25 data
     return!
-           addToHash "page_title" "Posts" hash
-        |> addToHash "csrf"       ctx.CsrfTokenSet
+           addToHash ViewContext.PageTitle "Posts" hash
+        |> withAntiCsrf ctx
         |> adminView "post-list" next ctx
 }
 
@@ -231,25 +231,23 @@ let edit postId : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     }
     match result with
     | Some (title, post) when canEdit post.AuthorId ctx ->
-        let! cats      = data.Category.FindAllForView ctx.WebLog.Id
         let! templates = templatesForTheme ctx "post"
         let  model     = EditPostModel.fromPost ctx.WebLog post
-        return! {|
-            page_title      = title
-            csrf            = ctx.CsrfTokenSet
-            model           = model
-            metadata        = Array.zip model.MetaNames model.MetaValues
-                              |> Array.mapi (fun idx (name, value) -> [| string idx; name; value |])
-            templates       = templates
-            categories      = cats
-            explicit_values = [|
+        return!
+            hashForPage title
+            |> withAntiCsrf ctx
+            |> addToHash ViewContext.Model model
+            |> addToHash "metadata" (
+                Array.zip model.MetaNames model.MetaValues
+                |> Array.mapi (fun idx (name, value) -> [| string idx; name; value |]))
+            |> addToHash "templates" templates
+            |> addToHash "explicit_values" [|
                 KeyValuePair.Create ("", "&ndash; Default &ndash;")
                 KeyValuePair.Create (ExplicitRating.toString Yes,   "Yes")
                 KeyValuePair.Create (ExplicitRating.toString No,    "No")
                 KeyValuePair.Create (ExplicitRating.toString Clean, "Clean")
             |]
-        |}
-        |> makeHash |> adminView "post-edit" next ctx
+            |> adminView "post-edit" next ctx
     | Some _ -> return! Error.notAuthorized next ctx
     | None -> return! Error.notFound next ctx
 }
@@ -266,12 +264,11 @@ let delete postId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> 
 let editPermalinks postId : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     match! ctx.Data.Post.FindFullById (PostId postId) ctx.WebLog.Id with
     | Some post when canEdit post.AuthorId ctx ->
-        return! {|
-            page_title = "Manage Prior Permalinks"
-            csrf       = ctx.CsrfTokenSet
-            model      = ManagePermalinksModel.fromPost post
-        |}
-        |> makeHash |> adminView "permalinks" next ctx
+        return!
+            hashForPage "Manage Prior Permalinks"
+            |> withAntiCsrf ctx
+            |> addToHash ViewContext.Model (ManagePermalinksModel.fromPost post)
+            |> adminView "permalinks" next ctx
     | Some _ -> return! Error.notAuthorized next ctx
     | None -> return! Error.notFound next ctx
 }
@@ -296,12 +293,11 @@ let savePermalinks : HttpHandler = requireAccess Author >=> fun next ctx -> task
 let editRevisions postId : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     match! ctx.Data.Post.FindFullById (PostId postId) ctx.WebLog.Id with
     | Some post when canEdit post.AuthorId ctx ->
-        return! {|
-            page_title = "Manage Post Revisions"
-            csrf       = ctx.CsrfTokenSet
-            model      = ManageRevisionsModel.fromPost ctx.WebLog post
-        |}
-        |> makeHash |> adminView "revisions" next ctx
+        return!
+            hashForPage "Manage Post Revisions"
+            |> withAntiCsrf ctx
+            |> addToHash ViewContext.Model (ManageRevisionsModel.fromPost ctx.WebLog post)
+            |> adminView "revisions" next ctx
     | Some _ -> return! Error.notAuthorized next ctx
     | None -> return! Error.notFound next ctx
 }

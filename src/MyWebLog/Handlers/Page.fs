@@ -9,15 +9,14 @@ open MyWebLog.ViewModels
 // GET /admin/pages/page/{pageNbr}
 let all pageNbr : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     let! pages = ctx.Data.Page.FindPageOfPages ctx.WebLog.Id pageNbr
-    return! {|
-        page_title = "Pages"
-        csrf       = ctx.CsrfTokenSet
-        pages      = pages |> List.map (DisplayPage.fromPageMinimal ctx.WebLog)
-        page_nbr   = pageNbr
-        prev_page  = if pageNbr = 2 then "" else $"/page/{pageNbr - 1}"
-        next_page  = $"/page/{pageNbr + 1}"
-    |}
-    |> makeHash |> adminView "page-list" next ctx
+    return!
+        hashForPage "Pages"
+        |> withAntiCsrf ctx
+        |> addToHash "pages"     (pages |> List.map (DisplayPage.fromPageMinimal ctx.WebLog))
+        |> addToHash "page_nbr"  pageNbr
+        |> addToHash "prev_page" (if pageNbr = 2 then "" else $"/page/{pageNbr - 1}")
+        |> addToHash "next_page" $"/page/{pageNbr + 1}"
+        |> adminView "page-list" next ctx
 }
 
 // GET /admin/page/{id}/edit
@@ -34,15 +33,15 @@ let edit pgId : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     | Some (title, page) when canEdit page.AuthorId ctx ->
         let  model     = EditPageModel.fromPage page
         let! templates = templatesForTheme ctx "page"
-        return! {|
-            page_title = title
-            csrf       = ctx.CsrfTokenSet
-            model      = model
-            metadata   = Array.zip model.MetaNames model.MetaValues
-                         |> Array.mapi (fun idx (name, value) -> [| string idx; name; value |])
-            templates  = templates
-        |}
-        |> makeHash |> adminView "page-edit" next ctx
+        return!
+            hashForPage title
+            |> withAntiCsrf ctx
+            |> addToHash ViewContext.Model model
+            |> addToHash "metadata" (
+                 Array.zip model.MetaNames model.MetaValues
+                 |> Array.mapi (fun idx (name, value) -> [| string idx; name; value |]))
+            |> addToHash "templates" templates
+            |> adminView "page-edit" next ctx
     | Some _ -> return! Error.notAuthorized next ctx
     | None -> return! Error.notFound next ctx
 }
@@ -61,12 +60,11 @@ let delete pgId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> ta
 let editPermalinks pgId : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     match! ctx.Data.Page.FindFullById (PageId pgId) ctx.WebLog.Id with
     | Some pg when canEdit pg.AuthorId ctx ->
-        return! {|
-            page_title = "Manage Prior Permalinks"
-            csrf       = ctx.CsrfTokenSet
-            model      = ManagePermalinksModel.fromPage pg
-        |}
-        |> makeHash |> adminView "permalinks" next ctx
+        return!
+            hashForPage "Manage Prior Permalinks"
+            |> withAntiCsrf ctx
+            |> addToHash ViewContext.Model (ManagePermalinksModel.fromPage pg)
+            |> adminView "permalinks" next ctx
     | Some _ -> return! Error.notAuthorized next ctx
     | None -> return! Error.notFound next ctx
 }
@@ -91,12 +89,11 @@ let savePermalinks : HttpHandler = requireAccess Author >=> fun next ctx -> task
 let editRevisions pgId : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     match! ctx.Data.Page.FindFullById (PageId pgId) ctx.WebLog.Id with
     | Some pg when canEdit pg.AuthorId ctx ->
-        return! {|
-            page_title = "Manage Page Revisions"
-            csrf       = ctx.CsrfTokenSet
-            model      = ManageRevisionsModel.fromPage ctx.WebLog pg
-        |}
-        |> makeHash |> adminView "revisions" next ctx
+        return!
+            hashForPage "Manage Page Revisions"
+            |> withAntiCsrf ctx
+            |> addToHash ViewContext.Model (ManageRevisionsModel.fromPage ctx.WebLog pg)
+            |> adminView "revisions" next ctx
     | Some _ -> return! Error.notAuthorized next ctx
     | None -> return! Error.notFound next ctx
 }

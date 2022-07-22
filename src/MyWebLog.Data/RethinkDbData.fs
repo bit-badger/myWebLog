@@ -955,6 +955,44 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     write; withRetryDefault; ignoreResult conn
                 }
                 
+                member _.FindById userId webLogId =
+                    rethink<WebLogUser> {
+                        withTable Table.WebLogUser
+                        get userId
+                        resultOption; withRetryOptionDefault
+                    }
+                    |> verifyWebLog webLogId (fun u -> u.WebLogId) <| conn
+                
+                member this.Delete userId webLogId = backgroundTask {
+                    match! this.FindById userId webLogId with
+                    | Some _ ->
+                        let! pageCount = rethink<int> {
+                            withTable Table.Page
+                            getAll [ webLogId ] (nameof Page.empty.WebLogId)
+                            filter (nameof Page.empty.AuthorId) userId
+                            count
+                            result; withRetryDefault conn
+                        }
+                        let! postCount = rethink<int> {
+                            withTable Table.Post
+                            getAll [ webLogId ] (nameof Post.empty.WebLogId)
+                            filter (nameof Post.empty.AuthorId) userId
+                            count
+                            result; withRetryDefault conn
+                        }
+                        if pageCount + postCount > 0 then
+                            return Result.Error "User has pages or posts; cannot delete"
+                        else
+                            do! rethink {
+                                withTable Table.WebLogUser
+                                get userId
+                                delete
+                                write; withRetryDefault; ignoreResult conn
+                            }
+                            return Ok true
+                    | None -> return Result.Error "User does not exist"
+                }
+                
                 member _.FindByEmail email webLogId =
                     rethink<WebLogUser list> {
                         withTable Table.WebLogUser
@@ -964,17 +1002,10 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     }
                     |> tryFirst <| conn
                 
-                member _.FindById userId webLogId =
-                    rethink<WebLogUser> {
-                        withTable Table.WebLogUser
-                        get userId
-                        resultOption; withRetryOptionDefault
-                    }
-                    |> verifyWebLog webLogId (fun u -> u.WebLogId) <| conn
-                
                 member _.FindByWebLog webLogId = rethink<WebLogUser list> {
                     withTable Table.WebLogUser
                     getAll [ webLogId ] (nameof WebLogUser.empty.WebLogId)
+                    orderByFunc (fun row -> row[nameof WebLogUser.empty.PreferredName].Downcase ())
                     result; withRetryDefault conn
                 }
                 

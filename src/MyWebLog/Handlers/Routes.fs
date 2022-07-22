@@ -29,9 +29,9 @@ module CatchAll =
             match data.Post.FindByPermalink permalink webLog.Id |> await with
             | Some post ->
                 debug (fun () -> "Found post by permalink")
-                let hash = Post.preparePostList webLog [ post ] Post.ListType.SinglePost "" 1 1 ctx data |> await
+                let hash = Post.preparePostList webLog [ post ] Post.ListType.SinglePost "" 1 1 data |> await
                 yield fun next ctx ->
-                       addToHash "page_title" post.Title hash
+                       addToHash ViewContext.PageTitle post.Title hash
                     |> themedView (defaultArg post.Template "single-post") next ctx
             | None -> ()
             // Current page
@@ -39,13 +39,10 @@ module CatchAll =
             | Some page ->
                 debug (fun () -> "Found page by permalink")
                 yield fun next ctx ->
-                    {|
-                        page_title = page.Title
-                        page       = DisplayPage.fromPage webLog page
-                        categories = CategoryCache.get ctx
-                        is_page    = true
-                    |}
-                    |> makeHash |> themedView (defaultArg page.Template "single-page") next ctx
+                    hashForPage page.Title
+                    |> addToHash "page"             (DisplayPage.fromPage webLog page)
+                    |> addToHash ViewContext.IsPage true
+                    |> themedView (defaultArg page.Template "single-page") next ctx
             | None -> ()
             // RSS feed
             match Feed.deriveFeedType ctx textLink with
@@ -195,8 +192,9 @@ let router : HttpHandler = choose [
                 routef  "/%s/delete"       Upload.deleteFromDb
             ])
             subRoute "/user" (choose [
-                route "/my-info" >=> User.saveMyInfo
-                route "/save"    >=> User.save
+                route  "/my-info"   >=> User.saveMyInfo
+                route  "/save"      >=> User.save
+                routef "/%s/delete"     User.delete
             ])
         ]
     ])

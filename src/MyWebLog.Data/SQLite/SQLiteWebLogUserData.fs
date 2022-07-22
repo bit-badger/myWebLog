@@ -43,6 +43,34 @@ type SQLiteWebLogUserData (conn : SqliteConnection) =
         do! write cmd
     }
     
+    /// Find a user by their ID for the given web log
+    let findById userId webLogId = backgroundTask {
+        use cmd = conn.CreateCommand ()
+        cmd.CommandText <- "SELECT * FROM web_log_user WHERE id = @id"
+        cmd.Parameters.AddWithValue ("@id", WebLogUserId.toString userId) |> ignore
+        use! rdr = cmd.ExecuteReaderAsync ()
+        return Helpers.verifyWebLog<WebLogUser> webLogId (fun u -> u.WebLogId) Map.toWebLogUser rdr 
+    }
+    
+    /// Delete a user if they have no posts or pages
+    let delete userId webLogId = backgroundTask {
+        match! findById userId webLogId with
+        | Some _ ->
+            use cmd = conn.CreateCommand ()
+            cmd.CommandText <- "SELECT COUNT(id) FROM page WHERE author_id = @userId"
+            cmd.Parameters.AddWithValue ("@userId", WebLogUserId.toString userId) |> ignore
+            let! pageCount = count cmd
+            cmd.CommandText <- "SELECT COUNT(id) FROM post WHERE author_id = @userId"
+            let! postCount = count cmd
+            if pageCount + postCount > 0 then
+                return Error "User has pages or posts; cannot delete"
+            else
+                cmd.CommandText <- "DELETE FROM web_log_user WHERE id = @userId"
+                let! _ = cmd.ExecuteNonQueryAsync ()
+                return Ok true
+        | None -> return Error "User does not exist"
+    }
+    
     /// Find a user by their e-mail address for the given web log
     let findByEmail (email : string) webLogId = backgroundTask {
         use cmd = conn.CreateCommand ()
@@ -53,19 +81,10 @@ type SQLiteWebLogUserData (conn : SqliteConnection) =
         return if rdr.Read () then Some (Map.toWebLogUser rdr) else None
     }
     
-    /// Find a user by their ID for the given web log
-    let findById userId webLogId = backgroundTask {
-        use cmd = conn.CreateCommand ()
-        cmd.CommandText <- "SELECT * FROM web_log_user WHERE id = @id"
-        cmd.Parameters.AddWithValue ("@id", WebLogUserId.toString userId) |> ignore
-        use! rdr = cmd.ExecuteReaderAsync ()
-        return Helpers.verifyWebLog<WebLogUser> webLogId (fun u -> u.WebLogId) Map.toWebLogUser rdr 
-    }
-    
     /// Get all users for the given web log
     let findByWebLog webLogId = backgroundTask {
         use cmd = conn.CreateCommand ()
-        cmd.CommandText <- "SELECT * FROM web_log_user WHERE web_log_id = @webLogId"
+        cmd.CommandText <- "SELECT * FROM web_log_user WHERE web_log_id = @webLogId ORDER BY LOWER(preferred_name)"
         addWebLogId cmd webLogId
         use! rdr = cmd.ExecuteReaderAsync ()
         return toList Map.toWebLogUser rdr
@@ -133,6 +152,7 @@ type SQLiteWebLogUserData (conn : SqliteConnection) =
     
     interface IWebLogUserData with
         member _.Add user = add user
+        member _.Delete userId webLogId = delete userId webLogId
         member _.FindByEmail email webLogId = findByEmail email webLogId
         member _.FindById userId webLogId = findById userId webLogId
         member _.FindByWebLog webLogId = findByWebLog webLogId

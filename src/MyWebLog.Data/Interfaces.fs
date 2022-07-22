@@ -255,6 +255,9 @@ type IWebLogUserData =
     /// Add a web log user
     abstract member Add : WebLogUser -> Task<unit>
     
+    /// Delete a web log user
+    abstract member Delete : WebLogUserId -> WebLogId -> Task<Result<bool, string>>
+    
     /// Find a web log user by their e-mail address
     abstract member FindByEmail : email : string -> WebLogId -> Task<WebLogUser option>
     

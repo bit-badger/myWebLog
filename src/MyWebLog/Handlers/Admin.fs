@@ -18,17 +18,16 @@ let dashboard : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     let topCats = getCount data.Category.CountTopLevel
     let! _ = Task.WhenAll (posts, drafts, pages, listed, cats, topCats)
     return!
-        {|  page_title = "Dashboard"
-            model      =
-                {   Posts              = posts.Result
-                    Drafts             = drafts.Result
-                    Pages              = pages.Result
-                    ListedPages        = listed.Result
-                    Categories         = cats.Result
-                    TopLevelCategories = topCats.Result
-                }
-        |}
-        |> makeHash |> adminView "dashboard" next ctx
+        hashForPage "Dashboard"
+        |> addToHash ViewContext.Model {
+                Posts              = posts.Result
+                Drafts             = drafts.Result
+                Pages              = pages.Result
+                ListedPages        = listed.Result
+                Categories         = cats.Result
+                TopLevelCategories = topCats.Result
+            }
+        |> adminView "dashboard" next ctx
 }
 
 // -- CATEGORIES --
@@ -36,12 +35,10 @@ let dashboard : HttpHandler = requireAccess Author >=> fun next ctx -> task {
 // GET /admin/categories
 let listCategories : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     let! catListTemplate = TemplateCache.get "admin" "category-list-body" ctx.Data
-    let hash = makeHash {|
-        page_title = "Categories"
-        csrf       = ctx.CsrfTokenSet
-        web_log    = ctx.WebLog
-        categories = CategoryCache.get ctx
-    |}
+    let! hash =
+        hashForPage "Categories"
+        |> withAntiCsrf ctx
+        |> addViewContext ctx
     return!
            addToHash "category_list" (catListTemplate.Render hash) hash
         |> adminView "category-list" next ctx
@@ -49,10 +46,9 @@ let listCategories : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx ->
 
 // GET /admin/categories/bare
 let listCategoriesBare : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx ->
-    {|  categories = CategoryCache.get ctx
-        csrf       = ctx.CsrfTokenSet
-    |}
-    |> makeHash |> adminBareView "category-list-body" next ctx
+    hashForPage "Categories"
+    |> withAntiCsrf ctx
+    |> adminBareView "category-list-body" next ctx
 
 
 // GET /admin/category/{id}/edit
@@ -67,13 +63,11 @@ let editCategory catId : HttpHandler = requireAccess WebLogAdmin >=> fun next ct
     }
     match result with
     | Some (title, cat) ->
-        return! {|
-            page_title = title
-            csrf       = ctx.CsrfTokenSet
-            model      = EditCategoryModel.fromCategory cat
-            categories = CategoryCache.get ctx
-        |}
-        |> makeHash |> adminBareView "category-edit" next ctx
+        return!
+            hashForPage title
+            |> withAntiCsrf ctx
+            |> addToHash ViewContext.Model (EditCategoryModel.fromCategory cat)
+            |> adminBareView "category-edit" next ctx
     | None -> return! Error.notFound next ctx
 }
 
@@ -117,12 +111,12 @@ open Microsoft.AspNetCore.Http
 /// Get the hash necessary to render the tag mapping list
 let private tagMappingHash (ctx : HttpContext) = task {
     let! mappings = ctx.Data.TagMap.FindByWebLog ctx.WebLog.Id
-    return makeHash {|
-        csrf        = ctx.CsrfTokenSet
-        web_log     = ctx.WebLog
-        mappings    = mappings
-        mapping_ids = mappings |> List.map (fun it -> { Name = it.Tag; Value = TagMapId.toString it.Id })
-    |}
+    return!
+        hashForPage "Tag Mappings"
+        |> withAntiCsrf ctx
+        |> addToHash "mappings"    mappings
+        |> addToHash "mapping_ids" (mappings |> List.map (fun it -> { Name = it.Tag; Value = TagMapId.toString it.Id }))
+        |> addViewContext ctx
 }
 
 // GET /admin/settings/tag-mappings
@@ -131,7 +125,6 @@ let tagMappings : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> ta
     let! listTemplate = TemplateCache.get "admin" "tag-mapping-list-body" ctx.Data
     return!
            addToHash "tag_mapping_list" (listTemplate.Render hash) hash
-        |> addToHash "page_title"       "Tag Mappings"
         |> adminView "tag-mapping-list" next ctx
 }
 
@@ -149,12 +142,11 @@ let editMapping tagMapId : HttpHandler = requireAccess WebLogAdmin >=> fun next 
         else ctx.Data.TagMap.FindById (TagMapId tagMapId) ctx.WebLog.Id
     match! tagMap with
     | Some tm ->
-        return! {|
-            page_title = if isNew then "Add Tag Mapping" else $"Mapping for {tm.Tag} Tag" 
-            csrf       = ctx.CsrfTokenSet
-            model      = EditTagMapModel.fromMapping tm
-        |}
-        |> makeHash |> adminBareView "tag-mapping-edit" next ctx
+        return!
+            hashForPage (if isNew then "Add Tag Mapping" else $"Mapping for {tm.Tag} Tag") 
+            |> withAntiCsrf ctx
+            |> addToHash ViewContext.Model (EditTagMapModel.fromMapping tm)
+            |> adminBareView "tag-mapping-edit" next ctx
     | None -> return! Error.notFound next ctx
 }
 
@@ -191,10 +183,9 @@ open MyWebLog.Data
 
 // GET /admin/theme/update
 let themeUpdatePage : HttpHandler = requireAccess Administrator >=> fun next ctx ->
-    {|  page_title = "Upload Theme"
-        csrf       = ctx.CsrfTokenSet
-    |}
-    |> makeHash |> adminView "upload-theme" next ctx
+    hashForPage "Upload Theme"
+    |> withAntiCsrf ctx
+    |> adminView "upload-theme" next ctx
 
 /// Update the name and version for a theme based on the version.txt file, if present
 let private updateNameAndVersion (theme : Theme) (zip : ZipArchive) = backgroundTask {
@@ -244,9 +235,9 @@ let private updateAssets themeId (zip : ZipArchive) (data : IData) = backgroundT
             use stream = new MemoryStream ()
             do! asset.Open().CopyToAsync stream
             do! data.ThemeAsset.Save
-                    { Id        = ThemeAssetId (themeId, assetName)
-                      UpdatedOn = asset.LastWriteTime.DateTime
-                      Data      = stream.ToArray ()
+                    {   Id        = ThemeAssetId (themeId, assetName)
+                        UpdatedOn = asset.LastWriteTime.DateTime
+                        Data      = stream.ToArray ()
                     }
 }
 
@@ -303,28 +294,28 @@ let settings : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task 
     let  data     = ctx.Data
     let! allPages = data.Page.All ctx.WebLog.Id
     let! themes   = data.Theme.All ()
-    return! {|
-        page_title = "Web Log Settings"
-        csrf       = ctx.CsrfTokenSet
-        model      = SettingsModel.fromWebLog ctx.WebLog
-        pages      = seq
-            {   KeyValuePair.Create ("posts", "- First Page of Posts -")
+    return!
+        hashForPage "Web Log Settings"
+        |> withAntiCsrf ctx
+        |> addToHash ViewContext.Model (SettingsModel.fromWebLog ctx.WebLog)
+        |> addToHash "pages" (
+            seq {
+                KeyValuePair.Create ("posts", "- First Page of Posts -")
                 yield! allPages
                        |> List.sortBy (fun p -> p.Title.ToLower ())
                        |> List.map (fun p -> KeyValuePair.Create (PageId.toString p.Id, p.Title))
             }
-            |> Array.ofSeq
-        themes =
+            |> Array.ofSeq)
+        |> addToHash "themes" (
             themes
-             |> Seq.ofList
-             |> Seq.map (fun it -> KeyValuePair.Create (ThemeId.toString it.Id, $"{it.Name} (v{it.Version})"))
-             |> Array.ofSeq
-        upload_values = [|
+            |> Seq.ofList
+            |> Seq.map (fun it -> KeyValuePair.Create (ThemeId.toString it.Id, $"{it.Name} (v{it.Version})"))
+            |> Array.ofSeq)
+        |> addToHash "upload_values" [|
             KeyValuePair.Create (UploadDestination.toString Database, "Database")
             KeyValuePair.Create (UploadDestination.toString Disk,     "Disk")
         |]
-    |}
-    |> makeHash |> adminView "settings" next ctx
+        |> adminView "settings" next ctx
 }
 
 // POST /admin/settings
