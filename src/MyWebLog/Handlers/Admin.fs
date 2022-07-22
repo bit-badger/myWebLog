@@ -244,7 +244,10 @@ let private updateAssets themeId (zip : ZipArchive) (data : IData) = backgroundT
 /// Get the theme name from the file name given
 let getThemeName (fileName : string) =
     let themeName = fileName.Split(".").[0].ToLowerInvariant().Replace (" ", "-")
-    if Regex.IsMatch (themeName, """^[a-z0-9\-]+$""") then Ok themeName else Error $"Theme name {fileName} is invalid"
+    if themeName.EndsWith "-theme" then
+        if Regex.IsMatch (themeName, """^[a-z0-9\-]+$""") then Ok (themeName.Substring (0, themeName.Length - 6))
+        else Error $"Theme name {fileName} is invalid"
+    else Error "Theme .zip file name must end in \"-theme.zip\""
 
 /// Load a theme from the given stream, which should contain a ZIP archive
 let loadThemeFromZip themeName file clean (data : IData) = backgroundTask {
@@ -260,6 +263,8 @@ let loadThemeFromZip themeName file clean (data : IData) = backgroundTask {
     let! theme = updateTemplates      theme   zip
     do! data.Theme.Save theme
     do! updateAssets themeId zip data
+    
+    return theme
 }
 
 // POST /admin/theme/update
@@ -271,7 +276,7 @@ let updateTheme : HttpHandler = requireAccess Administrator >=> fun next ctx -> 
             let data   = ctx.Data
             use stream = new MemoryStream ()
             do! themeFile.CopyToAsync stream
-            do! loadThemeFromZip themeName stream true data
+            let! _ = loadThemeFromZip themeName stream true data
             do! ThemeAssetCache.refreshTheme (ThemeId themeName) data
             TemplateCache.invalidateTheme themeName
             do! addMessage ctx { UserMessage.success with Message = "Theme updated successfully" }

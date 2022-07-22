@@ -36,7 +36,7 @@ let zipTheme (name : string) (_ : TargetParameter) =
     !! $"{path}/**/*"
     |> Zip.filesAsSpecs path //$"src/{name}-theme"
     |> Seq.filter (fun (_, name) -> not (name.EndsWith ".zip"))
-    |> Zip.zipSpec $"{releasePath}/{name}.zip"
+    |> Zip.zipSpec $"{releasePath}/{name}-theme.zip"
 
 /// Publish the project for the given runtime ID    
 let publishFor rid (_ : TargetParameter) =
@@ -45,11 +45,12 @@ let publishFor rid (_ : TargetParameter) =
 /// Package published output for the given runtime ID
 let packageFor (rid : string) (_ : TargetParameter) =
     let path = $"{projectPath}/bin/Release/net6.0/{rid}/publish"
+    let prodSettings = $"{path}/appsettings.Production.json"
+    if File.exists prodSettings then File.delete prodSettings
     [ !! $"{path}/**/*"
         |> Zip.filesAsSpecs path
-        |> Zip.moveToFolder "app"
-      Seq.singleton ($"{releasePath}/admin.zip", "admin.zip")
-      Seq.singleton ($"{releasePath}/default.zip", "default.zip")
+      Seq.singleton ($"{releasePath}/admin-theme.zip", "admin-theme.zip")
+      Seq.singleton ($"{releasePath}/default-theme.zip", "default-theme.zip")
     ]
     |> Seq.concat
     |> Zip.zipSpec $"{releasePath}/myWebLog-{version}.{rid}.zip"
@@ -86,7 +87,7 @@ Target.create "RepackageLinux" (fun _ ->
     Shell.mkdir workDir
     Zip.unzip workDir zipArchive
     Shell.cd workDir
-    sh "chmod" [ "+x"; "app/MyWebLog" ]
+    sh "chmod" [ "+x"; "./MyWebLog" ]
     sh "tar" [ "cfj"; $"../myWebLog-{version}.linux-x64.tar.bz2"; "." ]
     Shell.cd "../.."
     Shell.rm zipArchive
@@ -96,8 +97,8 @@ Target.create "RepackageLinux" (fun _ ->
 Target.create "All" ignore
 
 Target.create "RemoveThemeArchives" (fun _ ->
-    Shell.rm $"{releasePath}/admin.zip"
-    Shell.rm $"{releasePath}/default.zip"
+    Shell.rm $"{releasePath}/admin-theme.zip"
+    Shell.rm $"{releasePath}/default-theme.zip"
 )
 
 Target.create "CI" ignore

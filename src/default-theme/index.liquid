@@ -1,10 +1,7 @@
 ﻿{%- if is_category or is_tag %}
   <h1 class="index-title">{{ page_title }}</h1>
-  {%- if is_category %}
-    {%- assign cat = categories | where: "slug", slug | first -%}
-    {%- if cat.description %}<h4 class="text-muted">{{ cat.description.value }}</h4>{% endif -%}
-  {%- endif %}
-{%- endif %}
+  {%- if subtitle %}<h4 class="text-muted">{{ subtitle }}</h4>{% endif -%}
+{% endif %}
 <section class="container mt-3" aria-label="The posts for the page">
   {% for post in model.posts %}
     <article>
@@ -27,7 +24,7 @@
             {%- if category_count > 0 -%}
               Categorized under:
               {% for cat in post.category_ids -%}
-                {%- assign this_cat = categories | where: "id", cat | first -%}
+                {%- assign this_cat = categories | where: "Id", cat | first -%}
                 {{ this_cat.name }}{% unless forloop.last %}, {% endunless %}
                 {%- assign cat_names = this_cat.name | concat: cat_names -%}
               {%- endfor -%}

@@ -82,6 +82,7 @@ let showHelp () =
     Task.FromResult ()
 
 
+open System.IO
 open Giraffe
 open Giraffe.EndpointRouting
 open Microsoft.AspNetCore.Authentication.Cookies
@@ -135,7 +136,7 @@ let rec main args =
         |> ignore
         builder.Services.AddScoped<IData, SQLiteData> () |> ignore
         // Use SQLite for caching as well
-        let cachePath = Option.ofObj (cfg.GetConnectionString "SQLiteCachePath") |> Option.defaultValue "./session.db"
+        let cachePath = defaultArg (Option.ofObj (cfg.GetConnectionString "SQLiteCachePath")) "./session.db"
         builder.Services.AddSqliteCache (fun o -> o.CachePath <- cachePath) |> ignore
     | _ -> ()
     
@@ -162,7 +163,11 @@ let rec main args =
     | Some it ->
         printfn $"""Unrecognized command "{it}" - valid commands are:"""
         showHelp ()
-    | None ->
+    | None -> task {
+        // Load all themes in the application directory
+        for themeFile in Directory.EnumerateFiles (".", "*-theme.zip") do
+            do! Maintenance.loadTheme [| ""; themeFile |] app.Services
+            
         let _ = app.UseForwardedHeaders ()
         let _ = app.UseCookiePolicy (CookiePolicyOptions (MinimumSameSitePolicy = SameSiteMode.Strict))
         let _ = app.UseMiddleware<WebLogMiddleware> ()
@@ -172,7 +177,8 @@ let rec main args =
         let _ = app.UseSession ()
         let _ = app.UseGiraffe Handlers.Routes.endpoint
 
-        Task.FromResult (app.Run ())
+        app.Run ()
+    }
     |> Async.AwaitTask |> Async.RunSynchronously
     
     0 // Exit code

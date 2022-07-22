@@ -128,6 +128,8 @@ let importLinks args sp = task {
 // Loading a theme and restoring a backup are not statically compilable; this is OK
 #nowarn "3511"
 
+open Microsoft.Extensions.Logging
+
 /// Load a theme from the given ZIP file
 let loadTheme (args : string[]) (sp : IServiceProvider) = task {
     if args.Length > 1 then
@@ -142,8 +144,10 @@ let loadTheme (args : string[]) (sp : IServiceProvider) = task {
             use stream = File.Open (args[1], FileMode.Open)
             use copy   = new MemoryStream ()
             do! stream.CopyToAsync copy
-            do! Handlers.Admin.loadThemeFromZip themeName copy clean data
-            printfn $"Theme {themeName} loaded successfully"
+            let! theme = Handlers.Admin.loadThemeFromZip themeName copy clean data
+            let fac = sp.GetRequiredService<ILoggerFactory> ()
+            let log = fac.CreateLogger "MyWebLog.Themes"
+            log.LogInformation $"{theme.Name} v{theme.Version} ({ThemeId.toString theme.Id}) loaded"
         | Error message -> eprintfn $"{message}"
     else
         eprintfn "Usage: MyWebLog load-theme [theme-zip-file-name] [*clean-load]"

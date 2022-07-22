@@ -128,43 +128,6 @@ let edit usrId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> tas
     | None -> return! Error.notFound next ctx
 }
 
-// POST /admin/user/save
-let save : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
-    let! model   = ctx.BindFormAsync<EditUserModel> ()
-    let  data    = ctx.Data
-    let  tryUser =
-        if model.IsNew then
-            { WebLogUser.empty with
-                Id = WebLogUserId.create ()
-                WebLogId = ctx.WebLog.Id
-                CreatedOn = DateTime.UtcNow
-            } |> someTask
-        else data.WebLogUser.FindById (WebLogUserId model.Id) ctx.WebLog.Id
-    match! tryUser with
-    | Some user when model.Password = model.PasswordConfirm ->
-        let updatedUser = model.UpdateUser user
-        if updatedUser.AccessLevel = Administrator && not (ctx.HasAccessLevel Administrator) then
-            return! goAway next ctx
-        else
-            let updatedUser =
-                if model.Password = "" then updatedUser
-                else
-                    let salt = Guid.NewGuid ()
-                    { updatedUser with PasswordHash = hashedPassword model.Password model.Email salt; Salt = salt }
-            do! (if model.IsNew then data.WebLogUser.Add else data.WebLogUser.Update) updatedUser
-            do! addMessage ctx
-                    { UserMessage.success with
-                        Message = $"""{if model.IsNew then "Add" else "Updat"}ed user successfully"""
-                    }
-            return! bare next ctx
-    | Some _ ->
-        do! addMessage ctx { UserMessage.error with Message = "The passwords did not match; nothing saved" }
-        return!
-            (withHxRetarget $"#user_{model.Id}" >=> showEdit { model with Password = ""; PasswordConfirm = "" })
-                next ctx
-    | None -> return! Error.notFound next ctx
-}
-
 // POST /admin/user/{id}/delete
 let delete userId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     let data = ctx.Data
@@ -237,3 +200,44 @@ let saveMyInfo : HttpHandler = requireAccess Author >=> fun next ctx -> task {
         return! showMyInfo { model with NewPassword = ""; NewPasswordConfirm = "" } user next ctx
     | None -> return! Error.notFound next ctx
 }
+
+// User save is not statically compilable; not sure why, but we'll revisit it at some point
+#nowarn "3511"
+
+// POST /admin/user/save
+let save : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
+    let! model   = ctx.BindFormAsync<EditUserModel> ()
+    let  data    = ctx.Data
+    let  tryUser =
+        if model.IsNew then
+            { WebLogUser.empty with
+                Id = WebLogUserId.create ()
+                WebLogId = ctx.WebLog.Id
+                CreatedOn = DateTime.UtcNow
+            } |> someTask
+        else data.WebLogUser.FindById (WebLogUserId model.Id) ctx.WebLog.Id
+    match! tryUser with
+    | Some user when model.Password = model.PasswordConfirm ->
+        let updatedUser = model.UpdateUser user
+        if updatedUser.AccessLevel = Administrator && not (ctx.HasAccessLevel Administrator) then
+            return! goAway next ctx
+        else
+            let toUpdate =
+                if model.Password = "" then updatedUser
+                else
+                    let salt = Guid.NewGuid ()
+                    { updatedUser with PasswordHash = hashedPassword model.Password model.Email salt; Salt = salt }
+            do! (if model.IsNew then data.WebLogUser.Add else data.WebLogUser.Update) toUpdate
+            do! addMessage ctx
+                    { UserMessage.success with
+                        Message = $"""{if model.IsNew then "Add" else "Updat"}ed user successfully"""
+                    }
+            return! bare next ctx
+    | Some _ ->
+        do! addMessage ctx { UserMessage.error with Message = "The passwords did not match; nothing saved" }
+        return!
+            (withHxRetarget $"#user_{model.Id}" >=> showEdit { model with Password = ""; PasswordConfirm = "" })
+                next ctx
+    | None -> return! Error.notFound next ctx
+}
+

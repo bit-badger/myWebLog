@@ -20,7 +20,7 @@
       <h4 class="item-meta text-muted">
         Categorized under
         {% for cat_id in post.category_ids -%}
-          {% assign cat = categories | where: "id", cat_id | first %}
+          {% assign cat = categories | where: "Id", cat_id | first %}
           <span class="text-nowrap">
             <a href="{{ cat | category_link }}" title="Categorized under &ldquo;{{ cat.name | escape }}&rdquo;">
               {{ cat.name }}
