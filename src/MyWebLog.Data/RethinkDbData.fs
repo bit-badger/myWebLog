@@ -96,6 +96,10 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
         let keyPrefix = $"^{ThemeId.toString themeId}/"
         fun (row : Ast.ReqlExpr) -> row[nameof ThemeAsset.empty.Id].Match keyPrefix :> obj
     
+    /// Function to exclude template text from themes
+    let withoutTemplateText (row : Ast.ReqlExpr) : obj =
+        {|  Templates = row[nameof Theme.empty.Templates].Without [| nameof ThemeTemplate.empty.Text |] |}
+        
     /// Ensure field indexes exist, as well as special indexes for selected tables
     let ensureIndexes table fields = backgroundTask {
         let! indexes = rethink<string list> { withTable table; indexList; result; withRetryOnce conn }
@@ -711,7 +715,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                 member _.All () = rethink<Theme list> {
                     withTable Table.Theme
                     filter (fun row -> row[nameof Theme.empty.Id].Ne "admin" :> obj)
-                    without [ nameof Theme.empty.Templates ]
+                    merge withoutTemplateText
                     orderBy (nameof Theme.empty.Id)
                     result; withRetryDefault conn
                 }
@@ -725,9 +729,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                 member _.FindByIdWithoutText themeId = rethink<Theme> {
                     withTable Table.Theme
                     get themeId
-                    merge (fun row ->
-                        {|  Templates = row[nameof Theme.empty.Templates].Without [| nameof ThemeTemplate.empty.Text |]
-                        |})
+                    merge withoutTemplateText
                     resultOption; withRetryOptionDefault conn
                 }
                 

@@ -34,7 +34,7 @@ let dashboard : HttpHandler = requireAccess Author >=> fun next ctx -> task {
 
 // GET /admin/categories
 let listCategories : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
-    let! catListTemplate = TemplateCache.get "admin" "category-list-body" ctx.Data
+    let! catListTemplate = TemplateCache.get adminTheme "category-list-body" ctx.Data
     let! hash =
         hashForPage "Categories"
         |> withAntiCsrf ctx
@@ -122,7 +122,7 @@ let private tagMappingHash (ctx : HttpContext) = task {
 // GET /admin/settings/tag-mappings
 let tagMappings : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     let! hash         = tagMappingHash ctx
-    let! listTemplate = TemplateCache.get "admin" "tag-mapping-list-body" ctx.Data
+    let! listTemplate = TemplateCache.get adminTheme "tag-mapping-list-body" ctx.Data
     return!
            addToHash "tag_mapping_list" (listTemplate.Render hash) hash
         |> adminView "tag-mapping-list" next ctx
@@ -180,6 +180,19 @@ open System.IO
 open System.IO.Compression
 open System.Text.RegularExpressions
 open MyWebLog.Data
+
+// GET /admin/themes
+let listThemes : HttpHandler = requireAccess Administrator >=> fun next ctx -> task {
+    let! themes = ctx.Data.Theme.All ()
+    let! bodyTemplate = TemplateCache.get adminTheme "theme-list-body" ctx.Data
+    let hash =
+        hashForPage "Theme Administration"
+        |> withAntiCsrf ctx
+        |> addToHash "themes" (themes |> List.map (DisplayTheme.fromTheme WebLogCache.isThemeInUse) |> Array.ofList)
+    return!
+        addToHash "theme_list" (bodyTemplate.Render hash) hash
+        |> adminView "theme-list" next ctx
+}
 
 // GET /admin/theme/update
 let themeUpdatePage : HttpHandler = requireAccess Administrator >=> fun next ctx ->

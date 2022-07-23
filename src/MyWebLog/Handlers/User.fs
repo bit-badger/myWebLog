@@ -90,7 +90,7 @@ let private goAway : HttpHandler = RequestErrors.BAD_REQUEST "really?"
 // GET /admin/users
 let all : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     let! hash = userListHash ctx
-    let! tmpl = TemplateCache.get "admin" "user-list-body" ctx.Data 
+    let! tmpl = TemplateCache.get adminTheme "user-list-body" ctx.Data 
     return!
            addToHash "user_list" (tmpl.Render hash) hash
         |> adminView "user-list" next ctx

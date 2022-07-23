@@ -140,7 +140,10 @@ let router : HttpHandler = choose [
                     routef "/%s/edit"     Admin.editMapping
                 ])
             ])
-            route    "/theme/update" >=> Admin.themeUpdatePage
+            subRoute "/theme" (choose [
+                route "s"       >=> Admin.listThemes
+                route "/update" >=> Admin.themeUpdatePage
+            ])
             subRoute "/upload" (choose [
                 route "s"    >=> Upload.list
                 route "/new" >=> Upload.showNew

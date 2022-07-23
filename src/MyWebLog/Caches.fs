@@ -85,6 +85,10 @@ module WebLogCache =
         let! webLogs = data.WebLog.All ()
         _cache <- webLogs
     }
+    
+    /// Is the given theme in use by any web logs?
+    let isThemeInUse themeId =
+        _cache |> List.exists (fun wl -> wl.ThemeId = themeId)
 
 
 /// A cache of page information needed to display the page list in templates
@@ -147,12 +151,12 @@ module TemplateCache =
     let private hasInclude = Regex ("""{% include_template \"(.*)\" %}""", RegexOptions.None, TimeSpan.FromSeconds 2)
     
     /// Get a template for the given theme and template name
-    let get (themeId : string) (templateName : string) (data : IData) = backgroundTask {
-        let templatePath = $"{themeId}/{templateName}"
+    let get (themeId : ThemeId) (templateName : string) (data : IData) = backgroundTask {
+        let templatePath = $"{ThemeId.toString themeId}/{templateName}"
         match _cache.ContainsKey templatePath with
         | true -> ()
         | false ->
-            match! data.Theme.FindById (ThemeId themeId) with
+            match! data.Theme.FindById themeId with
             | Some theme ->
                 let mutable text = (theme.Templates |> List.find (fun t -> t.Name = templateName)).Text
                 while hasInclude.IsMatch text do

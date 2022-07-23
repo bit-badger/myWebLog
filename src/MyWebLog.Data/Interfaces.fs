@@ -167,7 +167,7 @@ type ITagMapData =
 /// Functions to manipulate themes
 type IThemeData =
     
-    /// Retrieve all themes (except "admin")
+    /// Retrieve all themes (except "admin") (excluding the text of templates)
     abstract member All : unit -> Task<Theme list>
     
     /// Find a theme by its ID

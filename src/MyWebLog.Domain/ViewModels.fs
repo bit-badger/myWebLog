@@ -176,6 +176,40 @@ with
 
 open System.IO
 
+/// Information about a theme used for display
+[<NoComparison; NoEquality>]
+type DisplayTheme =
+    {   /// The ID / path slug of the theme
+        Id : string
+        
+        /// The name of the theme
+        Name : string
+        
+        /// The version of the theme
+        Version : string
+        
+        /// How many templates are contained in the theme
+        TemplateCount : int
+        
+        /// Whether the theme is in use by any web logs
+        IsInUse : bool
+        
+        /// Whether the theme .zip file exists on the filesystem
+        IsOnDisk : bool
+    }
+with
+    
+    /// Create a display theme from a theme
+    static member fromTheme inUseFunc (theme : Theme) =
+        {   Id            = ThemeId.toString theme.Id
+            Name          = theme.Name
+            Version       = theme.Version
+            TemplateCount = List.length theme.Templates
+            IsInUse       = inUseFunc theme.Id
+            IsOnDisk      = File.Exists $"{ThemeId.toString theme.Id}-theme.zip"
+        }
+
+
 /// Information about an uploaded file used for display
 [<NoComparison; NoEquality>]
 type DisplayUpload =

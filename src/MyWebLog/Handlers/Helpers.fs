@@ -221,16 +221,16 @@ let isHtmx (ctx : HttpContext) =
 /// Render a view for the specified theme, using the specified template, layout, and hash
 let viewForTheme themeId template next ctx (hash : Hash) = task {
     let! hash = addViewContext ctx hash
-    let (ThemeId theme) = themeId
+    
     // NOTE: DotLiquid does not support {% render %} or {% include %} in its templates, so we will do a 2-pass render;
     //       the net effect is a "layout" capability similar to Razor or Pug
     
     // Render view content...
-    let! contentTemplate = TemplateCache.get theme template ctx.Data
+    let! contentTemplate = TemplateCache.get themeId template ctx.Data
     let _ = addToHash ViewContext.Content (contentTemplate.Render hash) hash
     
     // ...then render that content with its layout
-    let! layoutTemplate = TemplateCache.get theme (if isHtmx ctx then "layout-partial" else "layout") ctx.Data
+    let! layoutTemplate = TemplateCache.get themeId (if isHtmx ctx then "layout-partial" else "layout") ctx.Data
     
     return! htmlString (layoutTemplate.Render hash) next ctx
 }
@@ -252,14 +252,13 @@ let messagesToHeaders (messages : UserMessage array) : HttpHandler =
 /// Render a bare view for the specified theme, using the specified template and hash
 let bareForTheme themeId template next ctx (hash : Hash) = task {
     let! hash = addViewContext ctx hash
-    let (ThemeId theme) = themeId
     
     if not (hash.ContainsKey ViewContext.Content) then
-        let! contentTemplate = TemplateCache.get theme template ctx.Data
+        let! contentTemplate = TemplateCache.get themeId template ctx.Data
         addToHash ViewContext.Content (contentTemplate.Render hash) hash |> ignore
     
     // Bare templates are rendered with layout-bare
-    let! layoutTemplate = TemplateCache.get theme "layout-bare" ctx.Data
+    let! layoutTemplate = TemplateCache.get themeId "layout-bare" ctx.Data
     return!
         (messagesToHeaders (hash[ViewContext.Messages] :?> UserMessage[])
          >=> htmlString (layoutTemplate.Render hash))
@@ -272,13 +271,16 @@ let themedView template next ctx hash = task {
     return! viewForTheme (hash[ViewContext.WebLog] :?> WebLog).ThemeId template next ctx hash
 }
 
+/// The ID for the admin theme
+let adminTheme = ThemeId "admin"
+
 /// Display a view for the admin theme
 let adminView template =
-    viewForTheme (ThemeId "admin") template
+    viewForTheme adminTheme template
 
 /// Display a bare view for the admin theme
 let adminBareView template =
-    bareForTheme (ThemeId "admin") template
+    bareForTheme adminTheme template
 
 /// Redirect after doing some action; commits session and issues a temporary redirect
 let redirectToGet url : HttpHandler = fun _ ctx -> task {

@@ -8,12 +8,22 @@ open MyWebLog.Data
 /// SQLite myWebLog theme data implementation        
 type SQLiteThemeData (conn : SqliteConnection) =
     
-    /// Retrieve all themes (except 'admin'; excludes templates)
+    /// Retrieve all themes (except 'admin'; excludes template text)
     let all () = backgroundTask {
         use cmd = conn.CreateCommand ()
         cmd.CommandText <- "SELECT * FROM theme WHERE id <> 'admin' ORDER BY id"
         use! rdr = cmd.ExecuteReaderAsync ()
-        return toList Map.toTheme rdr
+        let themes = toList Map.toTheme rdr
+        do! rdr.CloseAsync ()
+        cmd.CommandText <- "SELECT name, theme_id FROM theme_template WHERE theme_id <> 'admin' ORDER BY name"
+        use! rdr = cmd.ExecuteReaderAsync ()
+        let mutable templates = []
+        while rdr.Read () do
+            templates <- (ThemeId (Map.getString "theme_id" rdr), Map.toThemeTemplate false rdr) :: templates
+        return
+            themes
+            |> List.map (fun t ->
+                { t with Templates = templates |> List.filter (fun tt -> fst tt = t.Id) |> List.map snd })
     }
     
     /// Find a theme by its ID
@@ -28,7 +38,7 @@ type SQLiteThemeData (conn : SqliteConnection) =
             templateCmd.CommandText <- "SELECT * FROM theme_template WHERE theme_id = @id"
             templateCmd.Parameters.Add cmd.Parameters["@id"] |> ignore
             use! templateRdr = templateCmd.ExecuteReaderAsync ()
-            return Some { theme with Templates = toList Map.toThemeTemplate templateRdr }
+            return Some { theme with Templates = toList (Map.toThemeTemplate true) templateRdr }
         else
             return None
     }

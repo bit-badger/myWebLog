@@ -242,9 +242,9 @@ module Map =
         }
     
     /// Create a theme template from the current row in the given data reader
-    let toThemeTemplate rdr : ThemeTemplate =
-        {   Name = getString "name"     rdr
-            Text = getString "template" rdr
+    let toThemeTemplate includeText rdr : ThemeTemplate =
+        {   Name = getString "name" rdr
+            Text = if includeText then getString "template" rdr else ""
         }
     
     /// Create an uploaded file from the current row in the given data reader
