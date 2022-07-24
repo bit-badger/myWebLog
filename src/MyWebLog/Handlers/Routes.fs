@@ -111,7 +111,8 @@ let router : HttpHandler = choose [
                 route  "ies/bare"  >=> Admin.listCategoriesBare
                 routef "y/%s/edit"     Admin.editCategory
             ])
-            route    "/dashboard" >=> Admin.dashboard
+            route    "/dashboard"                >=> Admin.dashboard
+            route    "/dashboard/administration" >=> Admin.adminDashboard
             subRoute "/page" (choose [
                 route  "s"                       >=> Page.all 1
                 routef "s/page/%i"                   Page.all
@@ -141,8 +142,8 @@ let router : HttpHandler = choose [
                 ])
             ])
             subRoute "/theme" (choose [
-                route "s"    >=> Admin.listThemes
-                route "/new" >=> Admin.addTheme
+                route "/list" >=> Admin.listThemes
+                route "/new"  >=> Admin.addTheme
             ])
             subRoute "/upload" (choose [
                 route "s"    >=> Upload.list
@@ -188,7 +189,10 @@ let router : HttpHandler = choose [
                     routef "/%s/delete"     Admin.deleteMapping
                 ])
             ])
-            route    "/theme/new" >=> Admin.saveTheme
+            subRoute "/theme" (choose [
+                route  "/new"       >=> Admin.saveTheme
+                routef "/%s/delete"     Admin.deleteTheme
+            ])
             subRoute "/upload" (choose [
                 route   "/save"        >=> Upload.save
                 routexp "/delete/(.*)"     Upload.deleteFromDisk

@@ -170,6 +170,12 @@ type IThemeData =
     /// Retrieve all themes (except "admin") (excluding the text of templates)
     abstract member All : unit -> Task<Theme list>
     
+    /// Delete a theme
+    abstract member Delete : ThemeId -> Task<bool>
+    
+    /// Determine if a theme exists
+    abstract member Exists : ThemeId -> Task<bool>
+    
     /// Find a theme by its ID
     abstract member FindById : ThemeId -> Task<Theme option>
     

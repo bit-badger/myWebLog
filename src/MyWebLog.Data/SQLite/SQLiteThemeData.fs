@@ -26,6 +26,15 @@ type SQLiteThemeData (conn : SqliteConnection) =
                 { t with Templates = templates |> List.filter (fun tt -> fst tt = t.Id) |> List.map snd })
     }
     
+    /// Does a given theme exist?
+    let exists themeId = backgroundTask {
+        use cmd = conn.CreateCommand ()
+        cmd.CommandText <- "SELECT COUNT(id) FROM theme WHERE id = @id"
+        cmd.Parameters.AddWithValue ("@id", ThemeId.toString themeId) |> ignore
+        let! count = count cmd
+        return count > 0
+    }
+    
     /// Find a theme by its ID
     let findById themeId = backgroundTask {
         use cmd = conn.CreateCommand ()
@@ -51,6 +60,21 @@ type SQLiteThemeData (conn : SqliteConnection) =
                 theme with Templates = theme.Templates |> List.map (fun t -> { t with Text = "" })
             }
         | None -> return None
+    }
+    
+    /// Delete a theme by its ID
+    let delete themeId = backgroundTask {
+        match! findByIdWithoutText themeId with
+        | Some _ ->
+            use cmd = conn.CreateCommand ()
+            cmd.CommandText <- """
+                DELETE FROM theme_asset    WHERE theme_id = @id;
+                DELETE FROM theme_template WHERE theme_id = @id;
+                DELETE FROM theme          WHERE id       = @id"""
+            cmd.Parameters.AddWithValue ("@id", ThemeId.toString themeId) |> ignore
+            do! write cmd
+            return true
+        | None -> return false
     }
     
     /// Save a theme
@@ -112,6 +136,8 @@ type SQLiteThemeData (conn : SqliteConnection) =
     
     interface IThemeData with
         member _.All () = all ()
+        member _.Delete themeId = delete themeId
+        member _.Exists themeId = exists themeId
         member _.FindById themeId = findById themeId
         member _.FindByIdWithoutText themeId = findByIdWithoutText themeId
         member _.Save theme = save theme

@@ -1,6 +1,5 @@
 ﻿<form method="post" id="themeList" class="container" hx-target="this" hx-swap="outerHTML show:window:top">
   <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
-  <div class="row mwl-table-detail" id="theme_new"></div>
   {% include_template "_theme-list-columns" %}
   {% for theme in themes -%}
     <div class="row mwl-table-detail" id="theme_{{ theme.id }}">
@@ -16,7 +15,7 @@
           <span class="text-muted">v{{ theme.version }}</span>
           {% unless theme.is_in_use or theme.id == "default" %}
             <span class="text-muted"> &bull; </span>
-            {%- assign theme_del_link = "admin/" | append: theme.id | append: "/delete" | relative_link -%}
+            {%- assign theme_del_link = "admin/theme/" | append: theme.id | append: "/delete" | relative_link -%}
             <a href="{{ theme_del_link }}" hx-post="{{ theme_del_link }}" class="text-danger"
                hx-confirm="Are you sure you want to delete the theme &ldquo;{{ theme.name }}&rdquo;? This action cannot be undone.">
               Delete

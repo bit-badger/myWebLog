@@ -6,7 +6,9 @@ open Giraffe
 open MyWebLog
 open MyWebLog.ViewModels
 
-// GET /admin
+// ~~ DASHBOARDS ~~
+
+// GET /admin/dashboard
 let dashboard : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     let getCount (f : WebLogId -> Task<int>) = f ctx.WebLog.Id
     let data    = ctx.Data
@@ -30,7 +32,24 @@ let dashboard : HttpHandler = requireAccess Author >=> fun next ctx -> task {
         |> adminView "dashboard" next ctx
 }
 
-// -- CATEGORIES --
+// GET /admin/dashboard/administration
+let adminDashboard : HttpHandler = requireAccess Administrator >=> fun next ctx -> task {
+    let! themes = ctx.Data.Theme.All ()
+    let! bodyTemplate = TemplateCache.get adminTheme "theme-list-body" ctx.Data
+    let! hash =
+        hashForPage "myWebLog Administration"
+        |> withAntiCsrf ctx
+        |> addToHash "themes" (themes |> List.map (DisplayTheme.fromTheme WebLogCache.isThemeInUse) |> Array.ofList)
+        |> addViewContext ctx
+    return!
+        addToHash "theme_list" (bodyTemplate.Render hash) hash
+        |> adminView "admin-dashboard" next ctx
+}
+
+/// Redirect the user to the admin dashboard
+let toAdminDashboard : HttpHandler = redirectToGet "admin/dashboard/administration"
+
+// ~~ CATEGORIES ~~
 
 // GET /admin/categories
 let listCategories : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
@@ -106,7 +125,7 @@ let deleteCategory catId : HttpHandler = requireAccess WebLogAdmin >=> fun next 
 
 open Microsoft.AspNetCore.Http
 
-// -- TAG MAPPINGS --
+// ~~ TAG MAPPINGS ~~
 
 /// Get the hash necessary to render the tag mapping list
 let private tagMappingHash (ctx : HttpContext) = task {
@@ -173,7 +192,7 @@ let deleteMapping tagMapId : HttpHandler = requireAccess WebLogAdmin >=> fun nex
     return! tagMappingsBare next ctx
 }
 
-// -- THEMES --
+// ~~ THEMES ~~
 
 open System
 open System.IO
@@ -181,24 +200,21 @@ open System.IO.Compression
 open System.Text.RegularExpressions
 open MyWebLog.Data
 
-// GET /admin/themes
-let listThemes : HttpHandler = requireAccess Administrator >=> fun next ctx -> task {
+// GET /admin/theme/list
+let listThemes : HttpHandler = requireAccess Administrator >=> fun next ctx -> task { 
     let! themes = ctx.Data.Theme.All ()
-    let! bodyTemplate = TemplateCache.get adminTheme "theme-list-body" ctx.Data
-    let hash =
-        hashForPage "Theme Administration"
+    return!
+        hashForPage "Themes"
         |> withAntiCsrf ctx
         |> addToHash "themes" (themes |> List.map (DisplayTheme.fromTheme WebLogCache.isThemeInUse) |> Array.ofList)
-    return!
-        addToHash "theme_list" (bodyTemplate.Render hash) hash
-        |> adminView "theme-list" next ctx
+        |> adminBareView "theme-list-body" next ctx
 }
 
 // GET /admin/theme/new
 let addTheme : HttpHandler = requireAccess Administrator >=> fun next ctx ->
     hashForPage "Upload a Theme File"
     |> withAntiCsrf ctx
-    |> adminView "theme-upload" next ctx
+    |> adminBareView "theme-upload" next ctx
 
 /// Update the name and version for a theme based on the version.txt file, if present
 let private updateNameAndVersion (theme : Theme) (zip : ZipArchive) = backgroundTask {
@@ -278,10 +294,10 @@ let saveTheme : HttpHandler = requireAccess Administrator >=> fun next ctx -> ta
         let themeFile = Seq.head ctx.Request.Form.Files
         match getThemeIdFromFileName themeFile.FileName with
         | Ok themeId when themeId <> adminTheme ->
-            let  data  = ctx.Data
-            let! theme = data.Theme.FindByIdWithoutText themeId
-            let  isNew = Option.isNone theme
-            let! model = ctx.BindFormAsync<UploadThemeModel> ()
+            let  data   = ctx.Data
+            let! exists = data.Theme.Exists themeId
+            let  isNew  = not exists
+            let! model  = ctx.BindFormAsync<UploadThemeModel> ()
             if isNew || model.DoOverwrite then 
                 // Load the theme to the database
                 use stream = new MemoryStream ()
@@ -290,26 +306,45 @@ let saveTheme : HttpHandler = requireAccess Administrator >=> fun next ctx -> ta
                 do! ThemeAssetCache.refreshTheme themeId data
                 TemplateCache.invalidateTheme themeId
                 // Save the .zip file
-                use file = new FileStream ($"{themeId}-theme.zip", FileMode.Create)
-                do! stream.CopyToAsync file
-                do! addMessage ctx { UserMessage.success with Message = "Theme updated successfully" }
-                return! redirectToGet "admin/dashboard" next ctx
+                use file = new FileStream ($"{ThemeId.toString themeId}-theme.zip", FileMode.Create)
+                do! themeFile.CopyToAsync file
+                do! addMessage ctx
+                        { UserMessage.success with
+                            Message = $"""Theme {if isNew then "add" else "updat"}ed successfully"""
+                        }
+                return! toAdminDashboard next ctx
             else
                 do! addMessage ctx
                         { UserMessage.error with
                             Message = "Theme exists and overwriting was not requested; nothing saved"
                         }
-                return! redirectToGet "admin/theme/new" next ctx
+                return! toAdminDashboard next ctx
         | Ok _ ->
             do! addMessage ctx { UserMessage.error with Message = "You may not replace the admin theme" }
-            return! redirectToGet "admin/theme/new" next ctx
+            return! toAdminDashboard next ctx
         | Error message ->
             do! addMessage ctx { UserMessage.error with Message = message }
-            return! redirectToGet "admin/theme/update" next ctx
+            return! toAdminDashboard next ctx
     else return! RequestErrors.BAD_REQUEST "Bad request" next ctx
 }
 
-// -- WEB LOG SETTINGS --
+// POST /admin/theme/{id}/delete
+let deleteTheme themeId : HttpHandler = requireAccess Administrator >=> fun next ctx -> task {
+    let data = ctx.Data
+    if themeId = "admin" || themeId = "default" then
+        do! addMessage ctx { UserMessage.error with Message = $"You may not delete the {themeId} theme" }
+        return! listThemes next ctx
+    else
+        match! data.Theme.Delete (ThemeId themeId) with
+        | true ->
+            let zippedTheme = $"{themeId}-theme.zip"
+            if File.Exists zippedTheme then File.Delete zippedTheme
+            do! addMessage ctx { UserMessage.success with Message = $"Theme ID {themeId} deleted successfully" }
+            return! listThemes next ctx
+        | false -> return! Error.notFound next ctx
+}
+
+// ~~ WEB LOG SETTINGS ~~
 
 open System.Collections.Generic
 

@@ -1,0 +1,32 @@
+﻿<h2 class="my-3">{{ page_title }}</h2>
+<article>
+  <fieldset class="container pb-3">
+    <legend>Themes</legend>
+    <div class="row">
+      <div class="col">
+        <a href="{{ "admin/theme/new" | relative_link }}" class="btn btn-primary btn-sm mb-3"
+           hx-target="#theme_new">
+          Upload a New Theme
+        </a>
+        <div class="container">
+          {% include_template "_theme-list-columns" %}
+          <div class="row mwl-table-heading">
+            <div class="{{ theme_col }}">Theme</div>
+            <div class="{{ slug_col }} d-none d-md-inline-block">Slug</div>
+            <div class="{{ tmpl_col }} d-none d-md-inline-block">Templates</div>
+          </div>
+        </div>
+        <div class="row mwl-table-detail" id="theme_new"></div>
+        {{ theme_list }}
+      </div>
+    </div>
+  </fieldset>
+  <fieldset class="container">
+    <legend>Caches</legend>
+    <div class="row">
+      <div class="col">
+        TODO
+      </div>
+    </div>
+  </fieldset>
+</article>

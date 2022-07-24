@@ -180,6 +180,14 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
     /// The batch size for restoration methods
     let restoreBatchSize = 100
     
+    /// Delete assets for the given theme ID
+    let deleteAssetsByTheme themeId = rethink {
+        withTable Table.ThemeAsset
+        filter (matchAssetByThemeId themeId)
+        delete
+        write; withRetryDefault; ignoreResult conn
+    }
+
     /// The connection for this instance
     member _.Conn = conn
     
@@ -720,6 +728,16 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     result; withRetryDefault conn
                 }
                 
+                member _.Exists themeId = backgroundTask {
+                    let! count = rethink<int> {
+                        withTable Table.Theme
+                        filter (nameof Theme.empty.Id) themeId
+                        count
+                        result; withRetryDefault conn
+                    }
+                    return count > 0
+                }
+                
                 member _.FindById themeId = rethink<Theme> {
                     withTable Table.Theme
                     get themeId
@@ -731,6 +749,20 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     get themeId
                     merge withoutTemplateText
                     resultOption; withRetryOptionDefault conn
+                }
+                
+                member this.Delete themeId = backgroundTask {
+                    match! this.FindByIdWithoutText themeId with
+                    | Some _ ->
+                        do! deleteAssetsByTheme themeId
+                        do! rethink {
+                            withTable Table.Theme
+                            get themeId
+                            delete
+                            write; withRetryDefault; ignoreResult conn
+                        }
+                        return true
+                    | None -> return false
                 }
                 
                 member _.Save theme = rethink {
@@ -750,12 +782,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     result; withRetryDefault conn
                 }
                 
-                member _.DeleteByTheme themeId = rethink {
-                    withTable Table.ThemeAsset
-                    filter (matchAssetByThemeId themeId)
-                    delete
-                    write; withRetryDefault; ignoreResult conn
-                }
+                member _.DeleteByTheme themeId = deleteAssetsByTheme themeId
                 
                 member _.FindById assetId = rethink<ThemeAsset> {
                     withTable Table.ThemeAsset
