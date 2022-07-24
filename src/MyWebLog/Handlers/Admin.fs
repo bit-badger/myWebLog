@@ -331,10 +331,17 @@ let saveTheme : HttpHandler = requireAccess Administrator >=> fun next ctx -> ta
 // POST /admin/theme/{id}/delete
 let deleteTheme themeId : HttpHandler = requireAccess Administrator >=> fun next ctx -> task {
     let data = ctx.Data
-    if themeId = "admin" || themeId = "default" then
+    match themeId with
+    | "admin" | "default" ->
         do! addMessage ctx { UserMessage.error with Message = $"You may not delete the {themeId} theme" }
         return! listThemes next ctx
-    else
+    | it when WebLogCache.isThemeInUse (ThemeId it) ->
+        do! addMessage ctx
+                { UserMessage.error with
+                    Message = $"You may not delete the {themeId} theme, as it is currently in use"
+                }
+        return! listThemes next ctx
+    | _ ->
         match! data.Theme.Delete (ThemeId themeId) with
         | true ->
             let zippedTheme = $"{themeId}-theme.zip"
