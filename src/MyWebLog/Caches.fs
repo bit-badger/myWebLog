@@ -169,9 +169,10 @@ module TemplateCache =
     }
     
     /// Invalidate all template cache entries for the given theme ID
-    let invalidateTheme (themeId : string) =
+    let invalidateTheme (themeId : ThemeId) =
+        let keyPrefix = ThemeId.toString themeId
         _cache.Keys
-        |> Seq.filter (fun key -> key.StartsWith themeId)
+        |> Seq.filter (fun key -> key.StartsWith keyPrefix)
         |> List.ofSeq
         |> List.iter (fun key -> match _cache.TryRemove key with _, _ -> ())
 

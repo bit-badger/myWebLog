@@ -141,8 +141,8 @@ let router : HttpHandler = choose [
                 ])
             ])
             subRoute "/theme" (choose [
-                route "s"       >=> Admin.listThemes
-                route "/update" >=> Admin.themeUpdatePage
+                route "s"    >=> Admin.listThemes
+                route "/new" >=> Admin.addTheme
             ])
             subRoute "/upload" (choose [
                 route "s"    >=> Upload.list
@@ -188,7 +188,7 @@ let router : HttpHandler = choose [
                     routef "/%s/delete"     Admin.deleteMapping
                 ])
             ])
-            route    "/theme/update" >=> Admin.updateTheme
+            route    "/theme/new" >=> Admin.saveTheme
             subRoute "/upload" (choose [
                 route   "/save"        >=> Upload.save
                 routexp "/delete/(.*)"     Upload.deleteFromDisk

@@ -132,26 +132,24 @@ open Microsoft.Extensions.Logging
 
 /// Load a theme from the given ZIP file
 let loadTheme (args : string[]) (sp : IServiceProvider) = task {
-    if args.Length > 1 then
+    if args.Length = 2 then
         let fileName =
             match args[1].LastIndexOf Path.DirectorySeparatorChar with
             | -1 -> args[1]
             | it -> args[1][(it + 1)..]
-        match Handlers.Admin.getThemeName fileName with
-        | Ok themeName ->
+        match Handlers.Admin.getThemeIdFromFileName fileName with
+        | Ok themeId ->
             let data   = sp.GetRequiredService<IData> ()
-            let clean  = if args.Length > 2 then bool.Parse args[2] else true
             use stream = File.Open (args[1], FileMode.Open)
             use copy   = new MemoryStream ()
             do! stream.CopyToAsync copy
-            let! theme = Handlers.Admin.loadThemeFromZip themeName copy clean data
+            let! theme = Handlers.Admin.loadThemeFromZip themeId copy data
             let fac = sp.GetRequiredService<ILoggerFactory> ()
             let log = fac.CreateLogger "MyWebLog.Themes"
             log.LogInformation $"{theme.Name} v{theme.Version} ({ThemeId.toString theme.Id}) loaded"
         | Error message -> eprintfn $"{message}"
     else
-        eprintfn "Usage: MyWebLog load-theme [theme-zip-file-name] [*clean-load]"
-        eprintfn "         * optional, defaults to true"
+        eprintfn "Usage: MyWebLog load-theme [theme-zip-file-name]"
 }
 
 /// Back up a web log's data

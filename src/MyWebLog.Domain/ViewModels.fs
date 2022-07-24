@@ -1161,6 +1161,14 @@ type UploadFileModel =
     }
 
 
+/// View model for uploading a theme
+[<CLIMutable; NoComparison; NoEquality>]
+type UploadThemeModel =
+    {   /// Whether the uploaded theme should overwrite an existing theme
+        DoOverwrite : bool
+    }
+
+
 /// A message displayed to the user
 [<CLIMutable; NoComparison; NoEquality>]
 type UserMessage =

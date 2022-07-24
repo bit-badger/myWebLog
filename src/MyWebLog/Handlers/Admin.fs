@@ -194,11 +194,11 @@ let listThemes : HttpHandler = requireAccess Administrator >=> fun next ctx -> t
         |> adminView "theme-list" next ctx
 }
 
-// GET /admin/theme/update
-let themeUpdatePage : HttpHandler = requireAccess Administrator >=> fun next ctx ->
-    hashForPage "Upload Theme"
+// GET /admin/theme/new
+let addTheme : HttpHandler = requireAccess Administrator >=> fun next ctx ->
+    hashForPage "Upload a Theme File"
     |> withAntiCsrf ctx
-    |> adminView "upload-theme" next ctx
+    |> adminView "theme-upload" next ctx
 
 /// Update the name and version for a theme based on the version.txt file, if present
 let private updateNameAndVersion (theme : Theme) (zip : ZipArchive) = backgroundTask {
@@ -212,14 +212,6 @@ let private updateNameAndVersion (theme : Theme) (zip : ZipArchive) = background
         let  version     = if parts.Length > 1 && parts[1] > "" then parts[1] else now ()
         return { theme with Name = displayName; Version = version }
     | None -> return { theme with Name = ThemeId.toString theme.Id; Version = now () }
-}
-
-/// Delete all theme assets, and remove templates from theme
-let private checkForCleanLoad (theme : Theme) cleanLoad (data : IData) = backgroundTask {
-    if cleanLoad then
-        do! data.ThemeAsset.DeleteByTheme theme.Id
-        return { theme with Templates = [] }
-    else return theme
 }
 
 /// Update the theme with all templates from the ZIP archive
@@ -255,48 +247,62 @@ let private updateAssets themeId (zip : ZipArchive) (data : IData) = backgroundT
 }
 
 /// Get the theme name from the file name given
-let getThemeName (fileName : string) =
+let getThemeIdFromFileName (fileName : string) =
     let themeName = fileName.Split(".").[0].ToLowerInvariant().Replace (" ", "-")
     if themeName.EndsWith "-theme" then
-        if Regex.IsMatch (themeName, """^[a-z0-9\-]+$""") then Ok (themeName.Substring (0, themeName.Length - 6))
-        else Error $"Theme name {fileName} is invalid"
+        if Regex.IsMatch (themeName, """^[a-z0-9\-]+$""") then
+            Ok (ThemeId (themeName.Substring (0, themeName.Length - 6)))
+        else Error $"Theme ID {fileName} is invalid"
     else Error "Theme .zip file name must end in \"-theme.zip\""
 
 /// Load a theme from the given stream, which should contain a ZIP archive
-let loadThemeFromZip themeName file clean (data : IData) = backgroundTask {
-    use  zip     = new ZipArchive (file, ZipArchiveMode.Read)
-    let  themeId = ThemeId themeName
-    let! theme   = backgroundTask {
+let loadThemeFromZip themeId file (data : IData) = backgroundTask {
+    let! isNew, theme = backgroundTask {
         match! data.Theme.FindById themeId with
-        | Some t -> return t
-        | None   -> return { Theme.empty with Id = themeId }
+        | Some t -> return false, t
+        | None   -> return true, { Theme.empty with Id = themeId }
     }
-    let! theme = updateNameAndVersion theme   zip
-    let! theme = checkForCleanLoad    theme   clean data
-    let! theme = updateTemplates      theme   zip
+    use  zip   = new ZipArchive (file, ZipArchiveMode.Read)
+    let! theme = updateNameAndVersion theme zip
+    if not isNew then do! data.ThemeAsset.DeleteByTheme theme.Id
+    let! theme = updateTemplates { theme with Templates = [] } zip
     do! data.Theme.Save theme
     do! updateAssets themeId zip data
     
     return theme
 }
 
-// POST /admin/theme/update
-let updateTheme : HttpHandler = requireAccess Administrator >=> fun next ctx -> task {
+// POST /admin/theme/new
+let saveTheme : HttpHandler = requireAccess Administrator >=> fun next ctx -> task {
     if ctx.Request.HasFormContentType && ctx.Request.Form.Files.Count > 0 then
         let themeFile = Seq.head ctx.Request.Form.Files
-        match getThemeName themeFile.FileName with
-        | Ok themeName when themeName <> "admin" ->
-            let data   = ctx.Data
-            use stream = new MemoryStream ()
-            do! themeFile.CopyToAsync stream
-            let! _ = loadThemeFromZip themeName stream true data
-            do! ThemeAssetCache.refreshTheme (ThemeId themeName) data
-            TemplateCache.invalidateTheme themeName
-            do! addMessage ctx { UserMessage.success with Message = "Theme updated successfully" }
-            return! redirectToGet "admin/dashboard" next ctx
+        match getThemeIdFromFileName themeFile.FileName with
+        | Ok themeId when themeId <> adminTheme ->
+            let  data  = ctx.Data
+            let! theme = data.Theme.FindByIdWithoutText themeId
+            let  isNew = Option.isNone theme
+            let! model = ctx.BindFormAsync<UploadThemeModel> ()
+            if isNew || model.DoOverwrite then 
+                // Load the theme to the database
+                use stream = new MemoryStream ()
+                do! themeFile.CopyToAsync stream
+                let! _ = loadThemeFromZip themeId stream data
+                do! ThemeAssetCache.refreshTheme themeId data
+                TemplateCache.invalidateTheme themeId
+                // Save the .zip file
+                use file = new FileStream ($"{themeId}-theme.zip", FileMode.Create)
+                do! stream.CopyToAsync file
+                do! addMessage ctx { UserMessage.success with Message = "Theme updated successfully" }
+                return! redirectToGet "admin/dashboard" next ctx
+            else
+                do! addMessage ctx
+                        { UserMessage.error with
+                            Message = "Theme exists and overwriting was not requested; nothing saved"
+                        }
+                return! redirectToGet "admin/theme/new" next ctx
         | Ok _ ->
             do! addMessage ctx { UserMessage.error with Message = "You may not replace the admin theme" }
-            return! redirectToGet "admin/theme/update" next ctx
+            return! redirectToGet "admin/theme/new" next ctx
         | Error message ->
             do! addMessage ctx { UserMessage.error with Message = message }
             return! redirectToGet "admin/theme/update" next ctx

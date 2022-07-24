@@ -1,6 +1,6 @@
-<h2>Upload a Theme</h2>
+<h2>{{ page_title }}</h2>
 <article>
-  <form action="{{ "admin/theme/update" | relative_link }}"
+  <form action="{{ "admin/theme/new" | relative_link }}"
         method="post" class="container" enctype="multipart/form-data" hx-boost="false">
     <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
     <div class="row">
@@ -12,8 +12,8 @@
       </div>
       <div class="col-12 col-sm-6 pb-3">
         <div class="form-check form-switch pb-2">
-          <input type="checkbox" name="clean" id="clean" class="form-check-input" value="true">
-          <label for="clean" class="form-check-label">Delete Existing Theme Files</label>
+          <input type="checkbox" name="DoOverwrite" id="doOverwrite" class="form-check-input" value="true">
+          <label for="doOverwrite" class="form-check-label">Overwrite an Existing Theme If Required</label>
         </div>
       </div>
     </div>
