@@ -80,6 +80,10 @@ module WebLogCache =
     let set webLog =
         _cache <- webLog :: (_cache |> List.filter (fun wl -> wl.Id <> webLog.Id))
     
+    /// Get all cached web logs
+    let all () =
+        _cache
+    
     /// Fill the web log cache from the database
     let fill (data : IData) = backgroundTask {
         let! webLogs = data.WebLog.All ()
@@ -97,22 +101,30 @@ module PageListCache =
     open MyWebLog.ViewModels
     
     /// Cache of displayed pages
-    let private _cache = ConcurrentDictionary<string, DisplayPage[]> ()
+    let private _cache = ConcurrentDictionary<WebLogId, DisplayPage[]> ()
     
-    /// Are there pages cached for this web log?
-    let exists (ctx : HttpContext) = _cache.ContainsKey ctx.WebLog.UrlBase
-    
-    /// Get the pages for the web log for this request
-    let get (ctx : HttpContext) = _cache[ctx.WebLog.UrlBase]
-    
-    /// Update the pages for the current web log
-    let update (ctx : HttpContext) = backgroundTask {
-        let  webLog = ctx.WebLog
-        let! pages  = ctx.Data.Page.FindListed webLog.Id
-        _cache[webLog.UrlBase] <-
+    let private fillPages (webLog : WebLog) pages =
+        _cache[webLog.Id] <-
             pages
             |> List.map (fun pg -> DisplayPage.fromPage webLog { pg with Text = "" })
             |> Array.ofList
+    
+    /// Are there pages cached for this web log?
+    let exists (ctx : HttpContext) = _cache.ContainsKey ctx.WebLog.Id
+    
+    /// Get the pages for the web log for this request
+    let get (ctx : HttpContext) = _cache[ctx.WebLog.Id]
+    
+    /// Update the pages for the current web log
+    let update (ctx : HttpContext) = backgroundTask {
+        let! pages = ctx.Data.Page.FindListed ctx.WebLog.Id
+        fillPages ctx.WebLog pages
+    }
+    
+    /// Refresh the pages for the given web log
+    let refresh (webLog : WebLog) (data : IData) = backgroundTask {
+        let! pages = data.Page.FindListed webLog.Id
+        fillPages webLog pages
     }
 
 
@@ -122,18 +134,24 @@ module CategoryCache =
     open MyWebLog.ViewModels
     
     /// The cache itself
-    let private _cache = ConcurrentDictionary<string, DisplayCategory[]> ()
+    let private _cache = ConcurrentDictionary<WebLogId, DisplayCategory[]> ()
     
     /// Are there categories cached for this web log?
-    let exists (ctx : HttpContext) = _cache.ContainsKey ctx.WebLog.UrlBase
+    let exists (ctx : HttpContext) = _cache.ContainsKey ctx.WebLog.Id
     
     /// Get the categories for the web log for this request
-    let get (ctx : HttpContext) = _cache[ctx.WebLog.UrlBase]
+    let get (ctx : HttpContext) = _cache[ctx.WebLog.Id]
     
     /// Update the cache with fresh data
     let update (ctx : HttpContext) = backgroundTask {
         let! cats = ctx.Data.Category.FindAllForView ctx.WebLog.Id
-        _cache[ctx.WebLog.UrlBase] <- cats
+        _cache[ctx.WebLog.Id] <- cats
+    }
+    
+    /// Refresh the category cache for the given web log
+    let refresh webLogId (data : IData) = backgroundTask {
+        let! cats = data.Category.FindAllForView webLogId
+        _cache[webLogId] <- cats
     }
 
 
@@ -168,6 +186,10 @@ module TemplateCache =
         return _cache[templatePath]
     }
     
+    /// Get all theme/template names currently cached
+    let allNames () =
+        _cache.Keys |> Seq.sort |> Seq.toList
+    
     /// Invalidate all template cache entries for the given theme ID
     let invalidateTheme (themeId : ThemeId) =
         let keyPrefix = ThemeId.toString themeId
@@ -175,6 +197,10 @@ module TemplateCache =
         |> Seq.filter (fun key -> key.StartsWith keyPrefix)
         |> List.ofSeq
         |> List.iter (fun key -> match _cache.TryRemove key with _, _ -> ())
+    
+    /// Remove all entries from the template cache
+    let empty () =
+        _cache.Clear ()
 
 
 /// A cache of asset names by themes

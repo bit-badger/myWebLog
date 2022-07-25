@@ -34,12 +34,28 @@ let dashboard : HttpHandler = requireAccess Author >=> fun next ctx -> task {
 
 // GET /admin/dashboard/administration
 let adminDashboard : HttpHandler = requireAccess Administrator >=> fun next ctx -> task {
-    let! themes = ctx.Data.Theme.All ()
-    let! bodyTemplate = TemplateCache.get adminTheme "theme-list-body" ctx.Data
+    let! themes          = ctx.Data.Theme.All ()
+    let! bodyTemplate    = TemplateCache.get adminTheme "theme-list-body" ctx.Data
+    let  cachedTemplates = TemplateCache.allNames ()
     let! hash =
         hashForPage "myWebLog Administration"
         |> withAntiCsrf ctx
         |> addToHash "themes" (themes |> List.map (DisplayTheme.fromTheme WebLogCache.isThemeInUse) |> Array.ofList)
+        |> addToHash "cached_themes" (
+            themes
+            |> Seq.ofList
+            |> Seq.map (fun it -> [|
+                ThemeId.toString it.Id
+                it.Name
+                cachedTemplates |> List.filter (fun n -> n.StartsWith (ThemeId.toString it.Id)) |> List.length |> string
+            |])
+            |> Array.ofSeq)
+        |> addToHash "web_logs" (
+            WebLogCache.all ()
+            |> Seq.ofList
+            |> Seq.sortBy (fun it -> it.Name)
+            |> Seq.map (fun it -> [| WebLogId.toString it.Id; it.Name; it.UrlBase |])
+            |> Array.ofSeq)
         |> addViewContext ctx
     return!
         addToHash "theme_list" (bodyTemplate.Render hash) hash
@@ -48,6 +64,54 @@ let adminDashboard : HttpHandler = requireAccess Administrator >=> fun next ctx 
 
 /// Redirect the user to the admin dashboard
 let toAdminDashboard : HttpHandler = redirectToGet "admin/dashboard/administration"
+
+// ~~ CACHES ~~
+
+// POST /admin/cache/web-log/{id}/refresh
+let refreshWebLogCache webLogId : HttpHandler = requireAccess Administrator >=> fun next ctx -> task {
+    let data = ctx.Data
+    if webLogId = "all" then
+        do! WebLogCache.fill data
+        for webLog in WebLogCache.all () do
+            do! PageListCache.refresh webLog    data
+            do! CategoryCache.refresh webLog.Id data
+        do! addMessage ctx { UserMessage.success with Message = "Successfully refresh web log cache for all web logs" }
+    else
+        match! data.WebLog.FindById (WebLogId webLogId) with
+        | Some webLog ->
+            WebLogCache.set webLog
+            do! PageListCache.refresh webLog    data
+            do! CategoryCache.refresh webLog.Id data
+            do! addMessage ctx
+                    { UserMessage.success with Message = $"Successfully refreshed web log cache for {webLog.Name}" }
+        | None ->
+            do! addMessage ctx { UserMessage.error with Message = $"No web log exists with ID {webLogId}" }
+    return! toAdminDashboard next ctx
+}
+
+// POST /admin/cache/theme/{id}/refresh
+let refreshThemeCache themeId : HttpHandler = requireAccess Administrator >=> fun next ctx -> task {
+    let data = ctx.Data
+    if themeId = "all" then
+        TemplateCache.empty ()
+        do! ThemeAssetCache.fill data
+        do! addMessage ctx
+                { UserMessage.success with
+                    Message = "Successfully cleared template cache and refreshed theme asset cache"
+                }
+    else
+        match! data.Theme.FindById (ThemeId themeId) with
+        | Some theme ->
+            TemplateCache.invalidateTheme    theme.Id
+            do! ThemeAssetCache.refreshTheme theme.Id data
+            do! addMessage ctx
+                    { UserMessage.success with
+                        Message = $"Successfully cleared template cache and refreshed theme asset cache for {theme.Name}"
+                    }
+        | None ->
+            do! addMessage ctx { UserMessage.error with Message = $"No theme exists with ID {themeId}" }
+    return! toAdminDashboard next ctx
+}
 
 // ~~ CATEGORIES ~~
 

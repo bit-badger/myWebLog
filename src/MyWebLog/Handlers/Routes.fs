@@ -157,6 +157,10 @@ let router : HttpHandler = choose [
             ])
         ]
         POST >=> validateCsrf >=> choose [
+            subRoute "/cache" (choose [
+                routef "/theme/%s/refresh"   Admin.refreshThemeCache
+                routef "/web-log/%s/refresh" Admin.refreshWebLogCache
+            ])
             subRoute "/category" (choose [
                 route  "/save"      >=> Admin.saveCategory
                 routef "/%s/delete"     Admin.deleteCategory
