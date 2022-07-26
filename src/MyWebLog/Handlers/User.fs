@@ -72,34 +72,18 @@ let logOff : HttpHandler = fun next ctx -> task {
 
 open System.Collections.Generic
 open Giraffe.Htmx
-open Microsoft.AspNetCore.Http
 
-/// Create the hash needed to display the user list
-let private userListHash (ctx : HttpContext) = task {
+/// Got no time for URL/form manipulators...
+let private goAway : HttpHandler = RequestErrors.BAD_REQUEST "really?"
+
+// GET /admin/settings/users
+let all : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     let! users = ctx.Data.WebLogUser.FindByWebLog ctx.WebLog.Id
     return!
         hashForPage "User Administration"
         |> withAntiCsrf ctx
         |> addToHash "users" (users |> List.map (DisplayUser.fromUser ctx.WebLog) |> Array.ofList)
-        |> addViewContext ctx
-}
-
-/// Got no time for URL/form manipulators...
-let private goAway : HttpHandler = RequestErrors.BAD_REQUEST "really?"
-
-// GET /admin/users
-let all : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
-    let! hash = userListHash ctx
-    let! tmpl = TemplateCache.get adminTheme "user-list-body" ctx.Data 
-    return!
-           addToHash "user_list" (tmpl.Render hash) hash
-        |> adminView "user-list" next ctx
-}
-
-// GET /admin/users/bare
-let bare : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
-    let! hash = userListHash ctx
-    return! adminBareView "user-list-body" next ctx hash
+        |> adminBareView "user-list-body" next ctx
 }
 
 /// Show the edit user page
@@ -116,7 +100,7 @@ let private showEdit (model : EditUserModel) : HttpHandler = fun next ctx ->
     |]
     |> adminBareView "user-edit" next ctx
     
-// GET /admin/user/{id}/edit
+// GET /admin/settings/user/{id}/edit
 let edit usrId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     let isNew   = usrId = "new"
     let userId  = WebLogUserId usrId
@@ -128,7 +112,7 @@ let edit usrId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> tas
     | None -> return! Error.notFound next ctx
 }
 
-// POST /admin/user/{id}/delete
+// POST /admin/settings/user/{id}/delete
 let delete userId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     let data = ctx.Data
     match! data.WebLogUser.FindById (WebLogUserId userId) ctx.WebLog.Id with
@@ -142,14 +126,14 @@ let delete userId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> 
                         { UserMessage.success with
                             Message = $"User {WebLogUser.displayName user} deleted successfully"
                         }
-                return! bare next ctx
+                return! all next ctx
             | Error msg ->
                 do! addMessage ctx
                         { UserMessage.error with
                             Message = $"User {WebLogUser.displayName user} was not deleted"
                             Detail  = Some msg
                         }
-                return! bare next ctx
+                return! all next ctx
     | None -> return! Error.notFound next ctx
 }
 
@@ -164,14 +148,14 @@ let private showMyInfo (model : EditMyInfoModel) (user : WebLogUser) : HttpHandl
     |> adminView "my-info" next ctx
 
 
-// GET /admin/user/my-info
+// GET /admin/my-info
 let myInfo : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     match! ctx.Data.WebLogUser.FindById ctx.UserId ctx.WebLog.Id with
     | Some user -> return! showMyInfo (EditMyInfoModel.fromUser user) user next ctx
     | None -> return! Error.notFound next ctx
 }
 
-// POST /admin/user/my-info
+// POST /admin/my-info
 let saveMyInfo : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     let! model = ctx.BindFormAsync<EditMyInfoModel> ()
     let  data  = ctx.Data
@@ -194,7 +178,7 @@ let saveMyInfo : HttpHandler = requireAccess Author >=> fun next ctx -> task {
         do! data.WebLogUser.Update user
         let pwMsg = if model.NewPassword = "" then "" else " and updated your password"
         do! addMessage ctx { UserMessage.success with Message = $"Saved your information{pwMsg} successfully" }
-        return! redirectToGet "admin/user/my-info" next ctx
+        return! redirectToGet "admin/my-info" next ctx
     | Some user ->
         do! addMessage ctx { UserMessage.error with Message = "Passwords did not match; no updates made" }
         return! showMyInfo { model with NewPassword = ""; NewPasswordConfirm = "" } user next ctx
@@ -204,7 +188,7 @@ let saveMyInfo : HttpHandler = requireAccess Author >=> fun next ctx -> task {
 // User save is not statically compilable; not sure why, but we'll revisit it at some point
 #nowarn "3511"
 
-// POST /admin/user/save
+// POST /admin/settings/user/save
 let save : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     let! model   = ctx.BindFormAsync<EditUserModel> ()
     let  data    = ctx.Data
@@ -232,7 +216,7 @@ let save : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
                     { UserMessage.success with
                         Message = $"""{if model.IsNew then "Add" else "Updat"}ed user successfully"""
                     }
-            return! bare next ctx
+            return! all next ctx
     | Some _ ->
         do! addMessage ctx { UserMessage.error with Message = "The passwords did not match; nothing saved" }
         return!

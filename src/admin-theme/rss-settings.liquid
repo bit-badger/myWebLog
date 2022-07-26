@@ -63,50 +63,54 @@
       </div>
     </div>
   </form>
-  <h3>Custom Feeds</h3>
-  <a class="btn btn-sm btn-secondary" href="{{ 'admin/settings/rss/new/edit' | relative_link }}">
-    Add a New Custom Feed
-  </a>
-  <form method="post" class="container" hx-target="body">
-    {%- assign source_col = "col-12 col-md-6" -%}
-    {%- assign path_col   = "col-12 col-md-6" -%}
-    <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
-    <div class="row mwl-table-heading">
-      <div class="{{ source_col }}">
-        <span class="d-md-none">Feed</span><span class="d-none d-md-inline">Source</span>
+  <fieldset class="container mb-3 pb-0">
+    <legend>Custom Feeds</legend>
+    <div class="row">
+      <div class="col">
+        <a class="btn btn-sm btn-secondary" href="{{ 'admin/settings/rss/new/edit' | relative_link }}">
+          Add a New Custom Feed
+        </a>
+        {%- assign feed_count = custom_feeds | size -%}
+        {% if feed_count > 0 %}
+          <form method="post" class="container g-0" hx-target="body">
+            {%- assign source_col = "col-12 col-md-6" -%}
+            {%- assign path_col   = "col-12 col-md-6" -%}
+            <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
+            <div class="row mwl-table-heading">
+              <div class="{{ source_col }}">
+                <span class="d-md-none">Feed</span><span class="d-none d-md-inline">Source</span>
+              </div>
+              <div class="{{ path_col }} d-none d-md-inline-block">Relative Path</div>
+            </div>
+            {% for feed in custom_feeds %}
+              <div class="row mwl-table-detail">
+                <div class="{{ source_col }}">
+                  {{ feed.source }}
+                  {%- if feed.is_podcast %} &nbsp; <span class="badge bg-primary">PODCAST</span>{% endif %}<br>
+                  <small>
+                    {%- assign feed_url = "admin/settings/rss/" | append: feed.id -%}
+                    <a href="{{ feed.path | relative_link }}" target="_blank">View Feed</a>
+                    <span class="text-muted"> &bull; </span>
+                    <a href="{{ feed_url | append: "/edit" | relative_link }}">Edit</a>
+                    <span class="text-muted"> &bull; </span>
+                    {%- assign feed_del_link = feed_url | append: "/delete" | relative_link -%}
+                    <a href="{{ feed_del_link }}" hx-post="{{ feed_del_link }}" class="text-danger"
+                       hx-confirm="Are you sure you want to delete the custom RSS feed based on {{ feed.source | strip_html | escape }}? This action cannot be undone.">
+                      Delete
+                    </a>
+                  </small>
+                </div>
+                <div class="{{ path_col }}">
+                  <small class="d-md-none">Served at {{ feed.path }}</small>
+                  <span class="d-none d-md-inline">{{ feed.path }}</span>
+                </div>
+              </div>
+            {% endfor %}
+          </form>
+        {% else %}
+          <p class="text-muted fst-italic text-center">No custom feeds defined</p>
+        {% endif %}
       </div>
-      <div class="{{ path_col }} d-none d-md-inline-block">Relative Path</div>
     </div>
-    {%- assign feed_count = custom_feeds | size -%}
-    {% if feed_count > 0 %}
-      {% for feed in custom_feeds %}
-        <div class="row mwl-table-detail">
-          <div class="{{ source_col }}">
-            {{ feed.source }}
-            {%- if feed.is_podcast %} &nbsp; <span class="badge bg-primary">PODCAST</span>{% endif %}<br>
-            <small>
-              {%- assign feed_url = "admin/settings/rss/" | append: feed.id -%}
-              <a href="{{ feed.path | relative_link }}" target="_blank">View Feed</a>
-              <span class="text-muted"> &bull; </span>
-              <a href="{{ feed_url | append: "/edit" | relative_link }}">Edit</a>
-              <span class="text-muted"> &bull; </span>
-              {%- assign feed_del_link = feed_url | append: "/delete" | relative_link -%}
-              <a href="{{ feed_del_link }}" hx-post="{{ feed_del_link }}" class="text-danger"
-                 hx-confirm="Are you sure you want to delete the custom RSS feed based on {{ feed.source | strip_html | escape }}? This action cannot be undone.">
-                Delete
-              </a>
-            </small>
-          </div>
-          <div class="{{ path_col }}">
-            <small class="d-md-none">Served at {{ feed.path }}</small>
-            <span class="d-none d-md-inline">{{ feed.path }}</span>
-          </div>
-        </div>
-      {% endfor %}
-    {% else %}
-      <tr>
-        <td colspan="3" class="text-muted fst-italic text-center">No custom feeds defined</td>
-      </tr>
-    {% endif %}
-  </form>
+  </fieldset>
 </article>

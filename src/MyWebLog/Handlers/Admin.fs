@@ -32,38 +32,43 @@ let dashboard : HttpHandler = requireAccess Author >=> fun next ctx -> task {
         |> adminView "dashboard" next ctx
 }
 
-// GET /admin/dashboard/administration
+// GET /admin/administration
 let adminDashboard : HttpHandler = requireAccess Administrator >=> fun next ctx -> task {
-    let! themes          = ctx.Data.Theme.All ()
-    let! bodyTemplate    = TemplateCache.get adminTheme "theme-list-body" ctx.Data
-    let  cachedTemplates = TemplateCache.allNames ()
-    let! hash =
-        hashForPage "myWebLog Administration"
-        |> withAntiCsrf ctx
-        |> addToHash "themes" (themes |> List.map (DisplayTheme.fromTheme WebLogCache.isThemeInUse) |> Array.ofList)
-        |> addToHash "cached_themes" (
-            themes
-            |> Seq.ofList
-            |> Seq.map (fun it -> [|
-                ThemeId.toString it.Id
-                it.Name
-                cachedTemplates |> List.filter (fun n -> n.StartsWith (ThemeId.toString it.Id)) |> List.length |> string
-            |])
-            |> Array.ofSeq)
-        |> addToHash "web_logs" (
-            WebLogCache.all ()
-            |> Seq.ofList
-            |> Seq.sortBy (fun it -> it.Name)
-            |> Seq.map (fun it -> [| WebLogId.toString it.Id; it.Name; it.UrlBase |])
-            |> Array.ofSeq)
-        |> addViewContext ctx
-    return!
-        addToHash "theme_list" (bodyTemplate.Render hash) hash
-        |> adminView "admin-dashboard" next ctx
+    match! TemplateCache.get adminTheme "theme-list-body" ctx.Data with
+    | Ok bodyTemplate ->
+        let! themes          = ctx.Data.Theme.All ()
+        let  cachedTemplates = TemplateCache.allNames ()
+        let! hash =
+            hashForPage "myWebLog Administration"
+            |> withAntiCsrf ctx
+            |> addToHash "themes" (themes |> List.map (DisplayTheme.fromTheme WebLogCache.isThemeInUse) |> Array.ofList)
+            |> addToHash "cached_themes" (
+                themes
+                |> Seq.ofList
+                |> Seq.map (fun it -> [|
+                    ThemeId.toString it.Id
+                    it.Name
+                    cachedTemplates
+                    |> List.filter (fun n -> n.StartsWith (ThemeId.toString it.Id))
+                    |> List.length
+                    |> string
+                |])
+                |> Array.ofSeq)
+            |> addToHash "web_logs" (
+                WebLogCache.all ()
+                |> Seq.ofList
+                |> Seq.sortBy (fun it -> it.Name)
+                |> Seq.map (fun it -> [| WebLogId.toString it.Id; it.Name; it.UrlBase |])
+                |> Array.ofSeq)
+            |> addViewContext ctx
+        return!
+            addToHash "theme_list" (bodyTemplate.Render hash) hash
+            |> adminView "admin-dashboard" next ctx
+    | Error message -> return! Error.server message next ctx
 }
 
 /// Redirect the user to the admin dashboard
-let toAdminDashboard : HttpHandler = redirectToGet "admin/dashboard/administration"
+let toAdminDashboard : HttpHandler = redirectToGet "admin/administration"
 
 // ~~ CACHES ~~
 
@@ -117,14 +122,16 @@ let refreshThemeCache themeId : HttpHandler = requireAccess Administrator >=> fu
 
 // GET /admin/categories
 let listCategories : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
-    let! catListTemplate = TemplateCache.get adminTheme "category-list-body" ctx.Data
-    let! hash =
-        hashForPage "Categories"
-        |> withAntiCsrf ctx
-        |> addViewContext ctx
-    return!
-           addToHash "category_list" (catListTemplate.Render hash) hash
-        |> adminView "category-list" next ctx
+    match! TemplateCache.get adminTheme "category-list-body" ctx.Data with
+    | Ok catListTemplate ->
+        let! hash =
+            hashForPage "Categories"
+            |> withAntiCsrf ctx
+            |> addViewContext ctx
+        return!
+               addToHash "category_list" (catListTemplate.Render hash) hash
+            |> adminView "category-list" next ctx
+    | Error message -> return! Error.server message next ctx
 }
 
 // GET /admin/categories/bare
@@ -204,11 +211,13 @@ let private tagMappingHash (ctx : HttpContext) = task {
 
 // GET /admin/settings/tag-mappings
 let tagMappings : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
-    let! hash         = tagMappingHash ctx
-    let! listTemplate = TemplateCache.get adminTheme "tag-mapping-list-body" ctx.Data
-    return!
-           addToHash "tag_mapping_list" (listTemplate.Render hash) hash
-        |> adminView "tag-mapping-list" next ctx
+    match! TemplateCache.get adminTheme "tag-mapping-list-body" ctx.Data with
+    | Ok listTemplate ->
+        let! hash = tagMappingHash ctx
+        return!
+               addToHash "tag_mapping_list" (listTemplate.Render hash) hash
+            |> adminView "tag-mapping-list" next ctx
+    | Error message -> return! Error.server message next ctx
 }
 
 // GET /admin/settings/tag-mappings/bare
@@ -421,31 +430,39 @@ open System.Collections.Generic
 
 // GET /admin/settings
 let settings : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
-    let  data     = ctx.Data
-    let! allPages = data.Page.All ctx.WebLog.Id
-    let! themes   = data.Theme.All ()
-    return!
-        hashForPage "Web Log Settings"
-        |> withAntiCsrf ctx
-        |> addToHash ViewContext.Model (SettingsModel.fromWebLog ctx.WebLog)
-        |> addToHash "pages" (
-            seq {
-                KeyValuePair.Create ("posts", "- First Page of Posts -")
-                yield! allPages
-                       |> List.sortBy (fun p -> p.Title.ToLower ())
-                       |> List.map (fun p -> KeyValuePair.Create (PageId.toString p.Id, p.Title))
-            }
-            |> Array.ofSeq)
-        |> addToHash "themes" (
-            themes
-            |> Seq.ofList
-            |> Seq.map (fun it -> KeyValuePair.Create (ThemeId.toString it.Id, $"{it.Name} (v{it.Version})"))
-            |> Array.ofSeq)
-        |> addToHash "upload_values" [|
-            KeyValuePair.Create (UploadDestination.toString Database, "Database")
-            KeyValuePair.Create (UploadDestination.toString Disk,     "Disk")
-        |]
-        |> adminView "settings" next ctx
+    let data = ctx.Data
+    match! TemplateCache.get adminTheme "user-list-body" data with
+    | Ok userTemplate ->
+        let! allPages = data.Page.All ctx.WebLog.Id
+        let! themes   = data.Theme.All ()
+        let! users    = data.WebLogUser.FindByWebLog ctx.WebLog.Id
+        let! hash     =
+            hashForPage "Web Log Settings"
+            |> withAntiCsrf ctx
+            |> addToHash ViewContext.Model (SettingsModel.fromWebLog ctx.WebLog)
+            |> addToHash "pages" (
+                seq {
+                    KeyValuePair.Create ("posts", "- First Page of Posts -")
+                    yield! allPages
+                           |> List.sortBy (fun p -> p.Title.ToLower ())
+                           |> List.map (fun p -> KeyValuePair.Create (PageId.toString p.Id, p.Title))
+                }
+                |> Array.ofSeq)
+            |> addToHash "themes" (
+                themes
+                |> Seq.ofList
+                |> Seq.map (fun it -> KeyValuePair.Create (ThemeId.toString it.Id, $"{it.Name} (v{it.Version})"))
+                |> Array.ofSeq)
+            |> addToHash "upload_values" [|
+                KeyValuePair.Create (UploadDestination.toString Database, "Database")
+                KeyValuePair.Create (UploadDestination.toString Disk,     "Disk")
+            |]
+            |> addToHash "users" (users |> List.map (DisplayUser.fromUser ctx.WebLog) |> Array.ofList)
+            |> addViewContext ctx
+        return!
+            addToHash "user_list" (userTemplate.Render hash) hash
+            |> adminView "settings" next ctx
+    | Error message -> return! Error.server message next ctx
 }
 
 // POST /admin/settings

@@ -4,13 +4,5 @@
      hx-target="#cat_new">
     Add a New Category
   </a>
-  <div class="container">
-    {%- assign cat_col  = "col-12 col-md-6 col-xl-5 col-xxl-4" -%}
-    {%- assign desc_col = "col-12 col-md-6 col-xl-7 col-xxl-8" -%}
-    <div class="row mwl-table-heading">
-      <div class="{{ cat_col }}">Category<span class="d-md-none">; Description</span></div>
-      <div class="{{ desc_col }} d-none d-md-inline-block">Description</div>
-    </div>
-  </div>
   {{ category_list }}
 </article>

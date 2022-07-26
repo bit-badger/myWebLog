@@ -1,13 +1,13 @@
 <div class="col-12">
   <h5 class="my-3">{{ page_title }}</h5>
-  <form hx-post="{{ "admin/user/save" | relative_link }}" method="post" class="container"
+  <form hx-post="{{ "admin/settings/user/save" | relative_link }}" method="post" class="container"
         hx-target="#userList" hx-swap="outerHTML show:window:top">
     <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
     <input type="hidden" name="Id" value="{{ model.id }}">
     <div class="row">
       <div class="col-12 col-md-5 col-lg-3 col-xxl-2 offset-xxl-1 mb-3">
         <div class="form-floating">
-          <select name="AccessLevel" id="accessLevel" class="form-control" required>
+          <select name="AccessLevel" id="accessLevel" class="form-control" required autofocus>
             {%- for level in access_levels %}
               <option value="{{ level[0] }}"{% if model.access_level == level[0] %} selected{% endif %}>
                 {{ level[1] }}
@@ -88,7 +88,14 @@
     <div class="row mb-3">
       <div class="col text-center">
         <button type="submit" class="btn btn-sm btn-primary">Save Changes</button>
-        <a href="{{ "admin/users/bare" | relative_link }}" class="btn btn-sm btn-secondary ms-3">Cancel</a>
+        {% if model.is_new %}
+          <button type="button" class="btn btn-sm btn-secondary ms-3"
+                  onclick="document.getElementById('user_new').innerHTML = ''">
+            Cancel
+          </button>
+        {% else %}
+          <a href="{{ "admin/settings/users" | relative_link }}" class="btn btn-sm btn-secondary ms-3">Cancel</a>
+        {% endif %}
       </div>
     </div>
   </form>

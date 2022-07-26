@@ -7,15 +7,15 @@
   <form method="post" class="container" hx-target="body">
     <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
     <div class="row">
-      <div class="col text-muted text-center"><em>Uploaded files served from</em><br>{{ upload_base }}</div>
-    </div>
-    <div class="row mwl-table-heading">
-      <div class="col-6">File Name</div>
-      <div class="col-3">Path</div>
-      <div class="col-3">File Date/Time</div>
+      <div class="col text-center"><em class="text-muted">Uploaded files served from</em><br>{{ upload_base }}</div>
     </div>
     {%- assign file_count = files | size -%}
     {%- if file_count > 0 %}
+      <div class="row mwl-table-heading">
+        <div class="col-6">File Name</div>
+        <div class="col-3">Path</div>
+        <div class="col-3">File Date/Time</div>
+      </div>
       {% for file in files %}
         <div class="row mwl-table-detail">
           <div class="col-6">
@@ -69,7 +69,7 @@
       {% endfor %}
     {%- else -%}
       <div class="row">
-        <div class="col text-muted fst-italic text-center">This web log has uploaded files</div>
+        <div class="col text-muted fst-italic text-center"><br>This web log has uploaded files</div>
       </div>
     {%- endif %}
   </form>

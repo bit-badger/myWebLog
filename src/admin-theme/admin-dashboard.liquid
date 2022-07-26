@@ -1,6 +1,6 @@
 ﻿<h2 class="my-3">{{ page_title }}</h2>
 <article>
-  <fieldset class="container mb-3">
+  <fieldset class="container mb-3 pb-0">
     <legend>Themes</legend>
     <div class="row">
       <div class="col">
@@ -8,7 +8,7 @@
            hx-target="#theme_new">
           Upload a New Theme
         </a>
-        <div class="container">
+        <div class="container g-0">
           {% include_template "_theme-list-columns" %}
           <div class="row mwl-table-heading">
             <div class="{{ theme_col }}">Theme</div>
@@ -21,10 +21,10 @@
       </div>
     </div>
   </fieldset>
-  <fieldset class="container">
+  <fieldset class="container mb-3 pb-0">
     {%- assign cache_base_url = "admin/cache/" -%}
     <legend>Caches</legend>
-    <div class="row pb-3">
+    <div class="row pb-2">
       <div class="col">
         <p>
           myWebLog uses a few caches to ensure that it serves pages as fast as possible. Normal actions taken within the
@@ -38,31 +38,31 @@
       <div class="col-12 col-lg-6 pb-3">
         <div class="card">
           <header class="card-header text-white bg-secondary">Web Logs</header>
-          <div class="card-body">
+          <div class="card-body pb-0">
             <h6 class="card-subtitle text-muted pb-3">
               These caches include the page list and categories for each web log
             </h6>
             {%- assign web_log_base_url = cache_base_url | append: "web-log/" -%}
-            <form method="post" class="container pb-3" hx-boost="false" hx-target="body" hx-swap="innerHTML show:window:top">
+            <form method="post" class="container g-0" hx-boost="false" hx-target="body"
+                  hx-swap="innerHTML show:window:top">
               <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
-              <button type="submit" class="btn btn-sm btn-primary pb-2"
+              <button type="submit" class="btn btn-sm btn-primary mb-2"
                       hx-post="{{ web_log_base_url | append: "all/refresh" | relative_link }}">
                 Refresh All
               </button>
               <div class="row mwl-table-heading">
-                <div class="col">Name</div>
-                <div class="col">URL Base</div>
+                <div class="col">Web Log</div>
               </div>
               {%- for web_log in web_logs %}
                 <div class="row mwl-table-detail">
                   <div class="col">
                     {{ web_log[1] }}<br>
                     <small>
+                      <span class="text-muted">{{ web_log[2] }}</span><br>
                       {%- assign refresh_url = web_log_base_url | append: web_log[0] | append: "/refresh" | relative_link -%}
                       <a href="{{ refresh_url }}" hx-post="{{ refresh_url }}">Refresh</a>
                     </small>
                   </div>
-                  <div class="col">{{ web_log[2] }}</div>
                 </div>
               {%- endfor %}
             </form>
@@ -72,21 +72,22 @@
       <div class="col-12 col-lg-6 pb-3">
         <div class="card">
           <header class="card-header text-white bg-secondary">Themes</header>
-          <div class="card-body">
+          <div class="card-body pb-0">
             <h6 class="card-subtitle text-muted pb-3">
-              The themes template cache is loaded on demand; refresh a cache with 0 templates will still refresh the
-              theme asset cache
+              The theme template cache is filled on demand as pages are displayed; refreshing a theme with no cached
+              templates will still refresh its asset cache
             </h6>
             {%- assign theme_base_url = cache_base_url | append: "theme/" -%}
-            <form method="post" class="container pb-3" hx-boost="false" hx-target="body" hx-swap="innerHTML show:window:top">
+            <form method="post" class="container g-0" hx-boost="false" hx-target="body"
+                  hx-swap="innerHTML show:window:top">
               <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
-              <button type="submit" class="btn btn-sm btn-primary pb-2"
+              <button type="submit" class="btn btn-sm btn-primary mb-2"
                       hx-post="{{ theme_base_url | append: "all/refresh" | relative_link }}">
                 Refresh All
               </button>
               <div class="row mwl-table-heading">
-                <div class="col-8">Name</div>
-                <div class="col-4">Cached Templates</div>
+                <div class="col-8">Theme</div>
+                <div class="col-4">Cached</div>
               </div>
               {%- for theme in cached_themes %}
                 {% unless theme[0] == "admin" %}

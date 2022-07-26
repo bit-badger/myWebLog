@@ -106,13 +106,14 @@ let router : HttpHandler = choose [
     ]
     subRoute "/admin" (requireUser >=> choose [
         GET_HEAD >=> choose [
+            route    "/administration" >=> Admin.adminDashboard
             subRoute "/categor" (choose [
                 route  "ies"       >=> Admin.listCategories
                 route  "ies/bare"  >=> Admin.listCategoriesBare
                 routef "y/%s/edit"     Admin.editCategory
             ])
-            route    "/dashboard"                >=> Admin.dashboard
-            route    "/dashboard/administration" >=> Admin.adminDashboard
+            route    "/dashboard" >=> Admin.dashboard
+            route    "/my-info"   >=> User.myInfo
             subRoute "/page" (choose [
                 route  "s"                       >=> Page.all 1
                 routef "s/page/%i"                   Page.all
@@ -135,6 +136,11 @@ let router : HttpHandler = choose [
                     route  ""         >=> Feed.editSettings
                     routef "/%s/edit"     Feed.editCustomFeed
                 ])
+                subRoute "/user" (choose [
+                route  "s"        >=> User.all
+                routef "/%s/edit"     User.edit
+                    
+                ])
                 subRoute "/tag-mapping" (choose [
                     route  "s"        >=> Admin.tagMappings
                     route  "s/bare"   >=> Admin.tagMappingsBare
@@ -149,12 +155,6 @@ let router : HttpHandler = choose [
                 route "s"    >=> Upload.list
                 route "/new" >=> Upload.showNew
             ])
-            subRoute "/user" (choose [
-                route  "s"        >=> User.all
-                route  "s/bare"   >=> User.bare
-                route  "/my-info" >=> User.myInfo
-                routef "/%s/edit"     User.edit
-            ])
         ]
         POST >=> validateCsrf >=> choose [
             subRoute "/cache" (choose [
@@ -165,6 +165,7 @@ let router : HttpHandler = choose [
                 route  "/save"      >=> Admin.saveCategory
                 routef "/%s/delete"     Admin.deleteCategory
             ])
+            route    "/my-info" >=> User.saveMyInfo
             subRoute "/page" (choose [
                 route  "/save"                   >=> Page.save
                 route  "/permalinks"             >=> Page.savePermalinks
@@ -192,6 +193,10 @@ let router : HttpHandler = choose [
                     route  "/save"      >=> Admin.saveMapping
                     routef "/%s/delete"     Admin.deleteMapping
                 ])
+                subRoute "/user" (choose [
+                    route  "/save"      >=> User.save
+                    routef "/%s/delete"     User.delete
+                ])
             ])
             subRoute "/theme" (choose [
                 route  "/new"       >=> Admin.saveTheme
@@ -201,11 +206,6 @@ let router : HttpHandler = choose [
                 route   "/save"        >=> Upload.save
                 routexp "/delete/(.*)"     Upload.deleteFromDisk
                 routef  "/%s/delete"       Upload.deleteFromDb
-            ])
-            subRoute "/user" (choose [
-                route  "/my-info"   >=> User.saveMyInfo
-                route  "/save"      >=> User.save
-                routef "/%s/delete"     User.delete
             ])
         ]
     ])

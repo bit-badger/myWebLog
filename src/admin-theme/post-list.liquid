@@ -1,22 +1,22 @@
 <h2 class="my-3">{{ page_title }}</h2>
 <article>
   <a href="{{ "admin/post/new/edit" | relative_link }}" class="btn btn-primary btn-sm mb-3">Write a New Post</a>
-  <form method="post" class="container" hx-target="body">
-    <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
-    {%- assign post_count = model.posts | size -%}
-    {%- assign date_col   = "col-xs-12 col-md-3 col-lg-2" -%}
-    {%- assign title_col  = "col-xs-12 col-md-7 col-lg-6 col-xl-5 col-xxl-4" -%}
-    {%- assign author_col = "col-xs-12 col-md-2 col-lg-1" -%}
-    {%- assign tag_col    = "col-lg-3 col-xl-4 col-xxl-5 d-none d-lg-inline-block" -%}
-    <div class="row mwl-table-heading">
-      <div class="{{ date_col }}">
-        <span class="d-md-none">Post</span><span class="d-none d-md-inline">Date</span>
+  {%- assign post_count = model.posts | size -%}
+  {%- if post_count > 0 %}
+    <form method="post" class="container" hx-target="body">
+      <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
+      {%- assign date_col   = "col-xs-12 col-md-3 col-lg-2" -%}
+      {%- assign title_col  = "col-xs-12 col-md-7 col-lg-6 col-xl-5 col-xxl-4" -%}
+      {%- assign author_col = "col-xs-12 col-md-2 col-lg-1" -%}
+      {%- assign tag_col    = "col-lg-3 col-xl-4 col-xxl-5 d-none d-lg-inline-block" -%}
+      <div class="row mwl-table-heading">
+        <div class="{{ date_col }}">
+          <span class="d-md-none">Post</span><span class="d-none d-md-inline">Date</span>
+        </div>
+        <div class="{{ title_col }} d-none d-md-inline-block">Title</div>
+        <div class="{{ author_col }} d-none d-md-inline-block">Author</div>
+        <div class="{{ tag_col }}">Tags</div>
       </div>
-      <div class="{{ title_col }} d-none d-md-inline-block">Title</div>
-      <div class="{{ author_col }} d-none d-md-inline-block">Author</div>
-      <div class="{{ tag_col }}">Tags</div>
-    </div>
-    {%- if post_count > 0 %}
       {% for post in model.posts -%}
         <div class="row mwl-table-detail">
           <div class="{{ date_col }} no-wrap">
@@ -77,24 +77,22 @@
           </div>
         </div>
       {%- endfor %}
-    {% else %}
-      <div class="row">
-        <div class="col text-muted fst-italic text-center">This web log has no posts</div>
+    </form>
+    {% if model.newer_link or model.older_link %}
+      <div class="d-flex justify-content-evenly mb-3">
+        <div>
+          {% if model.newer_link %}
+            <p><a class="btn btn-secondary" href="{{ model.newer_link.value }}">&laquo; Newer Posts</a></p>
+          {% endif %}
+        </div>
+        <div class="text-right">
+          {% if model.older_link %}
+            <p><a class="btn btn-secondary" href="{{ model.older_link.value }}">Older Posts &raquo;</a></p>
+          {% endif %}
+        </div>
       </div>
     {% endif %}
-  </form>
-  {% if model.newer_link or model.older_link %}
-    <div class="d-flex justify-content-evenly">
-      <div>
-        {% if model.newer_link %}
-          <p><a class="btn btn-default" href="{{ model.newer_link.value }}">&laquo; Newer Posts</a></p>
-        {% endif %}
-      </div>
-      <div class="text-right">
-        {% if model.older_link %}
-          <p><a class="btn btn-default" href="{{ model.older_link.value }}">Older Posts &raquo;</a></p>
-        {% endif %}
-      </div>
-    </div>
+  {% else %}
+    <p class="text-muted fst-italic text-center">This web log has no posts</p>
   {% endif %}
 </article>

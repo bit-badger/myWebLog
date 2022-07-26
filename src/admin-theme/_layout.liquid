@@ -17,11 +17,10 @@
             {%- endif %}
             {%- if is_web_log_admin %}
               {{ "admin/categories" | nav_link: "Categories" }}
-              {{ "admin/users" | nav_link: "Users" }}
               {{ "admin/settings" | nav_link: "Settings" }}
             {%- endif %}
             {%- if is_administrator %}
-              {{ "admin/dashboard/administration" | nav_link: "Admin" }}
+              {{ "admin/administration" | nav_link: "Admin" }}
             {%- endif %}
           </ul>
         {%- endif %}

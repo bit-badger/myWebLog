@@ -218,23 +218,6 @@ let addViewContext ctx (hash : Hash) = task {
 let isHtmx (ctx : HttpContext) =
     ctx.Request.IsHtmx && not ctx.Request.IsHtmxRefresh
 
-/// Render a view for the specified theme, using the specified template, layout, and hash
-let viewForTheme themeId template next ctx (hash : Hash) = task {
-    let! hash = addViewContext ctx hash
-    
-    // NOTE: DotLiquid does not support {% render %} or {% include %} in its templates, so we will do a 2-pass render;
-    //       the net effect is a "layout" capability similar to Razor or Pug
-    
-    // Render view content...
-    let! contentTemplate = TemplateCache.get themeId template ctx.Data
-    let _ = addToHash ViewContext.Content (contentTemplate.Render hash) hash
-    
-    // ...then render that content with its layout
-    let! layoutTemplate = TemplateCache.get themeId (if isHtmx ctx then "layout-partial" else "layout") ctx.Data
-    
-    return! htmlString (layoutTemplate.Render hash) next ctx
-}
-
 /// Convert messages to headers (used for htmx responses)
 let messagesToHeaders (messages : UserMessage array) : HttpHandler =
     seq {
@@ -249,50 +232,10 @@ let messagesToHeaders (messages : UserMessage array) : HttpHandler =
     }
     |> Seq.reduce (>=>)
 
-/// Render a bare view for the specified theme, using the specified template and hash
-let bareForTheme themeId template next ctx (hash : Hash) = task {
-    let! hash = addViewContext ctx hash
-    
-    if not (hash.ContainsKey ViewContext.Content) then
-        let! contentTemplate = TemplateCache.get themeId template ctx.Data
-        addToHash ViewContext.Content (contentTemplate.Render hash) hash |> ignore
-    
-    // Bare templates are rendered with layout-bare
-    let! layoutTemplate = TemplateCache.get themeId "layout-bare" ctx.Data
-    return!
-        (messagesToHeaders (hash[ViewContext.Messages] :?> UserMessage[])
-         >=> htmlString (layoutTemplate.Render hash))
-            next ctx
-}
-
-/// Return a view for the web log's default theme
-let themedView template next ctx hash = task {
-    let! hash = addViewContext ctx hash
-    return! viewForTheme (hash[ViewContext.WebLog] :?> WebLog).ThemeId template next ctx hash
-}
-
-/// The ID for the admin theme
-let adminTheme = ThemeId "admin"
-
-/// Display a view for the admin theme
-let adminView template =
-    viewForTheme adminTheme template
-
-/// Display a bare view for the admin theme
-let adminBareView template =
-    bareForTheme adminTheme template
-
 /// Redirect after doing some action; commits session and issues a temporary redirect
 let redirectToGet url : HttpHandler = fun _ ctx -> task {
     do! commitSession ctx
     return! redirectTo false (WebLog.relativeUrl ctx.WebLog (Permalink url)) earlyReturn ctx
-}
-
-/// Validate the anti cross-site request forgery token in the current request
-let validateCsrf : HttpHandler = fun next ctx -> task {
-    match! ctx.AntiForgery.IsRequestValidAsync ctx with
-    | true -> return! next ctx
-    | false -> return! RequestErrors.BAD_REQUEST "CSRF token invalid" earlyReturn ctx
 }
 
 
@@ -324,9 +267,81 @@ module Error =
                 let messages = [|
                     { UserMessage.error with Message = $"The URL {ctx.Request.Path.Value} was not found" }
                 |]
-                (messagesToHeaders messages >=> setStatusCode 404) earlyReturn ctx
-            else
-                (setStatusCode 404 >=> text "Not found") earlyReturn ctx)
+                RequestErrors.notFound (messagesToHeaders messages) earlyReturn ctx
+            else RequestErrors.NOT_FOUND "Not found" earlyReturn ctx)
+    
+    let server message : HttpHandler =
+        handleContext (fun ctx ->
+            if isHtmx ctx then
+                let messages = [| { UserMessage.error with Message = message } |]
+                ServerErrors.internalError (messagesToHeaders messages) earlyReturn ctx
+            else ServerErrors.INTERNAL_ERROR message earlyReturn ctx)
+
+
+/// Render a view for the specified theme, using the specified template, layout, and hash
+let viewForTheme themeId template next ctx (hash : Hash) = task {
+    let! hash = addViewContext ctx hash
+    
+    // NOTE: DotLiquid does not support {% render %} or {% include %} in its templates, so we will do a 2-pass render;
+    //       the net effect is a "layout" capability similar to Razor or Pug
+    
+    // Render view content...
+    match! TemplateCache.get themeId template ctx.Data with
+    | Ok contentTemplate ->
+        let _ = addToHash ViewContext.Content (contentTemplate.Render hash) hash
+        // ...then render that content with its layout
+        match! TemplateCache.get themeId (if isHtmx ctx then "layout-partial" else "layout") ctx.Data with
+        | Ok layoutTemplate ->  return! htmlString (layoutTemplate.Render hash) next ctx
+        | Error message -> return! Error.server message next ctx
+    | Error message -> return! Error.server message next ctx
+}
+
+/// Render a bare view for the specified theme, using the specified template and hash
+let bareForTheme themeId template next ctx (hash : Hash) = task {
+    let! hash        = addViewContext ctx hash
+    let  withContent = task {
+        if hash.ContainsKey ViewContext.Content then return Ok hash
+        else
+            match! TemplateCache.get themeId template ctx.Data with
+            | Ok contentTemplate -> return Ok (addToHash ViewContext.Content (contentTemplate.Render hash) hash)
+            | Error message -> return Error message 
+    }
+    match! withContent with
+    | Ok completeHash ->
+        // Bare templates are rendered with layout-bare
+        match! TemplateCache.get themeId "layout-bare" ctx.Data with
+        | Ok layoutTemplate ->
+            return!
+                (messagesToHeaders (hash[ViewContext.Messages] :?> UserMessage[])
+                 >=> htmlString (layoutTemplate.Render completeHash))
+                    next ctx
+        | Error message -> return! Error.server message next ctx
+    | Error message -> return! Error.server message next ctx
+}
+
+/// Return a view for the web log's default theme
+let themedView template next ctx hash = task {
+    let! hash = addViewContext ctx hash
+    return! viewForTheme (hash[ViewContext.WebLog] :?> WebLog).ThemeId template next ctx hash
+}
+
+/// The ID for the admin theme
+let adminTheme = ThemeId "admin"
+
+/// Display a view for the admin theme
+let adminView template =
+    viewForTheme adminTheme template
+
+/// Display a bare view for the admin theme
+let adminBareView template =
+    bareForTheme adminTheme template
+
+/// Validate the anti cross-site request forgery token in the current request
+let validateCsrf : HttpHandler = fun next ctx -> task {
+    match! ctx.AntiForgery.IsRequestValidAsync ctx with
+    | true -> return! next ctx
+    | false -> return! RequestErrors.BAD_REQUEST "CSRF token invalid" earlyReturn ctx
+}
 
 
 /// Require a user to be logged on

@@ -172,18 +172,34 @@ module TemplateCache =
     let get (themeId : ThemeId) (templateName : string) (data : IData) = backgroundTask {
         let templatePath = $"{ThemeId.toString themeId}/{templateName}"
         match _cache.ContainsKey templatePath with
-        | true -> ()
+        | true -> return Ok _cache[templatePath]
         | false ->
             match! data.Theme.FindById themeId with
             | Some theme ->
-                let mutable text = (theme.Templates |> List.find (fun t -> t.Name = templateName)).Text
-                while hasInclude.IsMatch text do
-                    let child = hasInclude.Match text
-                    let childText  = (theme.Templates |> List.find (fun t -> t.Name = child.Groups[1].Value)).Text
-                    text <- text.Replace (child.Value, childText)
-                _cache[templatePath] <- Template.Parse (text, SyntaxCompatibility.DotLiquid22)
-            | None -> ()
-        return _cache[templatePath]
+                match theme.Templates |> List.tryFind (fun t -> t.Name = templateName) with
+                | Some template ->
+                    let mutable text = template.Text
+                    let mutable childNotFound = ""
+                    while hasInclude.IsMatch text do
+                        let child = hasInclude.Match text
+                        let childText =
+                            match theme.Templates |> List.tryFind (fun t -> t.Name = child.Groups[1].Value) with
+                            | Some childTemplate -> childTemplate.Text
+                            | None ->
+                                childNotFound <-
+                                    if childNotFound = "" then child.Groups[1].Value
+                                    else $"{childNotFound}; {child.Groups[1].Value}"
+                                ""
+                        text <- text.Replace (child.Value, childText)
+                    if childNotFound <> "" then
+                        let s = if childNotFound.IndexOf ";" >= 0 then "s" else ""
+                        return Error $"Could not find the child template{s} {childNotFound} required by {templateName}"
+                    else
+                        _cache[templatePath] <- Template.Parse (text, SyntaxCompatibility.DotLiquid22)
+                        return Ok _cache[templatePath]
+                | None ->
+                    return Error $"Theme ID {ThemeId.toString themeId} does not have a template named {templateName}"
+            | None -> return Result.Error $"Theme ID {ThemeId.toString themeId} does not exist"
     }
     
     /// Get all theme/template names currently cached

@@ -1,6 +1,6 @@
 <h2 class="my-3">{{ page_title }}</h2>
 <article>
-  <form action="{{ "admin/user/my-info" | relative_link }}" method="post">
+  <form action="{{ "admin/my-info" | relative_link }}" method="post">
     <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
     <div class="d-flex flex-row flex-wrap justify-content-around">
       <div class="text-center mb-3 lh-sm">
