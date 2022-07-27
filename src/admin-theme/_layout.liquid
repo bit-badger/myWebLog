@@ -28,9 +28,21 @@
           {%- if is_logged_on %}
             {{ "admin/user/my-info" | nav_link: "My Info" }}
             <li class="nav-item">
+              <a class="nav-link" href="https://bitbadger.solutions/open-source/myweblog/#how-to-use-myweblog"
+                 target="_blank">
+                Docs
+              </a>
+            </li>
+            <li class="nav-item">
               <a class="nav-link" href="{{ "user/log-off" | relative_link }}" hx-boost="false">Log Off</a>
             </li>
           {%- else -%}
+            <li class="nav-item">
+              <a class="nav-link" href="https://bitbadger.solutions/open-source/myweblog/#how-to-use-myweblog"
+                 target="_blank">
+                Docs
+              </a>
+            </li>
             {{ "user/log-on" | nav_link: "Log On" }}
           {%- endif %}
         </ul>

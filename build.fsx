@@ -34,7 +34,7 @@ let version =
 let zipTheme (name : string) (_ : TargetParameter) =
     let path = $"src/{name}-theme"
     !! $"{path}/**/*"
-    |> Zip.filesAsSpecs path //$"src/{name}-theme"
+    |> Zip.filesAsSpecs path
     |> Seq.filter (fun (_, name) -> not (name.EndsWith ".zip"))
     |> Zip.zipSpec $"{releasePath}/{name}-theme.zip"
 
@@ -49,6 +49,8 @@ let packageFor (rid : string) (_ : TargetParameter) =
     if File.exists prodSettings then File.delete prodSettings
     [ !! $"{path}/**/*"
         |> Zip.filesAsSpecs path
+        |> Seq.map (fun (orig, dest) ->
+            orig, if dest.StartsWith "MyWebLog" then dest.Replace ("MyWebLog", "myWebLog") else dest)
       Seq.singleton ($"{releasePath}/admin-theme.zip", "admin-theme.zip")
       Seq.singleton ($"{releasePath}/default-theme.zip", "default-theme.zip")
     ]
@@ -87,7 +89,7 @@ Target.create "RepackageLinux" (fun _ ->
     Shell.mkdir workDir
     Zip.unzip workDir zipArchive
     Shell.cd workDir
-    sh "chmod" [ "+x"; "./MyWebLog" ]
+    sh "chmod" [ "+x"; "./myWebLog" ]
     sh "tar" [ "cfj"; $"../myWebLog-{version}.linux-x64.tar.bz2"; "." ]
     Shell.cd "../.."
     Shell.rm zipArchive

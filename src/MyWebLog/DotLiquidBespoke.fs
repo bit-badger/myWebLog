@@ -200,7 +200,7 @@ type UserLinksTag () =
         |> Seq.iter result.WriteLine
 
 /// A filter to retrieve the value of a meta item from a list
-//    (shorter than `{% assign item = list | where: "name", [name] | first %}{{ item.value }}`)
+//    (shorter than `{% assign item = list | where: "Name", [name] | first %}{{ item.value }}`)
 type ValueFilter () =
     static member Value (_ : Context, items : MetaItem list, name : string) =
         match items |> List.tryFind (fun it -> it.Name = name) with
