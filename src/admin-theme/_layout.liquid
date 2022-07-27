@@ -51,6 +51,7 @@
   </nav>
 </header>
 <main class="mx-3 mt-3">
+  <div class="load-overlay p-5" id="loadOverlay"><h1 class="p-3">Loading&hellip;</h1></div>
   <div class="messages mt-2" id="msgContainer">
     {% for msg in messages %}
       <div role="alert" class="alert alert-{{ msg.level }} alert-dismissible fade show">
