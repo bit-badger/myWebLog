@@ -9,7 +9,7 @@
             <div class="col">URL Value</div>
           </div>
         </div>
-        <form method="post" class="container" hx-target="#tagList" hx-swap="outerHTML show:window:top">
+        <form method="post" class="container" hx-target="#tagList" hx-swap="outerHTML">
           <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
           <div class="row mwl-table-detail" id="tag_new"></div>
             {% for map in mappings -%}

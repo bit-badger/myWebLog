@@ -343,7 +343,6 @@ let validateCsrf : HttpHandler = fun next ctx -> task {
     | false -> return! RequestErrors.BAD_REQUEST "CSRF token invalid" earlyReturn ctx
 }
 
-
 /// Require a user to be logged on
 let requireUser : HttpHandler = requiresAuthentication Error.notAuthorized
 

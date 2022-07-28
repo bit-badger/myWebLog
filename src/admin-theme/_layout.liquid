@@ -26,7 +26,7 @@
         {%- endif %}
         <ul class="navbar-nav flex-grow-1 justify-content-end">
           {%- if is_logged_on %}
-            {{ "admin/user/my-info" | nav_link: "My Info" }}
+            {{ "admin/my-info" | nav_link: "My Info" }}
             <li class="nav-item">
               <a class="nav-link" href="https://bitbadger.solutions/open-source/myweblog/#how-to-use-myweblog"
                  target="_blank">
@@ -50,30 +50,36 @@
     </div>
   </nav>
 </header>
-<main class="mx-3 mt-3">
-  <div class="load-overlay p-5" id="loadOverlay"><h1 class="p-3">Loading&hellip;</h1></div>
-  <div class="messages mt-2" id="msgContainer">
+<div id="toastHost" class="position-fixed top-0 w-100" aria-live="polite" aria-atomic="true">
+  <div id="toasts" class="toast-container position-absolute p-3 mt-5 top-0 end-0">
     {% for msg in messages %}
-      <div role="alert" class="alert alert-{{ msg.level }} alert-dismissible fade show">
-        {{ msg.message }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        {% if msg.detail %}
-          <hr>
-          {{ msg.detail.value }}
-        {% endif %}
+      <div class="toast" role="alert" aria-live="assertive" aria-atomic="true"
+      {%- unless msg.level == "success" %} data-bs-autohide="false"{% endunless %}>
+        <div class="toast-header bg-{{ msg.level }}{% unless msg.level == "warning" %} text-white{% endunless %}">
+          <strong class="me-auto text-uppercase">
+            {% if msg.level == "danger" %}error{% else %}{{ msg.level}}{% endif %}
+          </strong>
+          <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div class="toast-body bg-{{ msg.level }} bg-opacity-25">
+          {{ msg.message }}
+          {%- if msg.detail %}
+            <hr>
+            {{ msg.detail.value }}
+          {%- endif %}
+        </div>
       </div>
     {% endfor %}
   </div>
+</div>
+<main class="mx-3 mt-3">
+  <div class="load-overlay p-5" id="loadOverlay"><h1 class="p-3">Loading&hellip;</h1></div>
   {{ content }}
 </main>
 <footer class="position-fixed bottom-0 w-100">
-  <div class="container-fluid">
-    <div class="row">
-      <div class="col-xs-12 text-end">
-        {%- assign version = generator | split: " " -%}
-        <small class="me-1 align-baseline">v{{ version[1] }}</small>
-        <img src="{{ "themes/admin/logo-light.png" | relative_link }}" alt="myWebLog" width="120" height="34">
-      </div>
-    </div>
+  <div class="text-end text-white me-2">
+    {%- assign version = generator | split: " " -%}
+    <small class="me-1 align-baseline">v{{ version[1] }}</small>
+    <img src="{{ "themes/admin/logo-light.png" | relative_link }}" alt="myWebLog" width="120" height="34">
   </div>
 </footer>

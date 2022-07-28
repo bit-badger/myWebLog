@@ -293,33 +293,46 @@ this.Admin = {
       const parts = msg.split("|||")
       if (parts.length < 2) return
       
-      const msgDiv = document.createElement("div")
-      msgDiv.className = `alert alert-${parts[0]} alert-dismissible fade show`
-      msgDiv.setAttribute("role", "alert")
-      msgDiv.innerHTML = parts[1]
+      // Create the toast header
+      const toastType = document.createElement("strong")
+      toastType.className = "me-auto text-uppercase"
+      toastType.innerText = parts[0] === "danger" ? "error" : parts[0]
       
       const closeBtn = document.createElement("button")
       closeBtn.type = "button"
       closeBtn.className = "btn-close"
-      closeBtn.setAttribute("data-bs-dismiss", "alert")
+      closeBtn.setAttribute("data-bs-dismiss", "toast")
       closeBtn.setAttribute("aria-label", "Close")
-      msgDiv.appendChild(closeBtn)
-      
-      if (parts.length === 3) {
-        msgDiv.innerHTML += `<hr>${parts[2]}`
-      }
-      document.getElementById("msgContainer").appendChild(msgDiv)
-    })
-  },
 
-  /**
-   * Set all "success" alerts to close after 4 seconds
-   */
-  dismissSuccesses() {
-    [...document.querySelectorAll(".alert-success")].forEach(alert => {
-      setTimeout(() => {
-        (bootstrap.Alert.getInstance(alert) ?? new bootstrap.Alert(alert)).close()
-      }, 4000)
+      const toastHead = document.createElement("div")
+      toastHead.className = `toast-header bg-${parts[0]}${parts[0] === "warning" ? "" : " text-white"}`
+      toastHead.appendChild(toastType)
+      toastHead.appendChild(closeBtn)
+
+      // Create the toast body
+      const toastBody = document.createElement("div")
+      toastBody.className = `toast-body bg-${parts[0]} bg-opacity-25`
+      toastBody.innerHTML = parts[1]
+      if (parts.length === 3) {
+        toastBody.innerHTML += `<hr>${parts[2]}`
+      }
+      
+      // Assemble the toast
+      const toast = document.createElement("div")
+      toast.className = "toast"
+      toast.setAttribute("role", "alert")
+      toast.setAttribute("aria-live", "assertive")
+      toast.setAttribute("aria-atomic", "true")
+      toast.appendChild(toastHead)
+      toast.appendChild(toastBody)
+
+      document.getElementById("toasts").appendChild(toast)
+      
+      let options = { delay: 4000 }
+      if (parts[0] !== "success") options.autohide = false
+      
+      const theToast = new bootstrap.Toast(toast, options)
+      theToast.show()
     })
   }
 }
@@ -329,8 +342,19 @@ htmx.on("htmx:afterOnLoad", function (evt) {
   // Show messages if there were any in the response
   if (hdrs.indexOf("x-message") >= 0) {
     Admin.showMessage(evt.detail.xhr.getResponseHeader("x-message"))
-    Admin.dismissSuccesses()
   }
+  // Initialize any toasts that were pre-rendered from the server
+  [...document.querySelectorAll(".toast")].forEach(el => {
+    if (el.getAttribute("data-mwl-shown") === "true" && el.className.indexOf("hide") >= 0) {
+      document.removeChild(el)
+    } else {
+      const toast = new bootstrap.Toast(el,
+          el.getAttribute("data-bs-autohide") === "false"
+              ? { autohide: false } : { delay: 6000, autohide: true })
+      toast.show()
+      el.setAttribute("data-mwl-shown", "true")
+    }
+  })
 })
 
 htmx.on("htmx:responseError", function (evt) {

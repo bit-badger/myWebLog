@@ -414,17 +414,6 @@ let generate (feedType : FeedType) postCount : HttpHandler = fun next ctx -> bac
 
 // ~~ FEED ADMINISTRATION ~~
 
-// GET /admin/settings/rss
-let editSettings : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx ->
-    hashForPage "RSS Settings"
-    |> withAntiCsrf ctx
-    |> addToHash ViewContext.Model (EditRssModel.fromRssOptions ctx.WebLog.Rss)
-    |> addToHash "custom_feeds" (
-        ctx.WebLog.Rss.CustomFeeds
-        |> List.map (DisplayCustomFeed.fromFeed (CategoryCache.get ctx))
-        |> Array.ofList)
-    |> adminView "rss-settings" next ctx
-
 // POST /admin/settings/rss
 let saveSettings : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     let  data  = ctx.Data
@@ -435,7 +424,7 @@ let saveSettings : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> t
         do! data.WebLog.UpdateRssOptions webLog
         WebLogCache.set webLog
         do! addMessage ctx { UserMessage.success with Message = "RSS settings updated successfully" }
-        return! redirectToGet "admin/settings/rss" next ctx
+        return! redirectToGet "admin/settings#rss-settings" next ctx
     | None -> return! Error.notFound next ctx
 }
 
@@ -507,6 +496,6 @@ let deleteCustomFeed feedId : HttpHandler = requireAccess WebLogAdmin >=> fun ne
             do! addMessage ctx { UserMessage.success with Message = "Custom feed deleted successfully" }
         else
             do! addMessage ctx { UserMessage.warning with Message = "Custom feed not found; no action taken" }
-        return! redirectToGet "admin/settings/rss" next ctx
+        return! redirectToGet "admin/settings#rss-settings" next ctx
     | None -> return! Error.notFound next ctx
 }

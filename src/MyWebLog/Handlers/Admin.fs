@@ -198,31 +198,20 @@ open Microsoft.AspNetCore.Http
 
 // ~~ TAG MAPPINGS ~~
 
-/// Get the hash necessary to render the tag mapping list
-let private tagMappingHash (ctx : HttpContext) = task {
+/// Add tag mappings to the given hash
+let private withTagMappings (ctx : HttpContext) hash = task {
     let! mappings = ctx.Data.TagMap.FindByWebLog ctx.WebLog.Id
-    return!
-        hashForPage "Tag Mappings"
-        |> withAntiCsrf ctx
-        |> addToHash "mappings"    mappings
+    return
+           addToHash "mappings"    mappings hash
         |> addToHash "mapping_ids" (mappings |> List.map (fun it -> { Name = it.Tag; Value = TagMapId.toString it.Id }))
-        |> addViewContext ctx
 }
 
 // GET /admin/settings/tag-mappings
 let tagMappings : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
-    match! TemplateCache.get adminTheme "tag-mapping-list-body" ctx.Data with
-    | Ok listTemplate ->
-        let! hash = tagMappingHash ctx
-        return!
-               addToHash "tag_mapping_list" (listTemplate.Render hash) hash
-            |> adminView "tag-mapping-list" next ctx
-    | Error message -> return! Error.server message next ctx
-}
-
-// GET /admin/settings/tag-mappings/bare
-let tagMappingsBare : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
-    let! hash = tagMappingHash ctx
+    let! hash =
+        hashForPage ""
+        |> withAntiCsrf    ctx
+        |> withTagMappings ctx
     return! adminBareView "tag-mapping-list-body" next ctx hash
 }
 
@@ -253,7 +242,7 @@ let saveMapping : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> ta
     | Some tm ->
         do! data.TagMap.Save { tm with Tag = model.Tag.ToLower (); UrlValue = model.UrlValue.ToLower () }
         do! addMessage ctx { UserMessage.success with Message = "Tag mapping saved successfully" }
-        return! tagMappingsBare next ctx
+        return! tagMappings next ctx
     | None -> return! Error.notFound next ctx
 }
 
@@ -262,7 +251,7 @@ let deleteMapping tagMapId : HttpHandler = requireAccess WebLogAdmin >=> fun nex
     match! ctx.Data.TagMap.Delete (TagMapId tagMapId) ctx.WebLog.Id with
     | true  -> do! addMessage ctx { UserMessage.success with Message = "Tag mapping deleted successfully" }
     | false -> do! addMessage ctx { UserMessage.error with Message = "Tag mapping not found; nothing deleted" }
-    return! tagMappingsBare next ctx
+    return! tagMappings next ctx
 }
 
 // ~~ THEMES ~~
@@ -433,35 +422,45 @@ let settings : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task 
     let data = ctx.Data
     match! TemplateCache.get adminTheme "user-list-body" data with
     | Ok userTemplate ->
-        let! allPages = data.Page.All ctx.WebLog.Id
-        let! themes   = data.Theme.All ()
-        let! users    = data.WebLogUser.FindByWebLog ctx.WebLog.Id
-        let! hash     =
-            hashForPage "Web Log Settings"
-            |> withAntiCsrf ctx
-            |> addToHash ViewContext.Model (SettingsModel.fromWebLog ctx.WebLog)
-            |> addToHash "pages" (
-                seq {
-                    KeyValuePair.Create ("posts", "- First Page of Posts -")
-                    yield! allPages
-                           |> List.sortBy (fun p -> p.Title.ToLower ())
-                           |> List.map (fun p -> KeyValuePair.Create (PageId.toString p.Id, p.Title))
-                }
-                |> Array.ofSeq)
-            |> addToHash "themes" (
-                themes
-                |> Seq.ofList
-                |> Seq.map (fun it -> KeyValuePair.Create (ThemeId.toString it.Id, $"{it.Name} (v{it.Version})"))
-                |> Array.ofSeq)
-            |> addToHash "upload_values" [|
-                KeyValuePair.Create (UploadDestination.toString Database, "Database")
-                KeyValuePair.Create (UploadDestination.toString Disk,     "Disk")
-            |]
-            |> addToHash "users" (users |> List.map (DisplayUser.fromUser ctx.WebLog) |> Array.ofList)
-            |> addViewContext ctx
-        return!
-            addToHash "user_list" (userTemplate.Render hash) hash
-            |> adminView "settings" next ctx
+        match! TemplateCache.get adminTheme "tag-mapping-list-body" ctx.Data with
+        | Ok tagMapTemplate ->
+            let! allPages = data.Page.All ctx.WebLog.Id
+            let! themes   = data.Theme.All ()
+            let! users    = data.WebLogUser.FindByWebLog ctx.WebLog.Id
+            let! hash     =
+                hashForPage "Web Log Settings"
+                |> withAntiCsrf ctx
+                |> addToHash ViewContext.Model (SettingsModel.fromWebLog ctx.WebLog)
+                |> addToHash "pages" (
+                    seq {
+                        KeyValuePair.Create ("posts", "- First Page of Posts -")
+                        yield! allPages
+                               |> List.sortBy (fun p -> p.Title.ToLower ())
+                               |> List.map (fun p -> KeyValuePair.Create (PageId.toString p.Id, p.Title))
+                    }
+                    |> Array.ofSeq)
+                |> addToHash "themes" (
+                    themes
+                    |> Seq.ofList
+                    |> Seq.map (fun it -> KeyValuePair.Create (ThemeId.toString it.Id, $"{it.Name} (v{it.Version})"))
+                    |> Array.ofSeq)
+                |> addToHash "upload_values" [|
+                    KeyValuePair.Create (UploadDestination.toString Database, "Database")
+                    KeyValuePair.Create (UploadDestination.toString Disk,     "Disk")
+                |]
+                |> addToHash "users" (users |> List.map (DisplayUser.fromUser ctx.WebLog) |> Array.ofList)
+                |> addToHash "rss_model" (EditRssModel.fromRssOptions ctx.WebLog.Rss)
+                |> addToHash "custom_feeds" (
+                    ctx.WebLog.Rss.CustomFeeds
+                    |> List.map (DisplayCustomFeed.fromFeed (CategoryCache.get ctx))
+                    |> Array.ofList)
+                |> addViewContext ctx
+            let! hash' = withTagMappings ctx hash
+            return!
+                   addToHash "user_list"        (userTemplate.Render   hash') hash'
+                |> addToHash "tag_mapping_list" (tagMapTemplate.Render hash')
+                |> adminView "settings" next ctx
+        | Error message -> return! Error.server message next ctx
     | Error message -> return! Error.server message next ctx
 }
 

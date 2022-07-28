@@ -328,7 +328,7 @@ type SQLitePageData (conn : SqliteConnection) =
                        is_in_page_list = @isInPageList,
                        template        = @template,
                        page_text       = @text
-                 WHERE id         = @pageId
+                 WHERE id         = @id
                    AND web_log_id = @webLogId"""
             addPageParameters cmd page
             do! write cmd

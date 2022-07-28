@@ -320,6 +320,7 @@ type SQLiteWebLogData (conn : SqliteConnection) =
                    copyright           = @copyright
              WHERE id = @id"""
         addWebLogRssParameters cmd webLog
+        cmd.Parameters.AddWithValue ("@id", WebLogId.toString webLog.Id) |> ignore
         do! write cmd
         do! updateCustomFeeds webLog
     }

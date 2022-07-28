@@ -131,19 +131,14 @@ let router : HttpHandler = choose [
                 routef "/%s/revisions"               Post.editRevisions
             ])
             subRoute "/settings" (choose [
-                route ""     >=> Admin.settings
-                subRoute "/rss" (choose [
-                    route  ""         >=> Feed.editSettings
-                    routef "/%s/edit"     Feed.editCustomFeed
-                ])
+                route  ""             >=> Admin.settings
+                routef "/rss/%s/edit"     Feed.editCustomFeed
                 subRoute "/user" (choose [
-                route  "s"        >=> User.all
-                routef "/%s/edit"     User.edit
-                    
+                    route  "s"        >=> User.all
+                    routef "/%s/edit"     User.edit
                 ])
                 subRoute "/tag-mapping" (choose [
                     route  "s"        >=> Admin.tagMappings
-                    route  "s/bare"   >=> Admin.tagMappingsBare
                     routef "/%s/edit"     Admin.editMapping
                 ])
             ])
