@@ -12,6 +12,17 @@ module private Helpers =
         match (defaultArg (Option.ofObj it) "").Trim () with "" -> None | trimmed -> Some trimmed
 
 
+/// Helper functions that are needed outside this file
+[<AutoOpen>]
+module PublicHelpers =
+    
+    /// If the web log is not being served from the domain root, add the path information to relative URLs in page and
+    /// post text
+    let addBaseToRelativeUrls extra (text : string) =
+        if extra = "" then text
+        else text.Replace("href=\"/", $"href=\"{extra}/").Replace ("src=\"/", $"src=\"{extra}/")
+
+
 /// The model used to display the admin dashboard
 [<NoComparison; NoEquality>]
 type DashboardModel =
@@ -147,7 +158,7 @@ type DisplayPage =
             UpdatedOn    = page.UpdatedOn
             IsInPageList = page.IsInPageList
             IsDefault    = pageId = webLog.DefaultPage
-            Text         = if extra = "" then page.Text else page.Text.Replace ("href=\"/", $"href=\"{extra}/")
+            Text         = addBaseToRelativeUrls extra page.Text
             Metadata     = page.Metadata
         }
 
@@ -1061,7 +1072,7 @@ type PostListItem =
             Permalink   = Permalink.toString post.Permalink
             PublishedOn = post.PublishedOn |> Option.map inTZ |> Option.toNullable
             UpdatedOn   = inTZ post.UpdatedOn
-            Text        = if extra = "" then post.Text else post.Text.Replace ("href=\"/", $"href=\"{extra}/")
+            Text        = addBaseToRelativeUrls extra post.Text
             CategoryIds = post.CategoryIds |> List.map CategoryId.toString
             Tags        = post.Tags
             Episode     = post.Episode

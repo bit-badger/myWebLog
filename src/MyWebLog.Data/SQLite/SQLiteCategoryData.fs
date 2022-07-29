@@ -122,13 +122,23 @@ type SQLiteCategoryData (conn : SqliteConnection) =
     /// Delete a category
     let delete catId webLogId = backgroundTask {
         match! findById catId webLogId with
-        | Some _ ->
+        | Some cat ->
             use cmd = conn.CreateCommand ()
+            // Reassign any children to the category's parent category
+            cmd.CommandText <- "SELECT COUNT(id) FROM category WHERE parent_id = @parentId"
+            cmd.Parameters.AddWithValue ("@parentId", CategoryId.toString catId) |> ignore
+            let! children = count cmd
+            if children > 0 then
+                cmd.CommandText <- "UPDATE category SET parent_id = @newParentId WHERE parent_id = @parentId"
+                cmd.Parameters.AddWithValue ("@newParentId", maybe (cat.ParentId |> Option.map CategoryId.toString))
+                |> ignore
+                do! write cmd
             // Delete the category off all posts where it is assigned
             cmd.CommandText <- """
                 DELETE FROM post_category
                  WHERE category_id = @id
                    AND post_id IN (SELECT id FROM post WHERE web_log_id = @webLogId)"""
+            cmd.Parameters.Clear ()
             let catIdParameter = cmd.Parameters.AddWithValue ("@id", CategoryId.toString catId)
             cmd.Parameters.AddWithValue ("@webLogId", WebLogId.toString webLogId) |> ignore
             do! write cmd
@@ -137,8 +147,8 @@ type SQLiteCategoryData (conn : SqliteConnection) =
             cmd.Parameters.Clear ()
             cmd.Parameters.Add catIdParameter |> ignore
             do! write cmd
-            return true
-        | None -> return false
+            return if children = 0 then CategoryDeleted else ReassignedChildCategories
+        | None -> return CategoryNotFound
     }
     
     /// Restore categories from a backup

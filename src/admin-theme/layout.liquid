@@ -14,18 +14,6 @@
             integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p"
             crossorigin="anonymous"></script>
     {{ htmx_script }}
-    <script>
-      const cssLoaded = [...document.styleSheets].filter(it => it.href.indexOf("bootstrap.min.css") > -1).length > 0
-      if (!cssLoaded) {
-        const local = document.createElement("link")
-        local.rel = "stylesheet"
-        local.href = "{{ "themes/admin/bootstrap.min.css" | relative_link }}"
-        document.getElementsByTagName("link")[0].prepend(local)
-      }
-      setTimeout(function () {
-        if (!bootstrap) document.write('<script src=\"{{ "script/bootstrap.bundle.min.js" | relative_link }}\"><\/script>')
-      }, 2000)
-    </script>
     <script src="{{ "themes/admin/admin.js" | relative_link }}"></script>
   </body>
 </html>

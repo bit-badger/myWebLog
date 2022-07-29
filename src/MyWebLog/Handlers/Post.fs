@@ -329,8 +329,14 @@ let private findPostRevision postId revDate (ctx : HttpContext) = task {
 let previewRevision (postId, revDate) : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     match! findPostRevision postId revDate ctx with
     | Some post, Some rev when canEdit post.AuthorId ctx ->
+        let _, extra = WebLog.hostAndPath ctx.WebLog
         return! {|
-            content = $"""<div class="mwl-revision-preview mb-3">{MarkupText.toHtml rev.Text}</div>"""
+            content =
+                [   """<div class="mwl-revision-preview mb-3">"""
+                    (MarkupText.toHtml >> addBaseToRelativeUrls extra) rev.Text
+                    "</div>"
+                ]
+                |> String.concat ""
         |}
         |> makeHash |> adminBareView "" next ctx
     | Some _, Some _ -> return! Error.notAuthorized next ctx

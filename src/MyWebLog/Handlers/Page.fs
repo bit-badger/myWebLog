@@ -124,8 +124,14 @@ let private findPageRevision pgId revDate (ctx : HttpContext) = task {
 let previewRevision (pgId, revDate) : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     match! findPageRevision pgId revDate ctx with
     | Some pg, Some rev when canEdit pg.AuthorId ctx ->
+        let _, extra = WebLog.hostAndPath ctx.WebLog
         return! {|
-            content = $"""<div class="mwl-revision-preview mb-3">{MarkupText.toHtml rev.Text}</div>"""
+            content =
+                [   """<div class="mwl-revision-preview mb-3">"""
+                    (MarkupText.toHtml >> addBaseToRelativeUrls extra) rev.Text
+                    "</div>"
+                ]
+                |> String.concat ""
         |}
         |> makeHash |> adminBareView "" next ctx
     | Some _, Some _ -> return! Error.notAuthorized next ctx

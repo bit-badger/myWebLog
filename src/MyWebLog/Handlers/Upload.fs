@@ -85,7 +85,7 @@ open System.Text.RegularExpressions
 open MyWebLog.ViewModels
 
 /// Turn a string into a lowercase URL-safe slug
-let makeSlug it = ((Regex """\s+""").Replace ((Regex "[^A-z0-9 ]").Replace (it, ""), "-")).ToLowerInvariant ()
+let makeSlug it = ((Regex """\s+""").Replace ((Regex "[^A-z0-9 -]").Replace (it, ""), "-")).ToLowerInvariant ()
 
 // GET /admin/uploads
 let list : HttpHandler = requireAccess Author >=> fun next ctx -> task {

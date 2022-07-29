@@ -2,24 +2,20 @@
 <article>
   <fieldset class="container mb-3 pb-0">
     <legend>Themes</legend>
-    <div class="row">
-      <div class="col">
-        <a href="{{ "admin/theme/new" | relative_link }}" class="btn btn-primary btn-sm mb-3"
-           hx-target="#theme_new">
-          Upload a New Theme
-        </a>
-        <div class="container g-0">
-          {% include_template "_theme-list-columns" %}
-          <div class="row mwl-table-heading">
-            <div class="{{ theme_col }}">Theme</div>
-            <div class="{{ slug_col }} d-none d-md-inline-block">Slug</div>
-            <div class="{{ tmpl_col }} d-none d-md-inline-block">Templates</div>
-          </div>
-        </div>
-        <div class="row mwl-table-detail" id="theme_new"></div>
-        {{ theme_list }}
+    <a href="{{ "admin/theme/new" | relative_link }}" class="btn btn-primary btn-sm mb-3"
+       hx-target="#theme_new">
+      Upload a New Theme
+    </a>
+    <div class="container g-0">
+      {% include_template "_theme-list-columns" %}
+      <div class="row mwl-table-heading">
+        <div class="{{ theme_col }}">Theme</div>
+        <div class="{{ slug_col }} d-none d-md-inline-block">Slug</div>
+        <div class="{{ tmpl_col }} d-none d-md-inline-block">Templates</div>
       </div>
     </div>
+    <div class="row mwl-table-detail" id="theme_new"></div>
+    {{ theme_list }}
   </fieldset>
   <fieldset class="container mb-3 pb-0">
     {%- assign cache_base_url = "admin/cache/" -%}
@@ -27,10 +23,9 @@
     <div class="row pb-2">
       <div class="col">
         <p>
-          myWebLog uses a few caches to ensure that it serves pages as fast as possible. Normal actions taken within the
-          admin area will keep these up to date; however, if changes occur outside of the system (creating a new web log
-          via CLI, loading an updated theme via CLI, direct data updates, etc.), these options allow for the caches to
-          be refreshed without requiring you to restart the application.
+          myWebLog uses a few caches to ensure that it serves pages as fast as possible.
+          (<a href="https://bitbadger.solutions/open-source/myweblog/advanced.html#cache-management"
+              target="_blank">more information</a>)
         </p>
       </div>
     </div>

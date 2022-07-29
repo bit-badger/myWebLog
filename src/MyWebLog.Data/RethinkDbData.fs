@@ -274,7 +274,21 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                 
                 member this.Delete catId webLogId = backgroundTask {
                     match! this.FindById catId webLogId with
-                    | Some _ ->
+                    | Some cat ->
+                        // Reassign any children to the category's parent category
+                        let! children = rethink<int> {
+                            withTable Table.Category
+                            filter (nameof Category.empty.ParentId) catId
+                            count
+                            result; withRetryDefault conn
+                        }
+                        if children > 0 then
+                            do! rethink {
+                                withTable Table.Category
+                                filter (nameof Category.empty.ParentId) catId
+                                update [ nameof Category.empty.ParentId, cat.ParentId :> obj ]
+                                write; withRetryDefault; ignoreResult conn
+                            }
                         // Delete the category off all posts where it is assigned
                         do! rethink {
                             withTable Table.Post
@@ -291,8 +305,8 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                             delete
                             write; withRetryDefault; ignoreResult conn
                         }
-                        return true
-                    | None -> return false
+                        return if children = 0 then CategoryDeleted else ReassignedChildCategories
+                    | None -> return CategoryNotFound
                 }
                 
                 member _.Restore cats = backgroundTask {

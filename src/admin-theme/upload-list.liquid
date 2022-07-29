@@ -20,7 +20,7 @@
         <div class="row mwl-table-detail">
           <div class="col-6">
             {%- capture badge_class -%}
-              {%- if file.source == "disk" %}secondary{% else %}primary{% endif -%}
+              {%- if file.source == "Disk" %}secondary{% else %}primary{% endif -%}
             {%- endcapture -%}
             {%- assign path_and_name = file.path | append: file.name -%}
             {%- assign blog_rel = upload_path | append: path_and_name -%}
@@ -49,7 +49,7 @@
               {% if is_web_log_admin %}
                 <span class="text-muted"> &bull; </span>
                 {%- capture delete_url -%}
-                  {%- if file.source == "disk" -%}
+                  {%- if file.source == "Disk" -%}
                     admin/upload/delete/{{ path_and_name }}
                   {%- else -%}
                     admin/upload/{{ file.id }}/delete

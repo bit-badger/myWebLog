@@ -137,13 +137,13 @@ let loadTheme (args : string[]) (sp : IServiceProvider) = task {
             match args[1].LastIndexOf Path.DirectorySeparatorChar with
             | -1 -> args[1]
             | it -> args[1][(it + 1)..]
-        match Handlers.Admin.getThemeIdFromFileName fileName with
+        match Handlers.Admin.Theme.deriveIdFromFileName fileName with
         | Ok themeId ->
             let data   = sp.GetRequiredService<IData> ()
             use stream = File.Open (args[1], FileMode.Open)
             use copy   = new MemoryStream ()
             do! stream.CopyToAsync copy
-            let! theme = Handlers.Admin.loadThemeFromZip themeId copy data
+            let! theme = Handlers.Admin.Theme.loadFromZip themeId copy data
             let fac = sp.GetRequiredService<ILoggerFactory> ()
             let log = fac.CreateLogger "MyWebLog.Themes"
             log.LogInformation $"{theme.Name} v{theme.Version} ({ThemeId.toString theme.Id}) loaded"

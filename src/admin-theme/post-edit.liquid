@@ -6,41 +6,9 @@
     <div class="container">
       <div class="row mb-3">
         <div class="col-12 col-lg-9">
-          <div class="form-floating pb-3">
-            <input type="text" name="Title" id="title" class="form-control" placeholder="Title" autofocus required
-                   value="{{ model.title }}">
-            <label for="title">Title</label>
-          </div>
-          <div class="form-floating pb-3">
-            <input type="text" name="Permalink" id="permalink" class="form-control" placeholder="Permalink" required
-                   value="{{ model.permalink }}">
-            <label for="permalink">Permalink</label>
-            {%- unless model.is_new %}
-              <span class="form-text">
-                <a href="{{ "admin/post/" | append: model.post_id | append: "/permalinks" | relative_link }}">
-                  Manage Permalinks
-                </a>
-                <span class="text-muted"> &bull; </span>
-                <a href="{{ "admin/post/" | append: model.post_id | append: "/revisions" | relative_link }}">
-                  Manage Revisions
-                </a>
-              </span>
-            {% endunless -%}
-          </div>
-          <div class="mb-2">
-            <label for="text">Text</label> &nbsp; &nbsp;
-            <div class="btn-group btn-group-sm" role="group" aria-label="Text format button group">
-              <input type="radio" name="Source" id="source_html" class="btn-check" value="HTML"
-              {%- if model.source == "HTML" %} checked="checked"{% endif %}>
-              <label class="btn btn-sm btn-outline-secondary" for="source_html">HTML</label>
-              <input type="radio" name="Source" id="source_md" class="btn-check" value="Markdown"
-              {%- if model.source == "Markdown" %} checked="checked"{% endif %}>
-              <label class="btn btn-sm btn-outline-secondary" for="source_md">Markdown</label>
-            </div>
-          </div>
-          <div class="pb-3">
-            <textarea name="Text" id="text" class="form-control" rows="20">{{ model.text }}</textarea>
-          </div>
+          {%- assign entity = "post" -%}
+          {%- assign entity_id = model.post_id -%}
+          {% include_template "_edit-common" %}
           <div class="form-floating pb-3">
             <input type="text" name="Tags" id="tags" class="form-control" placeholder="Tags"
                    value="{{ model.tags }}">
@@ -61,7 +29,7 @@
                 <small>
                   <input type="checkbox" name="IsEpisode" id="isEpisode" class="form-check-input" value="true"
                          data-bs-toggle="collapse" data-bs-target="#episodeItems" onclick="Admin.toggleEpisodeFields()"
-                         {%- if model.is_episode %}checked="checked"{% endif %}>
+                         {%- if model.is_episode %} checked="checked"{% endif %}>
                 </small>
                 <label for="isEpisode">Podcast Episode</label>
               </span>
@@ -344,3 +312,4 @@
     </div>
   </form>
 </article>
+<script>window.setTimeout(() => Admin.toggleEpisodeFields(), 500)</script>

@@ -106,13 +106,13 @@ let router : HttpHandler = choose [
     ]
     subRoute "/admin" (requireUser >=> choose [
         GET_HEAD >=> choose [
-            route    "/administration" >=> Admin.adminDashboard
+            route    "/administration" >=> Admin.Dashboard.admin
             subRoute "/categor" (choose [
-                route  "ies"       >=> Admin.listCategories
-                route  "ies/bare"  >=> Admin.listCategoriesBare
-                routef "y/%s/edit"     Admin.editCategory
+                route  "ies"       >=> Admin.Category.all
+                route  "ies/bare"  >=> Admin.Category.bare
+                routef "y/%s/edit"     Admin.Category.edit
             ])
-            route    "/dashboard" >=> Admin.dashboard
+            route    "/dashboard" >=> Admin.Dashboard.user
             route    "/my-info"   >=> User.myInfo
             subRoute "/page" (choose [
                 route  "s"                       >=> Page.all 1
@@ -131,20 +131,20 @@ let router : HttpHandler = choose [
                 routef "/%s/revisions"               Post.editRevisions
             ])
             subRoute "/settings" (choose [
-                route  ""             >=> Admin.settings
+                route  ""             >=> Admin.WebLog.settings
                 routef "/rss/%s/edit"     Feed.editCustomFeed
                 subRoute "/user" (choose [
                     route  "s"        >=> User.all
                     routef "/%s/edit"     User.edit
                 ])
                 subRoute "/tag-mapping" (choose [
-                    route  "s"        >=> Admin.tagMappings
-                    routef "/%s/edit"     Admin.editMapping
+                    route  "s"        >=> Admin.TagMapping.all
+                    routef "/%s/edit"     Admin.TagMapping.edit
                 ])
             ])
             subRoute "/theme" (choose [
-                route "/list" >=> Admin.listThemes
-                route "/new"  >=> Admin.addTheme
+                route "/list" >=> Admin.Theme.all
+                route "/new"  >=> Admin.Theme.add
             ])
             subRoute "/upload" (choose [
                 route "s"    >=> Upload.list
@@ -153,12 +153,12 @@ let router : HttpHandler = choose [
         ]
         POST >=> validateCsrf >=> choose [
             subRoute "/cache" (choose [
-                routef "/theme/%s/refresh"   Admin.refreshThemeCache
-                routef "/web-log/%s/refresh" Admin.refreshWebLogCache
+                routef "/theme/%s/refresh"   Admin.Cache.refreshTheme
+                routef "/web-log/%s/refresh" Admin.Cache.refreshWebLog
             ])
             subRoute "/category" (choose [
-                route  "/save"      >=> Admin.saveCategory
-                routef "/%s/delete"     Admin.deleteCategory
+                route  "/save"      >=> Admin.Category.save
+                routef "/%s/delete"     Admin.Category.delete
             ])
             route    "/my-info" >=> User.saveMyInfo
             subRoute "/page" (choose [
@@ -178,15 +178,15 @@ let router : HttpHandler = choose [
                 routef "/%s/revisions/purge"         Post.purgeRevisions
             ])
             subRoute "/settings" (choose [
-                route ""     >=> Admin.saveSettings
+                route ""     >=> Admin.WebLog.saveSettings
                 subRoute "/rss" (choose [
                     route  ""           >=> Feed.saveSettings
                     route  "/save"      >=> Feed.saveCustomFeed
                     routef "/%s/delete"     Feed.deleteCustomFeed
                 ])
                 subRoute "/tag-mapping" (choose [
-                    route  "/save"      >=> Admin.saveMapping
-                    routef "/%s/delete"     Admin.deleteMapping
+                    route  "/save"      >=> Admin.TagMapping.save
+                    routef "/%s/delete"     Admin.TagMapping.delete
                 ])
                 subRoute "/user" (choose [
                     route  "/save"      >=> User.save
@@ -194,8 +194,8 @@ let router : HttpHandler = choose [
                 ])
             ])
             subRoute "/theme" (choose [
-                route  "/new"       >=> Admin.saveTheme
-                routef "/%s/delete"     Admin.deleteTheme
+                route  "/new"       >=> Admin.Theme.save
+                routef "/%s/delete"     Admin.Theme.delete
             ])
             subRoute "/upload" (choose [
                 route   "/save"        >=> Upload.save

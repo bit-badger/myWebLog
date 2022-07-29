@@ -51,7 +51,10 @@ let doLogOn : HttpHandler = fun next ctx -> task {
             AuthenticationProperties (IssuedUtc = DateTimeOffset.UtcNow))
         do! data.WebLogUser.SetLastSeen user.Id user.WebLogId
         do! addMessage ctx
-                { UserMessage.success with Message = $"Logged on successfully | Welcome to {ctx.WebLog.Name}!" }
+                { UserMessage.success with
+                    Message = "Log on successful"
+                    Detail  = Some $"Welcome to {ctx.WebLog.Name}!"
+                }
         return!
             match model.ReturnTo with
             | Some url -> redirectTo false url next ctx

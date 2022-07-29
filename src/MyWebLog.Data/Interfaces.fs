@@ -5,6 +5,16 @@ open System.Threading.Tasks
 open MyWebLog
 open MyWebLog.ViewModels
 
+/// The result of a category deletion attempt
+type CategoryDeleteResult =
+    /// The category was deleted successfully
+    | CategoryDeleted
+    /// The category was deleted successfully, and its children were reassigned to its parent
+    | ReassignedChildCategories
+    /// The category was not found, so no effort was made to delete it
+    | CategoryNotFound
+
+
 /// Data functions to support manipulating categories
 type ICategoryData =
     
@@ -18,7 +28,7 @@ type ICategoryData =
     abstract member CountTopLevel : WebLogId -> Task<int>
     
     /// Delete a category (also removes it from posts)
-    abstract member Delete : CategoryId -> WebLogId -> Task<bool>
+    abstract member Delete : CategoryId -> WebLogId -> Task<CategoryDeleteResult>
     
     /// Find all categories for a web log, sorted alphabetically and grouped by hierarchy
     abstract member FindAllForView : WebLogId -> Task<DisplayCategory[]>
