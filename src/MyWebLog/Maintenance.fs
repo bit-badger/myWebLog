@@ -89,7 +89,7 @@ let private doCreateWebLog (args : string[]) (sp : IServiceProvider) = task {
 let createWebLog args sp = task {
     match args |> Array.length with
     | 5 -> do! doCreateWebLog args sp
-    | _ -> eprintfn "Usage: MyWebLog init [url] [name] [admin-email] [admin-pw]"
+    | _ -> eprintfn "Usage: myWebLog init [url] [name] [admin-email] [admin-pw]"
 }
 
 /// Import prior permalinks from a text files with lines in the format "[old] [new]"
@@ -122,7 +122,7 @@ let private importPriorPermalinks urlBase file (sp : IServiceProvider) = task {
 let importLinks args sp = task {
     match args |> Array.length with
     | 3 -> do! importPriorPermalinks args[1] args[2] sp
-    | _ -> eprintfn "Usage: MyWebLog import-links [url] [file-name]"
+    | _ -> eprintfn "Usage: myWebLog import-links [url] [file-name]"
 }
 
 // Loading a theme and restoring a backup are not statically compilable; this is OK
@@ -149,7 +149,7 @@ let loadTheme (args : string[]) (sp : IServiceProvider) = task {
             log.LogInformation $"{theme.Name} v{theme.Version} ({ThemeId.toString theme.Id}) loaded"
         | Error message -> eprintfn $"{message}"
     else
-        eprintfn "Usage: MyWebLog load-theme [theme-zip-file-name]"
+        eprintfn "Usage: myWebLog load-theme [theme-zip-file-name]"
 }
 
 /// Back up a web log's data
@@ -451,7 +451,7 @@ module Backup =
                 do! createBackup webLog fileName prettyOutput data
             | None -> eprintfn $"Error: no web log found for {args[1]}"
         else
-            eprintfn """Usage: MyWebLog backup [url-base] [*backup-file-name] [**"pretty"]"""
+            eprintfn """Usage: myWebLog backup [url-base] [*backup-file-name] [**"pretty"]"""
             eprintfn """          * optional - default is [web-log-slug].json"""
             eprintfn """         ** optional - default is non-pretty JSON output"""
     }
@@ -463,7 +463,7 @@ module Backup =
             let newUrlBase = if args.Length = 3 then Some args[2] else None
             do! restoreBackup args[1] newUrlBase (args[0] <> "do-restore") data
         else
-            eprintfn "Usage: MyWebLog restore [backup-file-name] [*url-base]"
+            eprintfn "Usage: myWebLog restore [backup-file-name] [*url-base]"
             eprintfn "         * optional - will restore to original URL base if omitted"
             eprintfn "       (use do-restore to skip confirmation prompt)"
     }
@@ -488,5 +488,5 @@ let private doUserUpgrade urlBase email (data : IData) = task {
 let upgradeUser (args : string[]) (sp : IServiceProvider) = task {
     match args.Length with
     | 3 -> do! doUserUpgrade args[1] args[2] (sp.GetRequiredService<IData> ())
-    | _ -> eprintfn "Usage: MyWebLog upgrade-user [web-log-url-base] [email-address]"
+    | _ -> eprintfn "Usage: myWebLog upgrade-user [web-log-url-base] [email-address]"
 }
