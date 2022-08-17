@@ -9,6 +9,8 @@
 		<PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="6.0.0" />
 		<PackageReference Include="Microsoft.FSharpLu.Json" Version="0.11.7" />
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+		<PackageReference Include="Npgsql" Version="6.0.6" />
+		<PackageReference Include="Npgsql.FSharp" Version="5.3.0" />
 		<PackageReference Include="RethinkDb.Driver" Version="2.3.150" />
 		<PackageReference Include="RethinkDb.Driver.FSharp" Version="0.9.0-beta-07" />
 		<PackageReference Update="FSharp.Core" Version="6.0.5" />
@@ -29,6 +31,9 @@
 		<Compile Include="SQLite\SQLiteWebLogData.fs" />
 		<Compile Include="SQLite\SQLiteWebLogUserData.fs" />
 		<Compile Include="SQLiteData.fs" />
+		<Compile Include="PostgreSql\PostgreSqlHelpers.fs" />
+		<Compile Include="PostgreSql\PostgreSqlCategoryData.fs" />
+        <Compile Include="PostgreSqlData.fs" />
 	</ItemGroup>
 
 </Project>
