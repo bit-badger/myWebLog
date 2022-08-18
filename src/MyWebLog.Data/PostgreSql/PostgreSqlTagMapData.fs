@@ -9,37 +9,41 @@ open Npgsql.FSharp
 type PostgreSqlTagMapData (conn : NpgsqlConnection) =
 
     /// Find a tag mapping by its ID for the given web log
-    let findById tagMapId webLogId = backgroundTask {
-        let! tagMap =
-            Sql.existingConnection conn
-            |> Sql.query "SELECT * FROM tag_map WHERE id = @id AND web_log_id = @webLogId"
-            |> Sql.parameters [ "@id", Sql.string (TagMapId.toString tagMapId); webLogIdParam webLogId ]
-            |> Sql.executeAsync Map.toTagMap
-        return List.tryHead tagMap
-    }
+    let findById tagMapId webLogId =
+        Sql.existingConnection conn
+        |> Sql.query "SELECT * FROM tag_map WHERE id = @id AND web_log_id = @webLogId"
+        |> Sql.parameters [ "@id", Sql.string (TagMapId.toString tagMapId); webLogIdParam webLogId ]
+        |> Sql.executeAsync Map.toTagMap
+        |> tryHead
     
     /// Delete a tag mapping for the given web log
     let delete tagMapId webLogId = backgroundTask {
-        match! findById tagMapId webLogId with
-        | Some _ ->
+        let idParams = [ "@id", Sql.string (TagMapId.toString tagMapId) ]
+        let! exists =
+            Sql.existingConnection conn
+            |> Sql.query $"
+                SELECT EXISTS
+                    (SELECT 1 FROM tag_map WHERE id = @id AND web_log_id = @webLogId)
+                  AS {existsName}"
+            |> Sql.parameters (webLogIdParam webLogId :: idParams)
+            |> Sql.executeRowAsync Map.toExists
+        if exists then
             let! _ =
                 Sql.existingConnection conn
                 |> Sql.query "DELETE FROM tag_map WHERE id = @id"
-                |> Sql.parameters [ "@id", Sql.string (TagMapId.toString tagMapId) ]
+                |> Sql.parameters idParams
                 |> Sql.executeNonQueryAsync
             return true
-        | None -> return false
+        else return false
     }
     
     /// Find a tag mapping by its URL value for the given web log
-    let findByUrlValue urlValue webLogId = backgroundTask {
-        let! tagMap =
-            Sql.existingConnection conn
-            |> Sql.query "SELECT * FROM tag_map WHERE web_log_id = @webLogId AND url_value = @urlValue"
-            |> Sql.parameters [ webLogIdParam webLogId; "@urlValue", Sql.string urlValue ]
-            |> Sql.executeAsync Map.toTagMap
-        return List.tryHead tagMap
-    }
+    let findByUrlValue urlValue webLogId =
+        Sql.existingConnection conn
+        |> Sql.query "SELECT * FROM tag_map WHERE web_log_id = @webLogId AND url_value = @urlValue"
+        |> Sql.parameters [ webLogIdParam webLogId; "@urlValue", Sql.string urlValue ]
+        |> Sql.executeAsync Map.toTagMap
+        |> tryHead
     
     /// Get all tag mappings for the given web log
     let findByWebLog webLogId =
@@ -57,12 +61,12 @@ type PostgreSqlTagMapData (conn : NpgsqlConnection) =
         |> Sql.executeAsync Map.toTagMap
     
     /// The INSERT statement for a tag mapping
-    let tagMapInsert = """
-        INSERT INTO tag_map (
+    let tagMapInsert =
+        "INSERT INTO tag_map (
             id, web_log_id, tag, url_value
         ) VALUES (
             @id, @webLogId, @tag, @urlValue
-        )"""
+        )"
     
     /// The parameters for saving a tag mapping
     let tagMapParams (tagMap : TagMap) = [
@@ -76,10 +80,10 @@ type PostgreSqlTagMapData (conn : NpgsqlConnection) =
     let save tagMap = backgroundTask {
         let! _ =
             Sql.existingConnection conn
-            |> Sql.query $"""
+            |> Sql.query $"
                 {tagMapInsert} ON CONFLICT (id) DO UPDATE
                 SET tag       = EXCLUDED.tag,
-                    url_value = EXCLUDED.url_value"""
+                    url_value = EXCLUDED.url_value"
             |> Sql.parameters (tagMapParams tagMap)
             |> Sql.executeNonQueryAsync
         ()

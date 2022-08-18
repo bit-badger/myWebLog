@@ -39,6 +39,7 @@
 		<Compile Include="PostgreSql\PostgreSqlThemeData.fs" />
 		<Compile Include="PostgreSql\PostgreSqlUploadData.fs" />
 		<Compile Include="PostgreSql\PostgreSqlWebLogData.fs" />
+		<Compile Include="PostgreSql\PostgreSqlWebLogUserData.fs" />
         <Compile Include="PostgreSqlData.fs" />
 	</ItemGroup>
 

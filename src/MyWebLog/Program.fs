@@ -3,6 +3,7 @@ open Microsoft.Data.Sqlite
 open Microsoft.Extensions.Configuration
 open Microsoft.Extensions.Logging
 open MyWebLog
+open Npgsql
 
 /// Middleware to derive the current web log
 type WebLogMiddleware (next : RequestDelegate, log : ILogger<WebLogMiddleware>) =
@@ -58,6 +59,11 @@ module DataImplementation =
             let rethinkCfg = DataConfig.FromUri (connStr "RethinkDB")
             let conn       = await (rethinkCfg.CreateConnectionAsync log)
             upcast RethinkDbData (conn, rethinkCfg, log)
+        elif hasConnStr "PostgreSQL" then
+            let log  = sp.GetRequiredService<ILogger<PostgreSqlData>> ()
+            let conn = new NpgsqlConnection (connStr "PostgreSQL")
+            log.LogInformation $"Using PostgreSQL database {conn.Host}:{conn.Port}/{conn.Database}"
+            PostgreSqlData (conn, log)
         else
             upcast createSQLite "Data Source=./myweblog.db;Cache=Shared"
 
@@ -136,6 +142,16 @@ let rec main args =
         |> ignore
         builder.Services.AddScoped<IData, SQLiteData> () |> ignore
         // Use SQLite for caching as well
+        let cachePath = defaultArg (Option.ofObj (cfg.GetConnectionString "SQLiteCachePath")) "./session.db"
+        builder.Services.AddSqliteCache (fun o -> o.CachePath <- cachePath) |> ignore
+    | :? PostgreSqlData ->
+        // ADO.NET connections are designed to work as per-request instantiation
+        let cfg  = sp.GetRequiredService<IConfiguration> ()
+        builder.Services.AddScoped<NpgsqlConnection> (fun sp ->
+            new NpgsqlConnection (cfg.GetConnectionString "PostgreSQL"))
+        |> ignore
+        builder.Services.AddScoped<IData, PostgreSqlData> () |> ignore
+        // Use SQLite for caching (for now)
         let cachePath = defaultArg (Option.ofObj (cfg.GetConnectionString "SQLiteCachePath")) "./session.db"
         builder.Services.AddSqliteCache (fun o -> o.CachePath <- cachePath) |> ignore
     | _ -> ()

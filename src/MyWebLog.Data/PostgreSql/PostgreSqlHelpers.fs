@@ -2,6 +2,7 @@
 [<AutoOpen>]
 module MyWebLog.Data.PostgreSql.PostgreSqlHelpers
 
+open System.Threading.Tasks
 open MyWebLog
 open Newtonsoft.Json
 open Npgsql.FSharp
@@ -10,19 +11,11 @@ open Npgsql.FSharp
 let webLogIdParam webLogId =
     "@webLogId", Sql.string (WebLogId.toString webLogId)
 
-/// Create the SQL and parameters to find a page or post by one or more prior permalinks
-let priorPermalinkSql permalinks =
-    let mutable idx = 0
-    permalinks
-    |> List.skip 1
-    |> List.fold (fun (linkSql, linkParams) it ->
-        idx <- idx + 1
-        $"{linkSql} OR prior_permalinks && ARRAY[@link{idx}]",
-        ($"@link{idx}", Sql.string (Permalink.toString it)) :: linkParams)
-        (Seq.ofList permalinks
-         |> Seq.map (fun it ->
-             "prior_permalinks && ARRAY[@link0]", [ "@link0", Sql.string (Permalink.toString it) ])
-         |> Seq.head)
+/// The name of the field to select to be able to use Map.toCount
+let countName = "the_count"
+
+/// The name of the field to select to be able to use Map.toExists
+let existsName = "does_exist"
 
 /// Create the SQL and parameters for an IN clause
 let inClause<'T> name (valueFunc: 'T -> string) (items : 'T list) =
@@ -35,6 +28,26 @@ let inClause<'T> name (valueFunc: 'T -> string) (items : 'T list) =
         (Seq.ofList items
          |> Seq.map (fun it -> $"@%s{name}0", [ $"@%s{name}0", Sql.string (valueFunc it) ])
          |> Seq.head)
+
+/// Create the SQL and parameters for the array equivalent of an IN clause
+let arrayInClause<'T> name (valueFunc : 'T -> string) (items : 'T list) =
+    let mutable idx = 0
+    items
+    |> List.skip 1
+    |> List.fold (fun (itemS, itemP) it ->
+        idx <- idx + 1
+        $"{itemS} OR %s{name} && ARRAY[@{name}{idx}]",
+        ($"@{name}{idx}", Sql.string (valueFunc it)) :: itemP)
+        (Seq.ofList items
+         |> Seq.map (fun it ->
+             $"{name} && ARRAY[@{name}0]", [ $"@{name}0", Sql.string (valueFunc it) ])
+         |> Seq.head)
+    
+/// Get the first result of the given query
+let tryHead<'T> (query : Task<'T list>) = backgroundTask {
+    let! results = query
+    return List.tryHead results
+}
 
 /// Mapping functions for SQL queries
 module Map =
@@ -55,7 +68,7 @@ module Map =
 
     /// Get a count from a row
     let toCount (row : RowReader) =
-        row.int "the_count"
+        row.int countName
     
     /// Create a custom feed from the current row
     let toCustomFeed (row : RowReader) : CustomFeed =
@@ -88,7 +101,7 @@ module Map =
     
     /// Get a true/false value as to whether an item exists
     let toExists (row : RowReader) =
-        row.bool "does_exist"
+        row.bool existsName
     
     /// Create a meta item from the current row
     let toMetaItem (row : RowReader) : MetaItem =
@@ -213,3 +226,18 @@ module Map =
             }
         }
     
+    /// Create a web log user from the current row
+    let toWebLogUser (row : RowReader) : WebLogUser =
+        {   Id            = row.string         "id"             |> WebLogUserId
+            WebLogId      = row.string         "web_log_id"     |> WebLogId
+            Email         = row.string         "email"
+            FirstName     = row.string         "first_name"
+            LastName      = row.string         "last_name"
+            PreferredName = row.string         "preferred_name"
+            PasswordHash  = row.string         "password_hash"
+            Salt          = row.uuid           "salt"
+            Url           = row.stringOrNone   "url"
+            AccessLevel   = row.string         "access_level"   |> AccessLevel.parse
+            CreatedOn     = row.dateTime       "created_on"
+            LastSeenOn    = row.dateTimeOrNone "last_seen_on"
+        }

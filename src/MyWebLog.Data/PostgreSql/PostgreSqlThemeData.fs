@@ -34,20 +34,20 @@ type PostgreSqlThemeData (conn : NpgsqlConnection) =
     /// Find a theme by its ID
     let findById themeId = backgroundTask {
         let themeIdParam = [ "@id", Sql.string (ThemeId.toString themeId) ]
-        let! tryTheme =
+        let! theme =
             Sql.existingConnection conn
             |> Sql.query "SELECT * FROM theme WHERE id = @id"
             |> Sql.parameters themeIdParam
             |> Sql.executeAsync Map.toTheme
-        match List.tryHead tryTheme with
-        | Some theme ->
+            |> tryHead
+        if Option.isSome theme then
             let! templates =
                 Sql.existingConnection conn
                 |> Sql.query "SELECT * FROM theme_template WHERE theme_id = @id"
                 |> Sql.parameters themeIdParam
                 |> Sql.executeAsync (Map.toThemeTemplate true)
-            return Some { theme with Templates = templates }
-        | None -> return None
+            return Some { theme.Value with Templates = templates }
+        else return None
     }
     
     /// Find a theme by its ID (excludes the text of templates)
@@ -62,18 +62,23 @@ type PostgreSqlThemeData (conn : NpgsqlConnection) =
     
     /// Delete a theme by its ID
     let delete themeId = backgroundTask {
-        match! findByIdWithoutText themeId with
-        | Some _ ->
+        let idParams = [ "@id", Sql.string (ThemeId.toString themeId) ]
+        let! exists =
+            Sql.existingConnection conn
+            |> Sql.query $"SELECT EXISTS (SELECT 1 FROM theme WHERE id = @id) AS {existsName}"
+            |> Sql.parameters idParams
+            |> Sql.executeRowAsync Map.toExists
+        if exists then
             let! _ =
                 Sql.existingConnection conn
-                |> Sql.query """
-                    DELETE FROM theme_asset    WHERE theme_id = @id;
-                    DELETE FROM theme_template WHERE theme_id = @id;
-                    DELETE FROM theme          WHERE id       = @id"""
-                |> Sql.parameters [ "@id", Sql.string (ThemeId.toString themeId) ]
+                |> Sql.query
+                    "DELETE FROM theme_asset    WHERE theme_id = @id;
+                     DELETE FROM theme_template WHERE theme_id = @id;
+                     DELETE FROM theme          WHERE id       = @id"
+                |> Sql.parameters idParams
                 |> Sql.executeNonQueryAsync
             return true
-        | None -> return false
+        else return false
     }
     
     /// Save a theme
@@ -82,11 +87,11 @@ type PostgreSqlThemeData (conn : NpgsqlConnection) =
         let  themeIdParam = Sql.string (ThemeId.toString theme.Id)
         let! _ =
             Sql.existingConnection conn
-            |> Sql.query """
-                INSERT INTO theme VALUES (@id, @name, @version)
-                ON CONFLICT (id) DO UPDATE
-                SET name    = EXCLUDED.name,
-                    version = EXCLUDED.version"""
+            |> Sql.query
+                "INSERT INTO theme VALUES (@id, @name, @version)
+                 ON CONFLICT (id) DO UPDATE
+                 SET name    = EXCLUDED.name,
+                     version = EXCLUDED.version"
             |> Sql.parameters
                 [   "@id",      themeIdParam
                     "@name",    Sql.string theme.Name
@@ -108,9 +113,9 @@ type PostgreSqlThemeData (conn : NpgsqlConnection) =
                         "DELETE FROM theme_template WHERE theme_id = @themeId AND name = @name",
                         toDelete |> List.map (fun tmpl -> [ "@themeId", themeIdParam; "@name", Sql.string tmpl.Name ])
                     if not (List.isEmpty toAddOrUpdate) then
-                        """INSERT INTO theme_template VALUES (@themeId, @name, @template)
-                            ON CONFLICT (theme_id, name) DO UPDATE
-                            SET template = EXCLUDED.template""",
+                        "INSERT INTO theme_template VALUES (@themeId, @name, @template)
+                         ON CONFLICT (theme_id, name) DO UPDATE
+                         SET template = EXCLUDED.template",
                         toAddOrUpdate |> List.map (fun tmpl -> [
                             "@themeId",  themeIdParam
                             "@name",     Sql.string tmpl.Name
@@ -149,15 +154,13 @@ type PostgreSqlThemeAssetData (conn : NpgsqlConnection) =
     }
     
     /// Find a theme asset by its ID
-    let findById assetId = backgroundTask {
+    let findById assetId =
         let (ThemeAssetId (ThemeId themeId, path)) = assetId
-        let! asset =
-            Sql.existingConnection conn
-            |> Sql.query "SELECT * FROM theme_asset WHERE theme_id = @themeId AND path = @path"
-            |> Sql.parameters [ "@themeId", Sql.string themeId; "@path", Sql.string path ]
-            |> Sql.executeAsync (Map.toThemeAsset true)
-        return List.tryHead asset
-    }
+        Sql.existingConnection conn
+        |> Sql.query "SELECT * FROM theme_asset WHERE theme_id = @themeId AND path = @path"
+        |> Sql.parameters [ "@themeId", Sql.string themeId; "@path", Sql.string path ]
+        |> Sql.executeAsync (Map.toThemeAsset true)
+        |> tryHead
     
     /// Get theme assets for the given theme (excludes data)
     let findByTheme themeId =
@@ -178,14 +181,14 @@ type PostgreSqlThemeAssetData (conn : NpgsqlConnection) =
         let (ThemeAssetId (ThemeId themeId, path)) = asset.Id
         let! _ =
             Sql.existingConnection conn
-            |> Sql.query """
-                INSERT INTO theme_asset (
+            |> Sql.query
+                "INSERT INTO theme_asset (
                     theme_id, path, updated_on, data
                 ) VALUES (
                     @themeId, @path, @updatedOn, @data
                 ) ON CONFLICT (theme_id, path) DO UPDATE
                 SET updated_on = EXCLUDED.updated_on,
-                    data       = EXCLUDED.data"""
+                    data       = EXCLUDED.data"
             |> Sql.parameters
                 [   "@themeId",   Sql.string      themeId
                     "@path",      Sql.string      path
