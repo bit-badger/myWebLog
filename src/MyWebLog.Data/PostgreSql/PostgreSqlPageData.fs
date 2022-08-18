@@ -25,6 +25,16 @@ type PostgreSqlPageData (conn : NpgsqlConnection) =
     let pageWithoutText row =
         { Map.toPage row with Text = "" }
     
+    /// The INSERT statement for a page revision
+    let revInsert = "INSERT INTO page_revision VALUES (@pageId, @asOf, @text)"
+    
+    /// Parameters for a revision INSERT statement
+    let revParams pageId rev = [
+        "@pageId", Sql.string      (PageId.toString pageId)
+        "@asOf",   Sql.timestamptz rev.AsOf
+        "@text",   Sql.string      (MarkupText.toString rev.Text)
+    ]
+    
     /// Update a page's revisions
     let updatePageRevisions pageId oldRevs newRevs = backgroundTask {
         let toDelete, toAdd = Utils.diffRevisions oldRevs newRevs
@@ -40,13 +50,7 @@ type PostgreSqlPageData (conn : NpgsqlConnection) =
                             "@asOf",   Sql.timestamptz it.AsOf
                         ])
                     if not (List.isEmpty toAdd) then
-                        "INSERT INTO page_revision VALUES (@pageId, @asOf, @text)",
-                        toAdd
-                        |> List.map (fun it -> [
-                            "@pageId", Sql.string      (PageId.toString pageId)
-                            "@asOf",   Sql.timestamptz it.AsOf
-                            "@text",   Sql.string      (MarkupText.toString it.Text)
-                        ])
+                        revInsert, toAdd |> List.map (revParams pageId)
                 ]
             ()
     }
@@ -173,19 +177,39 @@ type PostgreSqlPageData (conn : NpgsqlConnection) =
         |> Sql.parameters [ webLogIdParam webLogId; "@pageSize", Sql.int 26; "@toSkip", Sql.int ((pageNbr - 1) * 25) ]
         |> Sql.executeAsync Map.toPage
     
+    /// The INSERT statement for a page
+    let pageInsert = """
+        INSERT INTO page (
+            id, web_log_id, author_id, title, permalink, prior_permalinks, published_on, updated_on, is_in_page_list,
+            template, page_text, meta_items
+        ) VALUES (
+            @id, @webLogId, @authorId, @title, @permalink, @priorPermalinks, @publishedOn, @updatedOn, @isInPageList,
+            @template, @text, @metaItems
+        )"""
+    
+    /// The parameters for saving a page
+    let pageParams (page : Page) = [
+        webLogIdParam page.WebLogId
+        "@id",              Sql.string       (PageId.toString page.Id)
+        "@authorId",        Sql.string       (WebLogUserId.toString page.AuthorId)
+        "@title",           Sql.string       page.Title
+        "@permalink",       Sql.string       (Permalink.toString page.Permalink)
+        "@publishedOn",     Sql.timestamptz  page.PublishedOn
+        "@updatedOn",       Sql.timestamptz  page.UpdatedOn
+        "@isInPageList",    Sql.bool         page.IsInPageList
+        "@template",        Sql.stringOrNone page.Template
+        "@text",            Sql.string       page.Text
+        "@metaItems",       Sql.jsonb        (JsonConvert.SerializeObject page.Metadata)
+        "@priorPermalinks", Sql.stringArray  (page.PriorPermalinks |> List.map Permalink.toString |> Array.ofList)
+    ]
+
     /// Save a page
     let save (page : Page) = backgroundTask {
         let! oldPage = findFullById page.Id page.WebLogId
         let! _ =
             Sql.existingConnection conn
-            |> Sql.query """
-                INSERT INTO page (
-                    id, web_log_id, author_id, title, permalink, prior_permalinks, published_on, updated_on,
-                    is_in_page_list, template, page_text, meta_items
-                ) VALUES (
-                    @id, @webLogId, @authorId, @title, @permalink, @priorPermalinks, @publishedOn, @updatedOn,
-                    @isInPageList, @template, @text, @metaItems
-                ) ON CONFLICT (id) DO UPDATE
+            |> Sql.query $"""
+                {pageInsert} ON CONFLICT (id) DO UPDATE
                 SET author_id        = EXCLUDED.author_id,
                     title            = EXCLUDED.title,
                     permalink        = EXCLUDED.permalink,
@@ -196,29 +220,22 @@ type PostgreSqlPageData (conn : NpgsqlConnection) =
                     template         = EXCLUDED.template,
                     page_text        = EXCLUDED.text,
                     meta_items       = EXCLUDED.meta_items"""
-            |> Sql.parameters
-                [   webLogIdParam page.WebLogId
-                    "@id",           Sql.string       (PageId.toString page.Id)
-                    "@authorId",     Sql.string       (WebLogUserId.toString page.AuthorId)
-                    "@title",        Sql.string       page.Title
-                    "@permalink",    Sql.string       (Permalink.toString page.Permalink)
-                    "@publishedOn",  Sql.timestamptz  page.PublishedOn
-                    "@updatedOn",    Sql.timestamptz  page.UpdatedOn
-                    "@isInPageList", Sql.bool         page.IsInPageList
-                    "@template",     Sql.stringOrNone page.Template
-                    "@text",         Sql.string       page.Text
-                    "@metaItems",    Sql.jsonb        (JsonConvert.SerializeObject page.Metadata)
-                    "@priorPermalinks",
-                        Sql.stringArray (page.PriorPermalinks |> List.map Permalink.toString |> Array.ofList) ]
+            |> Sql.parameters (pageParams page)
             |> Sql.executeNonQueryAsync
         do! updatePageRevisions page.Id (match oldPage with Some p -> p.Revisions | None -> []) page.Revisions
         ()
     }
     
     /// Restore pages from a backup
-    let restore pages = backgroundTask {
-        for page in pages do
-            do! save page
+    let restore (pages : Page list) = backgroundTask {
+        let revisions = pages |> List.collect (fun p -> p.Revisions |> List.map (fun r -> p.Id, r))
+        let! _ =
+            Sql.existingConnection conn
+            |> Sql.executeTransactionAsync [
+                pageInsert, pages     |> List.map pageParams
+                revInsert,  revisions |> List.map (fun (pageId, rev) -> revParams pageId rev)
+            ]
+        ()
     }
     
     /// Update a page's prior permalinks

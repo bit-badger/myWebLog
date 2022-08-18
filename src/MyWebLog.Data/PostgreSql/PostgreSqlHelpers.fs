@@ -57,6 +57,39 @@ module Map =
     let toCount (row : RowReader) =
         row.int "the_count"
     
+    /// Create a custom feed from the current row
+    let toCustomFeed (row : RowReader) : CustomFeed =
+        {   Id      = row.string "id"     |> CustomFeedId
+            Source  = row.string "source" |> CustomFeedSource.parse
+            Path    = row.string "path"   |> Permalink
+            Podcast =
+                match row.stringOrNone "title" with
+                | Some title ->
+                    Some {
+                        Title             = title
+                        Subtitle          = row.stringOrNone "subtitle"
+                        ItemsInFeed       = row.int          "items_in_feed"
+                        Summary           = row.string       "summary"
+                        DisplayedAuthor   = row.string       "displayed_author"
+                        Email             = row.string       "email"
+                        ImageUrl          = row.string       "image_url"          |> Permalink
+                        AppleCategory     = row.string       "apple_category"
+                        AppleSubcategory  = row.stringOrNone "apple_subcategory"
+                        Explicit          = row.string       "explicit"           |> ExplicitRating.parse
+                        DefaultMediaType  = row.stringOrNone "default_media_type"
+                        MediaBaseUrl      = row.stringOrNone "media_base_url"
+                        PodcastGuid       = row.uuidOrNone   "podcast_guid"
+                        FundingUrl        = row.stringOrNone "funding_url"
+                        FundingText       = row.stringOrNone "funding_text"
+                        Medium            = row.stringOrNone "medium"             |> Option.map PodcastMedium.parse
+                    }
+                | None -> None
+        }
+    
+    /// Get a true/false value as to whether an item exists
+    let toExists (row : RowReader) =
+        row.bool "does_exist"
+    
     /// Create a meta item from the current row
     let toMetaItem (row : RowReader) : MetaItem =
         {   Name  = row.string "name"
@@ -118,10 +151,65 @@ module Map =
             Text = row.string   "revision_text" |> MarkupText.parse
         }
     
-    /// Create a tag mapping from the current row in the given data reader
+    /// Create a tag mapping from the current row
     let toTagMap (row : RowReader) : TagMap =
         {   Id       = row.string "id"         |> TagMapId
             WebLogId = row.string "web_log_id" |> WebLogId
             Tag      = row.string "tag"
             UrlValue = row.string "url_value"
         }
+    
+    /// Create a theme from the current row (excludes templates)
+    let toTheme (row : RowReader) : Theme =
+        { Theme.empty with
+            Id      = row.string "id" |> ThemeId
+            Name    = row.string "name"
+            Version = row.string "version"
+        }
+    
+    /// Create a theme asset from the current row
+    let toThemeAsset includeData (row : RowReader) : ThemeAsset =
+        {   Id        = ThemeAssetId (ThemeId (row.string "theme_id"), row.string "path")
+            UpdatedOn = row.dateTime "updated_on"
+            Data      = if includeData then row.bytea "data" else [||]
+        }
+    
+    /// Create a theme template from the current row
+    let toThemeTemplate includeText (row : RowReader) : ThemeTemplate =
+        {   Name = row.string "name"
+            Text = if includeText then row.string "template" else ""
+        }
+
+    /// Create an uploaded file from the current row
+    let toUpload includeData (row : RowReader) : Upload =
+        {   Id        = row.string   "id"         |> UploadId
+            WebLogId  = row.string   "web_log_id" |> WebLogId
+            Path      = row.string   "path"       |> Permalink
+            UpdatedOn = row.dateTime "updated_on"
+            Data      = if includeData then row.bytea "data" else [||]
+        }
+    
+    /// Create a web log from the current row
+    let toWebLog (row : RowReader) : WebLog =
+        {   Id           = row.string       "id"             |> WebLogId
+            Name         = row.string       "name"
+            Slug         = row.string       "slug"
+            Subtitle     = row.stringOrNone "subtitle"
+            DefaultPage  = row.string       "default_page"
+            PostsPerPage = row.int          "posts_per_page"
+            ThemeId      = row.string       "theme_id"       |> ThemeId
+            UrlBase      = row.string       "url_base"
+            TimeZone     = row.string       "time_zone"
+            AutoHtmx     = row.bool         "auto_htmx"
+            Uploads      = row.string       "uploads"        |> UploadDestination.parse
+            Rss          = {
+                IsFeedEnabled     = row.bool         "is_feed_enabled"
+                FeedName          = row.string       "feed_name"
+                ItemsInFeed       = row.intOrNone    "items_in_feed"
+                IsCategoryEnabled = row.bool         "is_category_enabled"
+                IsTagEnabled      = row.bool         "is_tag_enabled"
+                Copyright         = row.stringOrNone "copyright"
+                CustomFeeds       = []
+            }
+        }
+    

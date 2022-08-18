@@ -56,32 +56,43 @@ type PostgreSqlTagMapData (conn : NpgsqlConnection) =
         |> Sql.parameters (webLogIdParam webLogId :: tagParams)
         |> Sql.executeAsync Map.toTagMap
     
+    /// The INSERT statement for a tag mapping
+    let tagMapInsert = """
+        INSERT INTO tag_map (
+            id, web_log_id, tag, url_value
+        ) VALUES (
+            @id, @webLogId, @tag, @urlValue
+        )"""
+    
+    /// The parameters for saving a tag mapping
+    let tagMapParams (tagMap : TagMap) = [
+        webLogIdParam tagMap.WebLogId
+        "@id",       Sql.string (TagMapId.toString tagMap.Id)
+        "@tag",      Sql.string tagMap.Tag
+        "@urlValue", Sql.string tagMap.UrlValue
+    ]
+    
     /// Save a tag mapping
-    let save (tagMap : TagMap) = backgroundTask {
+    let save tagMap = backgroundTask {
         let! _ =
             Sql.existingConnection conn
-            |> Sql.query """
-                INSERT INTO tag_map (
-                    id, web_log_id, tag, url_value
-                ) VALUES (
-                    @id, @webLogId, @tag, @urlValue
-                ) ON CONFLICT (id) DO UPDATE
+            |> Sql.query $"""
+                {tagMapInsert} ON CONFLICT (id) DO UPDATE
                 SET tag       = EXCLUDED.tag,
                     url_value = EXCLUDED.url_value"""
-            |> Sql.parameters
-                [   webLogIdParam tagMap.WebLogId
-                    "@id",       Sql.string (TagMapId.toString tagMap.Id)
-                    "@tag",      Sql.string tagMap.Tag
-                    "@urlValue", Sql.string tagMap.UrlValue
-                ]
+            |> Sql.parameters (tagMapParams tagMap)
             |> Sql.executeNonQueryAsync
         ()
     }
     
     /// Restore tag mappings from a backup
     let restore tagMaps = backgroundTask {
-        for tagMap in tagMaps do
-            do! save tagMap
+        let! _ =
+            Sql.existingConnection conn
+            |> Sql.executeTransactionAsync [
+                tagMapInsert, tagMaps |> List.map tagMapParams
+            ]
+        ()
     }
     
     interface ITagMapData with

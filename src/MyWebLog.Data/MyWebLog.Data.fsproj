@@ -36,6 +36,9 @@
 		<Compile Include="PostgreSql\PostgreSqlPageData.fs" />
 		<Compile Include="PostgreSql\PostgreSqlPostData.fs" />
 		<Compile Include="PostgreSql\PostgreSqlTagMapData.fs" />
+		<Compile Include="PostgreSql\PostgreSqlThemeData.fs" />
+		<Compile Include="PostgreSql\PostgreSqlUploadData.fs" />
+		<Compile Include="PostgreSql\PostgreSqlWebLogData.fs" />
         <Compile Include="PostgreSqlData.fs" />
 	</ItemGroup>
 

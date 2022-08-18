@@ -117,35 +117,47 @@ type PostgreSqlCategoryData (conn : NpgsqlConnection) =
         | None -> return CategoryNotFound
     }
     
-    /// Update a category
-    let save (cat : Category) = backgroundTask {
+    /// The INSERT statement for a category
+    let catInsert = """
+        INSERT INTO category (
+            id, web_log_id, name, slug, description, parent_id
+        ) VALUES (
+            @id, @webLogId, @name, @slug, @description, @parentId
+        )"""
+    
+    /// Create parameters for a category insert / update
+    let catParameters (cat : Category) = [
+        webLogIdParam cat.WebLogId
+        "@id",          Sql.string       (CategoryId.toString cat.Id)
+        "@name",        Sql.string       cat.Name
+        "@slug",        Sql.string       cat.Slug
+        "@description", Sql.stringOrNone cat.Description
+        "@parentId",    Sql.stringOrNone (cat.ParentId |> Option.map CategoryId.toString)
+    ]
+
+    /// Save a category
+    let save cat = backgroundTask {
         let! _ =
             Sql.existingConnection conn
-            |> Sql.query """
-                INSERT INTO category (
-                    id, web_log_id, name, slug, description, parent_id
-                ) VALUES (
-                    @id, @webLogId, @name, @slug, @description, @parentId
-                ) ON CONFLICT (id) DO UPDATE
+            |> Sql.query $"""
+                {catInsert} ON CONFLICT (id) DO UPDATE
                 SET name        = EXCLUDED.name,
                     slug        = EXCLUDED.slug,
                     description = EXCLUDED.description,
                     parent_id   = EXCLUDED.parent_id"""
-            |> Sql.parameters
-                [   webLogIdParam cat.WebLogId
-                    "@id",          Sql.string       (CategoryId.toString cat.Id)
-                    "@name",        Sql.string       cat.Name
-                    "@slug",        Sql.string       cat.Slug
-                    "@description", Sql.stringOrNone cat.Description
-                    "@parentId",    Sql.stringOrNone (cat.ParentId |> Option.map CategoryId.toString) ]
+            |> Sql.parameters (catParameters cat)
             |> Sql.executeNonQueryAsync
         ()
     }
     
     /// Restore categories from a backup
     let restore cats = backgroundTask {
-        for cat in cats do
-            do! save cat
+        let! _ =
+            Sql.existingConnection conn
+            |> Sql.executeTransactionAsync [
+                catInsert, cats |> List.map catParameters
+            ]
+        ()
     }
     
     interface ICategoryData with

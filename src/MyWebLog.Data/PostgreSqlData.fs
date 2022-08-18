@@ -11,9 +11,14 @@ type PostgreSqlData (conn : NpgsqlConnection, log : ILogger<PostgreSqlData>) =
 
     interface IData with
         
-        member _.Category = PostgreSqlCategoryData conn
-        member _.Page     = PostgreSqlPageData     conn
-        member _.Post     = PostgreSqlPostData     conn
+        member _.Category   = PostgreSqlCategoryData   conn
+        member _.Page       = PostgreSqlPageData       conn
+        member _.Post       = PostgreSqlPostData       conn
+        member _.TagMap     = PostgreSqlTagMapData     conn
+        member _.Theme      = PostgreSqlThemeData      conn
+        member _.ThemeAsset = PostgreSqlThemeAssetData conn
+        member _.Upload     = PostgreSqlUploadData     conn
+        member _.WebLog     = PostgreSqlWebLogData     conn
         
         member _.StartUp () = backgroundTask {
 

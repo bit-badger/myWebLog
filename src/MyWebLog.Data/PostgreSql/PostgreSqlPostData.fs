@@ -31,27 +31,40 @@ type PostgreSqlPostData (conn : NpgsqlConnection) =
     let postWithoutText row =
         { Map.toPost row with Text = "" }
     
+    /// The INSERT statement for a post/category cross-reference
+    let catInsert = "INSERT INTO post_category VALUES (@postId, @categoryId)"
+    
+    /// Parameters for adding or updating a post/category cross-reference
+    let catParams postId cat = [
+        "@postId",    Sql.string (PostId.toString postId)
+        "categoryId", Sql.string (CategoryId.toString cat)
+    ]
+    
     /// Update a post's assigned categories
     let updatePostCategories postId oldCats newCats = backgroundTask {
         let toDelete, toAdd = Utils.diffLists oldCats newCats CategoryId.toString
         if not (List.isEmpty toDelete) || not (List.isEmpty toAdd) then
-            let catParams cats =
-                cats
-                |> List.map (fun it -> [
-                    "@postId",    Sql.string (PostId.toString postId)
-                    "categoryId", Sql.string (CategoryId.toString it)
-                ])
             let! _ =
                 Sql.existingConnection conn
                 |> Sql.executeTransactionAsync [
                     if not (List.isEmpty toDelete) then
                         "DELETE FROM post_category WHERE post_id = @postId AND category_id = @categoryId",
-                        catParams toDelete
+                        toDelete |> List.map (catParams postId)
                     if not (List.isEmpty toAdd) then
-                        "INSERT INTO post_category VALUES (@postId, @categoryId)", catParams toAdd
+                        catInsert, toAdd |> List.map (catParams postId)
                 ]
             ()
     }
+    
+    /// The INSERT statement for a post revision
+    let revInsert = "INSERT INTO post_revision VALUES (@postId, @asOf, @text)"
+    
+    /// The parameters for adding a post revision
+    let revParams postId rev = [
+        "@postId", Sql.string      (PostId.toString postId)
+        "@asOf",   Sql.timestamptz rev.AsOf
+        "@text",   Sql.string      (MarkupText.toString rev.Text)
+    ]
     
     /// Update a post's revisions
     let updatePostRevisions postId oldRevs newRevs = backgroundTask {
@@ -68,13 +81,7 @@ type PostgreSqlPostData (conn : NpgsqlConnection) =
                             "@asOf",   Sql.timestamptz it.AsOf
                         ])
                     if not (List.isEmpty toAdd) then
-                        "INSERT INTO post_revision VALUES (@postId, @asOf, @text)",
-                        toAdd
-                        |> List.map (fun it -> [
-                            "@postId", Sql.string      (PostId.toString postId)
-                            "@asOf",   Sql.timestamptz it.AsOf
-                            "@text",   Sql.string      (MarkupText.toString it.Text)
-                        ])
+                        revInsert, toAdd |> List.map (revParams postId)
                 ]
             ()
     }
@@ -259,19 +266,43 @@ type PostgreSqlPostData (conn : NpgsqlConnection) =
         return List.tryHead older, List.tryHead newer
     }
     
+    /// The INSERT statement for a post
+    let postInsert = """
+        INSERT INTO post (
+            id, web_log_id, author_id, status, title, permalink, prior_permalinks, published_on, updated_on,
+            template, post_text, tags, meta_items, episode
+        ) VALUES (
+            @id, @webLogId, @authorId, @status, @title, @permalink, @priorPermalinks, @publishedOn, @updatedOn,
+            @template, @text, @tags, @metaItems, @episode
+        )"""
+    
+    /// The parameters for saving a post
+    let postParams (post : Post) = [
+        webLogIdParam post.WebLogId
+        "@id",              Sql.string            (PostId.toString post.Id)
+        "@authorId",        Sql.string            (WebLogUserId.toString post.AuthorId)
+        "@status",          Sql.string            (PostStatus.toString post.Status)
+        "@title",           Sql.string            post.Title
+        "@permalink",       Sql.string            (Permalink.toString post.Permalink)
+        "@publishedOn",     Sql.timestamptzOrNone post.PublishedOn
+        "@updatedOn",       Sql.timestamptz       post.UpdatedOn
+        "@template",        Sql.stringOrNone      post.Template
+        "@text",            Sql.string            post.Text
+        "@episode",         Sql.jsonbOrNone       (post.Episode |> Option.map JsonConvert.SerializeObject)
+        "@priorPermalinks", Sql.stringArray       (post.PriorPermalinks |> List.map Permalink.toString |> Array.ofList)
+        "@tags", Sql.stringArrayOrNone (if List.isEmpty post.Tags then None else Some (Array.ofList post.Tags))
+        "@metaItems",
+            if List.isEmpty post.Metadata then None else Some (JsonConvert.SerializeObject post.Metadata)
+            |> Sql.jsonbOrNone
+    ]
+    
     /// Save a post
     let save (post : Post) = backgroundTask {
         let! oldPost = findFullById post.Id post.WebLogId
         let! _ =
             Sql.existingConnection conn
-            |> Sql.query """
-                INSERT INTO post (
-                    id, web_log_id, author_id, status, title, permalink, prior_permalinks, published_on, updated_on,
-                    template, post_text, tags, meta_items, episode
-                ) VALUES (
-                    @id, @webLogId, @authorId, @status, @title, @permalink, @priorPermalinks, @publishedOn, @updatedOn,
-                    @template, @text, @tags, @metaItems, @episode
-                ) ON CONFLICT (id) DO UPDATE
+            |> Sql.query $"""
+                {postInsert} ON CONFLICT (id) DO UPDATE
                 SET author_id        = EXCLUDED.author_id,
                     status           = EXCLUDED.status,
                     title            = EXCLUDED.title,
@@ -284,26 +315,7 @@ type PostgreSqlPostData (conn : NpgsqlConnection) =
                     tags             = EXCLUDED.tags,
                     meta_items       = EXCLUDED.meta_items,
                     episode          = EXCLUDED.episode"""
-            |> Sql.parameters
-                [   webLogIdParam post.WebLogId
-                    "@id",          Sql.string            (PostId.toString post.Id)
-                    "@authorId",    Sql.string            (WebLogUserId.toString post.AuthorId)
-                    "@status",      Sql.string            (PostStatus.toString post.Status)
-                    "@title",       Sql.string            post.Title
-                    "@permalink",   Sql.string            (Permalink.toString post.Permalink)
-                    "@publishedOn", Sql.timestamptzOrNone post.PublishedOn
-                    "@updatedOn",   Sql.timestamptz       post.UpdatedOn
-                    "@template",    Sql.stringOrNone      post.Template
-                    "@text",        Sql.string            post.Text
-                    "@episode",     Sql.jsonbOrNone       (post.Episode |> Option.map JsonConvert.SerializeObject)
-                    "@priorPermalinks",
-                        Sql.stringArray (post.PriorPermalinks |> List.map Permalink.toString |> Array.ofList)
-                    "@tags",
-                        Sql.stringArrayOrNone (if List.isEmpty post.Tags then None else Some (Array.ofList post.Tags))
-                    "@metaItems",
-                        if List.isEmpty post.Metadata then None else Some (JsonConvert.SerializeObject post.Metadata)
-                        |> Sql.jsonbOrNone
-                ]
+            |> Sql.parameters (postParams post)
             |> Sql.executeNonQueryAsync
         do! updatePostCategories post.Id (match oldPost with Some p -> p.CategoryIds | None -> []) post.CategoryIds
         do! updatePostRevisions  post.Id (match oldPost with Some p -> p.Revisions   | None -> []) post.Revisions
@@ -311,8 +323,16 @@ type PostgreSqlPostData (conn : NpgsqlConnection) =
     
     /// Restore posts from a backup
     let restore posts = backgroundTask {
-        for post in posts do
-            do! save post
+        let cats      = posts |> List.collect (fun p -> p.CategoryIds |> List.map (fun c -> p.Id, c))
+        let revisions = posts |> List.collect (fun p -> p.Revisions   |> List.map (fun r -> p.Id, r))
+        let! _ =
+            Sql.existingConnection conn
+            |> Sql.executeTransactionAsync [
+                postInsert, posts     |> List.map postParams
+                catInsert,  cats      |> List.map (fun (postId, catId) -> catParams postId catId)
+                revInsert,  revisions |> List.map (fun (postId, rev)   -> revParams postId rev)
+            ]
+        ()
     }
     
     /// Update prior permalinks for a post
