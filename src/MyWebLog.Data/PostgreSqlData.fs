@@ -12,6 +12,8 @@ type PostgreSqlData (conn : NpgsqlConnection, log : ILogger<PostgreSqlData>) =
     interface IData with
         
         member _.Category = PostgreSqlCategoryData conn
+        member _.Page     = PostgreSqlPageData     conn
+        member _.Post     = PostgreSqlPostData     conn
         
         member _.StartUp () = backgroundTask {
 
@@ -127,25 +129,16 @@ type PostgreSqlData (conn : NpgsqlConnection, log : ILogger<PostgreSqlData>) =
                             author_id        TEXT        NOT NULL REFERENCES web_log_user (id),
                             title            TEXT        NOT NULL,
                             permalink        TEXT        NOT NULL,
+                            prior_permalinks TEXT[]      NOT NULL DEFAULT '{}',
                             published_on     TIMESTAMPTZ NOT NULL,
                             updated_on       TIMESTAMPTZ NOT NULL,
                             is_in_page_list  BOOLEAN     NOT NULL DEFAULT FALSE,
                             template         TEXT,
-                            page_text        TEXT        NOT NULL);
+                            page_text        TEXT        NOT NULL
+                            meta_items       JSONB);
                         CREATE INDEX page_web_log_idx   ON page (web_log_id);
                         CREATE INDEX page_author_idx    ON page (author_id);
                         CREATE INDEX page_permalink_idx ON page (web_log_id, permalink)"""
-                if needsTable "page_meta" then
-                    """CREATE TABLE page_meta (
-                            page_id  TEXT NOT NULL REFERENCES page (id),
-                            name     TEXT NOT NULL,
-                            value    TEXT NOT NULL,
-                            PRIMARY KEY (page_id, name, value))"""
-                if needsTable "page_permalink" then
-                    """CREATE TABLE page_permalink (
-                            page_id    TEXT NOT NULL REFERENCES page (id),
-                            permalink  TEXT NOT NULL,
-                            PRIMARY KEY (page_id, permalink))"""
                 if needsTable "page_revision" then
                     """CREATE TABLE page_revision (
                             page_id        TEXT        NOT NULL REFERENCES page (id),
@@ -156,16 +149,20 @@ type PostgreSqlData (conn : NpgsqlConnection, log : ILogger<PostgreSqlData>) =
                 // Post tables
                 if needsTable "post" then
                     """CREATE TABLE post (
-                            id            TEXT        NOT NULL PRIMARY KEY,
-                            web_log_id    TEXT        NOT NULL REFERENCES web_log (id),
-                            author_id     TEXT        NOT NULL REFERENCES web_log_user (id),
-                            status        TEXT        NOT NULL,
-                            title         TEXT        NOT NULL,
-                            permalink     TEXT        NOT NULL,
-                            published_on  TIMESTAMPTZ,
-                            updated_on    TIMESTAMPTZ NOT NULL,
-                            template      TEXT,
-                            post_text     TEXT        NOT NULL);
+                            id               TEXT        NOT NULL PRIMARY KEY,
+                            web_log_id       TEXT        NOT NULL REFERENCES web_log (id),
+                            author_id        TEXT        NOT NULL REFERENCES web_log_user (id),
+                            status           TEXT        NOT NULL,
+                            title            TEXT        NOT NULL,
+                            permalink        TEXT        NOT NULL,
+                            prior_permalinks TEXT[]      NOT NULL DEFAULT '{}',
+                            published_on     TIMESTAMPTZ,
+                            updated_on       TIMESTAMPTZ NOT NULL,
+                            template         TEXT,
+                            post_text        TEXT        NOT NULL,
+                            tags             TEXT[],
+                            meta_items       JSONB,
+                            episode          JSONB);
                         CREATE INDEX post_web_log_idx   ON post (web_log_id);
                         CREATE INDEX post_author_idx    ON post (author_id);
                         CREATE INDEX post_status_idx    ON post (web_log_id, status, updated_on);
@@ -176,42 +173,6 @@ type PostgreSqlData (conn : NpgsqlConnection, log : ILogger<PostgreSqlData>) =
                             category_id  TEXT NOT NULL REFERENCES category (id),
                             PRIMARY KEY (post_id, category_id));
                         CREATE INDEX post_category_category_idx ON post_category (category_id)"""
-                if needsTable "post_episode" then
-                    """CREATE TABLE post_episode (
-                            post_id              TEXT    NOT NULL PRIMARY KEY REFERENCES post(id),
-                            media                TEXT    NOT NULL,
-                            length               INTEGER NOT NULL,
-                            duration             TEXT,
-                            media_type           TEXT,
-                            image_url            TEXT,
-                            subtitle             TEXT,
-                            explicit             TEXT,
-                            chapter_file         TEXT,
-                            chapter_type         TEXT,
-                            transcript_url       TEXT,
-                            transcript_type      TEXT,
-                            transcript_lang      TEXT,
-                            transcript_captions  INTEGER,
-                            season_number        INTEGER,
-                            season_description   TEXT,
-                            episode_number       TEXT,
-                            episode_description  TEXT)"""
-                if needsTable "post_tag" then
-                    """CREATE TABLE post_tag (
-                            post_id  TEXT NOT NULL REFERENCES post (id),
-                            tag      TEXT NOT NULL,
-                            PRIMARY KEY (post_id, tag))"""
-                if needsTable "post_meta" then
-                    """CREATE TABLE post_meta (
-                            post_id  TEXT NOT NULL REFERENCES post (id),
-                            name     TEXT NOT NULL,
-                            value    TEXT NOT NULL,
-                            PRIMARY KEY (post_id, name, value))"""
-                if needsTable "post_permalink" then
-                    """CREATE TABLE post_permalink (
-                            post_id    TEXT NOT NULL REFERENCES post (id),
-                            permalink  TEXT NOT NULL,
-                            PRIMARY KEY (post_id, permalink))"""
                 if needsTable "post_revision" then
                     """CREATE TABLE post_revision (
                             post_id        TEXT        NOT NULL REFERENCES post (id),

@@ -107,7 +107,7 @@ type SQLiteWebLogData (conn : SqliteConnection) =
     /// Update the custom feeds for a web log
     let updateCustomFeeds (webLog : WebLog) = backgroundTask {
         let! feeds = getCustomFeeds webLog
-        let toDelete, toAdd = diffLists feeds webLog.Rss.CustomFeeds (fun it -> $"{CustomFeedId.toString it.Id}")
+        let toDelete, toAdd = Utils.diffLists feeds webLog.Rss.CustomFeeds (fun it -> $"{CustomFeedId.toString it.Id}")
         let toId (feed : CustomFeed) = feed.Id
         let toUpdate =
             webLog.Rss.CustomFeeds

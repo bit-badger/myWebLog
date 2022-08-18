@@ -92,8 +92,8 @@ type SQLiteThemeData (conn : SqliteConnection) =
         do! write cmd
         
         let toDelete, toAdd =
-            diffLists (oldTheme |> Option.map (fun t -> t.Templates) |> Option.defaultValue [])
-                      theme.Templates (fun t -> t.Name)
+            Utils.diffLists (oldTheme |> Option.map (fun t -> t.Templates) |> Option.defaultValue [])
+                            theme.Templates (fun t -> t.Name)
         let toUpdate =
             theme.Templates
             |> List.filter (fun t ->

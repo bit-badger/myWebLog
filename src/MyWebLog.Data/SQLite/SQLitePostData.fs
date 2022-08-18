@@ -99,7 +99,7 @@ type SQLitePostData (conn : SqliteConnection) =
     
     /// Update a post's assigned categories
     let updatePostCategories postId oldCats newCats = backgroundTask {
-        let toDelete, toAdd = diffLists oldCats newCats CategoryId.toString
+        let toDelete, toAdd = Utils.diffLists oldCats newCats CategoryId.toString
         if List.isEmpty toDelete && List.isEmpty toAdd then
             return ()
         else
@@ -125,7 +125,7 @@ type SQLitePostData (conn : SqliteConnection) =
     
     /// Update a post's assigned categories
     let updatePostTags postId (oldTags : string list) newTags = backgroundTask {
-        let toDelete, toAdd = diffLists oldTags newTags id
+        let toDelete, toAdd = Utils.diffLists oldTags newTags id
         if List.isEmpty toDelete && List.isEmpty toAdd then
             return ()
         else
@@ -203,7 +203,7 @@ type SQLitePostData (conn : SqliteConnection) =
     
     /// Update a post's metadata items
     let updatePostMeta postId oldItems newItems = backgroundTask {
-        let toDelete, toAdd = diffMetaItems oldItems newItems
+        let toDelete, toAdd = Utils.diffMetaItems oldItems newItems
         if List.isEmpty toDelete && List.isEmpty toAdd then
             return ()
         else
@@ -231,7 +231,7 @@ type SQLitePostData (conn : SqliteConnection) =
     
     /// Update a post's prior permalinks
     let updatePostPermalinks postId oldLinks newLinks = backgroundTask {
-        let toDelete, toAdd = diffPermalinks oldLinks newLinks
+        let toDelete, toAdd = Utils.diffPermalinks oldLinks newLinks
         if List.isEmpty toDelete && List.isEmpty toAdd then
             return ()
         else
@@ -257,7 +257,7 @@ type SQLitePostData (conn : SqliteConnection) =
     
     /// Update a post's revisions
     let updatePostRevisions postId oldRevs newRevs = backgroundTask {
-        let toDelete, toAdd = diffRevisions oldRevs newRevs
+        let toDelete, toAdd = Utils.diffRevisions oldRevs newRevs
         if List.isEmpty toDelete && List.isEmpty toAdd then
             return ()
         else

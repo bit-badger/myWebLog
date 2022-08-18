@@ -54,7 +54,7 @@ type SQLitePageData (conn : SqliteConnection) =
     
     /// Update a page's metadata items
     let updatePageMeta pageId oldItems newItems = backgroundTask {
-        let toDelete, toAdd = diffMetaItems oldItems newItems
+        let toDelete, toAdd = Utils.diffMetaItems oldItems newItems
         if List.isEmpty toDelete && List.isEmpty toAdd then
             return ()
         else
@@ -82,7 +82,7 @@ type SQLitePageData (conn : SqliteConnection) =
     
     /// Update a page's prior permalinks
     let updatePagePermalinks pageId oldLinks newLinks = backgroundTask {
-        let toDelete, toAdd = diffPermalinks oldLinks newLinks
+        let toDelete, toAdd = Utils.diffPermalinks oldLinks newLinks
         if List.isEmpty toDelete && List.isEmpty toAdd then
             return ()
         else
@@ -108,7 +108,7 @@ type SQLitePageData (conn : SqliteConnection) =
     
     /// Update a page's revisions
     let updatePageRevisions pageId oldRevs newRevs = backgroundTask {
-        let toDelete, toAdd = diffRevisions oldRevs newRevs
+        let toDelete, toAdd = Utils.diffRevisions oldRevs newRevs
         if List.isEmpty toDelete && List.isEmpty toAdd then
             return ()
         else

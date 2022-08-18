@@ -20,3 +20,20 @@ let rec orderByHierarchy (cats : Category list) parentId slugBase parentNames = 
         yield! orderByHierarchy cats (Some cat.Id) (Some fullSlug) ([ cat.Name ] |> List.append parentNames)
 }
 
+/// Get lists of items removed from and added to the given lists
+let diffLists<'T, 'U when 'U : equality> oldItems newItems (f : 'T -> 'U) =
+    let diff compList = fun item -> not (compList |> List.exists (fun other -> f item = f other))
+    List.filter (diff newItems) oldItems, List.filter (diff oldItems) newItems
+
+/// Find meta items added and removed
+let diffMetaItems (oldItems : MetaItem list) newItems =
+    diffLists oldItems newItems (fun item -> $"{item.Name}|{item.Value}")
+
+/// Find the permalinks added and removed
+let diffPermalinks oldLinks newLinks =
+    diffLists oldLinks newLinks Permalink.toString
+
+/// Find the revisions added and removed
+let diffRevisions oldRevs newRevs =
+    diffLists oldRevs newRevs (fun (rev : Revision) -> $"{rev.AsOf.Ticks}|{MarkupText.toString rev.Text}")
+

@@ -33,6 +33,9 @@
 		<Compile Include="SQLiteData.fs" />
 		<Compile Include="PostgreSql\PostgreSqlHelpers.fs" />
 		<Compile Include="PostgreSql\PostgreSqlCategoryData.fs" />
+		<Compile Include="PostgreSql\PostgreSqlPageData.fs" />
+		<Compile Include="PostgreSql\PostgreSqlPostData.fs" />
+		<Compile Include="PostgreSql\PostgreSqlTagMapData.fs" />
         <Compile Include="PostgreSqlData.fs" />
 	</ItemGroup>
 
