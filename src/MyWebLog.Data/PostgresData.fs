@@ -1,24 +1,24 @@
 ﻿namespace MyWebLog.Data
 
 open Microsoft.Extensions.Logging
-open MyWebLog.Data.PostgreSql
+open MyWebLog.Data.Postgres
 open Npgsql
 open Npgsql.FSharp
 
 /// Data implementation for PostgreSQL
-type PostgreSqlData (conn : NpgsqlConnection, log : ILogger<PostgreSqlData>) =
+type PostgresData (conn : NpgsqlConnection, log : ILogger<PostgresData>) =
 
     interface IData with
         
-        member _.Category   = PostgreSqlCategoryData   conn
-        member _.Page       = PostgreSqlPageData       conn
-        member _.Post       = PostgreSqlPostData       conn
-        member _.TagMap     = PostgreSqlTagMapData     conn
-        member _.Theme      = PostgreSqlThemeData      conn
-        member _.ThemeAsset = PostgreSqlThemeAssetData conn
-        member _.Upload     = PostgreSqlUploadData     conn
-        member _.WebLog     = PostgreSqlWebLogData     conn
-        member _.WebLogUser = PostgreSqlWebLogUserData conn
+        member _.Category   = PostgresCategoryData   conn
+        member _.Page       = PostgresPageData       conn
+        member _.Post       = PostgresPostData       conn
+        member _.TagMap     = PostgresTagMapData     conn
+        member _.Theme      = PostgresThemeData      conn
+        member _.ThemeAsset = PostgresThemeAssetData conn
+        member _.Upload     = PostgresUploadData     conn
+        member _.WebLog     = PostgresWebLogData     conn
+        member _.WebLogUser = PostgresWebLogUserData conn
         
         member _.StartUp () = backgroundTask {
 

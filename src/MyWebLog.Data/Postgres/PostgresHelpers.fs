@@ -1,6 +1,6 @@
 ﻿/// Helper functions for the PostgreSQL data implementation
 [<AutoOpen>]
-module MyWebLog.Data.PostgreSql.PostgreSqlHelpers
+module MyWebLog.Data.Postgres.PostgresHelpers
 
 open System.Threading.Tasks
 open MyWebLog

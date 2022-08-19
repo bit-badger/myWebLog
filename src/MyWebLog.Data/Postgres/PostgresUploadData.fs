@@ -1,4 +1,4 @@
-﻿namespace MyWebLog.Data.PostgreSql
+﻿namespace MyWebLog.Data.Postgres
 
 open MyWebLog
 open MyWebLog.Data
@@ -6,7 +6,7 @@ open Npgsql
 open Npgsql.FSharp
 
 /// PostgreSQL myWebLog uploaded file data implementation        
-type PostgreSqlUploadData (conn : NpgsqlConnection) =
+type PostgresUploadData (conn : NpgsqlConnection) =
 
     /// The INSERT statement for an uploaded file
     let upInsert =

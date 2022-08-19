@@ -1,4 +1,4 @@
-namespace MyWebLog.Data.PostgreSql
+namespace MyWebLog.Data.Postgres
 
 open System
 open MyWebLog
@@ -8,7 +8,7 @@ open Npgsql
 open Npgsql.FSharp
 
 /// PostgreSQL myWebLog post data implementation        
-type PostgreSqlPostData (conn : NpgsqlConnection) =
+type PostgresPostData (conn : NpgsqlConnection) =
 
     // SUPPORT FUNCTIONS
     

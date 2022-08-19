@@ -1,11 +1,12 @@
-﻿namespace MyWebLog.Data.PostgreSql
+﻿namespace MyWebLog.Data.Postgres
 
 open MyWebLog
 open MyWebLog.Data
 open Npgsql
 open Npgsql.FSharp
 
-type PostgreSqlCategoryData (conn : NpgsqlConnection) =
+/// PostgreSQL myWebLog category data implementation
+type PostgresCategoryData (conn : NpgsqlConnection) =
     
     /// Count all categories for the given web log
     let countAll webLogId =

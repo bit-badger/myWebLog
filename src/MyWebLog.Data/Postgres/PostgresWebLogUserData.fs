@@ -1,4 +1,4 @@
-namespace MyWebLog.Data.PostgreSql
+namespace MyWebLog.Data.Postgres
 
 open MyWebLog
 open MyWebLog.Data
@@ -6,7 +6,7 @@ open Npgsql
 open Npgsql.FSharp
 
 /// PostgreSQL myWebLog user data implementation        
-type PostgreSqlWebLogUserData (conn : NpgsqlConnection) =
+type PostgresWebLogUserData (conn : NpgsqlConnection) =
     
     /// The INSERT statement for a user
     let userInsert =

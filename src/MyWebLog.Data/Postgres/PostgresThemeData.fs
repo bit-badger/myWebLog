@@ -1,4 +1,4 @@
-﻿namespace MyWebLog.Data.PostgreSql
+﻿namespace MyWebLog.Data.Postgres
 
 open MyWebLog
 open MyWebLog.Data
@@ -6,7 +6,7 @@ open Npgsql
 open Npgsql.FSharp
 
 /// PostreSQL myWebLog theme data implementation        
-type PostgreSqlThemeData (conn : NpgsqlConnection) =
+type PostgresThemeData (conn : NpgsqlConnection) =
     
     /// Retrieve all themes (except 'admin'; excludes template text)
     let all () = backgroundTask {
@@ -135,7 +135,7 @@ type PostgreSqlThemeData (conn : NpgsqlConnection) =
 
 
 /// PostreSQL myWebLog theme data implementation        
-type PostgreSqlThemeAssetData (conn : NpgsqlConnection) =
+type PostgresThemeAssetData (conn : NpgsqlConnection) =
     
     /// Get all theme assets (excludes data)
     let all () =

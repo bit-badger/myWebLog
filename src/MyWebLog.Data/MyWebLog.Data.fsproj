@@ -6,9 +6,11 @@
 
 	<ItemGroup>
 		<PackageReference Include="Microsoft.Data.Sqlite" Version="6.0.7" />
+		<PackageReference Include="Microsoft.Extensions.Caching.Abstractions" Version="6.0.0" />
 		<PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="6.0.0" />
 		<PackageReference Include="Microsoft.FSharpLu.Json" Version="0.11.7" />
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+		<PackageReference Include="NodaTime" Version="3.1.2" />
 		<PackageReference Include="Npgsql" Version="6.0.6" />
 		<PackageReference Include="Npgsql.FSharp" Version="5.3.0" />
 		<PackageReference Include="RethinkDb.Driver" Version="2.3.150" />
@@ -31,16 +33,17 @@
 		<Compile Include="SQLite\SQLiteWebLogData.fs" />
 		<Compile Include="SQLite\SQLiteWebLogUserData.fs" />
 		<Compile Include="SQLiteData.fs" />
-		<Compile Include="PostgreSql\PostgreSqlHelpers.fs" />
-		<Compile Include="PostgreSql\PostgreSqlCategoryData.fs" />
-		<Compile Include="PostgreSql\PostgreSqlPageData.fs" />
-		<Compile Include="PostgreSql\PostgreSqlPostData.fs" />
-		<Compile Include="PostgreSql\PostgreSqlTagMapData.fs" />
-		<Compile Include="PostgreSql\PostgreSqlThemeData.fs" />
-		<Compile Include="PostgreSql\PostgreSqlUploadData.fs" />
-		<Compile Include="PostgreSql\PostgreSqlWebLogData.fs" />
-		<Compile Include="PostgreSql\PostgreSqlWebLogUserData.fs" />
-        <Compile Include="PostgreSqlData.fs" />
+		<Compile Include="Postgres\PostgresHelpers.fs" />
+		<Compile Include="Postgres\PostgresCache.fs" />
+		<Compile Include="Postgres\PostgresCategoryData.fs" />
+		<Compile Include="Postgres\PostgresPageData.fs" />
+		<Compile Include="Postgres\PostgresPostData.fs" />
+		<Compile Include="Postgres\PostgresTagMapData.fs" />
+		<Compile Include="Postgres\PostgresThemeData.fs" />
+		<Compile Include="Postgres\PostgresUploadData.fs" />
+		<Compile Include="Postgres\PostgresWebLogData.fs" />
+		<Compile Include="Postgres\PostgresWebLogUserData.fs" />
+        <Compile Include="PostgresData.fs" />
 	</ItemGroup>
 
 </Project>

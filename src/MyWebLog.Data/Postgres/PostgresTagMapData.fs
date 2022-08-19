@@ -1,4 +1,4 @@
-namespace MyWebLog.Data.PostgreSql
+namespace MyWebLog.Data.Postgres
 
 open MyWebLog
 open MyWebLog.Data
@@ -6,7 +6,7 @@ open Npgsql
 open Npgsql.FSharp
 
 /// PostgreSQL myWebLog tag mapping data implementation        
-type PostgreSqlTagMapData (conn : NpgsqlConnection) =
+type PostgresTagMapData (conn : NpgsqlConnection) =
 
     /// Find a tag mapping by its ID for the given web log
     let findById tagMapId webLogId =
