@@ -35,5 +35,8 @@ let diffPermalinks oldLinks newLinks =
 
 /// Find the revisions added and removed
 let diffRevisions oldRevs newRevs =
-    diffLists oldRevs newRevs (fun (rev : Revision) -> $"{rev.AsOf.Ticks}|{MarkupText.toString rev.Text}")
+    diffLists oldRevs newRevs (fun (rev : Revision) -> $"{rev.AsOf.ToUnixTimeTicks ()}|{MarkupText.toString rev.Text}")
 
+/// Get the current instant
+let now () =
+    NodaTime.SystemClock.Instance.GetCurrentInstant ()

@@ -2,6 +2,7 @@
 
 open System
 open MyWebLog
+open NodaTime
 
 /// A category under which a post may be identified
 [<CLIMutable; NoComparison; NoEquality>]
@@ -64,7 +65,7 @@ type Comment =
         Status : CommentStatus
 
         /// When the comment was posted
-        PostedOn : DateTime
+        PostedOn : Instant
 
         /// The text of the comment
         Text : string
@@ -82,7 +83,7 @@ module Comment =
             Email       = ""
             Url         = None
             Status      = Pending
-            PostedOn    = DateTime.UtcNow
+            PostedOn    = Instant.MinValue
             Text        = ""
         }
 
@@ -106,10 +107,10 @@ type Page =
         Permalink : Permalink
 
         /// When this page was published
-        PublishedOn : DateTime
+        PublishedOn : Instant
 
         /// When this page was last updated
-        UpdatedOn : DateTime
+        UpdatedOn : Instant
 
         /// Whether this page shows as part of the web log's navigation
         IsInPageList : bool
@@ -140,8 +141,8 @@ module Page =
             AuthorId        = WebLogUserId.empty
             Title           = ""
             Permalink       = Permalink.empty
-            PublishedOn     = DateTime.MinValue
-            UpdatedOn       = DateTime.MinValue
+            PublishedOn     = Instant.MinValue
+            UpdatedOn       = Instant.MinValue
             IsInPageList    = false
             Template        = None
             Text            = ""
@@ -173,10 +174,10 @@ type Post =
         Permalink : Permalink
 
         /// The instant on which the post was originally published
-        PublishedOn : DateTime option
+        PublishedOn : Instant option
 
         /// The instant on which the post was last updated
-        UpdatedOn : DateTime
+        UpdatedOn : Instant
 
         /// The template to use in displaying the post
         Template : string option
@@ -215,7 +216,7 @@ module Post =
             Title           = ""
             Permalink       = Permalink.empty
             PublishedOn     = None
-            UpdatedOn       = DateTime.MinValue
+            UpdatedOn       = Instant.MinValue
             Text            = ""
             Template        = None
             CategoryIds     = []
@@ -288,7 +289,7 @@ type ThemeAsset =
         Id : ThemeAssetId
         
         /// The updated date (set from the file date from the ZIP archive)
-        UpdatedOn : DateTime
+        UpdatedOn : Instant
         
         /// The data for the asset
         Data : byte[]
@@ -300,7 +301,7 @@ module ThemeAsset =
     /// An empty theme asset
     let empty =
         {   Id        = ThemeAssetId (ThemeId "", "")
-            UpdatedOn = DateTime.MinValue
+            UpdatedOn = Instant.MinValue
             Data      = [||]
         }
 
@@ -317,7 +318,7 @@ type Upload =
         Path : Permalink
         
         /// The updated date/time for this upload
-        UpdatedOn : DateTime
+        UpdatedOn : Instant
         
         /// The data for the upload
         Data : byte[]
@@ -331,7 +332,7 @@ module Upload =
         {   Id        = UploadId.empty
             WebLogId  = WebLogId.empty
             Path      = Permalink.empty
-            UpdatedOn = DateTime.MinValue
+            UpdatedOn = Instant.MinValue
             Data      = [||]
         }
 
@@ -410,10 +411,11 @@ module WebLog =
         let _, leadPath = hostAndPath webLog
         $"{leadPath}/{Permalink.toString permalink}"
     
-    /// Convert a UTC date/time to the web log's local date/time
-    let localTime webLog (date : DateTime) =
-        TimeZoneInfo.ConvertTimeFromUtc
-            (DateTime (date.Ticks, DateTimeKind.Utc), TimeZoneInfo.FindSystemTimeZoneById webLog.TimeZone) 
+    /// Convert an Instant (UTC reference) to the web log's local date/time
+    let localTime webLog (date : Instant) =
+        match DateTimeZoneProviders.Tzdb[webLog.TimeZone] with
+        | null -> date.ToDateTimeUtc ()
+        | tz -> date.InZone(tz).ToDateTimeUnspecified ()
 
 
 /// A user of the web log
@@ -450,10 +452,10 @@ type WebLogUser =
         AccessLevel : AccessLevel
         
         /// When the user was created
-        CreatedOn : DateTime
+        CreatedOn : Instant
         
         /// When the user last logged on
-        LastSeenOn : DateTime option
+        LastSeenOn : Instant option
     }
 
 /// Functions to support web log users
@@ -471,7 +473,7 @@ module WebLogUser =
             Salt          = Guid.Empty
             Url           = None
             AccessLevel   = Author
-            CreatedOn     = DateTime.UnixEpoch
+            CreatedOn     = Instant.FromUnixTimeSeconds 0L
             LastSeenOn    = None
         }
     

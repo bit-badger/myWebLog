@@ -190,10 +190,10 @@ type PostgresThemeAssetData (conn : NpgsqlConnection) =
                 SET updated_on = EXCLUDED.updated_on,
                     data       = EXCLUDED.data"
             |> Sql.parameters
-                [   "@themeId",   Sql.string      themeId
-                    "@path",      Sql.string      path
-                    "@updatedOn", Sql.timestamptz asset.UpdatedOn
-                    "@data",      Sql.bytea       asset.Data ]
+                [   "@themeId", Sql.string themeId
+                    "@path",    Sql.string path
+                    "@data",    Sql.bytea  asset.Data
+                    typedParam "@updatedOn" asset.UpdatedOn ]
             |> Sql.executeNonQueryAsync
         ()
     }

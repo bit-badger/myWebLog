@@ -30,9 +30,9 @@ type PostgresPageData (conn : NpgsqlConnection) =
     
     /// Parameters for a revision INSERT statement
     let revParams pageId rev = [
-        "@pageId", Sql.string      (PageId.toString pageId)
-        "@asOf",   Sql.timestamptz rev.AsOf
-        "@text",   Sql.string      (MarkupText.toString rev.Text)
+        typedParam "@asOf" rev.AsOf
+        "@pageId", Sql.string (PageId.toString pageId)
+        "@text",   Sql.string (MarkupText.toString rev.Text)
     ]
     
     /// Update a page's revisions
@@ -46,8 +46,8 @@ type PostgresPageData (conn : NpgsqlConnection) =
                         "DELETE FROM page_revision WHERE page_id = @pageId AND as_of = @asOf",
                         toDelete
                         |> List.map (fun it -> [
-                            "@pageId", Sql.string      (PageId.toString pageId)
-                            "@asOf",   Sql.timestamptz it.AsOf
+                            "@pageId", Sql.string (PageId.toString pageId)
+                            typedParam "@asOf" it.AsOf
                         ])
                     if not (List.isEmpty toAdd) then
                         revInsert, toAdd |> List.map (revParams pageId)
@@ -201,13 +201,13 @@ type PostgresPageData (conn : NpgsqlConnection) =
         "@authorId",        Sql.string       (WebLogUserId.toString page.AuthorId)
         "@title",           Sql.string       page.Title
         "@permalink",       Sql.string       (Permalink.toString page.Permalink)
-        "@publishedOn",     Sql.timestamptz  page.PublishedOn
-        "@updatedOn",       Sql.timestamptz  page.UpdatedOn
         "@isInPageList",    Sql.bool         page.IsInPageList
         "@template",        Sql.stringOrNone page.Template
         "@text",            Sql.string       page.Text
         "@metaItems",       Sql.jsonb        (JsonConvert.SerializeObject page.Metadata)
         "@priorPermalinks", Sql.stringArray  (page.PriorPermalinks |> List.map Permalink.toString |> Array.ofList)
+        typedParam "@publishedOn" page.PublishedOn
+        typedParam "@updatedOn"   page.UpdatedOn
     ]
 
     /// Restore pages from a backup

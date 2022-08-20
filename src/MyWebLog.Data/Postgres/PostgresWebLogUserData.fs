@@ -30,8 +30,8 @@ type PostgresWebLogUserData (conn : NpgsqlConnection) =
         "@salt",          Sql.uuid              user.Salt
         "@url",           Sql.stringOrNone      user.Url
         "@accessLevel",   Sql.string            (AccessLevel.toString user.AccessLevel)
-        "@createdOn",     Sql.timestamptz       user.CreatedOn
-        "@lastSeenOn",    Sql.timestamptzOrNone user.LastSeenOn
+        typedParam "@createdOn"  user.CreatedOn
+        optParam   "@lastSeenOn" user.LastSeenOn
     ]
 
     /// Find a user by their ID for the given web log
@@ -111,8 +111,8 @@ type PostgresWebLogUserData (conn : NpgsqlConnection) =
             |> Sql.query "UPDATE web_log_user SET last_seen_on = @lastSeenOn WHERE id = @id AND web_log_id = @webLogId"
             |> Sql.parameters
                 [   webLogIdParam webLogId
-                    "@id",         Sql.string      (WebLogUserId.toString userId)
-                    "@lastSeenOn", Sql.timestamptz System.DateTime.UtcNow ]
+                    typedParam "@lastSeenOn" (Utils.now ())
+                    "@id", Sql.string (WebLogUserId.toString userId) ]
             |> Sql.executeNonQueryAsync
         ()
     }

@@ -61,9 +61,9 @@ type PostgresPostData (conn : NpgsqlConnection) =
     
     /// The parameters for adding a post revision
     let revParams postId rev = [
-        "@postId", Sql.string      (PostId.toString postId)
-        "@asOf",   Sql.timestamptz rev.AsOf
-        "@text",   Sql.string      (MarkupText.toString rev.Text)
+        typedParam "@asOf" rev.AsOf
+        "@postId", Sql.string (PostId.toString postId)
+        "@text",   Sql.string (MarkupText.toString rev.Text)
     ]
     
     /// Update a post's revisions
@@ -77,8 +77,8 @@ type PostgresPostData (conn : NpgsqlConnection) =
                         "DELETE FROM post_revision WHERE post_id = @postId AND as_of = @asOf",
                         toDelete
                         |> List.map (fun it -> [
-                            "@postId", Sql.string      (PostId.toString postId)
-                            "@asOf",   Sql.timestamptz it.AsOf
+                            "@postId", Sql.string (PostId.toString postId)
+                            typedParam "@asOf" it.AsOf
                         ])
                     if not (List.isEmpty toAdd) then
                         revInsert, toAdd |> List.map (revParams postId)
@@ -282,21 +282,21 @@ type PostgresPostData (conn : NpgsqlConnection) =
     /// The parameters for saving a post
     let postParams (post : Post) = [
         webLogIdParam post.WebLogId
-        "@id",              Sql.string            (PostId.toString post.Id)
-        "@authorId",        Sql.string            (WebLogUserId.toString post.AuthorId)
-        "@status",          Sql.string            (PostStatus.toString post.Status)
-        "@title",           Sql.string            post.Title
-        "@permalink",       Sql.string            (Permalink.toString post.Permalink)
-        "@publishedOn",     Sql.timestamptzOrNone post.PublishedOn
-        "@updatedOn",       Sql.timestamptz       post.UpdatedOn
-        "@template",        Sql.stringOrNone      post.Template
-        "@text",            Sql.string            post.Text
-        "@episode",         Sql.jsonbOrNone       (post.Episode |> Option.map JsonConvert.SerializeObject)
-        "@priorPermalinks", Sql.stringArray       (post.PriorPermalinks |> List.map Permalink.toString |> Array.ofList)
+        "@id",              Sql.string       (PostId.toString post.Id)
+        "@authorId",        Sql.string       (WebLogUserId.toString post.AuthorId)
+        "@status",          Sql.string       (PostStatus.toString post.Status)
+        "@title",           Sql.string       post.Title
+        "@permalink",       Sql.string       (Permalink.toString post.Permalink)
+        "@template",        Sql.stringOrNone post.Template
+        "@text",            Sql.string       post.Text
+        "@episode",         Sql.jsonbOrNone  (post.Episode |> Option.map JsonConvert.SerializeObject)
+        "@priorPermalinks", Sql.stringArray  (post.PriorPermalinks |> List.map Permalink.toString |> Array.ofList)
         "@tags", Sql.stringArrayOrNone (if List.isEmpty post.Tags then None else Some (Array.ofList post.Tags))
         "@metaItems",
             if List.isEmpty post.Metadata then None else Some (JsonConvert.SerializeObject post.Metadata)
             |> Sql.jsonbOrNone
+        optParam   "@publishedOn" post.PublishedOn
+        typedParam "@updatedOn"   post.UpdatedOn
     ]
     
     /// Save a post

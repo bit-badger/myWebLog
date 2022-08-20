@@ -67,10 +67,10 @@ type SQLiteThemeData (conn : SqliteConnection) =
         match! findByIdWithoutText themeId with
         | Some _ ->
             use cmd = conn.CreateCommand ()
-            cmd.CommandText <- """
-                DELETE FROM theme_asset    WHERE theme_id = @id;
-                DELETE FROM theme_template WHERE theme_id = @id;
-                DELETE FROM theme          WHERE id       = @id"""
+            cmd.CommandText <-
+                "DELETE FROM theme_asset    WHERE theme_id = @id;
+                 DELETE FROM theme_template WHERE theme_id = @id;
+                 DELETE FROM theme          WHERE id       = @id"
             cmd.Parameters.AddWithValue ("@id", ThemeId.toString themeId) |> ignore
             do! write cmd
             return true
@@ -208,20 +208,20 @@ type SQLiteThemeAssetData (conn : SqliteConnection) =
         use cmd = conn.CreateCommand ()
         cmd.CommandText <-
             if exists = 1 then
-                """UPDATE theme_asset
-                      SET updated_on = @updatedOn,
-                          data       = ZEROBLOB(@dataLength)
-                    WHERE theme_id = @themeId
-                      AND path     = @path"""
+                "UPDATE theme_asset
+                    SET updated_on = @updatedOn,
+                        data       = ZEROBLOB(@dataLength)
+                  WHERE theme_id = @themeId
+                    AND path     = @path"
             else
-                """INSERT INTO theme_asset (
-                       theme_id, path, updated_on, data
-                   ) VALUES (
-                       @themeId, @path, @updatedOn, ZEROBLOB(@dataLength)
-                   )"""
+                "INSERT INTO theme_asset (
+                    theme_id, path, updated_on, data
+                ) VALUES (
+                    @themeId, @path, @updatedOn, ZEROBLOB(@dataLength)
+                )"
         [ cmd.Parameters.AddWithValue ("@themeId", themeId)
           cmd.Parameters.AddWithValue ("@path", path)
-          cmd.Parameters.AddWithValue ("@updatedOn", asset.UpdatedOn)
+          cmd.Parameters.AddWithValue ("@updatedOn", instantParam asset.UpdatedOn)
           cmd.Parameters.AddWithValue ("@dataLength", asset.Data.Length)
         ] |> ignore
         do! write cmd

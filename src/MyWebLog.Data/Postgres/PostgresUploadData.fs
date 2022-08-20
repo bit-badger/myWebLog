@@ -19,10 +19,10 @@ type PostgresUploadData (conn : NpgsqlConnection) =
     /// Parameters for adding an uploaded file
     let upParams (upload : Upload) = [
         webLogIdParam upload.WebLogId
-        "@id",        Sql.string      (UploadId.toString upload.Id)
-        "@path",      Sql.string      (Permalink.toString upload.Path)
-        "@updatedOn", Sql.timestamptz upload.UpdatedOn
-        "@data",      Sql.bytea       upload.Data
+        typedParam "@updatedOn" upload.UpdatedOn
+        "@id",   Sql.string (UploadId.toString upload.Id)
+        "@path", Sql.string (Permalink.toString upload.Path)
+        "@data", Sql.bytea  upload.Data
     ]
     
     /// Save an uploaded file

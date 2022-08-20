@@ -21,7 +21,9 @@ type PostgresData (conn : NpgsqlConnection, log : ILogger<PostgresData>) =
         member _.WebLogUser = PostgresWebLogUserData conn
         
         member _.StartUp () = backgroundTask {
-
+            
+            let _ = NpgsqlConnection.GlobalTypeMapper.UseNodaTime ()
+            
             let! tables =
                 Sql.existingConnection conn
                 |> Sql.query "SELECT tablename FROM pg_tables WHERE schemaname = 'public'"
@@ -68,15 +70,15 @@ type PostgresData (conn : NpgsqlConnection, log : ILogger<PostgresData>) =
                         items_in_feed        INTEGER,
                         is_category_enabled  BOOLEAN NOT NULL DEFAULT FALSE,
                         is_tag_enabled       BOOLEAN NOT NULL DEFAULT FALSE,
-                        copyright            TEXT);
-                    CREATE INDEX web_log_theme_idx ON web_log (theme_id)"
+                        copyright            TEXT)"
+                    "CREATE INDEX web_log_theme_idx ON web_log (theme_id)"
                 if needsTable "web_log_feed" then
                     "CREATE TABLE web_log_feed (
                         id          TEXT NOT NULL PRIMARY KEY,
                         web_log_id  TEXT NOT NULL REFERENCES web_log (id),
                         source      TEXT NOT NULL,
-                        path        TEXT NOT NULL);
-                    CREATE INDEX web_log_feed_web_log_idx ON web_log_feed (web_log_id)"
+                        path        TEXT NOT NULL)"
+                    "CREATE INDEX web_log_feed_web_log_idx ON web_log_feed (web_log_id)"
                 if needsTable "web_log_feed_podcast" then
                     "CREATE TABLE web_log_feed_podcast (
                         feed_id             TEXT    NOT NULL PRIMARY KEY REFERENCES web_log_feed (id),
@@ -105,8 +107,8 @@ type PostgresData (conn : NpgsqlConnection, log : ILogger<PostgresData>) =
                         name         TEXT NOT NULL,
                         slug         TEXT NOT NULL,
                         description  TEXT,
-                        parent_id    TEXT);
-                    CREATE INDEX category_web_log_idx ON category (web_log_id)"
+                        parent_id    TEXT)"
+                    "CREATE INDEX category_web_log_idx ON category (web_log_id)"
                 
                 // Web log user table
                 if needsTable "web_log_user" then
@@ -122,9 +124,9 @@ type PostgresData (conn : NpgsqlConnection, log : ILogger<PostgresData>) =
                         url             TEXT,
                         access_level    TEXT        NOT NULL,
                         created_on      TIMESTAMPTZ NOT NULL,
-                        last_seen_on    TIMESTAMPTZ);
-                    CREATE INDEX web_log_user_web_log_idx ON web_log_user (web_log_id);
-                    CREATE INDEX web_log_user_email_idx   ON web_log_user (web_log_id, email)"
+                        last_seen_on    TIMESTAMPTZ)"
+                    "CREATE INDEX web_log_user_web_log_idx ON web_log_user (web_log_id)"
+                    "CREATE INDEX web_log_user_email_idx   ON web_log_user (web_log_id, email)"
                 
                 // Page tables
                 if needsTable "page" then
@@ -139,11 +141,11 @@ type PostgresData (conn : NpgsqlConnection, log : ILogger<PostgresData>) =
                         updated_on       TIMESTAMPTZ NOT NULL,
                         is_in_page_list  BOOLEAN     NOT NULL DEFAULT FALSE,
                         template         TEXT,
-                        page_text        TEXT        NOT NULL
-                        meta_items       JSONB);
-                    CREATE INDEX page_web_log_idx   ON page (web_log_id);
-                    CREATE INDEX page_author_idx    ON page (author_id);
-                    CREATE INDEX page_permalink_idx ON page (web_log_id, permalink)"
+                        page_text        TEXT        NOT NULL,
+                        meta_items       JSONB)"
+                    "CREATE INDEX page_web_log_idx   ON page (web_log_id)"
+                    "CREATE INDEX page_author_idx    ON page (author_id)"
+                    "CREATE INDEX page_permalink_idx ON page (web_log_id, permalink)"
                 if needsTable "page_revision" then
                     "CREATE TABLE page_revision (
                         page_id        TEXT        NOT NULL REFERENCES page (id),
@@ -167,17 +169,17 @@ type PostgresData (conn : NpgsqlConnection, log : ILogger<PostgresData>) =
                         post_text        TEXT        NOT NULL,
                         tags             TEXT[],
                         meta_items       JSONB,
-                        episode          JSONB);
-                    CREATE INDEX post_web_log_idx   ON post (web_log_id);
-                    CREATE INDEX post_author_idx    ON post (author_id);
-                    CREATE INDEX post_status_idx    ON post (web_log_id, status, updated_on);
-                    CREATE INDEX post_permalink_idx ON post (web_log_id, permalink)"
+                        episode          JSONB)"
+                    "CREATE INDEX post_web_log_idx   ON post (web_log_id)"
+                    "CREATE INDEX post_author_idx    ON post (author_id)"
+                    "CREATE INDEX post_status_idx    ON post (web_log_id, status, updated_on)"
+                    "CREATE INDEX post_permalink_idx ON post (web_log_id, permalink)"
                 if needsTable "post_category" then
                     "CREATE TABLE post_category (
                         post_id      TEXT NOT NULL REFERENCES post (id),
                         category_id  TEXT NOT NULL REFERENCES category (id),
-                        PRIMARY KEY (post_id, category_id));
-                    CREATE INDEX post_category_category_idx ON post_category (category_id)"
+                        PRIMARY KEY (post_id, category_id))"
+                    "CREATE INDEX post_category_category_idx ON post_category (category_id)"
                 if needsTable "post_revision" then
                     "CREATE TABLE post_revision (
                         post_id        TEXT        NOT NULL REFERENCES post (id),
@@ -194,8 +196,8 @@ type PostgresData (conn : NpgsqlConnection, log : ILogger<PostgresData>) =
                         url             TEXT,
                         status          TEXT        NOT NULL,
                         posted_on       TIMESTAMPTZ NOT NULL,
-                        comment_text    TEXT        NOT NULL);
-                    CREATE INDEX post_comment_post_idx ON post_comment (post_id)"
+                        comment_text    TEXT        NOT NULL)"
+                    "CREATE INDEX post_comment_post_idx ON post_comment (post_id)"
                 
                 // Tag map table
                 if needsTable "tag_map" then
@@ -203,8 +205,8 @@ type PostgresData (conn : NpgsqlConnection, log : ILogger<PostgresData>) =
                         id          TEXT NOT NULL PRIMARY KEY,
                         web_log_id  TEXT NOT NULL REFERENCES web_log (id),
                         tag         TEXT NOT NULL,
-                        url_value   TEXT NOT NULL);
-                    CREATE INDEX tag_map_web_log_idx ON tag_map (web_log_id)"
+                        url_value   TEXT NOT NULL)"
+                    "CREATE INDEX tag_map_web_log_idx ON tag_map (web_log_id)"
                 
                 // Uploaded file table
                 if needsTable "upload" then
@@ -213,16 +215,17 @@ type PostgresData (conn : NpgsqlConnection, log : ILogger<PostgresData>) =
                         web_log_id  TEXT        NOT NULL REFERENCES web_log (id),
                         path        TEXT        NOT NULL,
                         updated_on  TIMESTAMPTZ NOT NULL,
-                        data        BYTEA       NOT NULL);
-                    CREATE INDEX upload_web_log_idx ON upload (web_log_id);
-                    CREATE INDEX upload_path_idx    ON upload (web_log_id, path)"
+                        data        BYTEA       NOT NULL)"
+                    "CREATE INDEX upload_web_log_idx ON upload (web_log_id)"
+                    "CREATE INDEX upload_path_idx    ON upload (web_log_id, path)"
             }
             
             Sql.existingConnection conn
             |> Sql.executeTransactionAsync
                 (sql
                  |> Seq.map (fun s ->
-                    log.LogInformation $"Creating {(s.Split ' ')[2]} table..."
+                    let parts = s.Split ' '
+                    log.LogInformation $"Creating {parts[2]} {parts[1].ToLower()}..."
                     s, [ [] ])
                  |> List.ofSeq)
             |> Async.AwaitTask

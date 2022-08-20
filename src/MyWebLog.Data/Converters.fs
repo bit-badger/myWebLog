@@ -122,12 +122,13 @@ module Json =
             (string >> WebLogUserId) reader.Value
 
     open Microsoft.FSharpLu.Json
-
-    /// All converters to use for data conversion
-    let all () : JsonConverter seq =
-        seq {
-            // Our converters
-            CategoryIdConverter       ()
+    open NodaTime
+    open NodaTime.Serialization.JsonNet
+    
+    /// Configure a serializer to use these converters
+    let configure (ser : JsonSerializer) =
+        // Our converters
+        [   CategoryIdConverter       () :> JsonConverter
             CommentIdConverter        ()
             CustomFeedIdConverter     ()
             CustomFeedSourceConverter ()
@@ -143,6 +144,9 @@ module Json =
             UploadIdConverter         ()
             WebLogIdConverter         ()
             WebLogUserIdConverter     ()
-            // Handles DUs with no associated data, as well as option fields
-            CompactUnionJsonConverter ()
-        }
+        ] |> List.iter ser.Converters.Add
+        // NodaTime
+        let _ = ser.ConfigureForNodaTime DateTimeZoneProviders.Tzdb
+        // Handles DUs with no associated data, as well as option fields
+        ser.Converters.Add (CompactUnionJsonConverter ())
+        ser

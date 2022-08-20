@@ -1079,7 +1079,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                         do! rethink {
                             withTable Table.WebLogUser
                             get userId
-                            update [ nameof WebLogUser.empty.LastSeenOn, DateTime.UtcNow :> obj ]
+                            update [ nameof WebLogUser.empty.LastSeenOn, Utils.now () :> obj ]
                             write; withRetryOnce; ignoreResult conn
                         }
                     | None -> ()

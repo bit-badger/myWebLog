@@ -3,6 +3,7 @@ open Microsoft.Data.Sqlite
 open Microsoft.Extensions.Configuration
 open Microsoft.Extensions.Logging
 open MyWebLog
+open Newtonsoft.Json
 open Npgsql
 
 /// Middleware to derive the current web log
@@ -39,33 +40,33 @@ module DataImplementation =
     open RethinkDb.Driver.Net
 
     /// Get the configured data implementation
-    let get (sp : IServiceProvider) : IData =
+    let get (sp : IServiceProvider) : IData * JsonSerializer =
         let config   = sp.GetRequiredService<IConfiguration> ()
         let await it = (Async.AwaitTask >> Async.RunSynchronously) it
         let connStr    name = config.GetConnectionString name
         let hasConnStr name = (connStr >> isNull >> not) name
-        let createSQLite connStr =
+        let createSQLite connStr : IData * JsonSerializer =
             let log  = sp.GetRequiredService<ILogger<SQLiteData>> ()
             let conn = new SqliteConnection (connStr)
             log.LogInformation $"Using SQLite database {conn.DataSource}"
             await (SQLiteData.setUpConnection conn)
-            SQLiteData (conn, log)
+            SQLiteData (conn, log), Json.configure (JsonSerializer.CreateDefault ())
         
         if hasConnStr "SQLite" then
-            upcast createSQLite (connStr "SQLite")
+            createSQLite (connStr "SQLite")
         elif hasConnStr "RethinkDB" then
-            let log = sp.GetRequiredService<ILogger<RethinkDbData>> ()
-            Json.all () |> Seq.iter Converter.Serializer.Converters.Add 
+            let log        = sp.GetRequiredService<ILogger<RethinkDbData>> ()
+            let _          = Json.configure Converter.Serializer 
             let rethinkCfg = DataConfig.FromUri (connStr "RethinkDB")
             let conn       = await (rethinkCfg.CreateConnectionAsync log)
-            upcast RethinkDbData (conn, rethinkCfg, log)
+            RethinkDbData (conn, rethinkCfg, log), Converter.Serializer
         elif hasConnStr "PostgreSQL" then
             let log  = sp.GetRequiredService<ILogger<PostgresData>> ()
             let conn = new NpgsqlConnection (connStr "PostgreSQL")
             log.LogInformation $"Using PostgreSQL database {conn.Host}:{conn.Port}/{conn.Database}"
-            PostgresData (conn, log)
+            PostgresData (conn, log), Json.configure (JsonSerializer.CreateDefault ())
         else
-            upcast createSQLite "Data Source=./myweblog.db;Cache=Shared"
+            createSQLite "Data Source=./myweblog.db;Cache=Shared"
 
 
 open System.Threading.Tasks
@@ -94,6 +95,7 @@ open Giraffe.EndpointRouting
 open Microsoft.AspNetCore.Authentication.Cookies
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.HttpOverrides
+open Microsoft.Extensions.Caching.Distributed
 open NeoSmart.Caching.Sqlite
 open RethinkDB.DistributedCache
 
@@ -114,8 +116,9 @@ let rec main args =
     let _ = builder.Services.AddAuthorization ()
     let _ = builder.Services.AddAntiforgery ()
     
-    let sp   = builder.Services.BuildServiceProvider ()
-    let data = DataImplementation.get sp
+    let sp = builder.Services.BuildServiceProvider ()
+    let data, serializer = DataImplementation.get sp
+    let _ = builder.Services.AddSingleton<JsonSerializer> serializer 
     
     task {
         do! data.StartUp ()
@@ -127,33 +130,36 @@ let rec main args =
     match data with
     | :? RethinkDbData as rethink ->
         // A RethinkDB connection is designed to work as a singleton
-        builder.Services.AddSingleton<IData> data |> ignore
-        builder.Services.AddDistributedRethinkDBCache (fun opts ->
-            opts.TableName  <- "Session"
-            opts.Connection <- rethink.Conn)
-        |> ignore
+        let _ = builder.Services.AddSingleton<IData> data
+        let _ =
+            builder.Services.AddDistributedRethinkDBCache (fun opts ->
+                opts.TableName  <- "Session"
+                opts.Connection <- rethink.Conn)
+        ()
     | :? SQLiteData as sql ->
         // ADO.NET connections are designed to work as per-request instantiation
         let cfg  = sp.GetRequiredService<IConfiguration> ()
-        builder.Services.AddScoped<SqliteConnection> (fun sp ->
-            let conn = new SqliteConnection (sql.Conn.ConnectionString)
-            SQLiteData.setUpConnection conn |> Async.AwaitTask |> Async.RunSynchronously
-            conn)
-        |> ignore
-        builder.Services.AddScoped<IData, SQLiteData> () |> ignore
+        let _ =
+            builder.Services.AddScoped<SqliteConnection> (fun sp ->
+                let conn = new SqliteConnection (sql.Conn.ConnectionString)
+                SQLiteData.setUpConnection conn |> Async.AwaitTask |> Async.RunSynchronously
+                conn)
+        let _ = builder.Services.AddScoped<IData, SQLiteData> () |> ignore
         // Use SQLite for caching as well
         let cachePath = defaultArg (Option.ofObj (cfg.GetConnectionString "SQLiteCachePath")) "./session.db"
-        builder.Services.AddSqliteCache (fun o -> o.CachePath <- cachePath) |> ignore
+        let _ = builder.Services.AddSqliteCache (fun o -> o.CachePath <- cachePath)
+        ()
     | :? PostgresData ->
         // ADO.NET connections are designed to work as per-request instantiation
         let cfg  = sp.GetRequiredService<IConfiguration> ()
-        builder.Services.AddScoped<NpgsqlConnection> (fun sp ->
-            new NpgsqlConnection (cfg.GetConnectionString "PostgreSQL"))
-        |> ignore
-        builder.Services.AddScoped<IData, PostgresData> () |> ignore
-        // Use SQLite for caching (for now)
-        let cachePath = defaultArg (Option.ofObj (cfg.GetConnectionString "SQLiteCachePath")) "./session.db"
-        builder.Services.AddSqliteCache (fun o -> o.CachePath <- cachePath) |> ignore
+        let _ =
+            builder.Services.AddScoped<NpgsqlConnection> (fun sp ->
+                new NpgsqlConnection (cfg.GetConnectionString "PostgreSQL"))
+        let _ = builder.Services.AddScoped<IData, PostgresData> ()
+        let _ =
+            builder.Services.AddSingleton<IDistributedCache> (fun sp ->
+                Postgres.DistributedCache (cfg.GetConnectionString "PostgreSQL") :> IDistributedCache)
+        ()
     | _ -> ()
     
     let _ = builder.Services.AddSession(fun opts ->

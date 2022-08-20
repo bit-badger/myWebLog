@@ -2,9 +2,12 @@
 [<AutoOpen>]
 module MyWebLog.Data.Postgres.PostgresHelpers
 
+open System
 open System.Threading.Tasks
 open MyWebLog
 open Newtonsoft.Json
+open NodaTime
+open Npgsql
 open Npgsql.FSharp
 
 /// Create a SQL parameter for the web log ID
@@ -48,6 +51,15 @@ let tryHead<'T> (query : Task<'T list>) = backgroundTask {
     let! results = query
     return List.tryHead results
 }
+
+/// Create a parameter for a non-standard type
+let typedParam<'T> name (it : 'T) =
+    $"@%s{name}", Sql.parameter (NpgsqlParameter ($"@{name}", it))
+
+/// Create a parameter for a possibly-missing non-standard type
+let optParam<'T> name (it : 'T option) =
+    let p = NpgsqlParameter ($"@%s{name}", if Option.isSome it then box it.Value else DBNull.Value)
+    p.ParameterName, Sql.parameter p
 
 /// Mapping functions for SQL queries
 module Map =
@@ -116,18 +128,18 @@ module Map =
     /// Create a page from the current row
     let toPage (row : RowReader) : Page =
         { Page.empty with
-            Id              = row.string       "id"         |> PageId
-            WebLogId        = row.string       "web_log_id" |> WebLogId
-            AuthorId        = row.string       "author_id"  |> WebLogUserId
-            Title           = row.string       "title"
+            Id              = row.string              "id"         |> PageId
+            WebLogId        = row.string              "web_log_id" |> WebLogId
+            AuthorId        = row.string              "author_id"  |> WebLogUserId
+            Title           = row.string              "title"
             Permalink       = toPermalink row
-            PriorPermalinks = row.stringArray  "prior_permalinks" |> Array.map Permalink |> List.ofArray
-            PublishedOn     = row.dateTime     "published_on"
-            UpdatedOn       = row.dateTime     "updated_on"
-            IsInPageList    = row.bool         "is_in_page_list"
-            Template        = row.stringOrNone "template"
-            Text            = row.string       "page_text"
-            Metadata        = row.stringOrNone "meta_items"
+            PriorPermalinks = row.stringArray         "prior_permalinks" |> Array.map Permalink |> List.ofArray
+            PublishedOn     = row.fieldValue<Instant> "published_on"
+            UpdatedOn       = row.fieldValue<Instant> "updated_on"
+            IsInPageList    = row.bool                "is_in_page_list"
+            Template        = row.stringOrNone        "template"
+            Text            = row.string              "page_text"
+            Metadata        = row.stringOrNone        "meta_items"
                               |> Option.map JsonConvert.DeserializeObject<MetaItem list>
                               |> Option.defaultValue []
         }
@@ -135,33 +147,34 @@ module Map =
     /// Create a post from the current row
     let toPost (row : RowReader) : Post =
         { Post.empty with
-            Id              = row.string            "id"         |> PostId
-            WebLogId        = row.string            "web_log_id" |> WebLogId
-            AuthorId        = row.string            "author_id"  |> WebLogUserId
-            Status          = row.string            "status"     |> PostStatus.parse
-            Title           = row.string            "title"
+            Id              = row.string                    "id"         |> PostId
+            WebLogId        = row.string                    "web_log_id" |> WebLogId
+            AuthorId        = row.string                    "author_id"  |> WebLogUserId
+            Status          = row.string                    "status"     |> PostStatus.parse
+            Title           = row.string                    "title"
             Permalink       = toPermalink row
-            PriorPermalinks = row.stringArray       "prior_permalinks" |> Array.map Permalink |> List.ofArray
-            PublishedOn     = row.dateTimeOrNone    "published_on"
-            UpdatedOn       = row.dateTime          "updated_on"
-            Template        = row.stringOrNone      "template"
-            Text            = row.string            "post_text"
-            CategoryIds     = row.stringArrayOrNone "category_ids"
+            PriorPermalinks = row.stringArray               "prior_permalinks" |> Array.map Permalink |> List.ofArray
+            PublishedOn     = row.fieldValueOrNone<Instant> "published_on"
+            UpdatedOn       = row.fieldValue<Instant>       "updated_on"
+            Template        = row.stringOrNone              "template"
+            Text            = row.string                    "post_text"
+            CategoryIds     = row.stringArrayOrNone         "category_ids"
                               |> Option.map (Array.map CategoryId >> List.ofArray)
                               |> Option.defaultValue []
-            Tags            = row.stringArrayOrNone "tags"
+            Tags            = row.stringArrayOrNone         "tags"
                               |> Option.map List.ofArray
                               |> Option.defaultValue []
-            Metadata        = row.stringOrNone      "meta_items"
+            Metadata        = row.stringOrNone              "meta_items"
                               |> Option.map JsonConvert.DeserializeObject<MetaItem list>
                               |> Option.defaultValue []
-            Episode         = row.stringOrNone      "episode" |> Option.map JsonConvert.DeserializeObject<Episode>
+            Episode         = row.stringOrNone              "episode"
+                              |> Option.map JsonConvert.DeserializeObject<Episode>
         }
     
     /// Create a revision from the current row
     let toRevision (row : RowReader) : Revision =
-        {   AsOf = row.dateTime "as_of"
-            Text = row.string   "revision_text" |> MarkupText.parse
+        {   AsOf = row.fieldValue<Instant> "as_of"
+            Text = row.string              "revision_text" |> MarkupText.parse
         }
     
     /// Create a tag mapping from the current row
@@ -183,7 +196,7 @@ module Map =
     /// Create a theme asset from the current row
     let toThemeAsset includeData (row : RowReader) : ThemeAsset =
         {   Id        = ThemeAssetId (ThemeId (row.string "theme_id"), row.string "path")
-            UpdatedOn = row.dateTime "updated_on"
+            UpdatedOn = row.fieldValue<Instant> "updated_on"
             Data      = if includeData then row.bytea "data" else [||]
         }
     
@@ -195,10 +208,10 @@ module Map =
 
     /// Create an uploaded file from the current row
     let toUpload includeData (row : RowReader) : Upload =
-        {   Id        = row.string   "id"         |> UploadId
-            WebLogId  = row.string   "web_log_id" |> WebLogId
-            Path      = row.string   "path"       |> Permalink
-            UpdatedOn = row.dateTime "updated_on"
+        {   Id        = row.string              "id"         |> UploadId
+            WebLogId  = row.string              "web_log_id" |> WebLogId
+            Path      = row.string              "path"       |> Permalink
+            UpdatedOn = row.fieldValue<Instant> "updated_on"
             Data      = if includeData then row.bytea "data" else [||]
         }
     
@@ -228,16 +241,16 @@ module Map =
     
     /// Create a web log user from the current row
     let toWebLogUser (row : RowReader) : WebLogUser =
-        {   Id            = row.string         "id"             |> WebLogUserId
-            WebLogId      = row.string         "web_log_id"     |> WebLogId
-            Email         = row.string         "email"
-            FirstName     = row.string         "first_name"
-            LastName      = row.string         "last_name"
-            PreferredName = row.string         "preferred_name"
-            PasswordHash  = row.string         "password_hash"
-            Salt          = row.uuid           "salt"
-            Url           = row.stringOrNone   "url"
-            AccessLevel   = row.string         "access_level"   |> AccessLevel.parse
-            CreatedOn     = row.dateTime       "created_on"
-            LastSeenOn    = row.dateTimeOrNone "last_seen_on"
+        {   Id            = row.string                    "id"             |> WebLogUserId
+            WebLogId      = row.string                    "web_log_id"     |> WebLogId
+            Email         = row.string                    "email"
+            FirstName     = row.string                    "first_name"
+            LastName      = row.string                    "last_name"
+            PreferredName = row.string                    "preferred_name"
+            PasswordHash  = row.string                    "password_hash"
+            Salt          = row.uuid                      "salt"
+            Url           = row.stringOrNone              "url"
+            AccessLevel   = row.string                    "access_level"   |> AccessLevel.parse
+            CreatedOn     = row.fieldValue<Instant>       "created_on"
+            LastSeenOn    = row.fieldValueOrNone<Instant> "last_seen_on"
         }

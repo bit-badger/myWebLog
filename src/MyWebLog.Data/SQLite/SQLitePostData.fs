@@ -13,36 +13,37 @@ type SQLitePostData (conn : SqliteConnection) =
     
     /// Add parameters for post INSERT or UPDATE statements
     let addPostParameters (cmd : SqliteCommand) (post : Post) =
-        [   cmd.Parameters.AddWithValue ("@id", PostId.toString post.Id)
-            cmd.Parameters.AddWithValue ("@webLogId", WebLogId.toString post.WebLogId)
-            cmd.Parameters.AddWithValue ("@authorId", WebLogUserId.toString post.AuthorId)
-            cmd.Parameters.AddWithValue ("@status", PostStatus.toString post.Status)
-            cmd.Parameters.AddWithValue ("@title", post.Title)
-            cmd.Parameters.AddWithValue ("@permalink", Permalink.toString post.Permalink)
-            cmd.Parameters.AddWithValue ("@publishedOn", maybe post.PublishedOn)
-            cmd.Parameters.AddWithValue ("@updatedOn", post.UpdatedOn)
-            cmd.Parameters.AddWithValue ("@template", maybe post.Template)
-            cmd.Parameters.AddWithValue ("@text", post.Text)
+        [   cmd.Parameters.AddWithValue ("@id",          PostId.toString post.Id)
+            cmd.Parameters.AddWithValue ("@webLogId",    WebLogId.toString post.WebLogId)
+            cmd.Parameters.AddWithValue ("@authorId",    WebLogUserId.toString post.AuthorId)
+            cmd.Parameters.AddWithValue ("@status",      PostStatus.toString post.Status)
+            cmd.Parameters.AddWithValue ("@title",       post.Title)
+            cmd.Parameters.AddWithValue ("@permalink",   Permalink.toString post.Permalink)
+            cmd.Parameters.AddWithValue ("@publishedOn", maybeInstant post.PublishedOn)
+            cmd.Parameters.AddWithValue ("@updatedOn",   instantParam post.UpdatedOn)
+            cmd.Parameters.AddWithValue ("@template",    maybe post.Template)
+            cmd.Parameters.AddWithValue ("@text",        post.Text)
         ] |> ignore
     
     /// Add parameters for episode INSERT or UPDATE statements
     let addEpisodeParameters (cmd : SqliteCommand) (ep : Episode) =
-        [   cmd.Parameters.AddWithValue ("@media", ep.Media)
-            cmd.Parameters.AddWithValue ("@length", ep.Length)
-            cmd.Parameters.AddWithValue ("@duration", maybe ep.Duration)
-            cmd.Parameters.AddWithValue ("@mediaType", maybe ep.MediaType)
-            cmd.Parameters.AddWithValue ("@imageUrl", maybe ep.ImageUrl)
-            cmd.Parameters.AddWithValue ("@subtitle", maybe ep.Subtitle)
-            cmd.Parameters.AddWithValue ("@explicit", maybe (ep.Explicit |> Option.map ExplicitRating.toString))
-            cmd.Parameters.AddWithValue ("@chapterFile", maybe ep.ChapterFile)
-            cmd.Parameters.AddWithValue ("@chapterType", maybe ep.ChapterType)
-            cmd.Parameters.AddWithValue ("@transcriptUrl", maybe ep.TranscriptUrl)
-            cmd.Parameters.AddWithValue ("@transcriptType", maybe ep.TranscriptType)
-            cmd.Parameters.AddWithValue ("@transcriptLang", maybe ep.TranscriptLang)
+        [   cmd.Parameters.AddWithValue ("@media",              ep.Media)
+            cmd.Parameters.AddWithValue ("@length",             ep.Length)
+            cmd.Parameters.AddWithValue ("@duration",           maybeDuration ep.Duration)
+            cmd.Parameters.AddWithValue ("@mediaType",          maybe ep.MediaType)
+            cmd.Parameters.AddWithValue ("@imageUrl",           maybe ep.ImageUrl)
+            cmd.Parameters.AddWithValue ("@subtitle",           maybe ep.Subtitle)
+            cmd.Parameters.AddWithValue ("@explicit",           maybe (ep.Explicit
+                                                                       |> Option.map ExplicitRating.toString))
+            cmd.Parameters.AddWithValue ("@chapterFile",        maybe ep.ChapterFile)
+            cmd.Parameters.AddWithValue ("@chapterType",        maybe ep.ChapterType)
+            cmd.Parameters.AddWithValue ("@transcriptUrl",      maybe ep.TranscriptUrl)
+            cmd.Parameters.AddWithValue ("@transcriptType",     maybe ep.TranscriptType)
+            cmd.Parameters.AddWithValue ("@transcriptLang",     maybe ep.TranscriptLang)
             cmd.Parameters.AddWithValue ("@transcriptCaptions", maybe ep.TranscriptCaptions)
-            cmd.Parameters.AddWithValue ("@seasonNumber", maybe ep.SeasonNumber)
-            cmd.Parameters.AddWithValue ("@seasonDescription", maybe ep.SeasonDescription)
-            cmd.Parameters.AddWithValue ("@episodeNumber", maybe (ep.EpisodeNumber |> Option.map string))
+            cmd.Parameters.AddWithValue ("@seasonNumber",       maybe ep.SeasonNumber)
+            cmd.Parameters.AddWithValue ("@seasonDescription",  maybe ep.SeasonDescription)
+            cmd.Parameters.AddWithValue ("@episodeNumber",      maybe (ep.EpisodeNumber |> Option.map string))
             cmd.Parameters.AddWithValue ("@episodeDescription", maybe ep.EpisodeDescription)
         ] |> ignore
         
@@ -158,26 +159,26 @@ type SQLitePostData (conn : SqliteConnection) =
         if count = 1 then
             match post.Episode with
             | Some ep ->
-                cmd.CommandText <- """
-                    UPDATE post_episode
-                       SET media               = @media,
-                           length              = @length,
-                           duration            = @duration,
-                           media_type          = @mediaType,
-                           image_url           = @imageUrl,
-                           subtitle            = @subtitle,
-                           explicit            = @explicit,
-                           chapter_file        = @chapterFile,
-                           chapter_type        = @chapterType,
-                           transcript_url      = @transcriptUrl,
-                           transcript_type     = @transcriptType,
-                           transcript_lang     = @transcriptLang,
-                           transcript_captions = @transcriptCaptions,
-                           season_number       = @seasonNumber,
-                           season_description  = @seasonDescription,
-                           episode_number      = @episodeNumber,
-                           episode_description = @episodeDescription
-                     WHERE post_id = @postId"""
+                cmd.CommandText <-
+                    "UPDATE post_episode
+                        SET media               = @media,
+                            length              = @length,
+                            duration            = @duration,
+                            media_type          = @mediaType,
+                            image_url           = @imageUrl,
+                            subtitle            = @subtitle,
+                            explicit            = @explicit,
+                            chapter_file        = @chapterFile,
+                            chapter_type        = @chapterType,
+                            transcript_url      = @transcriptUrl,
+                            transcript_type     = @transcriptType,
+                            transcript_lang     = @transcriptLang,
+                            transcript_captions = @transcriptCaptions,
+                            season_number       = @seasonNumber,
+                            season_description  = @seasonDescription,
+                            episode_number      = @episodeNumber,
+                            episode_description = @episodeDescription
+                      WHERE post_id = @postId"
                 addEpisodeParameters cmd ep
                 do! write cmd
             | None ->
@@ -186,8 +187,8 @@ type SQLitePostData (conn : SqliteConnection) =
         else
             match post.Episode with
             | Some ep ->
-                cmd.CommandText <- """
-                    INSERT INTO post_episode (
+                cmd.CommandText <-
+                    "INSERT INTO post_episode (
                         post_id, media, length, duration, media_type, image_url, subtitle, explicit, chapter_file,
                         chapter_type, transcript_url, transcript_type, transcript_lang, transcript_captions,
                         season_number, season_description, episode_number, episode_description
@@ -195,7 +196,7 @@ type SQLitePostData (conn : SqliteConnection) =
                         @postId, @media, @length, @duration, @mediaType, @imageUrl, @subtitle, @explicit, @chapterFile,
                         @chapterType, @transcriptUrl, @transcriptType, @transcriptLang, @transcriptCaptions,
                         @seasonNumber, @seasonDescription, @episodeNumber, @episodeDescription
-                    )"""
+                    )"
                 addEpisodeParameters cmd ep
                 do! write cmd
             | None -> ()
@@ -287,12 +288,12 @@ type SQLitePostData (conn : SqliteConnection) =
     /// Add a post
     let add post = backgroundTask {
         use cmd = conn.CreateCommand ()
-        cmd.CommandText <- """
-            INSERT INTO post (
+        cmd.CommandText <-
+            "INSERT INTO post (
                 id, web_log_id, author_id, status, title, permalink, published_on, updated_on, template, post_text
             ) VALUES (
                 @id, @webLogId, @authorId, @status, @title, @permalink, @publishedOn, @updatedOn, @template, @text
-            )"""
+            )"
         addPostParameters cmd post
         do! write cmd
         do! updatePostCategories post.Id [] post.CategoryIds
@@ -350,14 +351,14 @@ type SQLitePostData (conn : SqliteConnection) =
         | Some _ ->
             use cmd = conn.CreateCommand ()
             cmd.Parameters.AddWithValue ("@id", PostId.toString postId) |> ignore
-            cmd.CommandText <- """
-                DELETE FROM post_revision  WHERE post_id = @id;
-                DELETE FROM post_permalink WHERE post_id = @id;
-                DELETE FROM post_meta      WHERE post_id = @id;
-                DELETE FROM post_episode   WHERE post_id = @id;
-                DELETE FROM post_tag       WHERE post_id = @id;
-                DELETE FROM post_category  WHERE post_id = @id;
-                DELETE FROM post           WHERE id      = @id"""
+            cmd.CommandText <-
+                "DELETE FROM post_revision  WHERE post_id = @id;
+                 DELETE FROM post_permalink WHERE post_id = @id;
+                 DELETE FROM post_meta      WHERE post_id = @id;
+                 DELETE FROM post_episode   WHERE post_id = @id;
+                 DELETE FROM post_tag       WHERE post_id = @id;
+                 DELETE FROM post_category  WHERE post_id = @id;
+                 DELETE FROM post           WHERE id      = @id"
             do! write cmd
             return true
         | None -> return false
@@ -366,12 +367,12 @@ type SQLitePostData (conn : SqliteConnection) =
     /// Find the current permalink from a list of potential prior permalinks for the given web log
     let findCurrentPermalink permalinks webLogId = backgroundTask {
         use cmd = conn.CreateCommand ()
-        cmd.CommandText <- """
-            SELECT p.permalink
-              FROM post p
-                   INNER JOIN post_permalink pp ON pp.post_id = p.id
-             WHERE p.web_log_id = @webLogId
-               AND pp.permalink IN ("""
+        cmd.CommandText <-
+            "SELECT p.permalink
+               FROM post p
+                    INNER JOIN post_permalink pp ON pp.post_id = p.id
+              WHERE p.web_log_id = @webLogId
+                AND pp.permalink IN ("
         permalinks
         |> List.iteri (fun idx link ->
             if idx > 0 then cmd.CommandText <- $"{cmd.CommandText}, "
@@ -402,21 +403,20 @@ type SQLitePostData (conn : SqliteConnection) =
     /// Get a page of categorized posts for the given web log (excludes revisions and prior permalinks)
     let findPageOfCategorizedPosts webLogId categoryIds pageNbr postsPerPage = backgroundTask {
         use cmd = conn.CreateCommand ()
-        cmd.CommandText <- $"""
+        cmd.CommandText <- $"
             {selectPost}
                    INNER JOIN post_category pc ON pc.post_id = p.id
              WHERE p.web_log_id = @webLogId
                AND p.status     = @status
-               AND pc.category_id IN ("""
+               AND pc.category_id IN ("
         categoryIds
         |> List.iteri (fun idx catId ->
             if idx > 0 then cmd.CommandText <- $"{cmd.CommandText}, "
             cmd.CommandText <- $"{cmd.CommandText}@catId{idx}"
             cmd.Parameters.AddWithValue ($"@catId{idx}", CategoryId.toString catId) |> ignore)
-        cmd.CommandText <-
-            $"""{cmd.CommandText})
-                ORDER BY published_on DESC
-                LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"""
+        cmd.CommandText <- $"{cmd.CommandText})
+             ORDER BY published_on DESC
+             LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"
         addWebLogId cmd webLogId
         cmd.Parameters.AddWithValue ("@status", PostStatus.toString Published) |> ignore
         use! rdr = cmd.ExecuteReaderAsync ()
@@ -430,11 +430,11 @@ type SQLitePostData (conn : SqliteConnection) =
     /// Get a page of posts for the given web log (excludes text, revisions, and prior permalinks)
     let findPageOfPosts webLogId pageNbr postsPerPage = backgroundTask {
         use cmd = conn.CreateCommand ()
-        cmd.CommandText <- $"""
+        cmd.CommandText <- $"
             {selectPost}
-              WHERE p.web_log_id = @webLogId
-              ORDER BY p.published_on DESC NULLS FIRST, p.updated_on
-              LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"""
+             WHERE p.web_log_id = @webLogId
+             ORDER BY p.published_on DESC NULLS FIRST, p.updated_on
+             LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"
         addWebLogId cmd webLogId
         use! rdr = cmd.ExecuteReaderAsync ()
         let! posts =
@@ -447,12 +447,12 @@ type SQLitePostData (conn : SqliteConnection) =
     /// Get a page of published posts for the given web log (excludes revisions and prior permalinks)
     let findPageOfPublishedPosts webLogId pageNbr postsPerPage = backgroundTask {
         use cmd = conn.CreateCommand ()
-        cmd.CommandText <- $"""
+        cmd.CommandText <- $"
             {selectPost}
-              WHERE p.web_log_id = @webLogId
-                AND p.status     = @status
-              ORDER BY p.published_on DESC
-              LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"""
+             WHERE p.web_log_id = @webLogId
+               AND p.status     = @status
+             ORDER BY p.published_on DESC
+             LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"
         addWebLogId cmd webLogId
         cmd.Parameters.AddWithValue ("@status", PostStatus.toString Published) |> ignore
         use! rdr = cmd.ExecuteReaderAsync ()
@@ -466,14 +466,14 @@ type SQLitePostData (conn : SqliteConnection) =
     /// Get a page of tagged posts for the given web log (excludes revisions and prior permalinks)
     let findPageOfTaggedPosts webLogId (tag : string) pageNbr postsPerPage = backgroundTask {
         use cmd = conn.CreateCommand ()
-        cmd.CommandText <- $"""
+        cmd.CommandText <- $"
             {selectPost}
-                    INNER JOIN post_tag pt ON pt.post_id = p.id
-              WHERE p.web_log_id = @webLogId
-                AND p.status     = @status
-                AND pt.tag       = @tag
-              ORDER BY p.published_on DESC
-              LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"""
+                   INNER JOIN post_tag pt ON pt.post_id = p.id
+             WHERE p.web_log_id = @webLogId
+               AND p.status     = @status
+               AND pt.tag       = @tag
+             ORDER BY p.published_on DESC
+             LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"
         addWebLogId cmd webLogId
         [ cmd.Parameters.AddWithValue ("@status", PostStatus.toString Published)
           cmd.Parameters.AddWithValue ("@tag", tag)
@@ -489,13 +489,13 @@ type SQLitePostData (conn : SqliteConnection) =
     /// Find the next newest and oldest post from a publish date for the given web log
     let findSurroundingPosts webLogId (publishedOn : DateTime) = backgroundTask {
         use cmd = conn.CreateCommand ()
-        cmd.CommandText <- $"""
+        cmd.CommandText <- $"
             {selectPost}
              WHERE p.web_log_id   = @webLogId
                AND p.status       = @status
                AND p.published_on < @publishedOn
              ORDER BY p.published_on DESC
-             LIMIT 1"""
+             LIMIT 1"
         addWebLogId cmd webLogId
         [ cmd.Parameters.AddWithValue ("@status", PostStatus.toString Published)
           cmd.Parameters.AddWithValue ("@publishedOn", publishedOn)
@@ -509,13 +509,13 @@ type SQLitePostData (conn : SqliteConnection) =
                 return None
         }
         do! rdr.CloseAsync ()
-        cmd.CommandText <- $"""
+        cmd.CommandText <- $"
             {selectPost}
              WHERE p.web_log_id   = @webLogId
                AND p.status       = @status
                AND p.published_on > @publishedOn
              ORDER BY p.published_on
-             LIMIT 1"""
+             LIMIT 1"
         use! rdr = cmd.ExecuteReaderAsync ()
         let! newer = backgroundTask {
             if rdr.Read () then
@@ -538,18 +538,18 @@ type SQLitePostData (conn : SqliteConnection) =
         match! findFullById post.Id post.WebLogId with
         | Some oldPost ->
             use cmd = conn.CreateCommand ()
-            cmd.CommandText <- """
-                UPDATE post
-                   SET author_id    = @authorId,
-                       status       = @status,
-                       title        = @title,
-                       permalink    = @permalink,
-                       published_on = @publishedOn,
-                       updated_on   = @updatedOn,
-                       template     = @template,
-                       post_text    = @text
-                 WHERE id         = @id
-                   AND web_log_id = @webLogId"""
+            cmd.CommandText <-
+                "UPDATE post
+                    SET author_id    = @authorId,
+                        status       = @status,
+                        title        = @title,
+                        permalink    = @permalink,
+                        published_on = @publishedOn,
+                        updated_on   = @updatedOn,
+                        template     = @template,
+                        post_text    = @text
+                  WHERE id         = @id
+                    AND web_log_id = @webLogId"
             addPostParameters cmd post
             do! write cmd
             do! updatePostCategories post.Id oldPost.CategoryIds     post.CategoryIds

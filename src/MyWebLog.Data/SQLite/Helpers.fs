@@ -5,6 +5,7 @@ module MyWebLog.Data.SQLite.Helpers
 open System
 open Microsoft.Data.Sqlite
 open MyWebLog
+open NodaTime.Text
 
 /// Run a command that returns a count
 let count (cmd : SqliteCommand) = backgroundTask {
@@ -29,6 +30,23 @@ let write (cmd : SqliteCommand) = backgroundTask {
     let! _ = cmd.ExecuteNonQueryAsync ()
     ()
 }
+
+/// Create a value for a Duration
+let durationParam =
+    DurationPattern.Roundtrip.Format
+
+/// Create a value for an Instant
+let instantParam =
+    InstantPattern.ExtendedIso.Format
+
+/// Create an optional value for a Duration
+let maybeDuration =
+    Option.map durationParam
+
+/// Create an optional value for an Instant
+let maybeInstant =
+    Option.map instantParam
+
 
 /// Functions to map domain items from a data reader
 module Map =
@@ -56,6 +74,26 @@ module Map =
     /// Get a string value from a data reader
     let getString col (rdr : SqliteDataReader) = rdr.GetString (rdr.GetOrdinal col)
     
+    /// Parse a Duration from the given value
+    let parseDuration value =
+        match DurationPattern.Roundtrip.Parse value with
+        | it when it.Success -> it.Value
+        | it -> raise it.Exception
+    
+    /// Get a Duration value from a data reader
+    let getDuration col rdr =
+        getString col rdr |> parseDuration
+    
+    /// Parse an Instant from the given value
+    let parseInstant value =
+        match InstantPattern.General.Parse value with
+        | it when it.Success -> it.Value
+        | it -> raise it.Exception
+    
+    /// Get an Instant value from a data reader
+    let getInstant col rdr =
+        getString col rdr |> parseInstant
+    
     /// Get a timespan value from a data reader
     let getTimeSpan col (rdr : SqliteDataReader) = rdr.GetTimeSpan (rdr.GetOrdinal col)
     
@@ -78,6 +116,14 @@ module Map =
     /// Get a possibly null string value from a data reader
     let tryString col (rdr : SqliteDataReader) =
         if rdr.IsDBNull (rdr.GetOrdinal col) then None else Some (getString col rdr)
+    
+    /// Get a possibly null Duration value from a data reader
+    let tryDuration col rdr =
+        tryString col rdr |> Option.map parseDuration
+    
+    /// Get a possibly null Instant value from a data reader
+    let tryInstant col rdr =
+        tryString col rdr |> Option.map parseInstant
     
     /// Get a possibly null timespan value from a data reader
     let tryTimeSpan col (rdr : SqliteDataReader) =
@@ -142,8 +188,8 @@ module Map =
             AuthorId     = getString   "author_id"       rdr |> WebLogUserId
             Title        = getString   "title"           rdr
             Permalink    = toPermalink                   rdr
-            PublishedOn  = getDateTime "published_on"    rdr
-            UpdatedOn    = getDateTime "updated_on"      rdr
+            PublishedOn  = getInstant  "published_on"    rdr
+            UpdatedOn    = getInstant  "updated_on"      rdr
             IsInPageList = getBoolean  "is_in_page_list" rdr
             Template     = tryString   "template"        rdr
             Text         = getString   "page_text"       rdr
@@ -158,8 +204,8 @@ module Map =
             Status         = getString   "status"       rdr |> PostStatus.parse
             Title          = getString   "title"        rdr
             Permalink      = toPermalink                rdr
-            PublishedOn    = tryDateTime "published_on" rdr
-            UpdatedOn      = getDateTime "updated_on"   rdr
+            PublishedOn    = tryInstant  "published_on" rdr
+            UpdatedOn      = getInstant  "updated_on"   rdr
             Template       = tryString   "template"     rdr
             Text           = getString   "post_text"    rdr
             Episode        =
@@ -168,7 +214,7 @@ module Map =
                     Some {
                         Media              = media
                         Length             = getLong     "length"              rdr
-                        Duration           = tryTimeSpan "duration"            rdr
+                        Duration           = tryDuration "duration"            rdr
                         MediaType          = tryString   "media_type"          rdr
                         ImageUrl           = tryString   "image_url"           rdr
                         Subtitle           = tryString   "subtitle"            rdr
@@ -189,8 +235,8 @@ module Map =
     
     /// Create a revision from the current row in the given data reader
     let toRevision rdr : Revision =
-        {   AsOf = getDateTime "as_of"         rdr
-            Text = getString   "revision_text" rdr |> MarkupText.parse
+        {   AsOf = getInstant "as_of"         rdr
+            Text = getString  "revision_text" rdr |> MarkupText.parse
         }
     
     /// Create a tag mapping from the current row in the given data reader
@@ -220,7 +266,7 @@ module Map =
             else
                 [||]
         {   Id        = ThemeAssetId (ThemeId (getString "theme_id" rdr), getString "path" rdr)
-            UpdatedOn = getDateTime "updated_on" rdr
+            UpdatedOn = getInstant "updated_on" rdr
             Data      = assetData
         }
     
@@ -240,10 +286,10 @@ module Map =
                 dataStream.ToArray ()
             else
                 [||]
-        {   Id        = getString   "id"           rdr |> UploadId
-            WebLogId  = getString   "web_log_id"   rdr |> WebLogId
-            Path      = getString   "path"         rdr |> Permalink
-            UpdatedOn = getDateTime "updated_on" rdr
+        {   Id        = getString  "id"           rdr |> UploadId
+            WebLogId  = getString  "web_log_id"   rdr |> WebLogId
+            Path      = getString  "path"         rdr |> Permalink
+            UpdatedOn = getInstant "updated_on" rdr
             Data      = data
         }
     
@@ -273,18 +319,18 @@ module Map =
     
     /// Create a web log user from the current row in the given data reader
     let toWebLogUser rdr : WebLogUser =
-        {   Id            = getString   "id"             rdr |> WebLogUserId
-            WebLogId      = getString   "web_log_id"     rdr |> WebLogId
-            Email         = getString   "email"          rdr
-            FirstName     = getString   "first_name"     rdr
-            LastName      = getString   "last_name"      rdr
-            PreferredName = getString   "preferred_name" rdr
-            PasswordHash  = getString   "password_hash"  rdr
-            Salt          = getGuid     "salt"           rdr
-            Url           = tryString   "url"            rdr
-            AccessLevel   = getString   "access_level"   rdr |> AccessLevel.parse
-            CreatedOn     = getDateTime "created_on"     rdr
-            LastSeenOn    = tryDateTime "last_seen_on"   rdr
+        {   Id            = getString  "id"             rdr |> WebLogUserId
+            WebLogId      = getString  "web_log_id"     rdr |> WebLogId
+            Email         = getString  "email"          rdr
+            FirstName     = getString  "first_name"     rdr
+            LastName      = getString  "last_name"      rdr
+            PreferredName = getString  "preferred_name" rdr
+            PasswordHash  = getString  "password_hash"  rdr
+            Salt          = getGuid    "salt"           rdr
+            Url           = tryString  "url"            rdr
+            AccessLevel   = getString  "access_level"   rdr |> AccessLevel.parse
+            CreatedOn     = getInstant "created_on"     rdr
+            LastSeenOn    = tryInstant "last_seen_on"   rdr
         }
 
 /// Add a possibly-missing parameter, substituting null for None

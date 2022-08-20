@@ -50,11 +50,11 @@ type SQLiteTagMapData (conn : SqliteConnection) =
     /// Find any tag mappings in a list of tags for the given web log
     let findMappingForTags (tags : string list) webLogId = backgroundTask {
         use cmd = conn.CreateCommand ()
-        cmd.CommandText <- """
-            SELECT *
-              FROM tag_map
-             WHERE web_log_id = @webLogId
-               AND tag IN ("""
+        cmd.CommandText <-
+            "SELECT *
+               FROM tag_map
+              WHERE web_log_id = @webLogId
+                AND tag IN ("
         tags
         |> List.iteri (fun idx tag ->
             if idx > 0 then cmd.CommandText <- $"{cmd.CommandText}, "
@@ -71,19 +71,19 @@ type SQLiteTagMapData (conn : SqliteConnection) =
         use cmd = conn.CreateCommand ()
         match! findById tagMap.Id tagMap.WebLogId with
         | Some _ ->
-            cmd.CommandText <- """
-                UPDATE tag_map
-                   SET tag       = @tag,
-                       url_value = @urlValue
-                 WHERE id         = @id
-                   AND web_log_id = @webLogId"""
+            cmd.CommandText <-
+                "UPDATE tag_map
+                    SET tag       = @tag,
+                        url_value = @urlValue
+                  WHERE id         = @id
+                    AND web_log_id = @webLogId"
         | None ->
-            cmd.CommandText <- """
-                INSERT INTO tag_map (
+            cmd.CommandText <-
+                "INSERT INTO tag_map (
                     id, web_log_id, tag, url_value
                 ) VALUES (
                     @id, @webLogId, @tag, @urlValue
-                )"""
+                )"
         addWebLogId cmd tagMap.WebLogId
         [ cmd.Parameters.AddWithValue ("@id", TagMapId.toString tagMap.Id)
           cmd.Parameters.AddWithValue ("@tag", tagMap.Tag)

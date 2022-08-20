@@ -1,6 +1,7 @@
 ﻿namespace MyWebLog
 
 open System
+open NodaTime
 
 /// Support functions for domain definition
 [<AutoOpen>]
@@ -146,7 +147,7 @@ type Episode =
         Length : int64
         
         /// The duration of the episode
-        Duration : TimeSpan option
+        Duration : Duration option
         
         /// The media type of the file (overrides podcast default if present)
         MediaType : string option
@@ -269,12 +270,11 @@ module MetaItem =
     let empty =
         { Name = ""; Value = "" }
 
-        
 /// A revision of a page or post
 [<CLIMutable; NoComparison; NoEquality>]
 type Revision =
     {   /// When this revision was saved
-        AsOf : DateTime
+        AsOf : Instant
 
         /// The text of the revision
         Text : MarkupText
@@ -285,7 +285,7 @@ module Revision =
     
     /// An empty revision
     let empty =
-        {   AsOf = DateTime.UtcNow
+        {   AsOf = Instant.MinValue
             Text = Html ""
         }
 

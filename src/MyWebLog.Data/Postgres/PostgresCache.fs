@@ -4,7 +4,6 @@ open System.Threading
 open System.Threading.Tasks
 open Microsoft.Extensions.Caching.Distributed
 open NodaTime
-open Npgsql
 open Npgsql.FSharp
 
 /// Helper types and functions for the cache
@@ -36,13 +35,8 @@ module private Helpers =
     let getNow () = SystemClock.Instance.GetCurrentInstant ()
     
     /// Create a parameter for the expire-at time
-    let expireParam (it : Instant) =
-        "@expireAt", Sql.parameter (NpgsqlParameter ("@expireAt", it))
-    
-    /// Create a parameter for a possibly-missing NodaTime type
-    let optParam<'T> name (it : 'T option) =
-        let p = NpgsqlParameter ($"@%s{name}", if Option.isSome it then box it.Value else null)
-        p.ParameterName, Sql.parameter p
+    let expireParam =
+        typedParam "@expireAt"
 
 
 /// A distributed cache implementation in PostgreSQL used to handle sessions for myWebLog
@@ -65,7 +59,7 @@ type DistributedCache (connStr : string) =
                     |> Sql.query
                         "CREATE TABLE session (
                             id                  TEXT        NOT NULL PRIMARY KEY,
-                            payload             BYETA       NOT NULL,
+                            payload             BYTEA       NOT NULL,
                             expire_at           TIMESTAMPTZ NOT NULL,
                             sliding_expiration  INTERVAL,
                             absolute_expiration TIMESTAMPTZ);

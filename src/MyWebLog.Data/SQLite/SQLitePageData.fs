@@ -12,16 +12,16 @@ type SQLitePageData (conn : SqliteConnection) =
     
     /// Add parameters for page INSERT or UPDATE statements
     let addPageParameters (cmd : SqliteCommand) (page : Page) =
-        [   cmd.Parameters.AddWithValue ("@id", PageId.toString page.Id)
-            cmd.Parameters.AddWithValue ("@webLogId", WebLogId.toString page.WebLogId)
-            cmd.Parameters.AddWithValue ("@authorId", WebLogUserId.toString page.AuthorId)
-            cmd.Parameters.AddWithValue ("@title", page.Title)
-            cmd.Parameters.AddWithValue ("@permalink", Permalink.toString page.Permalink)
-            cmd.Parameters.AddWithValue ("@publishedOn", page.PublishedOn)
-            cmd.Parameters.AddWithValue ("@updatedOn", page.UpdatedOn)
+        [   cmd.Parameters.AddWithValue ("@id",           PageId.toString page.Id)
+            cmd.Parameters.AddWithValue ("@webLogId",     WebLogId.toString page.WebLogId)
+            cmd.Parameters.AddWithValue ("@authorId",     WebLogUserId.toString page.AuthorId)
+            cmd.Parameters.AddWithValue ("@title",        page.Title)
+            cmd.Parameters.AddWithValue ("@permalink",    Permalink.toString page.Permalink)
+            cmd.Parameters.AddWithValue ("@publishedOn",  instantParam page.PublishedOn)
+            cmd.Parameters.AddWithValue ("@updatedOn",    instantParam page.UpdatedOn)
             cmd.Parameters.AddWithValue ("@isInPageList", page.IsInPageList)
-            cmd.Parameters.AddWithValue ("@template", maybe page.Template)
-            cmd.Parameters.AddWithValue ("@text", page.Text)
+            cmd.Parameters.AddWithValue ("@template",     maybe page.Template)
+            cmd.Parameters.AddWithValue ("@text",         page.Text)
         ] |> ignore
     
     /// Append meta items to a page
@@ -139,14 +139,14 @@ type SQLitePageData (conn : SqliteConnection) =
     let add page = backgroundTask {
         use cmd = conn.CreateCommand ()
         // The page itself
-        cmd.CommandText <- """
-            INSERT INTO page (
+        cmd.CommandText <-
+            "INSERT INTO page (
                 id, web_log_id, author_id, title, permalink, published_on, updated_on, is_in_page_list, template,
                 page_text
             ) VALUES (
                 @id, @webLogId, @authorId, @title, @permalink, @publishedOn, @updatedOn, @isInPageList, @template,
                 @text
-            )"""
+            )"
         addPageParameters cmd page
         do! write cmd
         do! updatePageMeta       page.Id [] page.Metadata
@@ -174,11 +174,11 @@ type SQLitePageData (conn : SqliteConnection) =
     /// Count all pages shown in the page list for the given web log
     let countListed webLogId = backgroundTask {
         use cmd = conn.CreateCommand ()
-        cmd.CommandText <- """
-            SELECT COUNT(id)
-              FROM page
-             WHERE web_log_id      = @webLogId
-               AND is_in_page_list = @isInPageList"""
+        cmd.CommandText <-
+            "SELECT COUNT(id)
+               FROM page
+              WHERE web_log_id      = @webLogId
+                AND is_in_page_list = @isInPageList"
         addWebLogId cmd webLogId
         cmd.Parameters.AddWithValue ("@isInPageList", true) |> ignore
         return! count cmd
@@ -211,11 +211,11 @@ type SQLitePageData (conn : SqliteConnection) =
         | Some _ ->
             use cmd = conn.CreateCommand ()
             cmd.Parameters.AddWithValue ("@id", PageId.toString pageId) |> ignore
-            cmd.CommandText <- """
-                DELETE FROM page_revision  WHERE page_id = @id;
-                DELETE FROM page_permalink WHERE page_id = @id;
-                DELETE FROM page_meta      WHERE page_id = @id;
-                DELETE FROM page           WHERE id      = @id"""
+            cmd.CommandText <-
+                "DELETE FROM page_revision  WHERE page_id = @id;
+                 DELETE FROM page_permalink WHERE page_id = @id;
+                 DELETE FROM page_meta      WHERE page_id = @id;
+                 DELETE FROM page           WHERE id      = @id"
             do! write cmd
             return true
         | None -> return false
@@ -238,12 +238,12 @@ type SQLitePageData (conn : SqliteConnection) =
     /// Find the current permalink within a set of potential prior permalinks for the given web log
     let findCurrentPermalink permalinks webLogId = backgroundTask {
         use cmd = conn.CreateCommand ()
-        cmd.CommandText <- """
-            SELECT p.permalink
-              FROM page p
-                   INNER JOIN page_permalink pp ON pp.page_id = p.id
-             WHERE p.web_log_id = @webLogId
-               AND pp.permalink IN ("""
+        cmd.CommandText <-
+            "SELECT p.permalink
+               FROM page p
+                    INNER JOIN page_permalink pp ON pp.page_id = p.id
+              WHERE p.web_log_id = @webLogId
+                AND pp.permalink IN ("
         permalinks
         |> List.iteri (fun idx link ->
             if idx > 0 then cmd.CommandText <- $"{cmd.CommandText}, "
@@ -274,12 +274,12 @@ type SQLitePageData (conn : SqliteConnection) =
     /// Get all listed pages for the given web log (without revisions, prior permalinks, or text)
     let findListed webLogId = backgroundTask {
         use cmd = conn.CreateCommand ()
-        cmd.CommandText <- """
-            SELECT *
-              FROM page
-             WHERE web_log_id      = @webLogId
-               AND is_in_page_list = @isInPageList
-             ORDER BY LOWER(title)"""
+        cmd.CommandText <-
+            "SELECT *
+               FROM page
+              WHERE web_log_id      = @webLogId
+                AND is_in_page_list = @isInPageList
+              ORDER BY LOWER(title)"
         addWebLogId cmd webLogId
         cmd.Parameters.AddWithValue ("@isInPageList", true) |> ignore
         use! rdr = cmd.ExecuteReaderAsync ()
@@ -293,12 +293,12 @@ type SQLitePageData (conn : SqliteConnection) =
     /// Get a page of pages for the given web log (without revisions, prior permalinks, or metadata)
     let findPageOfPages webLogId pageNbr = backgroundTask {
         use cmd = conn.CreateCommand ()
-        cmd.CommandText <- """
-            SELECT *
-              FROM page
-             WHERE web_log_id = @webLogId
-             ORDER BY LOWER(title)
-             LIMIT @pageSize OFFSET @toSkip"""
+        cmd.CommandText <-
+            "SELECT *
+               FROM page
+              WHERE web_log_id = @webLogId
+              ORDER BY LOWER(title)
+              LIMIT @pageSize OFFSET @toSkip"
         addWebLogId cmd webLogId
         [ cmd.Parameters.AddWithValue ("@pageSize", 26)
           cmd.Parameters.AddWithValue ("@toSkip", (pageNbr - 1) * 25)
@@ -318,18 +318,18 @@ type SQLitePageData (conn : SqliteConnection) =
         match! findFullById page.Id page.WebLogId with
         | Some oldPage ->
             use cmd = conn.CreateCommand ()
-            cmd.CommandText <- """
-                UPDATE page
-                   SET author_id       = @authorId,
-                       title           = @title,
-                       permalink       = @permalink,
-                       published_on    = @publishedOn,
-                       updated_on      = @updatedOn,
-                       is_in_page_list = @isInPageList,
-                       template        = @template,
-                       page_text       = @text
-                 WHERE id         = @id
-                   AND web_log_id = @webLogId"""
+            cmd.CommandText <-
+                "UPDATE page
+                    SET author_id       = @authorId,
+                        title           = @title,
+                        permalink       = @permalink,
+                        published_on    = @publishedOn,
+                        updated_on      = @updatedOn,
+                        is_in_page_list = @isInPageList,
+                        template        = @template,
+                        page_text       = @text
+                  WHERE id         = @id
+                    AND web_log_id = @webLogId"
             addPageParameters cmd page
             do! write cmd
             do! updatePageMeta       page.Id oldPage.Metadata        page.Metadata

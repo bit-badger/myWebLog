@@ -253,8 +253,7 @@ module Backup =
     
     /// Create a JSON serializer (uses RethinkDB data implementation's JSON converters)
     let private getSerializer prettyOutput =
-        let serializer = JsonSerializer.CreateDefault ()
-        Json.all () |> Seq.iter serializer.Converters.Add
+        let serializer = Json.configure (JsonSerializer.CreateDefault ())
         if prettyOutput then serializer.Formatting <- Formatting.Indented
         serializer
     
