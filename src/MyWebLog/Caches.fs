@@ -11,6 +11,7 @@ module Extensions =
     open Microsoft.AspNetCore.Antiforgery
     open Microsoft.Extensions.Configuration
     open Microsoft.Extensions.DependencyInjection
+    open NodaTime
     
     /// Hold variable for the configured generator string
     let mutable private generatorString : string option = None
@@ -19,6 +20,9 @@ module Extensions =
         
         /// The anti-CSRF service
         member this.AntiForgery = this.RequestServices.GetRequiredService<IAntiforgery> ()
+        
+        /// The system clock
+        member this.Clock = this.RequestServices.GetRequiredService<IClock> ()
         
         /// The cross-site request forgery token set for this request
         member this.CsrfTokenSet = this.AntiForgery.GetAndStoreTokens this

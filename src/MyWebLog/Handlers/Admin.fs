@@ -5,6 +5,7 @@ open System.Threading.Tasks
 open Giraffe
 open MyWebLog
 open MyWebLog.ViewModels
+open NodaTime
 
 /// ~~ DASHBOARDS ~~
 module Dashboard =
@@ -344,7 +345,8 @@ module Theme =
                 do! asset.Open().CopyToAsync stream
                 do! data.ThemeAsset.Save
                         {   Id        = ThemeAssetId (themeId, assetName)
-                            UpdatedOn = asset.LastWriteTime.DateTime
+                            UpdatedOn = LocalDateTime.FromDateTime(asset.LastWriteTime.DateTime)
+                                            .InZoneLeniently(DateTimeZone.Utc).ToInstant ()
                             Data      = stream.ToArray ()
                         }
     }

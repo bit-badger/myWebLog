@@ -3,7 +3,6 @@
 open System
 open MyWebLog
 open NodaTime
-open NodaTime.Text
 
 /// Helper functions for view models
 [<AutoOpen>]
@@ -706,7 +705,6 @@ type EditPostModel =
             | Some rev -> rev
             | None -> Revision.empty
         let post    = if post.Metadata |> List.isEmpty then { post with Metadata = [ MetaItem.empty ] } else post
-        let format  = DurationPattern.CreateWithInvariantCulture("H:mm:ss").Format
         let episode = defaultArg post.Episode Episode.empty
         {   PostId             = PostId.toString post.Id
             Title              = post.Title
@@ -726,7 +724,7 @@ type EditPostModel =
             IsEpisode          = Option.isSome post.Episode
             Media              = episode.Media
             Length             = episode.Length
-            Duration           = defaultArg (episode.Duration |> Option.map format) ""
+            Duration           = defaultArg (Episode.formatDuration episode) ""
             MediaType          = defaultArg episode.MediaType ""
             ImageUrl           = defaultArg episode.ImageUrl ""
             Subtitle           = defaultArg episode.Subtitle ""

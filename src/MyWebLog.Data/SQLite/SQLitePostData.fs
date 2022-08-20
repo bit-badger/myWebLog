@@ -1,10 +1,10 @@
 namespace MyWebLog.Data.SQLite
 
-open System
 open System.Threading.Tasks
 open Microsoft.Data.Sqlite
 open MyWebLog
 open MyWebLog.Data
+open NodaTime
 
 /// SQLite myWebLog post data implementation        
 type SQLitePostData (conn : SqliteConnection) =
@@ -487,7 +487,7 @@ type SQLitePostData (conn : SqliteConnection) =
     }
     
     /// Find the next newest and oldest post from a publish date for the given web log
-    let findSurroundingPosts webLogId (publishedOn : DateTime) = backgroundTask {
+    let findSurroundingPosts webLogId (publishedOn : Instant) = backgroundTask {
         use cmd = conn.CreateCommand ()
         cmd.CommandText <- $"
             {selectPost}
@@ -498,7 +498,7 @@ type SQLitePostData (conn : SqliteConnection) =
              LIMIT 1"
         addWebLogId cmd webLogId
         [ cmd.Parameters.AddWithValue ("@status", PostStatus.toString Published)
-          cmd.Parameters.AddWithValue ("@publishedOn", publishedOn)
+          cmd.Parameters.AddWithValue ("@publishedOn", instantParam publishedOn)
         ] |> ignore
         use! rdr = cmd.ExecuteReaderAsync ()
         let! older = backgroundTask {

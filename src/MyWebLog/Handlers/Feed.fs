@@ -95,8 +95,8 @@ let private toFeedItem webLog (authors : MetaItem list) (cats : DisplayCategory[
     let item = SyndicationItem (
         Id              = WebLog.absoluteUrl webLog post.Permalink,
         Title           = TextSyndicationContent.CreateHtmlContent post.Title,
-        PublishDate     = DateTimeOffset post.PublishedOn.Value,
-        LastUpdatedTime = DateTimeOffset post.UpdatedOn,
+        PublishDate     = post.PublishedOn.Value.ToDateTimeOffset (),
+        LastUpdatedTime = post.UpdatedOn.ToDateTimeOffset (),
         Content         = TextSyndicationContent.CreatePlaintextContent plainText)
     item.AddPermalink (Uri item.Id)
     
@@ -163,8 +163,8 @@ let private addEpisode webLog (podcast : PodcastOptions) (episode : Episode) (po
     item.ElementExtensions.Add ("author",   Namespace.iTunes, podcast.DisplayedAuthor)
     item.ElementExtensions.Add ("explicit", Namespace.iTunes, epExplicit)
     episode.Subtitle |> Option.iter (fun it -> item.ElementExtensions.Add ("subtitle", Namespace.iTunes, it))
-    episode.Duration
-    |> Option.iter (fun it -> item.ElementExtensions.Add ("duration", Namespace.iTunes, it.ToString """hh\:mm\:ss"""))
+    Episode.formatDuration episode
+    |> Option.iter (fun it -> item.ElementExtensions.Add ("duration", Namespace.iTunes, it))
     
     match episode.ChapterFile with
     | Some chapters ->
@@ -381,7 +381,7 @@ let createFeed (feedType : FeedType) posts : HttpHandler = fun next ctx -> backg
     addNamespace feed "content" Namespace.content
     setTitleAndDescription feedType webLog cats feed
     
-    feed.LastUpdatedTime <- (List.head posts).UpdatedOn |> DateTimeOffset
+    feed.LastUpdatedTime <- (List.head posts).UpdatedOn.ToDateTimeOffset ()
     feed.Generator       <- ctx.Generator
     feed.Items           <- posts |> Seq.ofList |> Seq.map toItem
     feed.Language        <- "en"

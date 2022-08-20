@@ -52,9 +52,9 @@ let preparePostList webLog posts listType (url : string) pageNbr perPage (data :
     let! olderPost, newerPost =
         match listType with
         | SinglePost ->
-            let post     = List.head posts
-            let dateTime = defaultArg post.PublishedOn post.UpdatedOn
-            data.Post.FindSurroundingPosts webLog.Id dateTime
+            let post   = List.head posts
+            let target = defaultArg post.PublishedOn post.UpdatedOn
+            data.Post.FindSurroundingPosts webLog.Id target
         | _ -> Task.FromResult (None, None)
     let newerLink =
         match listType, pageNbr with
@@ -350,7 +350,7 @@ let restoreRevision (postId, revDate) : HttpHandler = requireAccess Author >=> f
     | Some post, Some rev when canEdit post.AuthorId ctx ->
         do! ctx.Data.Post.Update
                 { post with
-                    Revisions = { rev with AsOf = DateTime.UtcNow }
+                    Revisions = { rev with AsOf = ctx.Clock.GetCurrentInstant () }
                                   :: (post.Revisions |> List.filter (fun r -> r.AsOf <> rev.AsOf))
                 }
         do! addMessage ctx { UserMessage.success with Message = "Revision restored successfully" }
@@ -376,7 +376,6 @@ let deleteRevision (postId, revDate) : HttpHandler = requireAccess Author >=> fu
 let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     let! model   = ctx.BindFormAsync<EditPostModel> ()
     let  data    = ctx.Data
-    let  now     = DateTime.UtcNow
     let  tryPost =
         if model.IsNew then
             { Post.empty with
@@ -389,7 +388,7 @@ let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     | Some post when canEdit post.AuthorId ctx ->
         let priorCats   = post.CategoryIds
         let updatedPost =
-            model.UpdatePost post now
+            model.UpdatePost post (ctx.Clock.GetCurrentInstant ())
             |> function
             | post ->
                 if model.SetPublished then

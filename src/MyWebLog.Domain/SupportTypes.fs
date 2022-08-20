@@ -138,6 +138,8 @@ module ExplicitRating =
         | x       -> raise (invalidArg "rating" $"{x} is not a valid explicit rating")
 
 
+open NodaTime.Text
+
 /// A podcast episode
 type Episode =
     {   /// The URL to the media file for the episode (may be permalink)
@@ -215,6 +217,10 @@ module Episode =
             EpisodeNumber      = None
             EpisodeDescription = None
         }
+    
+    /// Format a duration for an episode
+    let formatDuration ep =
+        ep.Duration |> Option.map (DurationPattern.CreateWithInvariantCulture("H:mm:ss").Format)
 
 
 open Markdig

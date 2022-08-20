@@ -4,6 +4,7 @@ open System
 open System.IO
 open Microsoft.Extensions.DependencyInjection
 open MyWebLog.Data
+open NodaTime
 
 /// Create the web log information
 let private doCreateWebLog (args : string[]) (sp : IServiceProvider) = task {
@@ -42,7 +43,7 @@ let private doCreateWebLog (args : string[]) (sp : IServiceProvider) = task {
     
     // Create the admin user
     let salt = Guid.NewGuid ()
-    let now  = DateTime.UtcNow
+    let now  = SystemClock.Instance.GetCurrentInstant ()
     
     do! data.WebLogUser.Add 
             { WebLogUser.empty with
@@ -165,7 +166,7 @@ module Backup =
             Id : ThemeAssetId
             
             /// The updated date for this asset
-            UpdatedOn : DateTime
+            UpdatedOn : Instant
             
             /// The data for this asset, base-64 encoded
             Data : string
@@ -197,7 +198,7 @@ module Backup =
             Path : Permalink
             
             /// The date/time this upload was last updated (file time)
-            UpdatedOn : DateTime
+            UpdatedOn : Instant
             
             /// The data for the upload, base-64 encoded
             Data : string

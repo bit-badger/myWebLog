@@ -1,9 +1,9 @@
 namespace MyWebLog.Data.Postgres
 
-open System
 open MyWebLog
 open MyWebLog.Data
 open Newtonsoft.Json
+open NodaTime
 open Npgsql
 open Npgsql.FSharp
 
@@ -238,11 +238,11 @@ type PostgresPostData (conn : NpgsqlConnection) =
         |> Sql.executeAsync Map.toPost
     
     /// Find the next newest and oldest post from a publish date for the given web log
-    let findSurroundingPosts webLogId (publishedOn : DateTime) = backgroundTask {
+    let findSurroundingPosts webLogId (publishedOn : Instant) = backgroundTask {
         let queryParams = Sql.parameters [
             webLogIdParam webLogId
-            "@status",      Sql.string      (PostStatus.toString Published)
-            "@publishedOn", Sql.timestamptz publishedOn
+            typedParam "@publishedOn" publishedOn
+            "@status", Sql.string (PostStatus.toString Published)
         ]
         let! older =
             Sql.existingConnection conn

@@ -4,6 +4,7 @@ module MyWebLog.Handlers.User
 open System
 open System.Security.Cryptography
 open System.Text
+open NodaTime
 
 // ~~ LOG ON / LOG OFF ~~
 
@@ -147,7 +148,9 @@ let private showMyInfo (model : EditMyInfoModel) (user : WebLogUser) : HttpHandl
     |> addToHash ViewContext.Model model
     |> addToHash "access_level"    (AccessLevel.toString user.AccessLevel)
     |> addToHash "created_on"      (WebLog.localTime ctx.WebLog user.CreatedOn)
-    |> addToHash "last_seen_on"    (WebLog.localTime ctx.WebLog (defaultArg user.LastSeenOn DateTime.UnixEpoch))
+    |> addToHash "last_seen_on"    (WebLog.localTime ctx.WebLog
+                                         (defaultArg user.LastSeenOn (Instant.FromUnixTimeSeconds 0)))
+                                         
     |> adminView "my-info" next ctx
 
 
@@ -198,9 +201,9 @@ let save : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     let  tryUser =
         if model.IsNew then
             { WebLogUser.empty with
-                Id = WebLogUserId.create ()
-                WebLogId = ctx.WebLog.Id
-                CreatedOn = DateTime.UtcNow
+                Id        = WebLogUserId.create ()
+                WebLogId  = ctx.WebLog.Id
+                CreatedOn = ctx.Clock.GetCurrentInstant ()
             } |> someTask
         else data.WebLogUser.FindById (WebLogUserId model.Id) ctx.WebLog.Id
     match! tryUser with
@@ -227,4 +230,3 @@ let save : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
                 next ctx
     | None -> return! Error.notFound next ctx
 }
-

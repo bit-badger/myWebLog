@@ -139,15 +139,13 @@ let previewRevision (pgId, revDate) : HttpHandler = requireAccess Author >=> fun
     | _, None -> return! Error.notFound next ctx
 }
 
-open System
-
 // POST /admin/page/{id}/revision/{revision-date}/restore
 let restoreRevision (pgId, revDate) : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     match! findPageRevision pgId revDate ctx with
     | Some pg, Some rev when canEdit pg.AuthorId ctx ->
         do! ctx.Data.Page.Update
                 { pg with
-                    Revisions = { rev with AsOf = DateTime.UtcNow }
+                    Revisions = { rev with AsOf = ctx.Clock.GetCurrentInstant () }
                                   :: (pg.Revisions |> List.filter (fun r -> r.AsOf <> rev.AsOf))
                 }
         do! addMessage ctx { UserMessage.success with Message = "Revision restored successfully" }
@@ -173,7 +171,7 @@ let deleteRevision (pgId, revDate) : HttpHandler = requireAccess Author >=> fun 
 let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     let! model   = ctx.BindFormAsync<EditPageModel> ()
     let  data    = ctx.Data
-    let  now     = DateTime.UtcNow
+    let  now     = ctx.Clock.GetCurrentInstant ()
     let  tryPage =
         if model.IsNew then
             { Page.empty with

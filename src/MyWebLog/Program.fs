@@ -3,8 +3,6 @@ open Microsoft.Data.Sqlite
 open Microsoft.Extensions.Configuration
 open Microsoft.Extensions.Logging
 open MyWebLog
-open Newtonsoft.Json
-open Npgsql
 
 /// Middleware to derive the current web log
 type WebLogMiddleware (next : RequestDelegate, log : ILogger<WebLogMiddleware>) =
@@ -31,6 +29,9 @@ type WebLogMiddleware (next : RequestDelegate, log : ILogger<WebLogMiddleware>) 
 open System
 open Microsoft.Extensions.DependencyInjection
 open MyWebLog.Data
+open Newtonsoft.Json
+open NodaTime
+open Npgsql
 
 /// Logic to obtain a data connection and implementation based on configured values
 module DataImplementation =
@@ -118,7 +119,8 @@ let rec main args =
     
     let sp = builder.Services.BuildServiceProvider ()
     let data, serializer = DataImplementation.get sp
-    let _ = builder.Services.AddSingleton<JsonSerializer> serializer 
+    let _ = builder.Services.AddSingleton<JsonSerializer> serializer
+    let _ = builder.Services.AddSingleton<IClock> SystemClock.Instance
     
     task {
         do! data.StartUp ()
