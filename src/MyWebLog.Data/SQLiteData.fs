@@ -3,9 +3,10 @@ namespace MyWebLog.Data
 open Microsoft.Data.Sqlite
 open Microsoft.Extensions.Logging
 open MyWebLog.Data.SQLite
+open Newtonsoft.Json
 
 /// SQLite myWebLog data implementation        
-type SQLiteData (conn : SqliteConnection, log : ILogger<SQLiteData>) =
+type SQLiteData (conn : SqliteConnection, log : ILogger<SQLiteData>, ser : JsonSerializer) =
     
     /// The connection for this instance
     member _.Conn = conn
@@ -30,6 +31,8 @@ type SQLiteData (conn : SqliteConnection, log : ILogger<SQLiteData>) =
         member _.Upload     = SQLiteUploadData     conn
         member _.WebLog     = SQLiteWebLogData     conn
         member _.WebLogUser = SQLiteWebLogUserData conn
+        
+        member _.Serializer = ser
         
         member _.StartUp () = backgroundTask {
 

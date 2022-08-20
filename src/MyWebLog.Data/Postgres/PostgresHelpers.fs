@@ -5,6 +5,7 @@ module MyWebLog.Data.Postgres.PostgresHelpers
 open System
 open System.Threading.Tasks
 open MyWebLog
+open MyWebLog.Data
 open Newtonsoft.Json
 open NodaTime
 open Npgsql
@@ -21,30 +22,36 @@ let countName = "the_count"
 let existsName = "does_exist"
 
 /// Create the SQL and parameters for an IN clause
-let inClause<'T> name (valueFunc: 'T -> string) (items : 'T list) =
-    let mutable idx = 0
-    items
-    |> List.skip 1
-    |> List.fold (fun (itemS, itemP) it ->
-        idx <- idx + 1
-        $"{itemS}, @%s{name}{idx}", ($"@%s{name}{idx}", Sql.string (valueFunc it)) :: itemP)
-        (Seq.ofList items
-         |> Seq.map (fun it -> $"@%s{name}0", [ $"@%s{name}0", Sql.string (valueFunc it) ])
-         |> Seq.head)
+let inClause<'T> colNameAndPrefix paramName (valueFunc: 'T -> string) (items : 'T list) =
+    if List.isEmpty items then "", []
+    else
+        let mutable idx = 0
+        items
+        |> List.skip 1
+        |> List.fold (fun (itemS, itemP) it ->
+            idx <- idx + 1
+            $"{itemS}, @%s{paramName}{idx}", ($"@%s{paramName}{idx}", Sql.string (valueFunc it)) :: itemP)
+            (Seq.ofList items
+             |> Seq.map (fun it ->
+                 $"%s{colNameAndPrefix} IN (@%s{paramName}0", [ $"@%s{paramName}0", Sql.string (valueFunc it) ])
+             |> Seq.head)
+        |> function sql, ps -> $"{sql})", ps
 
 /// Create the SQL and parameters for the array equivalent of an IN clause
 let arrayInClause<'T> name (valueFunc : 'T -> string) (items : 'T list) =
-    let mutable idx = 0
-    items
-    |> List.skip 1
-    |> List.fold (fun (itemS, itemP) it ->
-        idx <- idx + 1
-        $"{itemS} OR %s{name} && ARRAY[@{name}{idx}]",
-        ($"@{name}{idx}", Sql.string (valueFunc it)) :: itemP)
-        (Seq.ofList items
-         |> Seq.map (fun it ->
-             $"{name} && ARRAY[@{name}0]", [ $"@{name}0", Sql.string (valueFunc it) ])
-         |> Seq.head)
+    if List.isEmpty items then "TRUE = FALSE", []
+    else
+        let mutable idx = 0
+        items
+        |> List.skip 1
+        |> List.fold (fun (itemS, itemP) it ->
+            idx <- idx + 1
+            $"{itemS} OR %s{name} && ARRAY[@{name}{idx}]",
+            ($"@{name}{idx}", Sql.string (valueFunc it)) :: itemP)
+            (Seq.ofList items
+             |> Seq.map (fun it ->
+                 $"{name} && ARRAY[@{name}0]", [ $"@{name}0", Sql.string (valueFunc it) ])
+             |> Seq.head)
     
 /// Get the first result of the given query
 let tryHead<'T> (query : Task<'T list>) = backgroundTask {
@@ -83,32 +90,11 @@ module Map =
         row.int countName
     
     /// Create a custom feed from the current row
-    let toCustomFeed (row : RowReader) : CustomFeed =
-        {   Id      = row.string "id"     |> CustomFeedId
-            Source  = row.string "source" |> CustomFeedSource.parse
-            Path    = row.string "path"   |> Permalink
-            Podcast =
-                match row.stringOrNone "title" with
-                | Some title ->
-                    Some {
-                        Title             = title
-                        Subtitle          = row.stringOrNone "subtitle"
-                        ItemsInFeed       = row.int          "items_in_feed"
-                        Summary           = row.string       "summary"
-                        DisplayedAuthor   = row.string       "displayed_author"
-                        Email             = row.string       "email"
-                        ImageUrl          = row.string       "image_url"          |> Permalink
-                        AppleCategory     = row.string       "apple_category"
-                        AppleSubcategory  = row.stringOrNone "apple_subcategory"
-                        Explicit          = row.string       "explicit"           |> ExplicitRating.parse
-                        DefaultMediaType  = row.stringOrNone "default_media_type"
-                        MediaBaseUrl      = row.stringOrNone "media_base_url"
-                        PodcastGuid       = row.uuidOrNone   "podcast_guid"
-                        FundingUrl        = row.stringOrNone "funding_url"
-                        FundingText       = row.stringOrNone "funding_text"
-                        Medium            = row.stringOrNone "medium"             |> Option.map PodcastMedium.parse
-                    }
-                | None -> None
+    let toCustomFeed (ser : JsonSerializer) (row : RowReader) : CustomFeed =
+        {   Id      = row.string       "id"      |> CustomFeedId
+            Source  = row.string       "source"  |> CustomFeedSource.parse
+            Path    = row.string       "path"    |> Permalink
+            Podcast = row.stringOrNone "podcast" |> Option.map (Utils.deserialize ser)
         }
     
     /// Get a true/false value as to whether an item exists
@@ -126,7 +112,7 @@ module Map =
         Permalink (row.string "permalink")
     
     /// Create a page from the current row
-    let toPage (row : RowReader) : Page =
+    let toPage (ser : JsonSerializer) (row : RowReader) : Page =
         { Page.empty with
             Id              = row.string              "id"         |> PageId
             WebLogId        = row.string              "web_log_id" |> WebLogId
@@ -140,12 +126,12 @@ module Map =
             Template        = row.stringOrNone        "template"
             Text            = row.string              "page_text"
             Metadata        = row.stringOrNone        "meta_items"
-                              |> Option.map JsonConvert.DeserializeObject<MetaItem list>
+                              |> Option.map (Utils.deserialize ser)
                               |> Option.defaultValue []
         }
     
     /// Create a post from the current row
-    let toPost (row : RowReader) : Post =
+    let toPost (ser : JsonSerializer) (row : RowReader) : Post =
         { Post.empty with
             Id              = row.string                    "id"         |> PostId
             WebLogId        = row.string                    "web_log_id" |> WebLogId
@@ -158,6 +144,7 @@ module Map =
             UpdatedOn       = row.fieldValue<Instant>       "updated_on"
             Template        = row.stringOrNone              "template"
             Text            = row.string                    "post_text"
+            Episode         = row.stringOrNone              "episode"          |> Option.map (Utils.deserialize ser)
             CategoryIds     = row.stringArrayOrNone         "category_ids"
                               |> Option.map (Array.map CategoryId >> List.ofArray)
                               |> Option.defaultValue []
@@ -165,10 +152,8 @@ module Map =
                               |> Option.map List.ofArray
                               |> Option.defaultValue []
             Metadata        = row.stringOrNone              "meta_items"
-                              |> Option.map JsonConvert.DeserializeObject<MetaItem list>
+                              |> Option.map (Utils.deserialize ser)
                               |> Option.defaultValue []
-            Episode         = row.stringOrNone              "episode"
-                              |> Option.map JsonConvert.DeserializeObject<Episode>
         }
     
     /// Create a revision from the current row

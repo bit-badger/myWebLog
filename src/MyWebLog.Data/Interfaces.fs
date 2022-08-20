@@ -3,6 +3,7 @@ namespace MyWebLog.Data
 open System.Threading.Tasks
 open MyWebLog
 open MyWebLog.ViewModels
+open Newtonsoft.Json
 open NodaTime
 
 /// The result of a category deletion attempt
@@ -325,6 +326,9 @@ type IData =
     
     /// Web log user data functions
     abstract member WebLogUser : IWebLogUserData
+    
+    /// A JSON serializer for use in persistence
+    abstract member Serializer : JsonSerializer
     
     /// Do any required start up data checks
     abstract member StartUp : unit -> Task<unit>

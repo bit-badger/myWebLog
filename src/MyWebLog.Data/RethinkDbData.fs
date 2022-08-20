@@ -1079,7 +1079,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                         do! rethink {
                             withTable Table.WebLogUser
                             get userId
-                            update [ nameof WebLogUser.empty.LastSeenOn, Utils.now () :> obj ]
+                            update [ nameof WebLogUser.empty.LastSeenOn, Noda.now () :> obj ]
                             write; withRetryOnce; ignoreResult conn
                         }
                     | None -> ()
@@ -1101,6 +1101,9 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     write; withRetryDefault; ignoreResult conn
                 }
         }
+        
+        member _.Serializer =
+            Net.Converter.Serializer
         
         member _.StartUp () = backgroundTask {
             let! dbs = rethink<string list> { dbList; result; withRetryOnce conn }

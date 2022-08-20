@@ -203,7 +203,7 @@ let save : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
             { WebLogUser.empty with
                 Id        = WebLogUserId.create ()
                 WebLogId  = ctx.WebLog.Id
-                CreatedOn = ctx.Clock.GetCurrentInstant ()
+                CreatedOn = Noda.now ()
             } |> someTask
         else data.WebLogUser.FindById (WebLogUserId model.Id) ctx.WebLog.Id
     match! tryUser with

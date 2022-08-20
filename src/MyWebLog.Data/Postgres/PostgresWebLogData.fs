@@ -2,11 +2,12 @@
 
 open MyWebLog
 open MyWebLog.Data
+open Newtonsoft.Json
 open Npgsql
 open Npgsql.FSharp
 
 /// PostgreSQL myWebLog web log data implementation        
-type PostgresWebLogData (conn : NpgsqlConnection) =
+type PostgresWebLogData (conn : NpgsqlConnection, ser : JsonSerializer) =
     
     // SUPPORT FUNCTIONS
     
@@ -36,15 +37,16 @@ type PostgresWebLogData (conn : NpgsqlConnection) =
         yield! rssParams webLog
     ]
     
-    /// The SELECT statement for custom feeds, which includes podcast feed settings if present    
-    let feedSelect = "SELECT f.*, p.* FROM web_log_feed f LEFT JOIN web_log_feed_podcast p ON p.feed_id = f.id"
+    /// Shorthand to map a result to a custom feed
+    let toCustomFeed =
+        Map.toCustomFeed ser
     
     /// Get the current custom feeds for a web log
     let getCustomFeeds (webLog : WebLog) =
         Sql.existingConnection conn
-        |> Sql.query $"{feedSelect} WHERE f.web_log_id = @webLogId"
+        |> Sql.query "SELECT * FROM web_log_feed WHERE web_log_id = @webLogId"
         |> Sql.parameters [ webLogIdParam webLog.Id ]
-        |> Sql.executeAsync Map.toCustomFeed
+        |> Sql.executeAsync toCustomFeed
     
     /// Append custom feeds to a web log
     let appendCustomFeeds (webLog : WebLog) = backgroundTask {
@@ -52,33 +54,13 @@ type PostgresWebLogData (conn : NpgsqlConnection) =
         return { webLog with Rss = { webLog.Rss with CustomFeeds = feeds } }
     }
     
-    /// The parameters to save a podcast feed
-    let podcastParams feedId (podcast : PodcastOptions) = [
-        "@feedId",           Sql.string       (CustomFeedId.toString feedId)
-        "@title",            Sql.string       podcast.Title
-        "@subtitle",         Sql.stringOrNone podcast.Subtitle
-        "@itemsInFeed",      Sql.int          podcast.ItemsInFeed
-        "@summary",          Sql.string       podcast.Summary
-        "@displayedAuthor",  Sql.string       podcast.DisplayedAuthor
-        "@email",            Sql.string       podcast.Email
-        "@imageUrl",         Sql.string       (Permalink.toString podcast.ImageUrl)
-        "@appleCategory",    Sql.string       podcast.AppleCategory
-        "@appleSubcategory", Sql.stringOrNone podcast.AppleSubcategory
-        "@explicit",         Sql.string       (ExplicitRating.toString podcast.Explicit)
-        "@defaultMediaType", Sql.stringOrNone podcast.DefaultMediaType
-        "@mediaBaseUrl",     Sql.stringOrNone podcast.MediaBaseUrl
-        "@podcastGuid",      Sql.uuidOrNone   podcast.PodcastGuid
-        "@fundingUrl",       Sql.stringOrNone podcast.FundingUrl
-        "@fundingText",      Sql.stringOrNone podcast.FundingText
-        "@medium",           Sql.stringOrNone (podcast.Medium |> Option.map PodcastMedium.toString)
-    ]
-    
     /// The parameters to save a custom feed
     let feedParams webLogId (feed : CustomFeed) = [
         webLogIdParam webLogId
-        "@id",     Sql.string (CustomFeedId.toString feed.Id)
-        "@source", Sql.string (CustomFeedSource.toString feed.Source)
-        "@path",   Sql.string (Permalink.toString feed.Path)
+        "@id",      Sql.string      (CustomFeedId.toString feed.Id)
+        "@source",  Sql.string      (CustomFeedSource.toString feed.Source)
+        "@path",    Sql.string      (Permalink.toString feed.Path)
+        "@podcast", Sql.jsonbOrNone (feed.Podcast |> Option.map (Utils.serialize ser))
     ]
 
     /// Update the custom feeds for a web log
@@ -93,55 +75,18 @@ type PostgresWebLogData (conn : NpgsqlConnection) =
                 Sql.existingConnection conn
                 |> Sql.executeTransactionAsync [
                     if not (List.isEmpty toDelete) then
-                        "DELETE FROM web_log_feed_podcast WHERE feed_id = @id;
-                         DELETE FROM web_log_feed         WHERE id      = @id",
+                        "DELETE FROM web_log_feed WHERE id = @id",
                         toDelete |> List.map (fun it -> [ "@id", Sql.string (CustomFeedId.toString it.Id) ])
                     if not (List.isEmpty toAddOrUpdate) then
                         "INSERT INTO web_log_feed (
-                            id, web_log_id, source, path
+                            id, web_log_id, source, path, podcast
                         ) VALUES (
-                            @id, @webLogId, @source, @path
+                            @id, @webLogId, @source, @path, @podcast
                         ) ON CONFLICT (id) DO UPDATE
-                        SET source = EXCLUDED.source,
-                            path   = EXCLUDED.path",
+                        SET source  = EXCLUDED.source,
+                            path    = EXCLUDED.path,
+                            podcast = EXCLUDED.podcast",
                         toAddOrUpdate |> List.map (feedParams webLog.Id)
-                        let podcasts = toAddOrUpdate |> List.filter (fun it -> Option.isSome it.Podcast)
-                        if not (List.isEmpty podcasts) then
-                            "INSERT INTO web_log_feed_podcast (
-                                feed_id, title, subtitle, items_in_feed, summary, displayed_author, email, image_url,
-                                apple_category, apple_subcategory, explicit, default_media_type, media_base_url,
-                                podcast_guid, funding_url, funding_text, medium
-                            ) VALUES (
-                                @feedId, @title, @subtitle, @itemsInFeed, @summary, @displayedAuthor, @email, @imageUrl,
-                                @appleCategory, @appleSubcategory, @explicit, @defaultMediaType, @mediaBaseUrl,
-                                @podcastGuid, @fundingUrl, @fundingText, @medium
-                            ) ON CONFLICT (feed_id) DO UPDATE
-                            SET title              = EXCLUDED.title,
-                                subtitle           = EXCLUDED.subtitle,
-                                items_in_feed      = EXCLUDED.items_in_feed,
-                                summary            = EXCLUDED.summary,
-                                displayed_author   = EXCLUDED.displayed_author,
-                                email              = EXCLUDED.email,
-                                image_url          = EXCLUDED.image_url,
-                                apple_category     = EXCLUDED.apple_category,
-                                apple_subcategory  = EXCLUDED.apple_subcategory,
-                                explicit           = EXCLUDED.explicit,
-                                default_media_type = EXCLUDED.default_media_type,
-                                media_base_url     = EXCLUDED.media_base_url,
-                                podcast_guid       = EXCLUDED.podcast_guid,
-                                funding_url        = EXCLUDED.funding_url,
-                                funding_text       = EXCLUDED.funding_text,
-                                medium             = EXCLUDED.medium",
-                            podcasts |> List.map (fun it -> podcastParams it.Id it.Podcast.Value)
-                        let hadPodcasts =
-                            toAddOrUpdate
-                            |> List.filter (fun it ->
-                                match feeds |> List.tryFind (fun feed -> feed.Id = it.Id) with
-                                | Some feed -> Option.isSome feed.Podcast && Option.isNone it.Podcast
-                                | None -> false)
-                        if not (List.isEmpty hadPodcasts) then
-                            "DELETE FROM web_log_feed_podcast WHERE feed_id = @id",
-                            hadPodcasts |> List.map (fun it -> [ "@id", Sql.string (CustomFeedId.toString it.Id) ])
                 ]
             ()
     }
@@ -173,8 +118,8 @@ type PostgresWebLogData (conn : NpgsqlConnection) =
             |> Sql.executeAsync Map.toWebLog
         let! feeds =
             Sql.existingConnection conn
-            |> Sql.query feedSelect
-            |> Sql.executeAsync (fun row -> WebLogId (row.string "web_log_id"), Map.toCustomFeed row)
+            |> Sql.query "SELECT * FROM web_log_feed"
+            |> Sql.executeAsync (fun row -> WebLogId (row.string "web_log_id"), toCustomFeed row)
         return
             webLogs
             |> List.map (fun it ->
@@ -191,20 +136,19 @@ type PostgresWebLogData (conn : NpgsqlConnection) =
         let pageSubQuery = subQuery "page"
         let! _ =
             Sql.existingConnection conn
-            |> Sql.query $"""
-                DELETE FROM post_comment         WHERE post_id IN {postSubQuery};
-                DELETE FROM post_revision        WHERE post_id IN {postSubQuery};
-                DELETE FROM post_category        WHERE post_id IN {postSubQuery};
-                DELETE FROM post                 WHERE web_log_id = @webLogId;
-                DELETE FROM page_revision        WHERE page_id IN {pageSubQuery};
-                DELETE FROM page                 WHERE web_log_id = @webLogId;
-                DELETE FROM category             WHERE web_log_id = @webLogId;
-                DELETE FROM tag_map              WHERE web_log_id = @webLogId;
-                DELETE FROM upload               WHERE web_log_id = @webLogId;
-                DELETE FROM web_log_user         WHERE web_log_id = @webLogId;
-                DELETE FROM web_log_feed_podcast WHERE feed_id IN {subQuery "web_log_feed"};
-                DELETE FROM web_log_feed         WHERE web_log_id = @webLogId;
-                DELETE FROM web_log              WHERE id         = @webLogId"""
+            |> Sql.query $"
+                DELETE FROM post_comment  WHERE post_id IN {postSubQuery};
+                DELETE FROM post_revision WHERE post_id IN {postSubQuery};
+                DELETE FROM post_category WHERE post_id IN {postSubQuery};
+                DELETE FROM post          WHERE web_log_id = @webLogId;
+                DELETE FROM page_revision WHERE page_id IN {pageSubQuery};
+                DELETE FROM page          WHERE web_log_id = @webLogId;
+                DELETE FROM category      WHERE web_log_id = @webLogId;
+                DELETE FROM tag_map       WHERE web_log_id = @webLogId;
+                DELETE FROM upload        WHERE web_log_id = @webLogId;
+                DELETE FROM web_log_user  WHERE web_log_id = @webLogId;
+                DELETE FROM web_log_feed  WHERE web_log_id = @webLogId;
+                DELETE FROM web_log       WHERE id         = @webLogId"
             |> Sql.parameters [ webLogIdParam webLogId ]
             |> Sql.executeNonQueryAsync
         ()

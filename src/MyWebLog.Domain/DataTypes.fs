@@ -83,7 +83,7 @@ module Comment =
             Email       = ""
             Url         = None
             Status      = Pending
-            PostedOn    = Instant.MinValue
+            PostedOn    = Noda.epoch
             Text        = ""
         }
 
@@ -141,8 +141,8 @@ module Page =
             AuthorId        = WebLogUserId.empty
             Title           = ""
             Permalink       = Permalink.empty
-            PublishedOn     = Instant.MinValue
-            UpdatedOn       = Instant.MinValue
+            PublishedOn     = Noda.epoch
+            UpdatedOn       = Noda.epoch
             IsInPageList    = false
             Template        = None
             Text            = ""
@@ -216,7 +216,7 @@ module Post =
             Title           = ""
             Permalink       = Permalink.empty
             PublishedOn     = None
-            UpdatedOn       = Instant.MinValue
+            UpdatedOn       = Noda.epoch
             Text            = ""
             Template        = None
             CategoryIds     = []
@@ -301,7 +301,7 @@ module ThemeAsset =
     /// An empty theme asset
     let empty =
         {   Id        = ThemeAssetId (ThemeId "", "")
-            UpdatedOn = Instant.MinValue
+            UpdatedOn = Noda.epoch
             Data      = [||]
         }
 
@@ -332,7 +332,7 @@ module Upload =
         {   Id        = UploadId.empty
             WebLogId  = WebLogId.empty
             Path      = Permalink.empty
-            UpdatedOn = Instant.MinValue
+            UpdatedOn = Noda.epoch
             Data      = [||]
         }
 
@@ -473,7 +473,7 @@ module WebLogUser =
             Salt          = Guid.Empty
             Url           = None
             AccessLevel   = Author
-            CreatedOn     = Instant.FromUnixTimeSeconds 0L
+            CreatedOn     = Noda.epoch
             LastSeenOn    = None
         }
     

@@ -13,6 +13,19 @@ module private Helpers =
         Convert.ToBase64String(Guid.NewGuid().ToByteArray ()).Replace('/', '_').Replace('+', '-').Substring (0, 22)
 
 
+/// Functions to support NodaTime manipulation
+module Noda =
+    
+    /// The clock to use when getting "now" (will make mutable for testing)
+    let clock : IClock = SystemClock.Instance
+    
+    /// The Unix epoch
+    let epoch = Instant.FromUnixTimeSeconds 0L
+    
+    /// The current Instant, with fractional seconds truncated
+    let now () = Instant.FromUnixTimeSeconds (clock.GetCurrentInstant().ToUnixTimeSeconds ())
+
+
 /// A user's access level
 type AccessLevel =
     /// The user may create and publish posts and edit the ones they have created
@@ -291,7 +304,7 @@ module Revision =
     
     /// An empty revision
     let empty =
-        {   AsOf = Instant.MinValue
+        {   AsOf = Noda.epoch
             Text = Html ""
         }
 

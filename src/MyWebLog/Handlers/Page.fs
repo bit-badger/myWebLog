@@ -145,7 +145,7 @@ let restoreRevision (pgId, revDate) : HttpHandler = requireAccess Author >=> fun
     | Some pg, Some rev when canEdit pg.AuthorId ctx ->
         do! ctx.Data.Page.Update
                 { pg with
-                    Revisions = { rev with AsOf = ctx.Clock.GetCurrentInstant () }
+                    Revisions = { rev with AsOf = Noda.now () }
                                   :: (pg.Revisions |> List.filter (fun r -> r.AsOf <> rev.AsOf))
                 }
         do! addMessage ctx { UserMessage.success with Message = "Revision restored successfully" }
@@ -171,7 +171,7 @@ let deleteRevision (pgId, revDate) : HttpHandler = requireAccess Author >=> fun 
 let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     let! model   = ctx.BindFormAsync<EditPageModel> ()
     let  data    = ctx.Data
-    let  now     = ctx.Clock.GetCurrentInstant ()
+    let  now     = Noda.now ()
     let  tryPage =
         if model.IsNew then
             { Page.empty with

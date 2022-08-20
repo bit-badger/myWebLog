@@ -36,7 +36,7 @@ module private Helpers =
     
     /// Create a parameter for the expire-at time
     let expireParam =
-        typedParam "@expireAt"
+        typedParam "expireAt"
 
 
 /// A distributed cache implementation in PostgreSQL used to handle sessions for myWebLog

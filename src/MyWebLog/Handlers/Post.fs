@@ -350,7 +350,7 @@ let restoreRevision (postId, revDate) : HttpHandler = requireAccess Author >=> f
     | Some post, Some rev when canEdit post.AuthorId ctx ->
         do! ctx.Data.Post.Update
                 { post with
-                    Revisions = { rev with AsOf = ctx.Clock.GetCurrentInstant () }
+                    Revisions = { rev with AsOf = Noda.now () }
                                   :: (post.Revisions |> List.filter (fun r -> r.AsOf <> rev.AsOf))
                 }
         do! addMessage ctx { UserMessage.success with Message = "Revision restored successfully" }
@@ -388,7 +388,7 @@ let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     | Some post when canEdit post.AuthorId ctx ->
         let priorCats   = post.CategoryIds
         let updatedPost =
-            model.UpdatePost post (ctx.Clock.GetCurrentInstant ())
+            model.UpdatePost post (Noda.now ())
             |> function
             | post ->
                 if model.SetPublished then

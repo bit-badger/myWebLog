@@ -2,23 +2,26 @@
 
 open Microsoft.Extensions.Logging
 open MyWebLog.Data.Postgres
+open Newtonsoft.Json
 open Npgsql
 open Npgsql.FSharp
 
 /// Data implementation for PostgreSQL
-type PostgresData (conn : NpgsqlConnection, log : ILogger<PostgresData>) =
+type PostgresData (conn : NpgsqlConnection, log : ILogger<PostgresData>, ser : JsonSerializer) =
 
     interface IData with
         
         member _.Category   = PostgresCategoryData   conn
-        member _.Page       = PostgresPageData       conn
-        member _.Post       = PostgresPostData       conn
+        member _.Page       = PostgresPageData       (conn, ser)
+        member _.Post       = PostgresPostData       (conn, ser)
         member _.TagMap     = PostgresTagMapData     conn
         member _.Theme      = PostgresThemeData      conn
         member _.ThemeAsset = PostgresThemeAssetData conn
         member _.Upload     = PostgresUploadData     conn
-        member _.WebLog     = PostgresWebLogData     conn
+        member _.WebLog     = PostgresWebLogData     (conn, ser)
         member _.WebLogUser = PostgresWebLogUserData conn
+        
+        member _.Serializer = ser
         
         member _.StartUp () = backgroundTask {
             
@@ -77,27 +80,9 @@ type PostgresData (conn : NpgsqlConnection, log : ILogger<PostgresData>) =
                         id          TEXT NOT NULL PRIMARY KEY,
                         web_log_id  TEXT NOT NULL REFERENCES web_log (id),
                         source      TEXT NOT NULL,
-                        path        TEXT NOT NULL)"
+                        path        TEXT NOT NULL,
+                        podcast     JSONB)"
                     "CREATE INDEX web_log_feed_web_log_idx ON web_log_feed (web_log_id)"
-                if needsTable "web_log_feed_podcast" then
-                    "CREATE TABLE web_log_feed_podcast (
-                        feed_id             TEXT    NOT NULL PRIMARY KEY REFERENCES web_log_feed (id),
-                        title               TEXT    NOT NULL,
-                        subtitle            TEXT,
-                        items_in_feed       INTEGER NOT NULL,
-                        summary             TEXT    NOT NULL,
-                        displayed_author    TEXT    NOT NULL,
-                        email               TEXT    NOT NULL,
-                        image_url           TEXT    NOT NULL,
-                        apple_category      TEXT    NOT NULL,
-                        apple_subcategory   TEXT,
-                        explicit            TEXT    NOT NULL,
-                        default_media_type  TEXT,
-                        media_base_url      TEXT,
-                        podcast_guid        TEXT,
-                        funding_url         TEXT,
-                        funding_text        TEXT,
-                        medium              TEXT)"
                 
                 // Category table
                 if needsTable "category" then
@@ -120,7 +105,7 @@ type PostgresData (conn : NpgsqlConnection, log : ILogger<PostgresData>) =
                         last_name       TEXT        NOT NULL,
                         preferred_name  TEXT        NOT NULL,
                         password_hash   TEXT        NOT NULL,
-                        salt            TEXT        NOT NULL,
+                        salt            UUID        NOT NULL,
                         url             TEXT,
                         access_level    TEXT        NOT NULL,
                         created_on      TIMESTAMPTZ NOT NULL,

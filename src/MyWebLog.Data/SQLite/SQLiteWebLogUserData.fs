@@ -122,7 +122,7 @@ type SQLiteWebLogUserData (conn : SqliteConnection) =
                 AND web_log_id = @webLogId"
         addWebLogId cmd webLogId
         [ cmd.Parameters.AddWithValue ("@id",         WebLogUserId.toString userId)
-          cmd.Parameters.AddWithValue ("@lastSeenOn", instantParam (Utils.now ()))
+          cmd.Parameters.AddWithValue ("@lastSeenOn", instantParam (Noda.now ()))
         ] |> ignore
         let! _ = cmd.ExecuteNonQueryAsync ()
         ()

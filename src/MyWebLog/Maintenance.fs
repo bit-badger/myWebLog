@@ -156,7 +156,6 @@ let loadTheme (args : string[]) (sp : IServiceProvider) = task {
 /// Back up a web log's data
 module Backup =
     
-    open System.Threading.Tasks
     open MyWebLog.Converters
     open Newtonsoft.Json
 
@@ -252,7 +251,7 @@ module Backup =
             Uploads : EncodedUpload list
         }
     
-    /// Create a JSON serializer (uses RethinkDB data implementation's JSON converters)
+    /// Create a JSON serializer
     let private getSerializer prettyOutput =
         let serializer = Json.configure (JsonSerializer.CreateDefault ())
         if prettyOutput then serializer.Formatting <- Formatting.Indented
@@ -382,7 +381,8 @@ module Backup =
         printfn ""
         printfn "- Importing theme..."
         do! data.Theme.Save restore.Theme
-        let! _ = restore.Assets |> List.map (EncodedAsset.toAsset >> data.ThemeAsset.Save) |> Task.WhenAll
+        restore.Assets
+        |> List.iter (EncodedAsset.toAsset >> data.ThemeAsset.Save >> Async.AwaitTask >> Async.RunSynchronously)
         
         // Restore web log data
         
@@ -393,19 +393,22 @@ module Backup =
         do! data.WebLogUser.Restore restore.Users
         
         printfn "- Restoring categories and tag mappings..."
-        do! data.TagMap.Restore   restore.TagMappings
-        do! data.Category.Restore restore.Categories
+        if not (List.isEmpty restore.TagMappings) then do! data.TagMap.Restore   restore.TagMappings
+        if not (List.isEmpty restore.Categories)  then do! data.Category.Restore restore.Categories
         
         printfn "- Restoring pages..."
-        do! data.Page.Restore restore.Pages
+        if not (List.isEmpty restore.Pages) then
+            printfn "here"
+            do! data.Page.Restore restore.Pages
         
         printfn "- Restoring posts..."
-        do! data.Post.Restore restore.Posts
+        if not (List.isEmpty restore.Posts) then do! data.Post.Restore restore.Posts
         
         // TODO: comments not yet implemented
         
         printfn "- Restoring uploads..."
-        do! data.Upload.Restore (restore.Uploads |> List.map EncodedUpload.toUpload)
+        if not (List.isEmpty restore.Uploads) then
+            do! data.Upload.Restore (restore.Uploads |> List.map EncodedUpload.toUpload)
         
         displayStats "Restored for <>NAME<>:" restore.WebLog restore
     }

@@ -8,7 +8,7 @@ open Npgsql
 open Npgsql.FSharp
 
 /// PostgreSQL myWebLog post data implementation        
-type PostgresPostData (conn : NpgsqlConnection) =
+type PostgresPostData (conn : NpgsqlConnection, ser : JsonSerializer) =
 
     // SUPPORT FUNCTIONS
     
@@ -25,11 +25,14 @@ type PostgresPostData (conn : NpgsqlConnection) =
     /// The SELECT statement for a post that will include category IDs
     let selectPost =
         "SELECT *, ARRAY(SELECT cat.category_id FROM post_category cat WHERE cat.post_id = p.id) AS category_ids
-           FROM post"
+           FROM post p"
+    
+    /// Shorthand for mapping to a post
+    let toPost = Map.toPost ser
     
     /// Return a post with no revisions, prior permalinks, or text
     let postWithoutText row =
-        { Map.toPost row with Text = "" }
+        { toPost row with Text = "" }
     
     /// The INSERT statement for a post/category cross-reference
     let catInsert = "INSERT INTO post_category VALUES (@postId, @categoryId)"
@@ -61,7 +64,7 @@ type PostgresPostData (conn : NpgsqlConnection) =
     
     /// The parameters for adding a post revision
     let revParams postId rev = [
-        typedParam "@asOf" rev.AsOf
+        typedParam "asOf" rev.AsOf
         "@postId", Sql.string (PostId.toString postId)
         "@text",   Sql.string (MarkupText.toString rev.Text)
     ]
@@ -78,7 +81,7 @@ type PostgresPostData (conn : NpgsqlConnection) =
                         toDelete
                         |> List.map (fun it -> [
                             "@postId", Sql.string (PostId.toString postId)
-                            typedParam "@asOf" it.AsOf
+                            typedParam "asOf" it.AsOf
                         ])
                     if not (List.isEmpty toAdd) then
                         revInsert, toAdd |> List.map (revParams postId)
@@ -107,7 +110,7 @@ type PostgresPostData (conn : NpgsqlConnection) =
         Sql.existingConnection conn
         |> Sql.query $"{selectPost} WHERE id = @id AND web_log_id = @webLogId"
         |> Sql.parameters [ "@id", Sql.string (PostId.toString postId); webLogIdParam webLogId ]
-        |> Sql.executeAsync Map.toPost
+        |> Sql.executeAsync toPost
         |> tryHead
     
     /// Find a post by its permalink for the given web log (excluding revisions and prior permalinks)
@@ -115,7 +118,7 @@ type PostgresPostData (conn : NpgsqlConnection) =
         Sql.existingConnection conn
         |> Sql.query $"{selectPost} WHERE web_log_id = @webLogId AND permalink = @link"
         |> Sql.parameters [ webLogIdParam webLogId; "@link", Sql.string (Permalink.toString permalink) ]
-        |> Sql.executeAsync Map.toPost
+        |> Sql.executeAsync toPost
         |> tryHead
     
     /// Find a complete post by its ID for the given web log
@@ -150,7 +153,7 @@ type PostgresPostData (conn : NpgsqlConnection) =
             let linkSql, linkParams = arrayInClause "prior_permalinks" Permalink.toString permalinks
             return!
                 Sql.existingConnection conn
-                |> Sql.query $"SELECT permalink FROM post WHERE web_log_id = @webLogId AND ({linkSql}"
+                |> Sql.query $"SELECT permalink FROM post WHERE web_log_id = @webLogId AND ({linkSql})"
                 |> Sql.parameters (webLogIdParam webLogId :: linkParams)
                 |> Sql.executeAsync Map.toPermalink
                 |> tryHead
@@ -162,7 +165,7 @@ type PostgresPostData (conn : NpgsqlConnection) =
             Sql.existingConnection conn
             |> Sql.query $"{selectPost} WHERE web_log_id = @webLogId"
             |> Sql.parameters [ webLogIdParam webLogId ]
-            |> Sql.executeAsync Map.toPost
+            |> Sql.executeAsync toPost
         let! revisions =
             Sql.existingConnection conn
             |> Sql.query
@@ -181,21 +184,21 @@ type PostgresPostData (conn : NpgsqlConnection) =
     
     /// Get a page of categorized posts for the given web log (excludes revisions)
     let findPageOfCategorizedPosts webLogId categoryIds pageNbr postsPerPage =
-        let catSql, catParams = inClause "catId" CategoryId.toString categoryIds
+        let catSql, catParams = inClause "AND pc.category_id" "catId" CategoryId.toString categoryIds
         Sql.existingConnection conn
         |> Sql.query $"
-            {selectPost} p
+            {selectPost}
                    INNER JOIN post_category pc ON pc.post_id = p.id
              WHERE p.web_log_id = @webLogId
                AND p.status     = @status
-               AND pc.category_id IN ({catSql})
+               {catSql}
              ORDER BY published_on DESC
              LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"
         |> Sql.parameters
             [   webLogIdParam webLogId
                 "@status", Sql.string (PostStatus.toString Published)
                 yield! catParams   ]
-        |> Sql.executeAsync Map.toPost
+        |> Sql.executeAsync toPost
     
     /// Get a page of posts for the given web log (excludes text and revisions)
     let findPageOfPosts webLogId pageNbr postsPerPage =
@@ -218,7 +221,7 @@ type PostgresPostData (conn : NpgsqlConnection) =
              ORDER BY published_on DESC
              LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"
         |> Sql.parameters [ webLogIdParam webLogId; "@status", Sql.string (PostStatus.toString Published) ]
-        |> Sql.executeAsync Map.toPost
+        |> Sql.executeAsync toPost
     
     /// Get a page of tagged posts for the given web log (excludes revisions and prior permalinks)
     let findPageOfTaggedPosts webLogId (tag : string) pageNbr postsPerPage =
@@ -227,7 +230,7 @@ type PostgresPostData (conn : NpgsqlConnection) =
             {selectPost}
              WHERE web_log_id =  @webLogId
                AND status     =  @status
-               AND tag        && ARRAY[@tag]
+               AND tags       && ARRAY[@tag]
              ORDER BY published_on DESC
              LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"
         |> Sql.parameters
@@ -235,13 +238,13 @@ type PostgresPostData (conn : NpgsqlConnection) =
                 "@status", Sql.string (PostStatus.toString Published)
                 "@tag",    Sql.string tag
             ]
-        |> Sql.executeAsync Map.toPost
+        |> Sql.executeAsync toPost
     
     /// Find the next newest and oldest post from a publish date for the given web log
     let findSurroundingPosts webLogId (publishedOn : Instant) = backgroundTask {
-        let queryParams = Sql.parameters [
+        let queryParams () = Sql.parameters [
             webLogIdParam webLogId
-            typedParam "@publishedOn" publishedOn
+            typedParam "publishedOn" publishedOn
             "@status", Sql.string (PostStatus.toString Published)
         ]
         let! older =
@@ -253,8 +256,8 @@ type PostgresPostData (conn : NpgsqlConnection) =
                    AND published_on < @publishedOn
                  ORDER BY published_on DESC
                  LIMIT 1"
-            |> queryParams
-            |> Sql.executeAsync Map.toPost
+            |> queryParams ()
+            |> Sql.executeAsync toPost
         let! newer =
             Sql.existingConnection conn
             |> Sql.query $"
@@ -264,8 +267,8 @@ type PostgresPostData (conn : NpgsqlConnection) =
                    AND published_on > @publishedOn
                  ORDER BY published_on
                  LIMIT 1"
-            |> queryParams
-            |> Sql.executeAsync Map.toPost
+            |> queryParams ()
+            |> Sql.executeAsync toPost
         return List.tryHead older, List.tryHead newer
     }
     
@@ -289,14 +292,14 @@ type PostgresPostData (conn : NpgsqlConnection) =
         "@permalink",       Sql.string       (Permalink.toString post.Permalink)
         "@template",        Sql.stringOrNone post.Template
         "@text",            Sql.string       post.Text
-        "@episode",         Sql.jsonbOrNone  (post.Episode |> Option.map JsonConvert.SerializeObject)
         "@priorPermalinks", Sql.stringArray  (post.PriorPermalinks |> List.map Permalink.toString |> Array.ofList)
+        "@episode",         Sql.jsonbOrNone  (post.Episode |> Option.map (Utils.serialize ser))
         "@tags", Sql.stringArrayOrNone (if List.isEmpty post.Tags then None else Some (Array.ofList post.Tags))
         "@metaItems",
-            if List.isEmpty post.Metadata then None else Some (JsonConvert.SerializeObject post.Metadata)
+            if List.isEmpty post.Metadata then None else Some (Utils.serialize ser post.Metadata)
             |> Sql.jsonbOrNone
-        optParam   "@publishedOn" post.PublishedOn
-        typedParam "@updatedOn"   post.UpdatedOn
+        optParam   "publishedOn" post.PublishedOn
+        typedParam "updatedOn"   post.UpdatedOn
     ]
     
     /// Save a post
@@ -314,7 +317,7 @@ type PostgresPostData (conn : NpgsqlConnection) =
                     published_on     = EXCLUDED.published_on,
                     updated_on       = EXCLUDED.updated_on,
                     template         = EXCLUDED.template,
-                    post_text        = EXCLUDED.text,
+                    post_text        = EXCLUDED.post_text,
                     tags             = EXCLUDED.tags,
                     meta_items       = EXCLUDED.meta_items,
                     episode          = EXCLUDED.episode"

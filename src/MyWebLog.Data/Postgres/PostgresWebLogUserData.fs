@@ -30,8 +30,8 @@ type PostgresWebLogUserData (conn : NpgsqlConnection) =
         "@salt",          Sql.uuid              user.Salt
         "@url",           Sql.stringOrNone      user.Url
         "@accessLevel",   Sql.string            (AccessLevel.toString user.AccessLevel)
-        typedParam "@createdOn"  user.CreatedOn
-        optParam   "@lastSeenOn" user.LastSeenOn
+        typedParam "createdOn"  user.CreatedOn
+        optParam   "lastSeenOn" user.LastSeenOn
     ]
 
     /// Find a user by their ID for the given web log
@@ -83,10 +83,10 @@ type PostgresWebLogUserData (conn : NpgsqlConnection) =
     
     /// Find the names of users by their IDs for the given web log
     let findNames webLogId userIds = backgroundTask {
-        let idSql, idParams = inClause "id" WebLogUserId.toString userIds
+        let idSql, idParams = inClause "AND id" "id" WebLogUserId.toString userIds
         let! users =
             Sql.existingConnection conn
-            |> Sql.query $"SELECT * FROM web_log_user WHERE web_log_id = @webLogId AND id IN ({idSql})"
+            |> Sql.query $"SELECT * FROM web_log_user WHERE web_log_id = @webLogId {idSql}"
             |> Sql.parameters (webLogIdParam webLogId :: idParams)
             |> Sql.executeAsync Map.toWebLogUser
         return
@@ -111,7 +111,7 @@ type PostgresWebLogUserData (conn : NpgsqlConnection) =
             |> Sql.query "UPDATE web_log_user SET last_seen_on = @lastSeenOn WHERE id = @id AND web_log_id = @webLogId"
             |> Sql.parameters
                 [   webLogIdParam webLogId
-                    typedParam "@lastSeenOn" (Utils.now ())
+                    typedParam "lastSeenOn" (Noda.now ())
                     "@id", Sql.string (WebLogUserId.toString userId) ]
             |> Sql.executeNonQueryAsync
         ()

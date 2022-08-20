@@ -38,8 +38,9 @@ type PostgresCategoryData (conn : NpgsqlConnection) =
                     ordered
                     |> Seq.filter (fun cat -> cat.ParentNames |> Array.contains it.Name)
                     |> Seq.map (fun cat -> cat.Id)
+                    |> Seq.append (Seq.singleton it.Id)
                     |> List.ofSeq
-                    |> inClause "id" id
+                    |> inClause "AND pc.category_id" "id" id
                 let postCount =
                     Sql.existingConnection conn
                     |> Sql.query $"
@@ -48,7 +49,7 @@ type PostgresCategoryData (conn : NpgsqlConnection) =
                                INNER JOIN post_category pc ON pc.post_id = p.id
                          WHERE p.web_log_id = @webLogId
                            AND p.status     = 'Published'
-                           AND pc.category_id IN ({catIdSql})"
+                           {catIdSql}"
                     |> Sql.parameters (webLogIdParam webLogId :: catIdParams)
                     |> Sql.executeRowAsync Map.toCount
                     |> Async.AwaitTask

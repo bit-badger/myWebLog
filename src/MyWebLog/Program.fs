@@ -30,28 +30,28 @@ open System
 open Microsoft.Extensions.DependencyInjection
 open MyWebLog.Data
 open Newtonsoft.Json
-open NodaTime
 open Npgsql
 
 /// Logic to obtain a data connection and implementation based on configured values
 module DataImplementation =
     
     open MyWebLog.Converters
+    // open Npgsql.Logging
     open RethinkDb.Driver.FSharp
     open RethinkDb.Driver.Net
 
     /// Get the configured data implementation
-    let get (sp : IServiceProvider) : IData * JsonSerializer =
+    let get (sp : IServiceProvider) : IData =
         let config   = sp.GetRequiredService<IConfiguration> ()
         let await it = (Async.AwaitTask >> Async.RunSynchronously) it
         let connStr    name = config.GetConnectionString name
         let hasConnStr name = (connStr >> isNull >> not) name
-        let createSQLite connStr : IData * JsonSerializer =
+        let createSQLite connStr : IData =
             let log  = sp.GetRequiredService<ILogger<SQLiteData>> ()
             let conn = new SqliteConnection (connStr)
             log.LogInformation $"Using SQLite database {conn.DataSource}"
             await (SQLiteData.setUpConnection conn)
-            SQLiteData (conn, log), Json.configure (JsonSerializer.CreateDefault ())
+            SQLiteData (conn, log, Json.configure (JsonSerializer.CreateDefault ()))
         
         if hasConnStr "SQLite" then
             createSQLite (connStr "SQLite")
@@ -60,12 +60,13 @@ module DataImplementation =
             let _          = Json.configure Converter.Serializer 
             let rethinkCfg = DataConfig.FromUri (connStr "RethinkDB")
             let conn       = await (rethinkCfg.CreateConnectionAsync log)
-            RethinkDbData (conn, rethinkCfg, log), Converter.Serializer
+            RethinkDbData (conn, rethinkCfg, log)
         elif hasConnStr "PostgreSQL" then
             let log  = sp.GetRequiredService<ILogger<PostgresData>> ()
+            // NpgsqlLogManager.Provider <- ConsoleLoggingProvider NpgsqlLogLevel.Debug
             let conn = new NpgsqlConnection (connStr "PostgreSQL")
             log.LogInformation $"Using PostgreSQL database {conn.Host}:{conn.Port}/{conn.Database}"
-            PostgresData (conn, log), Json.configure (JsonSerializer.CreateDefault ())
+            PostgresData (conn, log, Json.configure (JsonSerializer.CreateDefault ()))
         else
             createSQLite "Data Source=./myweblog.db;Cache=Shared"
 
@@ -118,9 +119,8 @@ let rec main args =
     let _ = builder.Services.AddAntiforgery ()
     
     let sp = builder.Services.BuildServiceProvider ()
-    let data, serializer = DataImplementation.get sp
-    let _ = builder.Services.AddSingleton<JsonSerializer> serializer
-    let _ = builder.Services.AddSingleton<IClock> SystemClock.Instance
+    let data = DataImplementation.get sp
+    let _ = builder.Services.AddSingleton<JsonSerializer> data.Serializer
     
     task {
         do! data.StartUp ()

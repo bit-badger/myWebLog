@@ -7,7 +7,7 @@ open Npgsql
 open Npgsql.FSharp
 
 /// PostgreSQL myWebLog page data implementation        
-type PostgresPageData (conn : NpgsqlConnection) =
+type PostgresPageData (conn : NpgsqlConnection, ser : JsonSerializer) =
     
     // SUPPORT FUNCTIONS
     
@@ -21,16 +21,19 @@ type PostgresPageData (conn : NpgsqlConnection) =
         return { page with Revisions = revisions }
     }
     
+    /// Shorthand to map to a page
+    let toPage = Map.toPage ser
+    
     /// Return a page with no text or revisions
     let pageWithoutText row =
-        { Map.toPage row with Text = "" }
+        { toPage row with Text = "" }
     
     /// The INSERT statement for a page revision
     let revInsert = "INSERT INTO page_revision VALUES (@pageId, @asOf, @text)"
     
     /// Parameters for a revision INSERT statement
     let revParams pageId rev = [
-        typedParam "@asOf" rev.AsOf
+        typedParam "asOf" rev.AsOf
         "@pageId", Sql.string (PageId.toString pageId)
         "@text",   Sql.string (MarkupText.toString rev.Text)
     ]
@@ -47,7 +50,7 @@ type PostgresPageData (conn : NpgsqlConnection) =
                         toDelete
                         |> List.map (fun it -> [
                             "@pageId", Sql.string (PageId.toString pageId)
-                            typedParam "@asOf" it.AsOf
+                            typedParam "asOf" it.AsOf
                         ])
                     if not (List.isEmpty toAdd) then
                         revInsert, toAdd |> List.map (revParams pageId)
@@ -94,7 +97,7 @@ type PostgresPageData (conn : NpgsqlConnection) =
         Sql.existingConnection conn
         |> Sql.query "SELECT * FROM page WHERE id = @id AND web_log_id = @webLogId"
         |> Sql.parameters [ "@id", Sql.string (PageId.toString pageId); webLogIdParam webLogId ]
-        |> Sql.executeAsync Map.toPage
+        |> Sql.executeAsync toPage
         |> tryHead
     
     /// Find a complete page by its ID
@@ -126,7 +129,7 @@ type PostgresPageData (conn : NpgsqlConnection) =
         Sql.existingConnection conn
         |> Sql.query "SELECT * FROM page WHERE web_log_id = @webLogId AND permalink = @link"
         |> Sql.parameters [ webLogIdParam webLogId; "@link", Sql.string (Permalink.toString permalink) ]
-        |> Sql.executeAsync Map.toPage
+        |> Sql.executeAsync toPage
         |> tryHead
     
     /// Find the current permalink within a set of potential prior permalinks for the given web log
@@ -148,7 +151,7 @@ type PostgresPageData (conn : NpgsqlConnection) =
             Sql.existingConnection conn
             |> Sql.query "SELECT * FROM page WHERE web_log_id = @webLogId"
             |> Sql.parameters [ webLogIdParam webLogId ]
-            |> Sql.executeAsync Map.toPage
+            |> Sql.executeAsync toPage
         let! revisions =
             Sql.existingConnection conn
             |> Sql.query
@@ -182,7 +185,7 @@ type PostgresPageData (conn : NpgsqlConnection) =
               ORDER BY LOWER(title)
               LIMIT @pageSize OFFSET @toSkip"
         |> Sql.parameters [ webLogIdParam webLogId; "@pageSize", Sql.int 26; "@toSkip", Sql.int ((pageNbr - 1) * 25) ]
-        |> Sql.executeAsync Map.toPage
+        |> Sql.executeAsync toPage
     
     /// The INSERT statement for a page
     let pageInsert =
@@ -204,10 +207,10 @@ type PostgresPageData (conn : NpgsqlConnection) =
         "@isInPageList",    Sql.bool         page.IsInPageList
         "@template",        Sql.stringOrNone page.Template
         "@text",            Sql.string       page.Text
-        "@metaItems",       Sql.jsonb        (JsonConvert.SerializeObject page.Metadata)
+        "@metaItems",       Sql.jsonb        (Utils.serialize ser page.Metadata)
         "@priorPermalinks", Sql.stringArray  (page.PriorPermalinks |> List.map Permalink.toString |> Array.ofList)
-        typedParam "@publishedOn" page.PublishedOn
-        typedParam "@updatedOn"   page.UpdatedOn
+        typedParam "publishedOn" page.PublishedOn
+        typedParam "updatedOn"   page.UpdatedOn
     ]
 
     /// Restore pages from a backup
@@ -237,7 +240,7 @@ type PostgresPageData (conn : NpgsqlConnection) =
                     updated_on       = EXCLUDED.updated_on,
                     is_in_page_list  = EXCLUDED.is_in_page_list,
                     template         = EXCLUDED.template,
-                    page_text        = EXCLUDED.text,
+                    page_text        = EXCLUDED.page_text,
                     meta_items       = EXCLUDED.meta_items"
             |> Sql.parameters (pageParams page)
             |> Sql.executeNonQueryAsync

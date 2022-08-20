@@ -193,7 +193,7 @@ type PostgresThemeAssetData (conn : NpgsqlConnection) =
                 [   "@themeId", Sql.string themeId
                     "@path",    Sql.string path
                     "@data",    Sql.bytea  asset.Data
-                    typedParam "@updatedOn" asset.UpdatedOn ]
+                    typedParam "updatedOn" asset.UpdatedOn ]
             |> Sql.executeNonQueryAsync
         ()
     }

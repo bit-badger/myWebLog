@@ -37,6 +37,13 @@ let diffPermalinks oldLinks newLinks =
 let diffRevisions oldRevs newRevs =
     diffLists oldRevs newRevs (fun (rev : Revision) -> $"{rev.AsOf.ToUnixTimeTicks ()}|{MarkupText.toString rev.Text}")
 
-/// Get the current instant
-let now () =
-    NodaTime.SystemClock.Instance.GetCurrentInstant ()
+open MyWebLog.Converters
+open Newtonsoft.Json
+
+/// Serialize an object to JSON
+let serialize<'T> ser (item : 'T) =
+    JsonConvert.SerializeObject (item, Json.settings ser)
+
+/// Deserialize a JSON string 
+let deserialize<'T> (ser : JsonSerializer) value =
+    JsonConvert.DeserializeObject<'T> (value, Json.settings ser)

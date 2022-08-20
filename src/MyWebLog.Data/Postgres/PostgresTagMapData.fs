@@ -54,9 +54,9 @@ type PostgresTagMapData (conn : NpgsqlConnection) =
     
     /// Find any tag mappings in a list of tags for the given web log
     let findMappingForTags tags webLogId =
-        let tagSql, tagParams = inClause "tag" id tags
+        let tagSql, tagParams = inClause "AND tag" "tag" id tags
         Sql.existingConnection conn
-        |> Sql.query $"SELECT * FROM tag_map WHERE web_log_id = @webLogId AND tag IN ({tagSql}"
+        |> Sql.query $"SELECT * FROM tag_map WHERE web_log_id = @webLogId {tagSql}"
         |> Sql.parameters (webLogIdParam webLogId :: tagParams)
         |> Sql.executeAsync Map.toTagMap
     
