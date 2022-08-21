@@ -85,6 +85,7 @@ let showHelp () =
     printfn "init          Initializes a new web log"
     printfn "load-theme    Load a theme"
     printfn "restore       Restore a JSON file backup (prompt before overwriting)"
+    printfn "set-password  Set a password for a specific user"
     printfn "upgrade-user  Upgrade a WebLogAdmin user to a full Administrator"
     printfn " "
     printfn "For more information on a particular command, run it with no options."
@@ -183,6 +184,7 @@ let rec main args =
     | Some it when it = "restore"      -> Maintenance.Backup.restoreFromBackup args app.Services
     | Some it when it = "do-restore"   -> Maintenance.Backup.restoreFromBackup args app.Services
     | Some it when it = "upgrade-user" -> Maintenance.upgradeUser              args app.Services
+    | Some it when it = "set-password" -> Maintenance.setPassword              args app.Services
     | Some it when it = "help"         -> showHelp ()
     | Some it ->
         printfn $"""Unrecognized command "{it}" - valid commands are:"""

@@ -303,7 +303,6 @@ module Map =
             LastName      = getString  "last_name"      rdr
             PreferredName = getString  "preferred_name" rdr
             PasswordHash  = getString  "password_hash"  rdr
-            Salt          = getGuid    "salt"           rdr
             Url           = tryString  "url"            rdr
             AccessLevel   = getString  "access_level"   rdr |> AccessLevel.parse
             CreatedOn     = getInstant "created_on"     rdr

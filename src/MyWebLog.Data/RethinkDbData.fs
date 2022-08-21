@@ -1132,7 +1132,6 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                         nameof user.LastName,      user.LastName
                         nameof user.PreferredName, user.PreferredName
                         nameof user.PasswordHash,  user.PasswordHash
-                        nameof user.Salt,          user.Salt
                         nameof user.Url,           user.Url
                         nameof user.AccessLevel,   user.AccessLevel
                         ]

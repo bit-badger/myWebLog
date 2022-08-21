@@ -18,7 +18,6 @@ type SQLiteWebLogUserData (conn : SqliteConnection) =
             cmd.Parameters.AddWithValue ("@lastName",      user.LastName)
             cmd.Parameters.AddWithValue ("@preferredName", user.PreferredName)
             cmd.Parameters.AddWithValue ("@passwordHash",  user.PasswordHash)
-            cmd.Parameters.AddWithValue ("@salt",          user.Salt)
             cmd.Parameters.AddWithValue ("@url",           maybe user.Url)
             cmd.Parameters.AddWithValue ("@accessLevel",   AccessLevel.toString user.AccessLevel)
             cmd.Parameters.AddWithValue ("@createdOn",     instantParam user.CreatedOn)
@@ -32,10 +31,10 @@ type SQLiteWebLogUserData (conn : SqliteConnection) =
         use cmd = conn.CreateCommand ()
         cmd.CommandText <-
             "INSERT INTO web_log_user (
-                id, web_log_id, email, first_name, last_name, preferred_name, password_hash, salt, url, access_level,
+                id, web_log_id, email, first_name, last_name, preferred_name, password_hash, url, access_level,
                 created_on, last_seen_on
             ) VALUES (
-                @id, @webLogId, @email, @firstName, @lastName, @preferredName, @passwordHash, @salt, @url, @accessLevel,
+                @id, @webLogId, @email, @firstName, @lastName, @preferredName, @passwordHash, @url, @accessLevel,
                 @createdOn, @lastSeenOn
             )"
         addWebLogUserParameters cmd user
@@ -134,7 +133,6 @@ type SQLiteWebLogUserData (conn : SqliteConnection) =
                     last_name      = @lastName,
                     preferred_name = @preferredName,
                     password_hash  = @passwordHash,
-                    salt           = @salt,
                     url            = @url,
                     access_level   = @accessLevel,
                     created_on     = @createdOn,

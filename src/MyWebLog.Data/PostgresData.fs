@@ -93,7 +93,6 @@ type PostgresData (conn : NpgsqlConnection, log : ILogger<PostgresData>, ser : J
                     last_name       TEXT        NOT NULL,
                     preferred_name  TEXT        NOT NULL,
                     password_hash   TEXT        NOT NULL,
-                    salt            UUID        NOT NULL,
                     url             TEXT,
                     access_level    TEXT        NOT NULL,
                     created_on      TIMESTAMPTZ NOT NULL,
@@ -194,7 +193,7 @@ type PostgresData (conn : NpgsqlConnection, log : ILogger<PostgresData>, ser : J
             
             // Database version table
             if needsTable "db_version" then
-                "CREATE TABLE db_version (id TEXT NOT NULL PRIMARY KEY"
+                "CREATE TABLE db_version (id TEXT NOT NULL PRIMARY KEY)"
                 $"INSERT INTO db_version VALUES ('{Utils.currentDbVersion}')"
         }
         

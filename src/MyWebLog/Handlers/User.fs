@@ -2,20 +2,32 @@
 module MyWebLog.Handlers.User
 
 open System
-open System.Security.Cryptography
-open System.Text
+open Microsoft.AspNetCore.Http
+open Microsoft.AspNetCore.Identity
+open MyWebLog
 open NodaTime
 
 // ~~ LOG ON / LOG OFF ~~
 
-/// Hash a password for a given user
-let hashedPassword (plainText : string) (email : string) (salt : Guid) =
-    let allSalt = Array.concat [ salt.ToByteArray (); Encoding.UTF8.GetBytes email ] 
-    use alg     = new Rfc2898DeriveBytes (plainText, allSalt, 2_048)
-    Convert.ToBase64String (alg.GetBytes 64)
+/// Create a password hash a password for a given user
+let createPasswordHash user password =
+    PasswordHasher<WebLogUser>().HashPassword (user, password)
+
+/// Verify whether a password is valid
+let verifyPassword user password (ctx : HttpContext) = backgroundTask {
+    match user with
+    | Some usr ->
+        let hasher = PasswordHasher<WebLogUser> ()
+        match hasher.VerifyHashedPassword (usr, usr.PasswordHash, password) with
+        | PasswordVerificationResult.Success -> return Ok ()
+        | PasswordVerificationResult.SuccessRehashNeeded ->
+            do! ctx.Data.WebLogUser.Update { usr with PasswordHash = hasher.HashPassword (usr, password) }
+            return Ok ()
+        | _ -> return Error "Log on attempt unsuccessful"
+    | None -> return Error "Log on attempt unsuccessful"
+}
 
 open Giraffe
-open MyWebLog
 open MyWebLog.ViewModels
 
 // GET /user/log-on
@@ -36,10 +48,12 @@ open Microsoft.AspNetCore.Authentication.Cookies
 
 // POST /user/log-on
 let doLogOn : HttpHandler = fun next ctx -> task {
-    let! model = ctx.BindFormAsync<LogOnModel> ()
-    let  data  = ctx.Data
-    match! data.WebLogUser.FindByEmail model.EmailAddress ctx.WebLog.Id with 
-    | Some user when user.PasswordHash = hashedPassword model.Password user.Email user.Salt ->
+    let! model   = ctx.BindFormAsync<LogOnModel> ()
+    let  data    = ctx.Data
+    let! tryUser = data.WebLogUser.FindByEmail model.EmailAddress ctx.WebLog.Id
+    match! verifyPassword tryUser model.Password ctx with 
+    | Ok _ ->
+        let user = tryUser.Value
         let claims = seq {
             Claim (ClaimTypes.NameIdentifier, WebLogUserId.toString user.Id)
             Claim (ClaimTypes.Name,           $"{user.FirstName} {user.LastName}")
@@ -60,8 +74,8 @@ let doLogOn : HttpHandler = fun next ctx -> task {
             match model.ReturnTo with
             | Some url -> redirectTo false url next ctx
             | None -> redirectToGet "admin/dashboard" next ctx
-    | _ ->
-        do! addMessage ctx { UserMessage.error with Message = "Log on attempt unsuccessful" }
+    | Error msg ->
+        do! addMessage ctx { UserMessage.error with Message = msg }
         return! logOn model.ReturnTo next ctx
 }
 
@@ -167,19 +181,13 @@ let saveMyInfo : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     let  data  = ctx.Data
     match! data.WebLogUser.FindById ctx.UserId ctx.WebLog.Id with
     | Some user when model.NewPassword = model.NewPasswordConfirm ->
-        let pw, salt =
-            if model.NewPassword = "" then
-                user.PasswordHash, user.Salt
-            else
-                let newSalt = Guid.NewGuid ()
-                hashedPassword model.NewPassword user.Email newSalt, newSalt
+        let pw = if model.NewPassword = "" then user.PasswordHash else createPasswordHash user model.NewPassword
         let user =
             { user with
                 FirstName     = model.FirstName
                 LastName      = model.LastName
                 PreferredName = model.PreferredName
                 PasswordHash  = pw
-                Salt          = salt
             }
         do! data.WebLogUser.Update user
         let pwMsg = if model.NewPassword = "" then "" else " and updated your password"
@@ -214,9 +222,7 @@ let save : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
         else
             let toUpdate =
                 if model.Password = "" then updatedUser
-                else
-                    let salt = Guid.NewGuid ()
-                    { updatedUser with PasswordHash = hashedPassword model.Password model.Email salt; Salt = salt }
+                else { updatedUser with PasswordHash = createPasswordHash updatedUser model.Password }
             do! (if model.IsNew then data.WebLogUser.Add else data.WebLogUser.Update) toUpdate
             do! addMessage ctx
                     { UserMessage.success with

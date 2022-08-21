@@ -97,7 +97,6 @@ type SQLiteData (conn : SqliteConnection, log : ILogger<SQLiteData>, ser : JsonS
                     last_name       TEXT NOT NULL,
                     preferred_name  TEXT NOT NULL,
                     password_hash   TEXT NOT NULL,
-                    salt            TEXT NOT NULL,
                     url             TEXT,
                     access_level    TEXT NOT NULL,
                     created_on      TEXT NOT NULL,
@@ -517,12 +516,13 @@ type SQLiteData (conn : SqliteConnection, log : ILogger<SQLiteData>, ser : JsonS
         conn.Close ()
         conn.Open ()
         
-        logStep "Dropping old tables"
+        logStep "Dropping old tables and columns"
         cmd.CommandText <-
-            "DROP TABLE post_episode;
-             DROP TABLE post_meta;
-             DROP TABLE page_meta;
-             DROP TABLE web_log_feed_podcast"
+            "ALTER TABLE web_log_user DROP COLUMN salt;
+             DROP  TABLE post_episode;
+             DROP  TABLE post_meta;
+             DROP  TABLE page_meta;
+             DROP  TABLE web_log_feed_podcast"
         do! write cmd
         
         logStep "Setting database version to v2-rc2"

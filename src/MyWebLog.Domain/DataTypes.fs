@@ -442,9 +442,6 @@ type WebLogUser =
         /// The hash of the user's password
         PasswordHash : string
 
-        /// Salt used to calculate the user's password hash
-        Salt : Guid
-
         /// The URL of the user's personal site
         Url : string option
 
@@ -470,7 +467,6 @@ module WebLogUser =
             LastName      = ""
             PreferredName = ""
             PasswordHash  = ""
-            Salt          = Guid.Empty
             Url           = None
             AccessLevel   = Author
             CreatedOn     = Noda.epoch

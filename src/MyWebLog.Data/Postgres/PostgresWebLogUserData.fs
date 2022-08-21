@@ -11,25 +11,24 @@ type PostgresWebLogUserData (conn : NpgsqlConnection) =
     /// The INSERT statement for a user
     let userInsert =
         "INSERT INTO web_log_user (
-            id, web_log_id, email, first_name, last_name, preferred_name, password_hash, salt, url, access_level,
+            id, web_log_id, email, first_name, last_name, preferred_name, password_hash, url, access_level,
             created_on, last_seen_on
         ) VALUES (
-            @id, @webLogId, @email, @firstName, @lastName, @preferredName, @passwordHash, @salt, @url, @accessLevel,
+            @id, @webLogId, @email, @firstName, @lastName, @preferredName, @passwordHash, @url, @accessLevel,
             @createdOn, @lastSeenOn
         )"
     
     /// Parameters for saving web log users
     let userParams (user : WebLogUser) = [
-        "@id",            Sql.string            (WebLogUserId.toString user.Id)
-        "@webLogId",      Sql.string            (WebLogId.toString user.WebLogId)
-        "@email",         Sql.string            user.Email
-        "@firstName",     Sql.string            user.FirstName
-        "@lastName",      Sql.string            user.LastName
-        "@preferredName", Sql.string            user.PreferredName
-        "@passwordHash",  Sql.string            user.PasswordHash
-        "@salt",          Sql.uuid              user.Salt
-        "@url",           Sql.stringOrNone      user.Url
-        "@accessLevel",   Sql.string            (AccessLevel.toString user.AccessLevel)
+        "@id",            Sql.string       (WebLogUserId.toString user.Id)
+        "@webLogId",      Sql.string       (WebLogId.toString user.WebLogId)
+        "@email",         Sql.string       user.Email
+        "@firstName",     Sql.string       user.FirstName
+        "@lastName",      Sql.string       user.LastName
+        "@preferredName", Sql.string       user.PreferredName
+        "@passwordHash",  Sql.string       user.PasswordHash
+        "@url",           Sql.stringOrNone user.Url
+        "@accessLevel",   Sql.string       (AccessLevel.toString user.AccessLevel)
         typedParam "createdOn"  user.CreatedOn
         optParam   "lastSeenOn" user.LastSeenOn
     ]
@@ -128,7 +127,6 @@ type PostgresWebLogUserData (conn : NpgsqlConnection) =
                     last_name      = @lastName,
                     preferred_name = @preferredName,
                     password_hash  = @passwordHash,
-                    salt           = @salt,
                     url            = @url,
                     access_level   = @accessLevel,
                     created_on     = @createdOn,

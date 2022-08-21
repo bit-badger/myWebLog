@@ -42,22 +42,19 @@ let private doCreateWebLog (args : string[]) (sp : IServiceProvider) = task {
             }
     
     // Create the admin user
-    let salt = Guid.NewGuid ()
-    let now  = SystemClock.Instance.GetCurrentInstant ()
-    
-    do! data.WebLogUser.Add 
-            { WebLogUser.empty with
-                Id            = userId
-                WebLogId      = webLogId
-                Email         = args[3]
-                FirstName     = "Admin"
-                LastName      = "User"
-                PreferredName = "Admin"
-                PasswordHash  = Handlers.User.hashedPassword args[4] args[3] salt
-                Salt          = salt
-                AccessLevel   = accessLevel
-                CreatedOn     = now
-            }
+    let now  = Noda.now ()
+    let user =
+        { WebLogUser.empty with
+            Id            = userId
+            WebLogId      = webLogId
+            Email         = args[3]
+            FirstName     = "Admin"
+            LastName      = "User"
+            PreferredName = "Admin"
+            AccessLevel   = accessLevel
+            CreatedOn     = now
+        }
+    do! data.WebLogUser.Add { user with PasswordHash = Handlers.User.createPasswordHash user args[4] }
 
     // Create the default home page
     do! data.Page.Add
@@ -71,8 +68,8 @@ let private doCreateWebLog (args : string[]) (sp : IServiceProvider) = task {
                 UpdatedOn   = now
                 Text        = "<p>This is your default home page.</p>"
                 Revisions   = [
-                    { AsOf = now
-                      Text = Html "<p>This is your default home page.</p>"
+                    {   AsOf = now
+                        Text = Html "<p>This is your default home page.</p>"
                     }
                 ]
             }
@@ -490,4 +487,23 @@ let upgradeUser (args : string[]) (sp : IServiceProvider) = task {
     match args.Length with
     | 3 -> do! doUserUpgrade args[1] args[2] (sp.GetRequiredService<IData> ())
     | _ -> eprintfn "Usage: myWebLog upgrade-user [web-log-url-base] [email-address]"
+}
+
+/// Set a user's password
+let doSetPassword urlBase email password (data : IData) = task {
+    match! data.WebLog.FindByHost urlBase with
+    | Some webLog ->
+        match! data.WebLogUser.FindByEmail email webLog.Id with
+        | Some user ->
+            do! data.WebLogUser.Update { user with PasswordHash = Handlers.User.createPasswordHash user password }
+            printfn $"Password for user {email} at {webLog.Name} set successfully"
+        | None -> eprintfn $"ERROR: no user {email} found at {urlBase}"
+    | None -> eprintfn $"ERROR: no web log found for {urlBase}"
+}
+
+/// Set a user's password if the command-line arguments are good
+let setPassword (args : string[]) (sp : IServiceProvider) = task {
+    match args.Length with
+    | 4 -> do! doSetPassword args[1] args[2] args[3] (sp.GetRequiredService<IData> ())
+    | _ -> eprintfn "Usage: myWebLog set-password [web-log-url-base] [email-address] [password]"
 }

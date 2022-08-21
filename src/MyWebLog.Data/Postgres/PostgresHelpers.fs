@@ -233,7 +233,6 @@ module Map =
             LastName      = row.string                    "last_name"
             PreferredName = row.string                    "preferred_name"
             PasswordHash  = row.string                    "password_hash"
-            Salt          = row.uuid                      "salt"
             Url           = row.stringOrNone              "url"
             AccessLevel   = row.string                    "access_level"   |> AccessLevel.parse
             CreatedOn     = row.fieldValue<Instant>       "created_on"
