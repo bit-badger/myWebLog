@@ -10,23 +10,23 @@ type SQLiteCategoryData (conn : SqliteConnection) =
     
     /// Add parameters for category INSERT or UPDATE statements
     let addCategoryParameters (cmd : SqliteCommand) (cat : Category) =
-        [   cmd.Parameters.AddWithValue ("@id", CategoryId.toString cat.Id)
-            cmd.Parameters.AddWithValue ("@webLogId", WebLogId.toString cat.WebLogId)
-            cmd.Parameters.AddWithValue ("@name", cat.Name)
-            cmd.Parameters.AddWithValue ("@slug", cat.Slug)
+        [   cmd.Parameters.AddWithValue ("@id",          CategoryId.toString cat.Id)
+            cmd.Parameters.AddWithValue ("@webLogId",    WebLogId.toString cat.WebLogId)
+            cmd.Parameters.AddWithValue ("@name",        cat.Name)
+            cmd.Parameters.AddWithValue ("@slug",        cat.Slug)
             cmd.Parameters.AddWithValue ("@description", maybe cat.Description)
-            cmd.Parameters.AddWithValue ("@parentId", maybe (cat.ParentId |> Option.map CategoryId.toString))
+            cmd.Parameters.AddWithValue ("@parentId",    maybe (cat.ParentId |> Option.map CategoryId.toString))
         ] |> ignore
     
     /// Add a category
     let add cat = backgroundTask {
         use cmd = conn.CreateCommand ()
-        cmd.CommandText <- """
-            INSERT INTO category (
+        cmd.CommandText <-
+            "INSERT INTO category (
                 id, web_log_id, name, slug, description, parent_id
             ) VALUES (
                 @id, @webLogId, @name, @slug, @description, @parentId
-            )"""
+            )"
         addCategoryParameters cmd cat
         let! _ = cmd.ExecuteNonQueryAsync ()
         ()
@@ -68,24 +68,23 @@ type SQLiteCategoryData (conn : SqliteConnection) =
             ordered
             |> Seq.map (fun it -> backgroundTask {
                 // Parent category post counts include posts in subcategories
+                let catSql, catParams =
+                    ordered
+                    |> Seq.filter (fun cat -> cat.ParentNames |> Array.contains it.Name)
+                    |> Seq.map (fun cat -> cat.Id)
+                    |> Seq.append (Seq.singleton it.Id)
+                    |> List.ofSeq
+                    |> inClause "AND pc.category_id" "catId" id
                 cmd.Parameters.Clear ()
                 addWebLogId cmd webLogId
-                cmd.CommandText <- """
+                cmd.Parameters.AddRange catParams
+                cmd.CommandText <- $"
                     SELECT COUNT(DISTINCT p.id)
                       FROM post p
                            INNER JOIN post_category pc ON pc.post_id = p.id
                      WHERE p.web_log_id = @webLogId
                        AND p.status     = 'Published'
-                       AND pc.category_id IN ("""
-                ordered
-                |> Seq.filter (fun cat -> cat.ParentNames |> Array.contains it.Name)
-                |> Seq.map (fun cat -> cat.Id)
-                |> Seq.append (Seq.singleton it.Id)
-                |> Seq.iteri (fun idx item ->
-                    if idx > 0 then cmd.CommandText <- $"{cmd.CommandText}, "
-                    cmd.CommandText <- $"{cmd.CommandText}@catId{idx}"
-                    cmd.Parameters.AddWithValue ($"@catId{idx}", item) |> ignore)
-                cmd.CommandText <- $"{cmd.CommandText})"
+                       {catSql}"
                 let! postCount = count cmd
                 return it.Id, postCount
                 })
@@ -133,19 +132,15 @@ type SQLiteCategoryData (conn : SqliteConnection) =
                 cmd.Parameters.AddWithValue ("@newParentId", maybe (cat.ParentId |> Option.map CategoryId.toString))
                 |> ignore
                 do! write cmd
-            // Delete the category off all posts where it is assigned
-            cmd.CommandText <- """
-                DELETE FROM post_category
-                 WHERE category_id = @id
-                   AND post_id IN (SELECT id FROM post WHERE web_log_id = @webLogId)"""
+            // Delete the category off all posts where it is assigned, and the category itself
+            cmd.CommandText <-
+                "DELETE FROM post_category
+                  WHERE category_id = @id
+                    AND post_id IN (SELECT id FROM post WHERE web_log_id = @webLogId);
+                 DELETE FROM category WHERE id = @id"
             cmd.Parameters.Clear ()
-            let catIdParameter = cmd.Parameters.AddWithValue ("@id", CategoryId.toString catId)
-            cmd.Parameters.AddWithValue ("@webLogId", WebLogId.toString webLogId) |> ignore
-            do! write cmd
-            // Delete the category itself
-            cmd.CommandText <- "DELETE FROM category WHERE id = @id"
-            cmd.Parameters.Clear ()
-            cmd.Parameters.Add catIdParameter |> ignore
+            let _ = cmd.Parameters.AddWithValue ("@id", CategoryId.toString catId)
+            addWebLogId cmd webLogId
             do! write cmd
             return if children = 0 then CategoryDeleted else ReassignedChildCategories
         | None -> return CategoryNotFound
@@ -160,14 +155,14 @@ type SQLiteCategoryData (conn : SqliteConnection) =
     /// Update a category
     let update cat = backgroundTask {
         use cmd = conn.CreateCommand ()
-        cmd.CommandText <- """
-            UPDATE category
-               SET name        = @name,
-                   slug        = @slug,
-                   description = @description,
-                   parent_id   = @parentId
-             WHERE id         = @id
-               AND web_log_id = @webLogId"""
+        cmd.CommandText <-
+            "UPDATE category
+                SET name        = @name,
+                    slug        = @slug,
+                    description = @description,
+                    parent_id   = @parentId
+              WHERE id         = @id
+                AND web_log_id = @webLogId"
         addCategoryParameters cmd cat
         do! write cmd
     }

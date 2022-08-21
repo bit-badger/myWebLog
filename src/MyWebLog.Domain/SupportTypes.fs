@@ -1,6 +1,7 @@
 ﻿namespace MyWebLog
 
 open System
+open NodaTime
 
 /// Support functions for domain definition
 [<AutoOpen>]
@@ -10,6 +11,29 @@ module private Helpers =
     // https://www.madskristensen.net/blog/A-shorter-and-URL-friendly-GUID
     let newId () =
         Convert.ToBase64String(Guid.NewGuid().ToByteArray ()).Replace('/', '_').Replace('+', '-').Substring (0, 22)
+
+
+/// Functions to support NodaTime manipulation
+module Noda =
+    
+    /// The clock to use when getting "now" (will make mutable for testing)
+    let clock : IClock = SystemClock.Instance
+    
+    /// The Unix epoch
+    let epoch = Instant.FromUnixTimeSeconds 0L
+    
+        
+    /// Truncate an instant to remove fractional seconds
+    let toSecondsPrecision (value : Instant) =
+        Instant.FromUnixTimeSeconds (value.ToUnixTimeSeconds ())
+    
+    /// The current Instant, with fractional seconds truncated
+    let now () =
+        toSecondsPrecision (clock.GetCurrentInstant ())
+    
+    /// Convert a date/time to an Instant with whole seconds
+    let fromDateTime (dt : DateTime) =
+        toSecondsPrecision (Instant.FromDateTimeUtc (DateTime (dt.Ticks, DateTimeKind.Utc)))
 
 
 /// A user's access level
@@ -137,6 +161,8 @@ module ExplicitRating =
         | x       -> raise (invalidArg "rating" $"{x} is not a valid explicit rating")
 
 
+open NodaTime.Text
+
 /// A podcast episode
 type Episode =
     {   /// The URL to the media file for the episode (may be permalink)
@@ -146,7 +172,7 @@ type Episode =
         Length : int64
         
         /// The duration of the episode
-        Duration : TimeSpan option
+        Duration : Duration option
         
         /// The media type of the file (overrides podcast default if present)
         MediaType : string option
@@ -214,6 +240,10 @@ module Episode =
             EpisodeNumber      = None
             EpisodeDescription = None
         }
+    
+    /// Format a duration for an episode
+    let formatDuration ep =
+        ep.Duration |> Option.map (DurationPattern.CreateWithInvariantCulture("H:mm:ss").Format)
 
 
 open Markdig
@@ -269,12 +299,11 @@ module MetaItem =
     let empty =
         { Name = ""; Value = "" }
 
-        
 /// A revision of a page or post
 [<CLIMutable; NoComparison; NoEquality>]
 type Revision =
     {   /// When this revision was saved
-        AsOf : DateTime
+        AsOf : Instant
 
         /// The text of the revision
         Text : MarkupText
@@ -285,7 +314,7 @@ module Revision =
     
     /// An empty revision
     let empty =
-        {   AsOf = DateTime.UtcNow
+        {   AsOf = Noda.epoch
             Text = Html ""
         }
 

@@ -122,12 +122,13 @@ module Json =
             (string >> WebLogUserId) reader.Value
 
     open Microsoft.FSharpLu.Json
-
-    /// All converters to use for data conversion
-    let all () : JsonConverter seq =
-        seq {
-            // Our converters
-            CategoryIdConverter       ()
+    open NodaTime
+    open NodaTime.Serialization.JsonNet
+    
+    /// Configure a serializer to use these converters
+    let configure (ser : JsonSerializer) =
+        // Our converters
+        [   CategoryIdConverter       () :> JsonConverter
             CommentIdConverter        ()
             CustomFeedIdConverter     ()
             CustomFeedSourceConverter ()
@@ -143,6 +144,35 @@ module Json =
             UploadIdConverter         ()
             WebLogIdConverter         ()
             WebLogUserIdConverter     ()
-            // Handles DUs with no associated data, as well as option fields
-            CompactUnionJsonConverter ()
-        }
+        ] |> List.iter ser.Converters.Add
+        // NodaTime
+        let _ = ser.ConfigureForNodaTime DateTimeZoneProviders.Tzdb
+        // Handles DUs with no associated data, as well as option fields
+        ser.Converters.Add (CompactUnionJsonConverter ())
+        ser.NullValueHandling     <- NullValueHandling.Ignore
+        ser.MissingMemberHandling <- MissingMemberHandling.Ignore
+        ser
+    
+    /// Serializer settings extracted from a JsonSerializer (a property sure would be nice...)
+    let mutable private serializerSettings : JsonSerializerSettings option = None
+    
+    /// Extract settings from the serializer to be used in JsonConvert calls
+    let settings (ser : JsonSerializer) =
+        if Option.isNone serializerSettings then
+            serializerSettings <- JsonSerializerSettings (
+                ConstructorHandling            = ser.ConstructorHandling,
+                ContractResolver               = ser.ContractResolver,
+                Converters                     = ser.Converters,
+                DefaultValueHandling           = ser.DefaultValueHandling,
+                DateFormatHandling             = ser.DateFormatHandling,
+                MetadataPropertyHandling       = ser.MetadataPropertyHandling,
+                MissingMemberHandling          = ser.MissingMemberHandling,
+                NullValueHandling              = ser.NullValueHandling,
+                ObjectCreationHandling         = ser.ObjectCreationHandling,
+                ReferenceLoopHandling          = ser.ReferenceLoopHandling,
+                SerializationBinder            = ser.SerializationBinder,
+                TraceWriter                    = ser.TraceWriter,
+                TypeNameAssemblyFormatHandling = ser.TypeNameAssemblyFormatHandling,
+                TypeNameHandling               = ser.TypeNameHandling)
+                |> Some
+        serializerSettings.Value

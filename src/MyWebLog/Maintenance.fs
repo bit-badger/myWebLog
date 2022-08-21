@@ -4,6 +4,7 @@ open System
 open System.IO
 open Microsoft.Extensions.DependencyInjection
 open MyWebLog.Data
+open NodaTime
 
 /// Create the web log information
 let private doCreateWebLog (args : string[]) (sp : IServiceProvider) = task {
@@ -41,22 +42,19 @@ let private doCreateWebLog (args : string[]) (sp : IServiceProvider) = task {
             }
     
     // Create the admin user
-    let salt = Guid.NewGuid ()
-    let now  = DateTime.UtcNow
-    
-    do! data.WebLogUser.Add 
-            { WebLogUser.empty with
-                Id            = userId
-                WebLogId      = webLogId
-                Email         = args[3]
-                FirstName     = "Admin"
-                LastName      = "User"
-                PreferredName = "Admin"
-                PasswordHash  = Handlers.User.hashedPassword args[4] args[3] salt
-                Salt          = salt
-                AccessLevel   = accessLevel
-                CreatedOn     = now
-            }
+    let now  = Noda.now ()
+    let user =
+        { WebLogUser.empty with
+            Id            = userId
+            WebLogId      = webLogId
+            Email         = args[3]
+            FirstName     = "Admin"
+            LastName      = "User"
+            PreferredName = "Admin"
+            AccessLevel   = accessLevel
+            CreatedOn     = now
+        }
+    do! data.WebLogUser.Add { user with PasswordHash = Handlers.User.createPasswordHash user args[4] }
 
     // Create the default home page
     do! data.Page.Add
@@ -70,8 +68,8 @@ let private doCreateWebLog (args : string[]) (sp : IServiceProvider) = task {
                 UpdatedOn   = now
                 Text        = "<p>This is your default home page.</p>"
                 Revisions   = [
-                    { AsOf = now
-                      Text = Html "<p>This is your default home page.</p>"
+                    {   AsOf = now
+                        Text = Html "<p>This is your default home page.</p>"
                     }
                 ]
             }
@@ -155,7 +153,6 @@ let loadTheme (args : string[]) (sp : IServiceProvider) = task {
 /// Back up a web log's data
 module Backup =
     
-    open System.Threading.Tasks
     open MyWebLog.Converters
     open Newtonsoft.Json
 
@@ -165,7 +162,7 @@ module Backup =
             Id : ThemeAssetId
             
             /// The updated date for this asset
-            UpdatedOn : DateTime
+            UpdatedOn : Instant
             
             /// The data for this asset, base-64 encoded
             Data : string
@@ -197,7 +194,7 @@ module Backup =
             Path : Permalink
             
             /// The date/time this upload was last updated (file time)
-            UpdatedOn : DateTime
+            UpdatedOn : Instant
             
             /// The data for the upload, base-64 encoded
             Data : string
@@ -251,10 +248,9 @@ module Backup =
             Uploads : EncodedUpload list
         }
     
-    /// Create a JSON serializer (uses RethinkDB data implementation's JSON converters)
+    /// Create a JSON serializer
     let private getSerializer prettyOutput =
-        let serializer = JsonSerializer.CreateDefault ()
-        Json.all () |> Seq.iter serializer.Converters.Add
+        let serializer = Json.configure (JsonSerializer.CreateDefault ())
         if prettyOutput then serializer.Formatting <- Formatting.Indented
         serializer
     
@@ -382,7 +378,8 @@ module Backup =
         printfn ""
         printfn "- Importing theme..."
         do! data.Theme.Save restore.Theme
-        let! _ = restore.Assets |> List.map (EncodedAsset.toAsset >> data.ThemeAsset.Save) |> Task.WhenAll
+        restore.Assets
+        |> List.iter (EncodedAsset.toAsset >> data.ThemeAsset.Save >> Async.AwaitTask >> Async.RunSynchronously)
         
         // Restore web log data
         
@@ -393,19 +390,20 @@ module Backup =
         do! data.WebLogUser.Restore restore.Users
         
         printfn "- Restoring categories and tag mappings..."
-        do! data.TagMap.Restore   restore.TagMappings
-        do! data.Category.Restore restore.Categories
+        if not (List.isEmpty restore.TagMappings) then do! data.TagMap.Restore   restore.TagMappings
+        if not (List.isEmpty restore.Categories)  then do! data.Category.Restore restore.Categories
         
         printfn "- Restoring pages..."
-        do! data.Page.Restore restore.Pages
+        if not (List.isEmpty restore.Pages) then do! data.Page.Restore restore.Pages
         
         printfn "- Restoring posts..."
-        do! data.Post.Restore restore.Posts
+        if not (List.isEmpty restore.Posts) then do! data.Post.Restore restore.Posts
         
         // TODO: comments not yet implemented
         
         printfn "- Restoring uploads..."
-        do! data.Upload.Restore (restore.Uploads |> List.map EncodedUpload.toUpload)
+        if not (List.isEmpty restore.Uploads) then
+            do! data.Upload.Restore (restore.Uploads |> List.map EncodedUpload.toUpload)
         
         displayStats "Restored for <>NAME<>:" restore.WebLog restore
     }
@@ -489,4 +487,23 @@ let upgradeUser (args : string[]) (sp : IServiceProvider) = task {
     match args.Length with
     | 3 -> do! doUserUpgrade args[1] args[2] (sp.GetRequiredService<IData> ())
     | _ -> eprintfn "Usage: myWebLog upgrade-user [web-log-url-base] [email-address]"
+}
+
+/// Set a user's password
+let doSetPassword urlBase email password (data : IData) = task {
+    match! data.WebLog.FindByHost urlBase with
+    | Some webLog ->
+        match! data.WebLogUser.FindByEmail email webLog.Id with
+        | Some user ->
+            do! data.WebLogUser.Update { user with PasswordHash = Handlers.User.createPasswordHash user password }
+            printfn $"Password for user {email} at {webLog.Name} set successfully"
+        | None -> eprintfn $"ERROR: no user {email} found at {urlBase}"
+    | None -> eprintfn $"ERROR: no web log found for {urlBase}"
+}
+
+/// Set a user's password if the command-line arguments are good
+let setPassword (args : string[]) (sp : IServiceProvider) = task {
+    match args.Length with
+    | 4 -> do! doSetPassword args[1] args[2] args[3] (sp.GetRequiredService<IData> ())
+    | _ -> eprintfn "Usage: myWebLog set-password [web-log-url-base] [email-address] [password]"
 }

@@ -94,7 +94,7 @@ module Asset =
         | Some asset ->
             match Upload.checkModified asset.UpdatedOn ctx with
             | Some threeOhFour -> return! threeOhFour next ctx
-            | None -> return! Upload.sendFile asset.UpdatedOn path asset.Data next ctx
+            | None -> return! Upload.sendFile (asset.UpdatedOn.ToDateTimeUtc ()) path asset.Data next ctx
         | None -> return! Error.notFound next ctx
     }
 

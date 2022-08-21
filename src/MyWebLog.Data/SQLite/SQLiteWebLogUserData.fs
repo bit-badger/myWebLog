@@ -1,6 +1,5 @@
 namespace MyWebLog.Data.SQLite
 
-open System
 open Microsoft.Data.Sqlite
 open MyWebLog
 open MyWebLog.Data
@@ -12,18 +11,17 @@ type SQLiteWebLogUserData (conn : SqliteConnection) =
 
     /// Add parameters for web log user INSERT or UPDATE statements
     let addWebLogUserParameters (cmd : SqliteCommand) (user : WebLogUser) =
-        [   cmd.Parameters.AddWithValue ("@id", WebLogUserId.toString user.Id)
-            cmd.Parameters.AddWithValue ("@webLogId", WebLogId.toString user.WebLogId)
-            cmd.Parameters.AddWithValue ("@email", user.Email)
-            cmd.Parameters.AddWithValue ("@firstName", user.FirstName)
-            cmd.Parameters.AddWithValue ("@lastName", user.LastName)
+        [   cmd.Parameters.AddWithValue ("@id",            WebLogUserId.toString user.Id)
+            cmd.Parameters.AddWithValue ("@webLogId",      WebLogId.toString user.WebLogId)
+            cmd.Parameters.AddWithValue ("@email",         user.Email)
+            cmd.Parameters.AddWithValue ("@firstName",     user.FirstName)
+            cmd.Parameters.AddWithValue ("@lastName",      user.LastName)
             cmd.Parameters.AddWithValue ("@preferredName", user.PreferredName)
-            cmd.Parameters.AddWithValue ("@passwordHash", user.PasswordHash)
-            cmd.Parameters.AddWithValue ("@salt", user.Salt)
-            cmd.Parameters.AddWithValue ("@url", maybe user.Url)
-            cmd.Parameters.AddWithValue ("@accessLevel", AccessLevel.toString user.AccessLevel)
-            cmd.Parameters.AddWithValue ("@createdOn", user.CreatedOn)
-            cmd.Parameters.AddWithValue ("@lastSeenOn", maybe user.LastSeenOn)
+            cmd.Parameters.AddWithValue ("@passwordHash",  user.PasswordHash)
+            cmd.Parameters.AddWithValue ("@url",           maybe user.Url)
+            cmd.Parameters.AddWithValue ("@accessLevel",   AccessLevel.toString user.AccessLevel)
+            cmd.Parameters.AddWithValue ("@createdOn",     instantParam user.CreatedOn)
+            cmd.Parameters.AddWithValue ("@lastSeenOn",    maybeInstant user.LastSeenOn)
         ] |> ignore
     
     // IMPLEMENTATION FUNCTIONS
@@ -31,14 +29,14 @@ type SQLiteWebLogUserData (conn : SqliteConnection) =
     /// Add a user
     let add user = backgroundTask {
         use cmd = conn.CreateCommand ()
-        cmd.CommandText <- """
-            INSERT INTO web_log_user (
-                id, web_log_id, email, first_name, last_name, preferred_name, password_hash, salt, url, access_level,
+        cmd.CommandText <-
+            "INSERT INTO web_log_user (
+                id, web_log_id, email, first_name, last_name, preferred_name, password_hash, url, access_level,
                 created_on, last_seen_on
             ) VALUES (
-                @id, @webLogId, @email, @firstName, @lastName, @preferredName, @passwordHash, @salt, @url, @accessLevel,
+                @id, @webLogId, @email, @firstName, @lastName, @preferredName, @passwordHash, @url, @accessLevel,
                 @createdOn, @lastSeenOn
-            )"""
+            )"
         addWebLogUserParameters cmd user
         do! write cmd
     }
@@ -93,14 +91,10 @@ type SQLiteWebLogUserData (conn : SqliteConnection) =
     /// Find the names of users by their IDs for the given web log
     let findNames webLogId userIds = backgroundTask {
         use cmd = conn.CreateCommand ()
-        cmd.CommandText <- "SELECT * FROM web_log_user WHERE web_log_id = @webLogId AND id IN ("
-        userIds
-        |> List.iteri (fun idx userId ->
-            if idx > 0 then cmd.CommandText <- $"{cmd.CommandText}, "
-            cmd.CommandText <- $"{cmd.CommandText}@id{idx}"
-            cmd.Parameters.AddWithValue ($"@id{idx}", WebLogUserId.toString userId) |> ignore)
-        cmd.CommandText <- $"{cmd.CommandText})"
+        let nameSql, nameParams = inClause "AND id" "id" WebLogUserId.toString userIds 
+        cmd.CommandText <- $"SELECT * FROM web_log_user WHERE web_log_id = @webLogId {nameSql}"
         addWebLogId cmd webLogId
+        cmd.Parameters.AddRange nameParams
         use! rdr = cmd.ExecuteReaderAsync ()
         return
             toList Map.toWebLogUser rdr
@@ -116,14 +110,14 @@ type SQLiteWebLogUserData (conn : SqliteConnection) =
     /// Set a user's last seen date/time to now
     let setLastSeen userId webLogId = backgroundTask {
         use cmd = conn.CreateCommand ()
-        cmd.CommandText <- """
-            UPDATE web_log_user
-               SET last_seen_on = @lastSeenOn
-             WHERE id         = @id
-               AND web_log_id = @webLogId"""
+        cmd.CommandText <-
+            "UPDATE web_log_user
+                SET last_seen_on = @lastSeenOn
+              WHERE id         = @id
+                AND web_log_id = @webLogId"
         addWebLogId cmd webLogId
-        [ cmd.Parameters.AddWithValue ("@id", WebLogUserId.toString userId)
-          cmd.Parameters.AddWithValue ("@lastSeenOn", DateTime.UtcNow)
+        [   cmd.Parameters.AddWithValue ("@id",         WebLogUserId.toString userId)
+            cmd.Parameters.AddWithValue ("@lastSeenOn", instantParam (Noda.now ()))
         ] |> ignore
         let! _ = cmd.ExecuteNonQueryAsync ()
         ()
@@ -132,20 +126,19 @@ type SQLiteWebLogUserData (conn : SqliteConnection) =
     /// Update a user
     let update user = backgroundTask {
         use cmd = conn.CreateCommand ()
-        cmd.CommandText <- """
-            UPDATE web_log_user
-               SET email          = @email,
-                   first_name     = @firstName,
-                   last_name      = @lastName,
-                   preferred_name = @preferredName,
-                   password_hash  = @passwordHash,
-                   salt           = @salt,
-                   url            = @url,
-                   access_level   = @accessLevel,
-                   created_on     = @createdOn,
-                   last_seen_on   = @lastSeenOn
-             WHERE id         = @id
-               AND web_log_id = @webLogId"""
+        cmd.CommandText <-
+            "UPDATE web_log_user
+                SET email          = @email,
+                    first_name     = @firstName,
+                    last_name      = @lastName,
+                    preferred_name = @preferredName,
+                    password_hash  = @passwordHash,
+                    url            = @url,
+                    access_level   = @accessLevel,
+                    created_on     = @createdOn,
+                    last_seen_on   = @lastSeenOn
+              WHERE id         = @id
+                AND web_log_id = @webLogId"
         addWebLogUserParameters cmd user
         do! write cmd
     }

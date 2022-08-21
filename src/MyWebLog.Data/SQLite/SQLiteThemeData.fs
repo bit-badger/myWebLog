@@ -17,13 +17,13 @@ type SQLiteThemeData (conn : SqliteConnection) =
         do! rdr.CloseAsync ()
         cmd.CommandText <- "SELECT name, theme_id FROM theme_template WHERE theme_id <> 'admin' ORDER BY name"
         use! rdr = cmd.ExecuteReaderAsync ()
-        let mutable templates = []
-        while rdr.Read () do
-            templates <- (ThemeId (Map.getString "theme_id" rdr), Map.toThemeTemplate false rdr) :: templates
+        let templates =
+            seq { while rdr.Read () do ThemeId (Map.getString "theme_id" rdr), Map.toThemeTemplate false rdr }
+            |> List.ofSeq
         return
             themes
             |> List.map (fun t ->
-                { t with Templates = templates |> List.filter (fun tt -> fst tt = t.Id) |> List.map snd })
+                { t with Templates = templates |> List.filter (fun (themeId, _) -> themeId = t.Id) |> List.map snd })
     }
     
     /// Does a given theme exist?
@@ -67,10 +67,10 @@ type SQLiteThemeData (conn : SqliteConnection) =
         match! findByIdWithoutText themeId with
         | Some _ ->
             use cmd = conn.CreateCommand ()
-            cmd.CommandText <- """
-                DELETE FROM theme_asset    WHERE theme_id = @id;
-                DELETE FROM theme_template WHERE theme_id = @id;
-                DELETE FROM theme          WHERE id       = @id"""
+            cmd.CommandText <-
+                "DELETE FROM theme_asset    WHERE theme_id = @id;
+                 DELETE FROM theme_template WHERE theme_id = @id;
+                 DELETE FROM theme          WHERE id       = @id"
             cmd.Parameters.AddWithValue ("@id", ThemeId.toString themeId) |> ignore
             do! write cmd
             return true
@@ -85,15 +85,15 @@ type SQLiteThemeData (conn : SqliteConnection) =
             match oldTheme with
             | Some _ -> "UPDATE theme SET name = @name, version = @version WHERE id = @id"
             | None -> "INSERT INTO theme VALUES (@id, @name, @version)"
-        [ cmd.Parameters.AddWithValue ("@id", ThemeId.toString theme.Id)
-          cmd.Parameters.AddWithValue ("@name", theme.Name)
-          cmd.Parameters.AddWithValue ("@version", theme.Version)
+        [   cmd.Parameters.AddWithValue ("@id",      ThemeId.toString theme.Id)
+            cmd.Parameters.AddWithValue ("@name",    theme.Name)
+            cmd.Parameters.AddWithValue ("@version", theme.Version)
         ] |> ignore
         do! write cmd
         
         let toDelete, toAdd =
-            diffLists (oldTheme |> Option.map (fun t -> t.Templates) |> Option.defaultValue [])
-                      theme.Templates (fun t -> t.Name)
+            Utils.diffLists (oldTheme |> Option.map (fun t -> t.Templates) |> Option.defaultValue [])
+                            theme.Templates (fun t -> t.Name)
         let toUpdate =
             theme.Templates
             |> List.filter (fun t ->
@@ -102,9 +102,9 @@ type SQLiteThemeData (conn : SqliteConnection) =
         cmd.CommandText <-
             "UPDATE theme_template SET template = @template WHERE theme_id = @themeId AND name = @name"
         cmd.Parameters.Clear ()
-        [ cmd.Parameters.AddWithValue ("@themeId", ThemeId.toString theme.Id)
-          cmd.Parameters.Add ("@name", SqliteType.Text)
-          cmd.Parameters.Add ("@template", SqliteType.Text)
+        [   cmd.Parameters.AddWithValue ("@themeId",  ThemeId.toString theme.Id)
+            cmd.Parameters.Add          ("@name",     SqliteType.Text)
+            cmd.Parameters.Add          ("@template", SqliteType.Text)
         ] |> ignore
         toUpdate
         |> List.map (fun template -> backgroundTask {
@@ -169,8 +169,8 @@ type SQLiteThemeAssetData (conn : SqliteConnection) =
         use cmd = conn.CreateCommand ()
         cmd.CommandText <- "SELECT *, ROWID FROM theme_asset WHERE theme_id = @themeId AND path = @path"
         let (ThemeAssetId (ThemeId themeId, path)) = assetId
-        [ cmd.Parameters.AddWithValue ("@themeId", themeId)
-          cmd.Parameters.AddWithValue ("@path", path)
+        [   cmd.Parameters.AddWithValue ("@themeId", themeId)
+            cmd.Parameters.AddWithValue ("@path",    path)
         ] |> ignore
         use! rdr = cmd.ExecuteReaderAsync ()
         return if rdr.Read () then Some (Map.toThemeAsset true rdr) else None
@@ -200,29 +200,29 @@ type SQLiteThemeAssetData (conn : SqliteConnection) =
         sideCmd.CommandText <-
             "SELECT COUNT(path) FROM theme_asset WHERE theme_id = @themeId AND path = @path"
         let (ThemeAssetId (ThemeId themeId, path)) = asset.Id
-        [ sideCmd.Parameters.AddWithValue ("@themeId", themeId)
-          sideCmd.Parameters.AddWithValue ("@path", path)
+        [   sideCmd.Parameters.AddWithValue ("@themeId", themeId)
+            sideCmd.Parameters.AddWithValue ("@path",    path)
         ] |> ignore
         let! exists = count sideCmd
         
         use cmd = conn.CreateCommand ()
         cmd.CommandText <-
             if exists = 1 then
-                """UPDATE theme_asset
-                      SET updated_on = @updatedOn,
-                          data       = ZEROBLOB(@dataLength)
-                    WHERE theme_id = @themeId
-                      AND path     = @path"""
+                "UPDATE theme_asset
+                    SET updated_on = @updatedOn,
+                        data       = ZEROBLOB(@dataLength)
+                  WHERE theme_id = @themeId
+                    AND path     = @path"
             else
-                """INSERT INTO theme_asset (
-                       theme_id, path, updated_on, data
-                   ) VALUES (
-                       @themeId, @path, @updatedOn, ZEROBLOB(@dataLength)
-                   )"""
-        [ cmd.Parameters.AddWithValue ("@themeId", themeId)
-          cmd.Parameters.AddWithValue ("@path", path)
-          cmd.Parameters.AddWithValue ("@updatedOn", asset.UpdatedOn)
-          cmd.Parameters.AddWithValue ("@dataLength", asset.Data.Length)
+                "INSERT INTO theme_asset (
+                    theme_id, path, updated_on, data
+                ) VALUES (
+                    @themeId, @path, @updatedOn, ZEROBLOB(@dataLength)
+                )"
+        [   cmd.Parameters.AddWithValue ("@themeId",    themeId)
+            cmd.Parameters.AddWithValue ("@path",       path)
+            cmd.Parameters.AddWithValue ("@updatedOn",  instantParam asset.UpdatedOn)
+            cmd.Parameters.AddWithValue ("@dataLength", asset.Data.Length)
         ] |> ignore
         do! write cmd
         

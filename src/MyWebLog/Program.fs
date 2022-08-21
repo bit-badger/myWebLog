@@ -29,11 +29,14 @@ type WebLogMiddleware (next : RequestDelegate, log : ILogger<WebLogMiddleware>) 
 open System
 open Microsoft.Extensions.DependencyInjection
 open MyWebLog.Data
+open Newtonsoft.Json
+open Npgsql
 
 /// Logic to obtain a data connection and implementation based on configured values
 module DataImplementation =
     
     open MyWebLog.Converters
+    // open Npgsql.Logging
     open RethinkDb.Driver.FSharp
     open RethinkDb.Driver.Net
 
@@ -43,23 +46,29 @@ module DataImplementation =
         let await it = (Async.AwaitTask >> Async.RunSynchronously) it
         let connStr    name = config.GetConnectionString name
         let hasConnStr name = (connStr >> isNull >> not) name
-        let createSQLite connStr =
+        let createSQLite connStr : IData =
             let log  = sp.GetRequiredService<ILogger<SQLiteData>> ()
             let conn = new SqliteConnection (connStr)
             log.LogInformation $"Using SQLite database {conn.DataSource}"
             await (SQLiteData.setUpConnection conn)
-            SQLiteData (conn, log)
+            SQLiteData (conn, log, Json.configure (JsonSerializer.CreateDefault ()))
         
         if hasConnStr "SQLite" then
-            upcast createSQLite (connStr "SQLite")
+            createSQLite (connStr "SQLite")
         elif hasConnStr "RethinkDB" then
-            let log = sp.GetRequiredService<ILogger<RethinkDbData>> ()
-            Json.all () |> Seq.iter Converter.Serializer.Converters.Add 
+            let log        = sp.GetRequiredService<ILogger<RethinkDbData>> ()
+            let _          = Json.configure Converter.Serializer 
             let rethinkCfg = DataConfig.FromUri (connStr "RethinkDB")
             let conn       = await (rethinkCfg.CreateConnectionAsync log)
-            upcast RethinkDbData (conn, rethinkCfg, log)
+            RethinkDbData (conn, rethinkCfg, log)
+        elif hasConnStr "PostgreSQL" then
+            let log  = sp.GetRequiredService<ILogger<PostgresData>> ()
+            // NpgsqlLogManager.Provider <- ConsoleLoggingProvider NpgsqlLogLevel.Debug
+            let conn = new NpgsqlConnection (connStr "PostgreSQL")
+            log.LogInformation $"Using PostgreSQL database {conn.Host}:{conn.Port}/{conn.Database}"
+            PostgresData (conn, log, Json.configure (JsonSerializer.CreateDefault ()))
         else
-            upcast createSQLite "Data Source=./myweblog.db;Cache=Shared"
+            createSQLite "Data Source=./myweblog.db;Cache=Shared"
 
 
 open System.Threading.Tasks
@@ -76,6 +85,7 @@ let showHelp () =
     printfn "init          Initializes a new web log"
     printfn "load-theme    Load a theme"
     printfn "restore       Restore a JSON file backup (prompt before overwriting)"
+    printfn "set-password  Set a password for a specific user"
     printfn "upgrade-user  Upgrade a WebLogAdmin user to a full Administrator"
     printfn " "
     printfn "For more information on a particular command, run it with no options."
@@ -88,6 +98,7 @@ open Giraffe.EndpointRouting
 open Microsoft.AspNetCore.Authentication.Cookies
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.HttpOverrides
+open Microsoft.Extensions.Caching.Distributed
 open NeoSmart.Caching.Sqlite
 open RethinkDB.DistributedCache
 
@@ -108,8 +119,9 @@ let rec main args =
     let _ = builder.Services.AddAuthorization ()
     let _ = builder.Services.AddAntiforgery ()
     
-    let sp   = builder.Services.BuildServiceProvider ()
+    let sp = builder.Services.BuildServiceProvider ()
     let data = DataImplementation.get sp
+    let _ = builder.Services.AddSingleton<JsonSerializer> data.Serializer
     
     task {
         do! data.StartUp ()
@@ -121,23 +133,36 @@ let rec main args =
     match data with
     | :? RethinkDbData as rethink ->
         // A RethinkDB connection is designed to work as a singleton
-        builder.Services.AddSingleton<IData> data |> ignore
-        builder.Services.AddDistributedRethinkDBCache (fun opts ->
-            opts.TableName  <- "Session"
-            opts.Connection <- rethink.Conn)
-        |> ignore
+        let _ = builder.Services.AddSingleton<IData> data
+        let _ =
+            builder.Services.AddDistributedRethinkDBCache (fun opts ->
+                opts.TableName  <- "Session"
+                opts.Connection <- rethink.Conn)
+        ()
     | :? SQLiteData as sql ->
         // ADO.NET connections are designed to work as per-request instantiation
         let cfg  = sp.GetRequiredService<IConfiguration> ()
-        builder.Services.AddScoped<SqliteConnection> (fun sp ->
-            let conn = new SqliteConnection (sql.Conn.ConnectionString)
-            SQLiteData.setUpConnection conn |> Async.AwaitTask |> Async.RunSynchronously
-            conn)
-        |> ignore
-        builder.Services.AddScoped<IData, SQLiteData> () |> ignore
+        let _ =
+            builder.Services.AddScoped<SqliteConnection> (fun sp ->
+                let conn = new SqliteConnection (sql.Conn.ConnectionString)
+                SQLiteData.setUpConnection conn |> Async.AwaitTask |> Async.RunSynchronously
+                conn)
+        let _ = builder.Services.AddScoped<IData, SQLiteData> () |> ignore
         // Use SQLite for caching as well
         let cachePath = defaultArg (Option.ofObj (cfg.GetConnectionString "SQLiteCachePath")) "./session.db"
-        builder.Services.AddSqliteCache (fun o -> o.CachePath <- cachePath) |> ignore
+        let _ = builder.Services.AddSqliteCache (fun o -> o.CachePath <- cachePath)
+        ()
+    | :? PostgresData ->
+        // ADO.NET connections are designed to work as per-request instantiation
+        let cfg  = sp.GetRequiredService<IConfiguration> ()
+        let _ =
+            builder.Services.AddScoped<NpgsqlConnection> (fun sp ->
+                new NpgsqlConnection (cfg.GetConnectionString "PostgreSQL"))
+        let _ = builder.Services.AddScoped<IData, PostgresData> ()
+        let _ =
+            builder.Services.AddSingleton<IDistributedCache> (fun sp ->
+                Postgres.DistributedCache (cfg.GetConnectionString "PostgreSQL") :> IDistributedCache)
+        ()
     | _ -> ()
     
     let _ = builder.Services.AddSession(fun opts ->
@@ -159,6 +184,7 @@ let rec main args =
     | Some it when it = "restore"      -> Maintenance.Backup.restoreFromBackup args app.Services
     | Some it when it = "do-restore"   -> Maintenance.Backup.restoreFromBackup args app.Services
     | Some it when it = "upgrade-user" -> Maintenance.upgradeUser              args app.Services
+    | Some it when it = "set-password" -> Maintenance.setPassword              args app.Services
     | Some it when it = "help"         -> showHelp ()
     | Some it ->
         printfn $"""Unrecognized command "{it}" - valid commands are:"""

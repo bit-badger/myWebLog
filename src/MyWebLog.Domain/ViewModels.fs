@@ -2,6 +2,7 @@
 
 open System
 open MyWebLog
+open NodaTime
 
 /// Helper functions for view models
 [<AutoOpen>]
@@ -138,8 +139,8 @@ type DisplayPage =
             AuthorId     = WebLogUserId.toString page.AuthorId
             Title        = page.Title
             Permalink    = Permalink.toString page.Permalink
-            PublishedOn  = page.PublishedOn
-            UpdatedOn    = page.UpdatedOn
+            PublishedOn  = WebLog.localTime webLog page.PublishedOn
+            UpdatedOn    = WebLog.localTime webLog page.UpdatedOn
             IsInPageList = page.IsInPageList
             IsDefault    = pageId = webLog.DefaultPage
             Text         = ""
@@ -154,8 +155,8 @@ type DisplayPage =
             AuthorId     = WebLogUserId.toString page.AuthorId
             Title        = page.Title
             Permalink    = Permalink.toString page.Permalink
-            PublishedOn  = page.PublishedOn
-            UpdatedOn    = page.UpdatedOn
+            PublishedOn  = WebLog.localTime webLog page.PublishedOn
+            UpdatedOn    = WebLog.localTime webLog page.UpdatedOn
             IsInPageList = page.IsInPageList
             IsDefault    = pageId = webLog.DefaultPage
             Text         = addBaseToRelativeUrls extra page.Text
@@ -179,7 +180,7 @@ with
 
     /// Create a display revision from an actual revision
     static member fromRevision webLog (rev : Revision) =
-        {   AsOf      = rev.AsOf
+        {   AsOf      = rev.AsOf.ToDateTimeUtc ()
             AsOfLocal = WebLog.localTime webLog rev.AsOf
             Format    = MarkupText.sourceType rev.Text
         }
@@ -703,7 +704,7 @@ type EditPostModel =
             match post.Revisions |> List.sortByDescending (fun r -> r.AsOf) |> List.tryHead with
             | Some rev -> rev
             | None -> Revision.empty
-        let post = if post.Metadata |> List.isEmpty then { post with Metadata = [ MetaItem.empty ] } else post
+        let post    = if post.Metadata |> List.isEmpty then { post with Metadata = [ MetaItem.empty ] } else post
         let episode = defaultArg post.Episode Episode.empty
         {   PostId             = PostId.toString post.Id
             Title              = post.Title
@@ -723,7 +724,7 @@ type EditPostModel =
             IsEpisode          = Option.isSome post.Episode
             Media              = episode.Media
             Length             = episode.Length
-            Duration           = defaultArg (episode.Duration |> Option.map (fun it -> it.ToString """hh\:mm\:ss""")) ""
+            Duration           = defaultArg (Episode.formatDuration episode) ""
             MediaType          = defaultArg episode.MediaType ""
             ImageUrl           = defaultArg episode.ImageUrl ""
             Subtitle           = defaultArg episode.Subtitle ""
@@ -781,7 +782,8 @@ type EditPostModel =
                         Some {
                             Media              = this.Media
                             Length             = this.Length
-                            Duration           = noneIfBlank this.Duration |> Option.map TimeSpan.Parse
+                            Duration           = noneIfBlank this.Duration
+                                                 |> Option.map (TimeSpan.Parse >> Duration.FromTimeSpan)
                             MediaType          = noneIfBlank this.MediaType
                             ImageUrl           = noneIfBlank this.ImageUrl
                             Subtitle           = noneIfBlank this.Subtitle

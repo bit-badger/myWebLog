@@ -29,15 +29,17 @@ module private Helpers =
 
 // ~~ SERVING UPLOADS ~~
 
+open System.Globalization
 open Giraffe
 open Microsoft.AspNetCore.Http
+open NodaTime
 
 /// Determine if the file has been modified since the date/time specified by the If-Modified-Since header
 let checkModified since (ctx : HttpContext) : HttpHandler option =
     match ctx.Request.Headers.IfModifiedSince with
     | it when it.Count < 1 -> None
-    | it when since > DateTime.Parse it[0] -> None
-    | _ -> Some (setStatusCode 304 >=> setBodyFromString "Not Modified")
+    | it when since > Instant.FromDateTimeUtc (DateTime.Parse (it[0], null, DateTimeStyles.AdjustToUniversal)) -> None
+    | _ -> Some (setStatusCode 304)
 
 
 open Microsoft.AspNetCore.Http.Headers
@@ -73,7 +75,7 @@ let serve (urlParts : string seq) : HttpHandler = fun next ctx -> task {
             | Some upload ->
                 match checkModified upload.UpdatedOn ctx with
                 | Some threeOhFour -> return! threeOhFour next ctx
-                | None -> return! sendFile upload.UpdatedOn path upload.Data next ctx
+                | None -> return! sendFile (upload.UpdatedOn.ToDateTimeUtc ()) path upload.Data next ctx
             | None -> return! Error.notFound next ctx
     else
         return! Error.notFound next ctx
@@ -143,7 +145,8 @@ let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
         let upload    = Seq.head ctx.Request.Form.Files
         let fileName  = String.Concat (makeSlug (Path.GetFileNameWithoutExtension upload.FileName),
                                        Path.GetExtension(upload.FileName).ToLowerInvariant ())
-        let  localNow = WebLog.localTime ctx.WebLog DateTime.Now
+        let  now      = Noda.now ()
+        let  localNow = WebLog.localTime ctx.WebLog now
         let  year     = localNow.ToString "yyyy"
         let  month    = localNow.ToString "MM"
         let! form     = ctx.BindFormAsync<UploadFileModel> ()
@@ -156,7 +159,7 @@ let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
                 {   Id        = UploadId.create ()
                     WebLogId  = ctx.WebLog.Id
                     Path      = Permalink $"{year}/{month}/{fileName}"
-                    UpdatedOn = DateTime.UtcNow
+                    UpdatedOn = now
                     Data      = stream.ToArray ()
                 }
             do! ctx.Data.Upload.Add file

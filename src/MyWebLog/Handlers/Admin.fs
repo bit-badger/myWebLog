@@ -5,6 +5,7 @@ open System.Threading.Tasks
 open Giraffe
 open MyWebLog
 open MyWebLog.ViewModels
+open NodaTime
 
 /// ~~ DASHBOARDS ~~
 module Dashboard =
@@ -12,23 +13,22 @@ module Dashboard =
     // GET /admin/dashboard
     let user : HttpHandler = requireAccess Author >=> fun next ctx -> task {
         let getCount (f : WebLogId -> Task<int>) = f ctx.WebLog.Id
-        let data    = ctx.Data
-        let posts   = getCount (data.Post.CountByStatus Published)
-        let drafts  = getCount (data.Post.CountByStatus Draft)
-        let pages   = getCount data.Page.CountAll
-        let listed  = getCount data.Page.CountListed
-        let cats    = getCount data.Category.CountAll
-        let topCats = getCount data.Category.CountTopLevel
-        let! _ = Task.WhenAll (posts, drafts, pages, listed, cats, topCats)
+        let  data    = ctx.Data
+        let! posts   = getCount (data.Post.CountByStatus Published)
+        let! drafts  = getCount (data.Post.CountByStatus Draft)
+        let! pages   = getCount data.Page.CountAll
+        let! listed  = getCount data.Page.CountListed
+        let! cats    = getCount data.Category.CountAll
+        let! topCats = getCount data.Category.CountTopLevel
         return!
             hashForPage "Dashboard"
             |> addToHash ViewContext.Model {
-                    Posts              = posts.Result
-                    Drafts             = drafts.Result
-                    Pages              = pages.Result
-                    ListedPages        = listed.Result
-                    Categories         = cats.Result
-                    TopLevelCategories = topCats.Result
+                    Posts              = posts
+                    Drafts             = drafts
+                    Pages              = pages
+                    ListedPages        = listed
+                    Categories         = cats
+                    TopLevelCategories = topCats
                 }
             |> adminView "dashboard" next ctx
     }
@@ -344,7 +344,8 @@ module Theme =
                 do! asset.Open().CopyToAsync stream
                 do! data.ThemeAsset.Save
                         {   Id        = ThemeAssetId (themeId, assetName)
-                            UpdatedOn = asset.LastWriteTime.DateTime
+                            UpdatedOn = LocalDateTime.FromDateTime(asset.LastWriteTime.DateTime)
+                                            .InZoneLeniently(DateTimeZone.Utc).ToInstant ()
                             Data      = stream.ToArray ()
                         }
     }

@@ -17,7 +17,10 @@ module private RethinkHelpers =
 
         /// The comment table
         let Comment = "Comment"
-
+        
+        /// The database version table
+        let DbVersion = "DbVersion"
+        
         /// The page table
         let Page = "Page"
         
@@ -43,7 +46,7 @@ module private RethinkHelpers =
         let WebLogUser = "WebLogUser"
 
         /// A list of all tables
-        let all = [ Category; Comment; Page; Post; TagMap; Theme; ThemeAsset; Upload; WebLog; WebLogUser ]
+        let all = [ Category; Comment; DbVersion; Page; Post; TagMap; Theme; ThemeAsset; Upload; WebLog; WebLogUser ]
 
     
     /// Index names for indexes not on a data item's name
@@ -187,7 +190,42 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
         delete
         write; withRetryDefault; ignoreResult conn
     }
-
+    
+    /// Set a specific database version
+    let setDbVersion (version : string) = backgroundTask {
+        do! rethink {
+            withTable Table.DbVersion
+            delete
+            write; withRetryOnce; ignoreResult conn
+        }
+        do! rethink {
+            withTable Table.DbVersion
+            insert {| Id = version |}
+            write; withRetryOnce; ignoreResult conn
+        }
+    }
+    
+    /// Migrate from v2-rc1 to v2-rc2
+    let migrateV2Rc1ToV2Rc2 () = backgroundTask {
+        let logStep = Utils.logMigrationStep log "v2-rc1 to v2-rc2"
+        logStep "**IMPORTANT**"
+        logStep "See release notes about required backup/restoration for RethinkDB."
+        logStep "If there is an error immediately below this message, this is why."
+        logStep "Setting database version to v2-rc2"
+        do! setDbVersion "v2-rc2"
+    }
+    
+    /// Migrate data between versions
+    let migrate version = backgroundTask {
+        match version with
+        | Some v when v = "v2-rc2" -> ()
+        | Some v when v = "v2-rc1" -> do! migrateV2Rc1ToV2Rc2 ()
+        | Some _
+        | None ->
+            log.LogWarning $"Unknown database version; assuming {Utils.currentDbVersion}"
+            do! setDbVersion Utils.currentDbVersion
+    }
+    
     /// The connection for this instance
     member _.Conn = conn
     
@@ -1079,7 +1117,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                         do! rethink {
                             withTable Table.WebLogUser
                             get userId
-                            update [ nameof WebLogUser.empty.LastSeenOn, DateTime.UtcNow :> obj ]
+                            update [ nameof WebLogUser.empty.LastSeenOn, Noda.now () :> obj ]
                             write; withRetryOnce; ignoreResult conn
                         }
                     | None -> ()
@@ -1094,13 +1132,15 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                         nameof user.LastName,      user.LastName
                         nameof user.PreferredName, user.PreferredName
                         nameof user.PasswordHash,  user.PasswordHash
-                        nameof user.Salt,          user.Salt
                         nameof user.Url,           user.Url
                         nameof user.AccessLevel,   user.AccessLevel
                         ]
                     write; withRetryDefault; ignoreResult conn
                 }
         }
+        
+        member _.Serializer =
+            Net.Converter.Serializer
         
         member _.StartUp () = backgroundTask {
             let! dbs = rethink<string list> { dbList; result; withRetryOnce conn }
@@ -1114,6 +1154,14 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     log.LogInformation $"Creating table {tbl}..."
                     do! rethink { tableCreate tbl [ PrimaryKey "Id" ]; write; withRetryOnce; ignoreResult conn }
 
+            if not (List.contains Table.DbVersion tables) then
+                // Version table added in v2-rc2; this will flag that migration to be run
+                do! rethink {
+                    withTable Table.DbVersion
+                    insert {| Id = "v2-rc1" |}
+                    write; withRetryOnce; ignoreResult conn
+                }
+            
             do! ensureIndexes Table.Category   [ nameof Category.empty.WebLogId ]
             do! ensureIndexes Table.Comment    [ nameof Comment.empty.PostId ]
             do! ensureIndexes Table.Page       [ nameof Page.empty.WebLogId; nameof Page.empty.AuthorId ]
@@ -1122,4 +1170,13 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
             do! ensureIndexes Table.Upload     []
             do! ensureIndexes Table.WebLog     [ nameof WebLog.empty.UrlBase ]
             do! ensureIndexes Table.WebLogUser [ nameof WebLogUser.empty.WebLogId ]
+            
+            let! version = rethink<{| Id : string |} list> {
+                 withTable Table.DbVersion
+                 limit 1
+                 result; withRetryOnce conn
+            }
+            match List.tryHead version with
+            | Some v when v.Id = "v2-rc2" -> ()
+            | it -> do! migrate (it |> Option.map (fun x -> x.Id))
         }

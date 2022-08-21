@@ -10,22 +10,22 @@ type SQLiteUploadData (conn : SqliteConnection) =
 
     /// Add parameters for uploaded file INSERT and UPDATE statements
     let addUploadParameters (cmd : SqliteCommand) (upload : Upload) =
-        [   cmd.Parameters.AddWithValue ("@id", UploadId.toString upload.Id)
-            cmd.Parameters.AddWithValue ("@webLogId", WebLogId.toString upload.WebLogId)
-            cmd.Parameters.AddWithValue ("@path", Permalink.toString upload.Path)
-            cmd.Parameters.AddWithValue ("@updatedOn", upload.UpdatedOn)
+        [   cmd.Parameters.AddWithValue ("@id",         UploadId.toString upload.Id)
+            cmd.Parameters.AddWithValue ("@webLogId",   WebLogId.toString upload.WebLogId)
+            cmd.Parameters.AddWithValue ("@path",       Permalink.toString upload.Path)
+            cmd.Parameters.AddWithValue ("@updatedOn",  instantParam upload.UpdatedOn)
             cmd.Parameters.AddWithValue ("@dataLength", upload.Data.Length)
         ] |> ignore
     
     /// Save an uploaded file
     let add upload = backgroundTask {
         use cmd = conn.CreateCommand ()
-        cmd.CommandText <- """
-            INSERT INTO upload (
+        cmd.CommandText <-
+            "INSERT INTO upload (
                 id, web_log_id, path, updated_on, data
             ) VALUES (
                 @id, @webLogId, @path, @updatedOn, ZEROBLOB(@dataLength)
-            )"""
+            )"
         addUploadParameters cmd upload
         do! write cmd
         
@@ -40,11 +40,11 @@ type SQLiteUploadData (conn : SqliteConnection) =
     /// Delete an uploaded file by its ID
     let delete uploadId webLogId = backgroundTask {
         use cmd = conn.CreateCommand ()
-        cmd.CommandText <- """
-            SELECT id, web_log_id, path, updated_on
-              FROM upload
-             WHERE id         = @id
-               AND web_log_id = @webLogId"""
+        cmd.CommandText <-
+            "SELECT id, web_log_id, path, updated_on
+               FROM upload
+              WHERE id         = @id
+                AND web_log_id = @webLogId"
         addWebLogId cmd webLogId
         cmd.Parameters.AddWithValue ("@id", UploadId.toString uploadId) |> ignore
         let! rdr = cmd.ExecuteReaderAsync ()

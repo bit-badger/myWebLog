@@ -56,7 +56,6 @@ module Extensions =
             defaultArg (this.UserAccessLevel |> Option.map (AccessLevel.hasAccess level)) false
 
 
-
 open System.Collections.Concurrent
 
 /// <summary>

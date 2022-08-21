@@ -419,10 +419,11 @@ let getCategoryIds slug ctx =
 
 open System
 open System.Globalization
+open NodaTime
 
 /// Parse a date/time to UTC 
 let parseToUtc (date : string) =
-    DateTime.Parse (date, null, DateTimeStyles.AdjustToUniversal)
+    Instant.FromDateTimeUtc (DateTime.Parse (date, null, DateTimeStyles.AdjustToUniversal))
 
 open Microsoft.Extensions.DependencyInjection
 open Microsoft.Extensions.Logging

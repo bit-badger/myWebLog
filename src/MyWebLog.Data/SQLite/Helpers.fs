@@ -5,29 +5,14 @@ module MyWebLog.Data.SQLite.Helpers
 open System
 open Microsoft.Data.Sqlite
 open MyWebLog
+open MyWebLog.Data
+open NodaTime.Text
 
 /// Run a command that returns a count
 let count (cmd : SqliteCommand) = backgroundTask {
     let! it = cmd.ExecuteScalarAsync ()
     return int (it :?> int64)
 }
-
-/// Get lists of items removed from and added to the given lists
-let diffLists<'T, 'U when 'U : equality> oldItems newItems (f : 'T -> 'U) =
-    let diff compList = fun item -> not (compList |> List.exists (fun other -> f item = f other))
-    List.filter (diff newItems) oldItems, List.filter (diff oldItems) newItems
-
-/// Find meta items added and removed
-let diffMetaItems (oldItems : MetaItem list) newItems =
-    diffLists oldItems newItems (fun item -> $"{item.Name}|{item.Value}")
-
-/// Find the permalinks added and removed
-let diffPermalinks oldLinks newLinks =
-    diffLists oldLinks newLinks Permalink.toString
-
-/// Find the revisions added and removed
-let diffRevisions oldRevs newRevs =
-    diffLists oldRevs newRevs (fun (rev : Revision) -> $"{rev.AsOf.Ticks}|{MarkupText.toString rev.Text}")
 
 /// Create a list of items from the given data reader
 let toList<'T> (it : SqliteDataReader -> 'T) (rdr : SqliteDataReader) =
@@ -46,6 +31,42 @@ let write (cmd : SqliteCommand) = backgroundTask {
     let! _ = cmd.ExecuteNonQueryAsync ()
     ()
 }
+
+/// Add a possibly-missing parameter, substituting null for None
+let maybe<'T> (it : 'T option) : obj = match it with Some x -> x :> obj | None -> DBNull.Value
+
+/// Create a value for a Duration
+let durationParam =
+    DurationPattern.Roundtrip.Format
+
+/// Create a value for an Instant
+let instantParam =
+    InstantPattern.General.Format
+
+/// Create an optional value for a Duration
+let maybeDuration =
+    Option.map durationParam >> maybe
+
+/// Create an optional value for an Instant
+let maybeInstant =
+    Option.map instantParam >> maybe
+
+/// Create the SQL and parameters for an IN clause
+let inClause<'T> colNameAndPrefix paramName (valueFunc: 'T -> string) (items : 'T list) =
+    if List.isEmpty items then "", []
+    else
+        let mutable idx = 0
+        items
+        |> List.skip 1
+        |> List.fold (fun (itemS, itemP) it ->
+            idx <- idx + 1
+            $"{itemS}, @%s{paramName}{idx}", (SqliteParameter ($"@%s{paramName}{idx}", valueFunc it) :: itemP))
+            (Seq.ofList items
+             |> Seq.map (fun it ->
+                 $"%s{colNameAndPrefix} IN (@%s{paramName}0", [ SqliteParameter ($"@%s{paramName}0", valueFunc it) ])
+             |> Seq.head)
+        |> function sql, ps -> $"{sql})", ps
+
 
 /// Functions to map domain items from a data reader
 module Map =
@@ -73,6 +94,26 @@ module Map =
     /// Get a string value from a data reader
     let getString col (rdr : SqliteDataReader) = rdr.GetString (rdr.GetOrdinal col)
     
+    /// Parse a Duration from the given value
+    let parseDuration value =
+        match DurationPattern.Roundtrip.Parse value with
+        | it when it.Success -> it.Value
+        | it -> raise it.Exception
+    
+    /// Get a Duration value from a data reader
+    let getDuration col rdr =
+        getString col rdr |> parseDuration
+    
+    /// Parse an Instant from the given value
+    let parseInstant value =
+        match InstantPattern.General.Parse value with
+        | it when it.Success -> it.Value
+        | it -> raise it.Exception
+    
+    /// Get an Instant value from a data reader
+    let getInstant col rdr =
+        getString col rdr |> parseInstant
+    
     /// Get a timespan value from a data reader
     let getTimeSpan col (rdr : SqliteDataReader) = rdr.GetTimeSpan (rdr.GetOrdinal col)
     
@@ -96,6 +137,14 @@ module Map =
     let tryString col (rdr : SqliteDataReader) =
         if rdr.IsDBNull (rdr.GetOrdinal col) then None else Some (getString col rdr)
     
+    /// Get a possibly null Duration value from a data reader
+    let tryDuration col rdr =
+        tryString col rdr |> Option.map parseDuration
+    
+    /// Get a possibly null Instant value from a data reader
+    let tryInstant col rdr =
+        tryString col rdr |> Option.map parseInstant
+    
     /// Get a possibly null timespan value from a data reader
     let tryTimeSpan col (rdr : SqliteDataReader) =
         if rdr.IsDBNull (rdr.GetOrdinal col) then None else Some (getTimeSpan col rdr)
@@ -114,100 +163,57 @@ module Map =
         }
     
     /// Create a custom feed from the current row in the given data reader
-    let toCustomFeed rdr : CustomFeed =
-        {   Id      = getString "id"     rdr |> CustomFeedId
-            Source  = getString "source" rdr |> CustomFeedSource.parse
-            Path    = getString "path"   rdr |> Permalink
-            Podcast =
-                if rdr.IsDBNull (rdr.GetOrdinal "title") then
-                    None
-                else
-                    Some {
-                        Title             = getString "title"              rdr
-                        Subtitle          = tryString "subtitle"           rdr
-                        ItemsInFeed       = getInt    "items_in_feed"      rdr
-                        Summary           = getString "summary"            rdr
-                        DisplayedAuthor   = getString "displayed_author"   rdr
-                        Email             = getString "email"              rdr
-                        ImageUrl          = getString "image_url"          rdr |> Permalink
-                        AppleCategory     = getString "apple_category"     rdr
-                        AppleSubcategory  = tryString "apple_subcategory"  rdr
-                        Explicit          = getString "explicit"           rdr |> ExplicitRating.parse
-                        DefaultMediaType  = tryString "default_media_type" rdr
-                        MediaBaseUrl      = tryString "media_base_url"     rdr
-                        PodcastGuid       = tryGuid   "podcast_guid"       rdr
-                        FundingUrl        = tryString "funding_url"        rdr
-                        FundingText       = tryString "funding_text"       rdr
-                        Medium            = tryString "medium"             rdr |> Option.map PodcastMedium.parse
-                    }
-        }
-    
-    /// Create a meta item from the current row in the given data reader
-    let toMetaItem rdr : MetaItem =
-        {   Name  = getString "name"  rdr
-            Value = getString "value" rdr
+    let toCustomFeed ser rdr : CustomFeed =
+        {   Id      = getString "id"      rdr |> CustomFeedId
+            Source  = getString "source"  rdr |> CustomFeedSource.parse
+            Path    = getString "path"    rdr |> Permalink
+            Podcast = tryString "podcast" rdr |> Option.map (Utils.deserialize ser)
         }
     
     /// Create a permalink from the current row in the given data reader
     let toPermalink rdr = getString "permalink" rdr |> Permalink
     
     /// Create a page from the current row in the given data reader
-    let toPage rdr : Page =
+    let toPage ser rdr : Page =
         { Page.empty with
             Id           = getString   "id"              rdr |> PageId
             WebLogId     = getString   "web_log_id"      rdr |> WebLogId
             AuthorId     = getString   "author_id"       rdr |> WebLogUserId
             Title        = getString   "title"           rdr
             Permalink    = toPermalink                   rdr
-            PublishedOn  = getDateTime "published_on"    rdr
-            UpdatedOn    = getDateTime "updated_on"      rdr
+            PublishedOn  = getInstant  "published_on"    rdr
+            UpdatedOn    = getInstant  "updated_on"      rdr
             IsInPageList = getBoolean  "is_in_page_list" rdr
             Template     = tryString   "template"        rdr
             Text         = getString   "page_text"       rdr
+            Metadata     = tryString   "meta_items"   rdr
+                           |> Option.map (Utils.deserialize ser)
+                           |> Option.defaultValue []
         }
     
     /// Create a post from the current row in the given data reader
-    let toPost rdr : Post =
+    let toPost ser rdr : Post =
         { Post.empty with
-            Id             = getString   "id"           rdr |> PostId
-            WebLogId       = getString   "web_log_id"   rdr |> WebLogId
-            AuthorId       = getString   "author_id"    rdr |> WebLogUserId
-            Status         = getString   "status"       rdr |> PostStatus.parse
-            Title          = getString   "title"        rdr
-            Permalink      = toPermalink                rdr
-            PublishedOn    = tryDateTime "published_on" rdr
-            UpdatedOn      = getDateTime "updated_on"   rdr
-            Template       = tryString   "template"     rdr
-            Text           = getString   "post_text"    rdr
-            Episode        =
-                match tryString "media" rdr with
-                | Some media ->
-                    Some {
-                        Media              = media
-                        Length             = getLong     "length"              rdr
-                        Duration           = tryTimeSpan "duration"            rdr
-                        MediaType          = tryString   "media_type"          rdr
-                        ImageUrl           = tryString   "image_url"           rdr
-                        Subtitle           = tryString   "subtitle"            rdr
-                        Explicit           = tryString   "explicit"            rdr |> Option.map ExplicitRating.parse
-                        ChapterFile        = tryString   "chapter_file"        rdr
-                        ChapterType        = tryString   "chapter_type"        rdr
-                        TranscriptUrl      = tryString   "transcript_url"      rdr
-                        TranscriptType     = tryString   "transcript_type"     rdr
-                        TranscriptLang     = tryString   "transcript_lang"     rdr
-                        TranscriptCaptions = tryBoolean  "transcript_captions" rdr
-                        SeasonNumber       = tryInt      "season_number"       rdr
-                        SeasonDescription  = tryString   "season_description"  rdr
-                        EpisodeNumber      = tryString   "episode_number"      rdr |> Option.map Double.Parse
-                        EpisodeDescription = tryString   "episode_description" rdr
-                    }
-                | None -> None
+            Id          = getString   "id"           rdr |> PostId
+            WebLogId    = getString   "web_log_id"   rdr |> WebLogId
+            AuthorId    = getString   "author_id"    rdr |> WebLogUserId
+            Status      = getString   "status"       rdr |> PostStatus.parse
+            Title       = getString   "title"        rdr
+            Permalink   = toPermalink                rdr
+            PublishedOn = tryInstant  "published_on" rdr
+            UpdatedOn   = getInstant  "updated_on"   rdr
+            Template    = tryString   "template"     rdr
+            Text        = getString   "post_text"    rdr
+            Episode     = tryString   "episode"      rdr |> Option.map (Utils.deserialize ser)
+            Metadata    = tryString   "meta_items"   rdr
+                          |> Option.map (Utils.deserialize ser)
+                          |> Option.defaultValue []
         }
     
     /// Create a revision from the current row in the given data reader
     let toRevision rdr : Revision =
-        {   AsOf = getDateTime "as_of"         rdr
-            Text = getString   "revision_text" rdr |> MarkupText.parse
+        {   AsOf = getInstant "as_of"         rdr
+            Text = getString  "revision_text" rdr |> MarkupText.parse
         }
     
     /// Create a tag mapping from the current row in the given data reader
@@ -237,7 +243,7 @@ module Map =
             else
                 [||]
         {   Id        = ThemeAssetId (ThemeId (getString "theme_id" rdr), getString "path" rdr)
-            UpdatedOn = getDateTime "updated_on" rdr
+            UpdatedOn = getInstant "updated_on" rdr
             Data      = assetData
         }
     
@@ -257,10 +263,10 @@ module Map =
                 dataStream.ToArray ()
             else
                 [||]
-        {   Id        = getString   "id"           rdr |> UploadId
-            WebLogId  = getString   "web_log_id"   rdr |> WebLogId
-            Path      = getString   "path"         rdr |> Permalink
-            UpdatedOn = getDateTime "updated_on" rdr
+        {   Id        = getString  "id"         rdr |> UploadId
+            WebLogId  = getString  "web_log_id" rdr |> WebLogId
+            Path      = getString  "path"       rdr |> Permalink
+            UpdatedOn = getInstant "updated_on" rdr
             Data      = data
         }
     
@@ -290,22 +296,18 @@ module Map =
     
     /// Create a web log user from the current row in the given data reader
     let toWebLogUser rdr : WebLogUser =
-        {   Id            = getString   "id"             rdr |> WebLogUserId
-            WebLogId      = getString   "web_log_id"     rdr |> WebLogId
-            Email         = getString   "email"          rdr
-            FirstName     = getString   "first_name"     rdr
-            LastName      = getString   "last_name"      rdr
-            PreferredName = getString   "preferred_name" rdr
-            PasswordHash  = getString   "password_hash"  rdr
-            Salt          = getGuid     "salt"           rdr
-            Url           = tryString   "url"            rdr
-            AccessLevel   = getString   "access_level"   rdr |> AccessLevel.parse
-            CreatedOn     = getDateTime "created_on"     rdr
-            LastSeenOn    = tryDateTime "last_seen_on"   rdr
+        {   Id            = getString  "id"             rdr |> WebLogUserId
+            WebLogId      = getString  "web_log_id"     rdr |> WebLogId
+            Email         = getString  "email"          rdr
+            FirstName     = getString  "first_name"     rdr
+            LastName      = getString  "last_name"      rdr
+            PreferredName = getString  "preferred_name" rdr
+            PasswordHash  = getString  "password_hash"  rdr
+            Url           = tryString  "url"            rdr
+            AccessLevel   = getString  "access_level"   rdr |> AccessLevel.parse
+            CreatedOn     = getInstant "created_on"     rdr
+            LastSeenOn    = tryInstant "last_seen_on"   rdr
         }
-
-/// Add a possibly-missing parameter, substituting null for None
-let maybe<'T> (it : 'T option) : obj = match it with Some x -> x :> obj | None -> DBNull.Value
 
 /// Add a web log ID parameter
 let addWebLogId (cmd : SqliteCommand) webLogId =
