@@ -228,13 +228,9 @@ type SQLiteData (conn : SqliteConnection, log : ILogger<SQLiteData>, ser : JsonS
         do! write cmd
     }
     
-    /// Log a migration step
-    let logMigrationStep migration message =
-        log.LogInformation $"Migrating %s{migration}: %s{message}"
-    
     /// Implement the changes between v2-rc1 and v2-rc2
     let migrateV2Rc1ToV2Rc2 () = backgroundTask {
-        let logStep = logMigrationStep "v2-rc1 to v2-rc2"
+        let logStep = Utils.logMigrationStep log "v2-rc1 to v2-rc2"
         // Move meta items, podcast settings, and episode details to JSON-encoded text fields
         use cmd = conn.CreateCommand ()
         logStep "Adding new columns"
@@ -529,7 +525,7 @@ type SQLiteData (conn : SqliteConnection, log : ILogger<SQLiteData>, ser : JsonS
              DROP TABLE web_log_feed_podcast"
         do! write cmd
         
-        logStep "Setting database version"
+        logStep "Setting database version to v2-rc2"
         do! setDbVersion "v2-rc2"
     }
     

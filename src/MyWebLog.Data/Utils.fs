@@ -50,3 +50,9 @@ let serialize<'T> ser (item : 'T) =
 /// Deserialize a JSON string 
 let deserialize<'T> (ser : JsonSerializer) value =
     JsonConvert.DeserializeObject<'T> (value, Json.settings ser)
+
+open Microsoft.Extensions.Logging
+
+/// Log a migration step
+let logMigrationStep<'T> (log : ILogger<'T>) migration message =
+    log.LogInformation $"Migrating %s{migration}: %s{message}"
