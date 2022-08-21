@@ -5,6 +5,9 @@ module internal MyWebLog.Data.Utils
 open MyWebLog
 open MyWebLog.ViewModels
 
+/// The current database version
+let currentDbVersion = "v2-rc2"
+
 /// Create a category hierarchy from the given list of categories
 let rec orderByHierarchy (cats : Category list) parentId slugBase parentNames = seq {
     for cat in cats |> List.filter (fun c -> c.ParentId = parentId) do

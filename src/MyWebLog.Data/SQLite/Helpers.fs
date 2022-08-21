@@ -5,6 +5,7 @@ module MyWebLog.Data.SQLite.Helpers
 open System
 open Microsoft.Data.Sqlite
 open MyWebLog
+open MyWebLog.Data
 open NodaTime.Text
 
 /// Run a command that returns a count
@@ -46,6 +47,22 @@ let maybeDuration =
 /// Create an optional value for an Instant
 let maybeInstant =
     Option.map instantParam
+
+/// Create the SQL and parameters for an IN clause
+let inClause<'T> colNameAndPrefix paramName (valueFunc: 'T -> string) (items : 'T list) =
+    if List.isEmpty items then "", []
+    else
+        let mutable idx = 0
+        items
+        |> List.skip 1
+        |> List.fold (fun (itemS, itemP) it ->
+            idx <- idx + 1
+            $"{itemS}, @%s{paramName}{idx}", (SqliteParameter ($"@%s{paramName}{idx}", valueFunc it) :: itemP))
+            (Seq.ofList items
+             |> Seq.map (fun it ->
+                 $"%s{colNameAndPrefix} IN (@%s{paramName}0", [ SqliteParameter ($"@%s{paramName}0", valueFunc it) ])
+             |> Seq.head)
+        |> function sql, ps -> $"{sql})", ps
 
 
 /// Functions to map domain items from a data reader
@@ -143,45 +160,18 @@ module Map =
         }
     
     /// Create a custom feed from the current row in the given data reader
-    let toCustomFeed rdr : CustomFeed =
-        {   Id      = getString "id"     rdr |> CustomFeedId
-            Source  = getString "source" rdr |> CustomFeedSource.parse
-            Path    = getString "path"   rdr |> Permalink
-            Podcast =
-                if rdr.IsDBNull (rdr.GetOrdinal "title") then
-                    None
-                else
-                    Some {
-                        Title             = getString "title"              rdr
-                        Subtitle          = tryString "subtitle"           rdr
-                        ItemsInFeed       = getInt    "items_in_feed"      rdr
-                        Summary           = getString "summary"            rdr
-                        DisplayedAuthor   = getString "displayed_author"   rdr
-                        Email             = getString "email"              rdr
-                        ImageUrl          = getString "image_url"          rdr |> Permalink
-                        AppleCategory     = getString "apple_category"     rdr
-                        AppleSubcategory  = tryString "apple_subcategory"  rdr
-                        Explicit          = getString "explicit"           rdr |> ExplicitRating.parse
-                        DefaultMediaType  = tryString "default_media_type" rdr
-                        MediaBaseUrl      = tryString "media_base_url"     rdr
-                        PodcastGuid       = tryGuid   "podcast_guid"       rdr
-                        FundingUrl        = tryString "funding_url"        rdr
-                        FundingText       = tryString "funding_text"       rdr
-                        Medium            = tryString "medium"             rdr |> Option.map PodcastMedium.parse
-                    }
-        }
-    
-    /// Create a meta item from the current row in the given data reader
-    let toMetaItem rdr : MetaItem =
-        {   Name  = getString "name"  rdr
-            Value = getString "value" rdr
+    let toCustomFeed ser rdr : CustomFeed =
+        {   Id      = getString "id"      rdr |> CustomFeedId
+            Source  = getString "source"  rdr |> CustomFeedSource.parse
+            Path    = getString "path"    rdr |> Permalink
+            Podcast = tryString "podcast" rdr |> Option.map (Utils.deserialize ser)
         }
     
     /// Create a permalink from the current row in the given data reader
     let toPermalink rdr = getString "permalink" rdr |> Permalink
     
     /// Create a page from the current row in the given data reader
-    let toPage rdr : Page =
+    let toPage ser rdr : Page =
         { Page.empty with
             Id           = getString   "id"              rdr |> PageId
             WebLogId     = getString   "web_log_id"      rdr |> WebLogId
@@ -193,44 +183,28 @@ module Map =
             IsInPageList = getBoolean  "is_in_page_list" rdr
             Template     = tryString   "template"        rdr
             Text         = getString   "page_text"       rdr
+            Metadata     = tryString   "meta_items"   rdr
+                           |> Option.map (Utils.deserialize ser)
+                           |> Option.defaultValue []
         }
     
     /// Create a post from the current row in the given data reader
-    let toPost rdr : Post =
+    let toPost ser rdr : Post =
         { Post.empty with
-            Id             = getString   "id"           rdr |> PostId
-            WebLogId       = getString   "web_log_id"   rdr |> WebLogId
-            AuthorId       = getString   "author_id"    rdr |> WebLogUserId
-            Status         = getString   "status"       rdr |> PostStatus.parse
-            Title          = getString   "title"        rdr
-            Permalink      = toPermalink                rdr
-            PublishedOn    = tryInstant  "published_on" rdr
-            UpdatedOn      = getInstant  "updated_on"   rdr
-            Template       = tryString   "template"     rdr
-            Text           = getString   "post_text"    rdr
-            Episode        =
-                match tryString "media" rdr with
-                | Some media ->
-                    Some {
-                        Media              = media
-                        Length             = getLong     "length"              rdr
-                        Duration           = tryDuration "duration"            rdr
-                        MediaType          = tryString   "media_type"          rdr
-                        ImageUrl           = tryString   "image_url"           rdr
-                        Subtitle           = tryString   "subtitle"            rdr
-                        Explicit           = tryString   "explicit"            rdr |> Option.map ExplicitRating.parse
-                        ChapterFile        = tryString   "chapter_file"        rdr
-                        ChapterType        = tryString   "chapter_type"        rdr
-                        TranscriptUrl      = tryString   "transcript_url"      rdr
-                        TranscriptType     = tryString   "transcript_type"     rdr
-                        TranscriptLang     = tryString   "transcript_lang"     rdr
-                        TranscriptCaptions = tryBoolean  "transcript_captions" rdr
-                        SeasonNumber       = tryInt      "season_number"       rdr
-                        SeasonDescription  = tryString   "season_description"  rdr
-                        EpisodeNumber      = tryString   "episode_number"      rdr |> Option.map Double.Parse
-                        EpisodeDescription = tryString   "episode_description" rdr
-                    }
-                | None -> None
+            Id          = getString   "id"           rdr |> PostId
+            WebLogId    = getString   "web_log_id"   rdr |> WebLogId
+            AuthorId    = getString   "author_id"    rdr |> WebLogUserId
+            Status      = getString   "status"       rdr |> PostStatus.parse
+            Title       = getString   "title"        rdr
+            Permalink   = toPermalink                rdr
+            PublishedOn = tryInstant  "published_on" rdr
+            UpdatedOn   = getInstant  "updated_on"   rdr
+            Template    = tryString   "template"     rdr
+            Text        = getString   "post_text"    rdr
+            Episode     = tryString   "episode"      rdr |> Option.map (Utils.deserialize ser)
+            Metadata    = tryString   "meta_items"   rdr
+                          |> Option.map (Utils.deserialize ser)
+                          |> Option.defaultValue []
         }
     
     /// Create a revision from the current row in the given data reader

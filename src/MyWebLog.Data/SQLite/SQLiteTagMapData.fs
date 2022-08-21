@@ -50,18 +50,14 @@ type SQLiteTagMapData (conn : SqliteConnection) =
     /// Find any tag mappings in a list of tags for the given web log
     let findMappingForTags (tags : string list) webLogId = backgroundTask {
         use cmd = conn.CreateCommand ()
-        cmd.CommandText <-
-            "SELECT *
+        let mapSql, mapParams = inClause "AND tag" "tag" id tags
+        cmd.CommandText <- $"
+            SELECT *
                FROM tag_map
               WHERE web_log_id = @webLogId
-                AND tag IN ("
-        tags
-        |> List.iteri (fun idx tag ->
-            if idx > 0 then cmd.CommandText <- $"{cmd.CommandText}, "
-            cmd.CommandText <- $"{cmd.CommandText}@tag{idx}"
-            cmd.Parameters.AddWithValue ($"@tag{idx}", tag) |> ignore)
-        cmd.CommandText <- $"{cmd.CommandText})"
+                {mapSql}"
         addWebLogId cmd webLogId
+        cmd.Parameters.AddRange mapParams
         use! rdr = cmd.ExecuteReaderAsync ()
         return toList Map.toTagMap rdr
     }
@@ -85,9 +81,9 @@ type SQLiteTagMapData (conn : SqliteConnection) =
                     @id, @webLogId, @tag, @urlValue
                 )"
         addWebLogId cmd tagMap.WebLogId
-        [ cmd.Parameters.AddWithValue ("@id", TagMapId.toString tagMap.Id)
-          cmd.Parameters.AddWithValue ("@tag", tagMap.Tag)
-          cmd.Parameters.AddWithValue ("@urlValue", tagMap.UrlValue)
+        [   cmd.Parameters.AddWithValue ("@id",       TagMapId.toString tagMap.Id)
+            cmd.Parameters.AddWithValue ("@tag",      tagMap.Tag)
+            cmd.Parameters.AddWithValue ("@urlValue", tagMap.UrlValue)
         ] |> ignore
         do! write cmd
     }

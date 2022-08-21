@@ -92,14 +92,10 @@ type SQLiteWebLogUserData (conn : SqliteConnection) =
     /// Find the names of users by their IDs for the given web log
     let findNames webLogId userIds = backgroundTask {
         use cmd = conn.CreateCommand ()
-        cmd.CommandText <- "SELECT * FROM web_log_user WHERE web_log_id = @webLogId AND id IN ("
-        userIds
-        |> List.iteri (fun idx userId ->
-            if idx > 0 then cmd.CommandText <- $"{cmd.CommandText}, "
-            cmd.CommandText <- $"{cmd.CommandText}@id{idx}"
-            cmd.Parameters.AddWithValue ($"@id{idx}", WebLogUserId.toString userId) |> ignore)
-        cmd.CommandText <- $"{cmd.CommandText})"
+        let nameSql, nameParams = inClause "AND id" "id" WebLogUserId.toString userIds 
+        cmd.CommandText <- $"SELECT * FROM web_log_user WHERE web_log_id = @webLogId {nameSql}"
         addWebLogId cmd webLogId
+        cmd.Parameters.AddRange nameParams
         use! rdr = cmd.ExecuteReaderAsync ()
         return
             toList Map.toWebLogUser rdr
@@ -121,8 +117,8 @@ type SQLiteWebLogUserData (conn : SqliteConnection) =
               WHERE id         = @id
                 AND web_log_id = @webLogId"
         addWebLogId cmd webLogId
-        [ cmd.Parameters.AddWithValue ("@id",         WebLogUserId.toString userId)
-          cmd.Parameters.AddWithValue ("@lastSeenOn", instantParam (Noda.now ()))
+        [   cmd.Parameters.AddWithValue ("@id",         WebLogUserId.toString userId)
+            cmd.Parameters.AddWithValue ("@lastSeenOn", instantParam (Noda.now ()))
         ] |> ignore
         let! _ = cmd.ExecuteNonQueryAsync ()
         ()

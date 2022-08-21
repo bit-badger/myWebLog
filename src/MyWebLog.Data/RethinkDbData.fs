@@ -17,7 +17,10 @@ module private RethinkHelpers =
 
         /// The comment table
         let Comment = "Comment"
-
+        
+        /// The database version table
+        let DbVersion = "DbVersion"
+        
         /// The page table
         let Page = "Page"
         
@@ -43,7 +46,7 @@ module private RethinkHelpers =
         let WebLogUser = "WebLogUser"
 
         /// A list of all tables
-        let all = [ Category; Comment; Page; Post; TagMap; Theme; ThemeAsset; Upload; WebLog; WebLogUser ]
+        let all = [ Category; Comment; DbVersion; Page; Post; TagMap; Theme; ThemeAsset; Upload; WebLog; WebLogUser ]
 
     
     /// Index names for indexes not on a data item's name
@@ -81,6 +84,10 @@ module private RethinkHelpers =
     
     /// Cast a strongly-typed list to an object list
     let objList<'T> (objects : 'T list) = objects |> List.map (fun it -> it :> obj)
+    
+    /// A simple type for the database version table
+    [<CLIMutable; NoComparison; NoEquality>]
+    type DbVersion = { Id : string }
 
 
 open System
@@ -187,7 +194,21 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
         delete
         write; withRetryDefault; ignoreResult conn
     }
-
+    
+    /// Set a specific database version
+    let setDbVersion (version : string) = backgroundTask {
+        do! rethink {
+            withTable Table.DbVersion
+            delete
+            write; withRetryOnce; ignoreResult conn
+        }
+        do! rethink {
+            withTable Table.DbVersion
+            insert { Id = version }
+            write; withRetryOnce; ignoreResult conn
+        }
+    }
+    
     /// The connection for this instance
     member _.Conn = conn
     
@@ -1125,4 +1146,16 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
             do! ensureIndexes Table.Upload     []
             do! ensureIndexes Table.WebLog     [ nameof WebLog.empty.UrlBase ]
             do! ensureIndexes Table.WebLogUser [ nameof WebLogUser.empty.WebLogId ]
+            
+            let! version = rethink<DbVersion list> {
+                 withTable Table.DbVersion
+                 result; withRetryOnce conn
+            }
+            match List.tryHead version with
+            | Some v when v.Id = "v2-rc2" -> ()
+            // Future migrations will be checked here
+            | Some _
+            | None ->
+                log.LogWarning $"Unknown database version; assuming {Utils.currentDbVersion}"
+                do! setDbVersion Utils.currentDbVersion
         }

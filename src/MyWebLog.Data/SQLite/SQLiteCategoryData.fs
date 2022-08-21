@@ -68,24 +68,23 @@ type SQLiteCategoryData (conn : SqliteConnection) =
             ordered
             |> Seq.map (fun it -> backgroundTask {
                 // Parent category post counts include posts in subcategories
+                let catSql, catParams =
+                    ordered
+                    |> Seq.filter (fun cat -> cat.ParentNames |> Array.contains it.Name)
+                    |> Seq.map (fun cat -> cat.Id)
+                    |> Seq.append (Seq.singleton it.Id)
+                    |> List.ofSeq
+                    |> inClause "AND pc.category_id" "catId" id
                 cmd.Parameters.Clear ()
                 addWebLogId cmd webLogId
-                cmd.CommandText <-
-                    "SELECT COUNT(DISTINCT p.id)
+                cmd.Parameters.AddRange catParams
+                cmd.CommandText <- $"
+                    SELECT COUNT(DISTINCT p.id)
                       FROM post p
                            INNER JOIN post_category pc ON pc.post_id = p.id
                      WHERE p.web_log_id = @webLogId
                        AND p.status     = 'Published'
-                       AND pc.category_id IN ("
-                ordered
-                |> Seq.filter (fun cat -> cat.ParentNames |> Array.contains it.Name)
-                |> Seq.map (fun cat -> cat.Id)
-                |> Seq.append (Seq.singleton it.Id)
-                |> Seq.iteri (fun idx item ->
-                    if idx > 0 then cmd.CommandText <- $"{cmd.CommandText}, "
-                    cmd.CommandText <- $"{cmd.CommandText}@catId{idx}"
-                    cmd.Parameters.AddWithValue ($"@catId{idx}", item) |> ignore)
-                cmd.CommandText <- $"{cmd.CommandText})"
+                       {catSql}"
                 let! postCount = count cmd
                 return it.Id, postCount
                 })
