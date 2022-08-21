@@ -22,8 +22,13 @@ module Noda =
     /// The Unix epoch
     let epoch = Instant.FromUnixTimeSeconds 0L
     
+    /// Truncate an instant to remove fractional seconds
+    let toSecondsPrecision (value : Instant) =
+        Instant.FromUnixTimeSeconds (value.ToUnixTimeSeconds ())
+    
     /// The current Instant, with fractional seconds truncated
-    let now () = Instant.FromUnixTimeSeconds (clock.GetCurrentInstant().ToUnixTimeSeconds ())
+    let now () =
+        toSecondsPrecision (clock.GetCurrentInstant ())
 
 
 /// A user's access level

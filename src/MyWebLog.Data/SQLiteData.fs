@@ -24,7 +24,7 @@ type SQLiteData (conn : SqliteConnection, log : ILogger<SQLiteData>, ser : JsonS
             return tableList
         }
         let needsTable table =
-            List.contains table tables
+            not (List.contains table tables)
         seq {
             // Theme tables
             if needsTable "theme" then
@@ -230,7 +230,7 @@ type SQLiteData (conn : SqliteConnection, log : ILogger<SQLiteData>, ser : JsonS
     
     /// Log a migration step
     let logMigrationStep migration message =
-        log.LogInformation $"[%s{migration}] %s{message}"
+        log.LogInformation $"Migrating %s{migration}: %s{message}"
     
     /// Implement the changes between v2-rc1 and v2-rc2
     let migrateV2Rc1ToV2Rc2 () = backgroundTask {
@@ -335,6 +335,7 @@ type SQLiteData (conn : SqliteConnection, log : ILogger<SQLiteData>, ser : JsonS
                         EpisodeDescription = Map.tryString   "episode_description" epRdr
                     }
             } |> List.ofSeq
+        epRdr.Close ()
         episodes
         |> List.iter (fun (postId, episode) ->
             cmd.CommandText <- "UPDATE post SET episode = @episode WHERE id = @id"
@@ -343,12 +344,189 @@ type SQLiteData (conn : SqliteConnection, log : ILogger<SQLiteData>, ser : JsonS
             let _ = cmd.ExecuteNonQuery ()
             cmd.Parameters.Clear ())
         
+        logStep "Migrating dates/times"
+        let inst (dt : System.DateTime) =
+            System.DateTime (dt.Ticks, System.DateTimeKind.Utc)
+            |> (Instant.FromDateTimeUtc >> Noda.toSecondsPrecision)
+        // page.updated_on, page.published_on
+        cmd.CommandText <- "SELECT id, updated_on, published_on FROM page"
+        use! pageRdr = cmd.ExecuteReaderAsync ()
+        let toUpdate =
+            seq {
+                while pageRdr.Read () do
+                    Map.getString "id" pageRdr,
+                    inst (Map.getDateTime "updated_on"   pageRdr),
+                    inst (Map.getDateTime "published_on" pageRdr)
+            } |> List.ofSeq
+        pageRdr.Close ()
+        cmd.CommandText <- "UPDATE page SET updated_on = @updatedOn, published_on = @publishedOn WHERE id = @id"
+        [   cmd.Parameters.Add ("@id",          SqliteType.Text)
+            cmd.Parameters.Add ("@updatedOn",   SqliteType.Text)
+            cmd.Parameters.Add ("@publishedOn", SqliteType.Text)
+        ] |> ignore
+        toUpdate
+        |> List.iter (fun (pageId, updatedOn, publishedOn) ->
+            cmd.Parameters["@id"         ].Value <- pageId
+            cmd.Parameters["@updatedOn"  ].Value <- instantParam updatedOn
+            cmd.Parameters["@publishedOn"].Value <- instantParam publishedOn
+            let _ = cmd.ExecuteNonQuery ()
+            ())
+        cmd.Parameters.Clear ()
+        // page_revision.as_of
+        cmd.CommandText <- "SELECT * FROM page_revision"
+        use! pageRevRdr = cmd.ExecuteReaderAsync ()
+        let toUpdate =
+            seq {
+                while pageRevRdr.Read () do
+                    let asOf = Map.getDateTime "as_of" pageRevRdr
+                    Map.getString "page_id" pageRevRdr, asOf, inst asOf, Map.getString "revision_text" pageRevRdr
+            } |> List.ofSeq
+        pageRevRdr.Close ()
+        cmd.CommandText <-
+            "DELETE FROM page_revision WHERE page_id = @pageId AND as_of = @oldAsOf;
+             INSERT INTO page_revision (page_id, as_of, revision_text) VALUES (@pageId, @asOf, @text)"
+        [   cmd.Parameters.Add ("@pageId",  SqliteType.Text)
+            cmd.Parameters.Add ("@oldAsOf", SqliteType.Text)
+            cmd.Parameters.Add ("@asOf",    SqliteType.Text)
+            cmd.Parameters.Add ("@text",    SqliteType.Text)
+        ] |> ignore
+        toUpdate
+        |> List.iter (fun (pageId, oldAsOf, asOf, text) ->
+            cmd.Parameters["@pageId" ].Value <- pageId
+            cmd.Parameters["@oldAsOf"].Value <- oldAsOf
+            cmd.Parameters["@asOf"   ].Value <- instantParam asOf
+            cmd.Parameters["@text"   ].Value <- text
+            let _ = cmd.ExecuteNonQuery ()
+            ())
+        cmd.Parameters.Clear ()
+        // post.updated_on, post.published_on (opt)
+        cmd.CommandText <- "SELECT id, updated_on, published_on FROM post"
+        use! postRdr = cmd.ExecuteReaderAsync ()
+        let toUpdate =
+            seq {
+                while postRdr.Read () do
+                    Map.getString "id" postRdr,
+                    inst (Map.getDateTime "updated_on"   postRdr),
+                    (Map.tryDateTime "published_on" postRdr |> Option.map inst)
+            } |> List.ofSeq
+        postRdr.Close ()
+        cmd.CommandText <- "UPDATE post SET updated_on = @updatedOn, published_on = @publishedOn WHERE id = @id"
+        [   cmd.Parameters.Add ("@id",          SqliteType.Text)
+            cmd.Parameters.Add ("@updatedOn",   SqliteType.Text)
+            cmd.Parameters.Add ("@publishedOn", SqliteType.Text)
+        ] |> ignore
+        toUpdate
+        |> List.iter (fun (postId, updatedOn, publishedOn) ->
+            cmd.Parameters["@id"         ].Value <- postId
+            cmd.Parameters["@updatedOn"  ].Value <- instantParam updatedOn
+            cmd.Parameters["@publishedOn"].Value <- maybeInstant publishedOn
+            let _ = cmd.ExecuteNonQuery ()
+            ())
+        cmd.Parameters.Clear ()
+        // post_revision.as_of
+        cmd.CommandText <- "SELECT * FROM post_revision"
+        use! postRevRdr = cmd.ExecuteReaderAsync ()
+        let toUpdate =
+            seq {
+                while postRevRdr.Read () do
+                    let asOf = Map.getDateTime "as_of" postRevRdr
+                    Map.getString "post_id" postRevRdr, asOf, inst asOf, Map.getString "revision_text" postRevRdr
+            } |> List.ofSeq
+        postRevRdr.Close ()
+        cmd.CommandText <-
+            "DELETE FROM post_revision WHERE post_id = @postId AND as_of = @oldAsOf;
+             INSERT INTO post_revision (post_id, as_of, revision_text) VALUES (@postId, @asOf, @text)"
+        [   cmd.Parameters.Add ("@postId",  SqliteType.Text)
+            cmd.Parameters.Add ("@oldAsOf", SqliteType.Text)
+            cmd.Parameters.Add ("@asOf",    SqliteType.Text)
+            cmd.Parameters.Add ("@text",    SqliteType.Text)
+        ] |> ignore
+        toUpdate
+        |> List.iter (fun (postId, oldAsOf, asOf, text) ->
+            cmd.Parameters["@postId" ].Value <- postId
+            cmd.Parameters["@oldAsOf"].Value <- oldAsOf
+            cmd.Parameters["@asOf"   ].Value <- instantParam asOf
+            cmd.Parameters["@text"   ].Value <- text
+            let _ = cmd.ExecuteNonQuery ()
+            ())
+        cmd.Parameters.Clear ()
+        // theme_asset.updated_on
+        cmd.CommandText <- "SELECT theme_id, path, updated_on FROM theme_asset"
+        use! assetRdr = cmd.ExecuteReaderAsync ()
+        let toUpdate =
+            seq {
+                while assetRdr.Read () do
+                    Map.getString "theme_id" assetRdr, Map.getString "path" assetRdr,
+                    inst (Map.getDateTime "updated_on" assetRdr)
+            } |> List.ofSeq
+        assetRdr.Close ()
+        cmd.CommandText <- "UPDATE theme_asset SET updated_on = @updatedOn WHERE theme_id = @themeId AND path = @path"
+        [   cmd.Parameters.Add ("@updatedOn", SqliteType.Text)
+            cmd.Parameters.Add ("@themeId",   SqliteType.Text)
+            cmd.Parameters.Add ("@path",      SqliteType.Text)
+        ] |> ignore
+        toUpdate
+        |> List.iter (fun (themeId, path, updatedOn) ->
+            cmd.Parameters["@themeId"  ].Value <- themeId
+            cmd.Parameters["@path"     ].Value <- path
+            cmd.Parameters["@updatedOn"].Value <- instantParam updatedOn
+            let _ = cmd.ExecuteNonQuery ()
+            ())
+        cmd.Parameters.Clear ()
+        // upload.updated_on
+        cmd.CommandText <- "SELECT id, updated_on FROM upload"
+        use! upRdr = cmd.ExecuteReaderAsync ()
+        let toUpdate =
+            seq {
+                while upRdr.Read () do
+                    Map.getString "id" upRdr, inst (Map.getDateTime "updated_on" upRdr)
+            } |> List.ofSeq
+        upRdr.Close ()
+        cmd.CommandText <- "UPDATE upload SET updated_on = @updatedOn WHERE id = @id"
+        [   cmd.Parameters.Add ("@updatedOn", SqliteType.Text)
+            cmd.Parameters.Add ("@id",        SqliteType.Text)
+        ] |> ignore
+        toUpdate
+        |> List.iter (fun (upId, updatedOn) ->
+            cmd.Parameters["@id"       ].Value <- upId
+            cmd.Parameters["@updatedOn"].Value <- instantParam updatedOn
+            let _ = cmd.ExecuteNonQuery ()
+            ())
+        cmd.Parameters.Clear ()
+        // web_log_user.created_on, web_log_user.last_seen_on (opt)
+        cmd.CommandText <- "SELECT id, created_on, last_seen_on FROM web_log_user"
+        use! userRdr = cmd.ExecuteReaderAsync ()
+        let toUpdate =
+            seq {
+                while userRdr.Read () do
+                    Map.getString "id" userRdr,
+                    inst (Map.getDateTime "created_on" userRdr),
+                    (Map.tryDateTime "last_seen_on" userRdr |> Option.map inst)
+            } |> List.ofSeq
+        userRdr.Close ()
+        cmd.CommandText <- "UPDATE web_log_user SET created_on = @createdOn, last_seen_on = @lastSeenOn WHERE id = @id"
+        [   cmd.Parameters.Add ("@id",         SqliteType.Text)
+            cmd.Parameters.Add ("@createdOn",  SqliteType.Text)
+            cmd.Parameters.Add ("@lastSeenOn", SqliteType.Text)
+        ] |> ignore
+        toUpdate
+        |> List.iter (fun (userId, createdOn, lastSeenOn) ->
+            cmd.Parameters["@id"        ].Value <- userId
+            cmd.Parameters["@createdOn" ].Value <- instantParam createdOn
+            cmd.Parameters["@lastSeenOn"].Value <- maybeInstant lastSeenOn
+            let _ = cmd.ExecuteNonQuery ()
+            ())
+        cmd.Parameters.Clear ()
+        
+        conn.Close ()
+        conn.Open ()
+        
         logStep "Dropping old tables"
         cmd.CommandText <-
             "DROP TABLE post_episode;
              DROP TABLE post_meta;
              DROP TABLE page_meta;
-             DROP TABLE web_log_podcast"
+             DROP TABLE web_log_feed_podcast"
         do! write cmd
         
         logStep "Setting database version"

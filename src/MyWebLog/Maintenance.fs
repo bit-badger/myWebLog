@@ -397,9 +397,7 @@ module Backup =
         if not (List.isEmpty restore.Categories)  then do! data.Category.Restore restore.Categories
         
         printfn "- Restoring pages..."
-        if not (List.isEmpty restore.Pages) then
-            printfn "here"
-            do! data.Page.Restore restore.Pages
+        if not (List.isEmpty restore.Pages) then do! data.Page.Restore restore.Pages
         
         printfn "- Restoring posts..."
         if not (List.isEmpty restore.Posts) then do! data.Post.Restore restore.Posts

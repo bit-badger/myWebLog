@@ -32,21 +32,24 @@ let write (cmd : SqliteCommand) = backgroundTask {
     ()
 }
 
+/// Add a possibly-missing parameter, substituting null for None
+let maybe<'T> (it : 'T option) : obj = match it with Some x -> x :> obj | None -> DBNull.Value
+
 /// Create a value for a Duration
 let durationParam =
     DurationPattern.Roundtrip.Format
 
 /// Create a value for an Instant
 let instantParam =
-    InstantPattern.ExtendedIso.Format
+    InstantPattern.General.Format
 
 /// Create an optional value for a Duration
 let maybeDuration =
-    Option.map durationParam
+    Option.map durationParam >> maybe
 
 /// Create an optional value for an Instant
 let maybeInstant =
-    Option.map instantParam
+    Option.map instantParam >> maybe
 
 /// Create the SQL and parameters for an IN clause
 let inClause<'T> colNameAndPrefix paramName (valueFunc: 'T -> string) (items : 'T list) =
@@ -260,9 +263,9 @@ module Map =
                 dataStream.ToArray ()
             else
                 [||]
-        {   Id        = getString  "id"           rdr |> UploadId
-            WebLogId  = getString  "web_log_id"   rdr |> WebLogId
-            Path      = getString  "path"         rdr |> Permalink
+        {   Id        = getString  "id"         rdr |> UploadId
+            WebLogId  = getString  "web_log_id" rdr |> WebLogId
+            Path      = getString  "path"       rdr |> Permalink
             UpdatedOn = getInstant "updated_on" rdr
             Data      = data
         }
@@ -306,9 +309,6 @@ module Map =
             CreatedOn     = getInstant "created_on"     rdr
             LastSeenOn    = tryInstant "last_seen_on"   rdr
         }
-
-/// Add a possibly-missing parameter, substituting null for None
-let maybe<'T> (it : 'T option) : obj = match it with Some x -> x :> obj | None -> DBNull.Value
 
 /// Add a web log ID parameter
 let addWebLogId (cmd : SqliteCommand) webLogId =

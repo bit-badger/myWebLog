@@ -115,7 +115,7 @@ type SQLitePageData (conn : SqliteConnection, ser : JsonSerializer) =
                 page_text, meta_items
             ) VALUES (
                 @id, @webLogId, @authorId, @title, @permalink, @publishedOn, @updatedOn, @isInPageList, @template,
-                @text, @meta_items
+                @text, @metaItems
             )"
         addPageParameters cmd page
         do! write cmd
