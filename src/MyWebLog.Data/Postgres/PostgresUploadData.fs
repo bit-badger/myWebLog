@@ -9,8 +9,8 @@ open Npgsql.FSharp
 type PostgresUploadData (conn : NpgsqlConnection) =
 
     /// The INSERT statement for an uploaded file
-    let upInsert =
-        "INSERT INTO upload (
+    let upInsert = $"
+        INSERT INTO {Table.Upload} (
             id, web_log_id, path, updated_on, data
         ) VALUES (
             @id, @webLogId, @path, @updatedOn, @data
@@ -37,18 +37,18 @@ type PostgresUploadData (conn : NpgsqlConnection) =
     
     /// Delete an uploaded file by its ID
     let delete uploadId webLogId = backgroundTask {
-        let theParams = [ "@id", Sql.string (UploadId.toString uploadId); webLogIdParam webLogId ]
+        let idParam = [ "@id", Sql.string (UploadId.toString uploadId) ]
         let! path =
             Sql.existingConnection conn
-            |> Sql.query "SELECT path FROM upload WHERE id = @id AND web_log_id = @webLogId"
-            |> Sql.parameters theParams
+            |> Sql.query $"SELECT path FROM {Table.Upload} WHERE id = @id AND web_log_id = @webLogId"
+            |> Sql.parameters (webLogIdParam webLogId :: idParam)
             |> Sql.executeAsync (fun row -> row.string "path")
             |> tryHead
         if Option.isSome path then
             let! _ =
                 Sql.existingConnection conn
-                |> Sql.query "DELETE FROM upload WHERE id = @id AND web_log_id = @webLogId"
-                |> Sql.parameters theParams
+                |> Sql.query (docDeleteSql Table.Upload)
+                |> Sql.parameters idParam
                 |> Sql.executeNonQueryAsync
             return Ok path.Value
         else return Error $"""Upload ID {UploadId.toString uploadId} not found"""
@@ -57,7 +57,7 @@ type PostgresUploadData (conn : NpgsqlConnection) =
     /// Find an uploaded file by its path for the given web log
     let findByPath path webLogId =
         Sql.existingConnection conn
-        |> Sql.query "SELECT * FROM upload WHERE web_log_id = @webLogId AND path = @path"
+        |> Sql.query $"SELECT * FROM {Table.Upload} WHERE web_log_id = @webLogId AND path = @path"
         |> Sql.parameters [ webLogIdParam webLogId; "@path", Sql.string path ]
         |> Sql.executeAsync (Map.toUpload true)
         |> tryHead
@@ -65,14 +65,14 @@ type PostgresUploadData (conn : NpgsqlConnection) =
     /// Find all uploaded files for the given web log (excludes data)
     let findByWebLog webLogId =
         Sql.existingConnection conn
-        |> Sql.query "SELECT id, web_log_id, path, updated_on FROM upload WHERE web_log_id = @webLogId"
+        |> Sql.query $"SELECT id, web_log_id, path, updated_on FROM {Table.Upload} WHERE web_log_id = @webLogId"
         |> Sql.parameters [ webLogIdParam webLogId ]
         |> Sql.executeAsync (Map.toUpload false)
     
     /// Find all uploaded files for the given web log
     let findByWebLogWithData webLogId =
         Sql.existingConnection conn
-        |> Sql.query "SELECT * FROM upload WHERE web_log_id = @webLogId"
+        |> Sql.query $"SELECT * FROM {Table.Upload} WHERE web_log_id = @webLogId"
         |> Sql.parameters [ webLogIdParam webLogId ]
         |> Sql.executeAsync (Map.toUpload true)
     

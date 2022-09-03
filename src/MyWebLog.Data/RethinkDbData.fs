@@ -5,7 +5,6 @@ open MyWebLog
 open RethinkDb.Driver
 
 /// Functions to assist with retrieving data
-[<AutoOpen>]
 module private RethinkHelpers =
     
     /// Table names
@@ -90,6 +89,7 @@ open System
 open Microsoft.Extensions.Logging
 open MyWebLog.ViewModels
 open RethinkDb.Driver.FSharp
+open RethinkHelpers
 
 /// RethinkDB implementation of data functions for myWebLog
 type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<RethinkDbData>) =

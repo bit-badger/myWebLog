@@ -14,109 +14,46 @@ type PostgresPostData (conn : NpgsqlConnection, ser : JsonSerializer) =
     
     /// Append revisions to a post
     let appendPostRevisions (post : Post) = backgroundTask {
-        let! revisions =
-            Sql.existingConnection conn
-            |> Sql.query "SELECT as_of, revision_text FROM post_revision WHERE post_id = @id ORDER BY as_of DESC"
-            |> Sql.parameters [ "@id", Sql.string (PostId.toString post.Id) ]
-            |> Sql.executeAsync Map.toRevision
+        let! revisions = Revisions.findByEntityId conn Table.PostRevision Table.Post post.Id PostId.toString
         return { post with Revisions = revisions }
     }
     
-    /// The SELECT statement for a post that will include category IDs
-    let selectPost =
-        "SELECT *, ARRAY(SELECT cat.category_id FROM post_category cat WHERE cat.post_id = p.id) AS category_ids
-           FROM post p"
-    
     /// Shorthand for mapping to a post
-    let toPost = Map.toPost ser
+    let toPost = Map.fromDoc<Post> ser
     
     /// Return a post with no revisions, prior permalinks, or text
     let postWithoutText row =
         { toPost row with Text = "" }
     
-    /// The INSERT statement for a post/category cross-reference
-    let catInsert = "INSERT INTO post_category VALUES (@postId, @categoryId)"
-    
-    /// Parameters for adding or updating a post/category cross-reference
-    let catParams postId cat = [
-        "@postId",    Sql.string (PostId.toString postId)
-        "categoryId", Sql.string (CategoryId.toString cat)
-    ]
-    
-    /// Update a post's assigned categories
-    let updatePostCategories postId oldCats newCats = backgroundTask {
-        let toDelete, toAdd = Utils.diffLists oldCats newCats CategoryId.toString
-        if not (List.isEmpty toDelete) || not (List.isEmpty toAdd) then
-            let! _ =
-                Sql.existingConnection conn
-                |> Sql.executeTransactionAsync [
-                    if not (List.isEmpty toDelete) then
-                        "DELETE FROM post_category WHERE post_id = @postId AND category_id = @categoryId",
-                        toDelete |> List.map (catParams postId)
-                    if not (List.isEmpty toAdd) then
-                        catInsert, toAdd |> List.map (catParams postId)
-                ]
-            ()
-    }
-    
-    /// The INSERT statement for a post revision
-    let revInsert = "INSERT INTO post_revision VALUES (@postId, @asOf, @text)"
-    
-    /// The parameters for adding a post revision
-    let revParams postId rev = [
-        typedParam "asOf" rev.AsOf
-        "@postId", Sql.string (PostId.toString postId)
-        "@text",   Sql.string (MarkupText.toString rev.Text)
-    ]
-    
     /// Update a post's revisions
-    let updatePostRevisions postId oldRevs newRevs = backgroundTask {
-        let toDelete, toAdd = Utils.diffRevisions oldRevs newRevs
-        if not (List.isEmpty toDelete) || not (List.isEmpty toAdd) then
-            let! _ =
-                Sql.existingConnection conn
-                |> Sql.executeTransactionAsync [
-                    if not (List.isEmpty toDelete) then
-                        "DELETE FROM post_revision WHERE post_id = @postId AND as_of = @asOf",
-                        toDelete
-                        |> List.map (fun it -> [
-                            "@postId", Sql.string (PostId.toString postId)
-                            typedParam "asOf" it.AsOf
-                        ])
-                    if not (List.isEmpty toAdd) then
-                        revInsert, toAdd |> List.map (revParams postId)
-                ]
-            ()
-    }
+    let updatePostRevisions postId oldRevs newRevs =
+        Revisions.update conn Table.PostRevision Table.Post postId PostId.toString oldRevs newRevs
     
     /// Does the given post exist?
     let postExists postId webLogId =
-        Sql.existingConnection conn
-        |> Sql.query $"SELECT EXISTS (SELECT 1 FROM post WHERE id = @id AND web_log_id = @webLogId) AS {existsName}"
-        |> Sql.parameters [ "@id", Sql.string (PostId.toString postId); webLogIdParam webLogId ]
-        |> Sql.executeRowAsync Map.toExists
+        Document.existsByWebLog conn Table.Post postId PostId.toString webLogId
+    
+    /// Query to select posts by web log ID and status
+    let postsByWebLogAndStatus =
+        $"{docSelectForWebLogSql Table.Post} AND data ->> '{nameof Post.empty.Status}' = @status"
     
     // IMPLEMENTATION FUNCTIONS
     
     /// Count posts in a status for the given web log
     let countByStatus status webLogId =
         Sql.existingConnection conn
-        |> Sql.query $"SELECT COUNT(id) AS {countName} FROM post WHERE web_log_id = @webLogId AND status = @status"
+        |> Sql.query $"{docCountForWebLogSql Table.Post} AND data ->> '{nameof Post.empty.Status}' = @status"
         |> Sql.parameters [ webLogIdParam webLogId; "@status", Sql.string (PostStatus.toString status) ]
         |> Sql.executeRowAsync Map.toCount
     
     /// Find a post by its ID for the given web log (excluding revisions)
-    let findById postId webLogId = 
-        Sql.existingConnection conn
-        |> Sql.query $"{selectPost} WHERE id = @id AND web_log_id = @webLogId"
-        |> Sql.parameters [ "@id", Sql.string (PostId.toString postId); webLogIdParam webLogId ]
-        |> Sql.executeAsync toPost
-        |> tryHead
+    let findById postId webLogId =
+        Document.findByIdAndWebLog conn Table.Post postId PostId.toString webLogId toPost
     
     /// Find a post by its permalink for the given web log (excluding revisions and prior permalinks)
     let findByPermalink permalink webLogId =
         Sql.existingConnection conn
-        |> Sql.query $"{selectPost} WHERE web_log_id = @webLogId AND permalink = @link"
+        |> Sql.query $"{docSelectForWebLogSql Table.Post} AND data ->> '{nameof Post.empty.Permalink}' = @link"
         |> Sql.parameters [ webLogIdParam webLogId; "@link", Sql.string (Permalink.toString permalink) ]
         |> Sql.executeAsync toPost
         |> tryHead
@@ -136,10 +73,9 @@ type PostgresPostData (conn : NpgsqlConnection, ser : JsonSerializer) =
         | true ->
             let! _ =
                 Sql.existingConnection conn
-                |> Sql.query
-                    "DELETE FROM post_revision WHERE post_id = @id;
-                     DELETE FROM post_category WHERE post_id = @id;
-                     DELETE FROM post          WHERE id      = @id"
+                |> Sql.query $"
+                    DELETE FROM {Table.PostComment} WHERE data ->> '{nameof Comment.empty.PostId}' = @id;
+                    DELETE FROM {Table.Post}        WHERE id = @id"
                 |> Sql.parameters [ "@id", Sql.string (PostId.toString postId) ]
                 |> Sql.executeNonQueryAsync
             return true
@@ -150,10 +86,15 @@ type PostgresPostData (conn : NpgsqlConnection, ser : JsonSerializer) =
     let findCurrentPermalink permalinks webLogId = backgroundTask {
         if List.isEmpty permalinks then return None
         else
-            let linkSql, linkParams = arrayInClause "prior_permalinks" Permalink.toString permalinks
+            let linkSql, linkParams =
+                jsonArrayInClause (nameof Post.empty.PriorPermalinks) Permalink.toString permalinks
             return!
                 Sql.existingConnection conn
-                |> Sql.query $"SELECT permalink FROM post WHERE web_log_id = @webLogId AND ({linkSql})"
+                |> Sql.query $"
+                    SELECT data ->> '{nameof Post.empty.Permalink}' AS permalink
+                      FROM {Table.Post}
+                     WHERE {webLogWhere}
+                       AND ({linkSql})"
                 |> Sql.parameters (webLogIdParam webLogId :: linkParams)
                 |> Sql.executeAsync Map.toPermalink
                 |> tryHead
@@ -161,21 +102,8 @@ type PostgresPostData (conn : NpgsqlConnection, ser : JsonSerializer) =
     
     /// Get all complete posts for the given web log
     let findFullByWebLog webLogId = backgroundTask {
-        let! posts =
-            Sql.existingConnection conn
-            |> Sql.query $"{selectPost} WHERE web_log_id = @webLogId"
-            |> Sql.parameters [ webLogIdParam webLogId ]
-            |> Sql.executeAsync toPost
-        let! revisions =
-            Sql.existingConnection conn
-            |> Sql.query
-                "SELECT *
-                   FROM post_revision pr
-                        INNER JOIN post p ON p.id = pr.post_id
-                  WHERE p.web_log_id = @webLogId
-                  ORDER BY as_of DESC"
-            |> Sql.parameters [ webLogIdParam webLogId ]
-            |> Sql.executeAsync (fun row -> PostId (row.string "post_id"), Map.toRevision row)
+        let! posts     = Document.findByWebLog conn Table.Post webLogId toPost None
+        let! revisions = Revisions.findByWebLog conn Table.PostRevision Table.Post PostId webLogId
         return
             posts
             |> List.map (fun it ->
@@ -184,14 +112,11 @@ type PostgresPostData (conn : NpgsqlConnection, ser : JsonSerializer) =
     
     /// Get a page of categorized posts for the given web log (excludes revisions)
     let findPageOfCategorizedPosts webLogId categoryIds pageNbr postsPerPage =
-        let catSql, catParams = inClause "AND pc.category_id" "catId" CategoryId.toString categoryIds
+        let catSql, catParams = jsonArrayInClause (nameof Post.empty.CategoryIds) CategoryId.toString categoryIds
         Sql.existingConnection conn
         |> Sql.query $"
-            {selectPost}
-                   INNER JOIN post_category pc ON pc.post_id = p.id
-             WHERE p.web_log_id = @webLogId
-               AND p.status     = @status
-               {catSql}
+            {postsByWebLogAndStatus}
+               AND ({catSql})
              ORDER BY published_on DESC
              LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"
         |> Sql.parameters
@@ -204,9 +129,9 @@ type PostgresPostData (conn : NpgsqlConnection, ser : JsonSerializer) =
     let findPageOfPosts webLogId pageNbr postsPerPage =
         Sql.existingConnection conn
         |> Sql.query $"
-            {selectPost}
-             WHERE web_log_id = @webLogId
-             ORDER BY published_on DESC NULLS FIRST, updated_on
+            {docSelectForWebLogSql Table.Post}
+             ORDER BY data ->> '{nameof Post.empty.PublishedOn}' DESC NULLS FIRST,
+                      data ->> '{nameof Post.empty.UpdatedOn}'
              LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"
         |> Sql.parameters [ webLogIdParam webLogId ]
         |> Sql.executeAsync postWithoutText
@@ -215,10 +140,8 @@ type PostgresPostData (conn : NpgsqlConnection, ser : JsonSerializer) =
     let findPageOfPublishedPosts webLogId pageNbr postsPerPage =
         Sql.existingConnection conn
         |> Sql.query $"
-            {selectPost}
-             WHERE web_log_id = @webLogId
-               AND status     = @status
-             ORDER BY published_on DESC
+            {postsByWebLogAndStatus}
+             ORDER BY data ->> '{nameof Post.empty.PublishedOn}' DESC
              LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"
         |> Sql.parameters [ webLogIdParam webLogId; "@status", Sql.string (PostStatus.toString Published) ]
         |> Sql.executeAsync toPost
@@ -227,16 +150,14 @@ type PostgresPostData (conn : NpgsqlConnection, ser : JsonSerializer) =
     let findPageOfTaggedPosts webLogId (tag : string) pageNbr postsPerPage =
         Sql.existingConnection conn
         |> Sql.query $"
-            {selectPost}
-             WHERE web_log_id =  @webLogId
-               AND status     =  @status
-               AND tags       && ARRAY[@tag]
-             ORDER BY published_on DESC
+            {postsByWebLogAndStatus}
+               AND data -> '{nameof Post.empty.Tags}' ? @tag
+             ORDER BY data ->> '{nameof Post.empty.PublishedOn}' DESC
              LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"
         |> Sql.parameters
             [   webLogIdParam webLogId
                 "@status", Sql.string (PostStatus.toString Published)
-                "@tag",    Sql.string tag
+                "@tag",    Sql.jsonb  tag
             ]
         |> Sql.executeAsync toPost
     
@@ -250,110 +171,59 @@ type PostgresPostData (conn : NpgsqlConnection, ser : JsonSerializer) =
         let! older =
             Sql.existingConnection conn
             |> Sql.query $"
-                {selectPost}
-                 WHERE web_log_id   = @webLogId
-                   AND status       = @status
-                   AND published_on < @publishedOn
-                 ORDER BY published_on DESC
+                {postsByWebLogAndStatus}
+                   AND data ->> '{nameof Post.empty.PublishedOn}' < @publishedOn
+                 ORDER BY data ->> '{nameof Post.empty.PublishedOn}' DESC
                  LIMIT 1"
             |> queryParams ()
             |> Sql.executeAsync toPost
         let! newer =
             Sql.existingConnection conn
             |> Sql.query $"
-                {selectPost}
-                 WHERE web_log_id   = @webLogId
-                   AND status       = @status
-                   AND published_on > @publishedOn
-                 ORDER BY published_on
+                {postsByWebLogAndStatus}
+                   AND data ->> '{nameof Post.empty.PublishedOn}' > @publishedOn
+                 ORDER BY data ->> '{nameof Post.empty.PublishedOn}'
                  LIMIT 1"
             |> queryParams ()
             |> Sql.executeAsync toPost
         return List.tryHead older, List.tryHead newer
     }
     
-    /// The INSERT statement for a post
-    let postInsert =
-        "INSERT INTO post (
-            id, web_log_id, author_id, status, title, permalink, prior_permalinks, published_on, updated_on,
-            template, post_text, tags, meta_items, episode
-        ) VALUES (
-            @id, @webLogId, @authorId, @status, @title, @permalink, @priorPermalinks, @publishedOn, @updatedOn,
-            @template, @text, @tags, @metaItems, @episode
-        )"
-    
     /// The parameters for saving a post
     let postParams (post : Post) = [
-        webLogIdParam post.WebLogId
-        "@id",              Sql.string       (PostId.toString post.Id)
-        "@authorId",        Sql.string       (WebLogUserId.toString post.AuthorId)
-        "@status",          Sql.string       (PostStatus.toString post.Status)
-        "@title",           Sql.string       post.Title
-        "@permalink",       Sql.string       (Permalink.toString post.Permalink)
-        "@template",        Sql.stringOrNone post.Template
-        "@text",            Sql.string       post.Text
-        "@priorPermalinks", Sql.stringArray  (post.PriorPermalinks |> List.map Permalink.toString |> Array.ofList)
-        "@episode",         Sql.jsonbOrNone  (post.Episode |> Option.map (Utils.serialize ser))
-        "@tags", Sql.stringArrayOrNone (if List.isEmpty post.Tags then None else Some (Array.ofList post.Tags))
-        "@metaItems",
-            if List.isEmpty post.Metadata then None else Some (Utils.serialize ser post.Metadata)
-            |> Sql.jsonbOrNone
-        optParam   "publishedOn" post.PublishedOn
-        typedParam "updatedOn"   post.UpdatedOn
+        "@id",   Sql.string (PostId.toString post.Id)
+        "@data", Sql.jsonb  (Utils.serialize ser post)
     ]
     
     /// Save a post
     let save (post : Post) = backgroundTask {
         let! oldPost = findFullById post.Id post.WebLogId
-        let! _ =
-            Sql.existingConnection conn
-            |> Sql.query $"
-                {postInsert} ON CONFLICT (id) DO UPDATE
-                SET author_id        = EXCLUDED.author_id,
-                    status           = EXCLUDED.status,
-                    title            = EXCLUDED.title,
-                    permalink        = EXCLUDED.permalink,
-                    prior_permalinks = EXCLUDED.prior_permalinks,
-                    published_on     = EXCLUDED.published_on,
-                    updated_on       = EXCLUDED.updated_on,
-                    template         = EXCLUDED.template,
-                    post_text        = EXCLUDED.post_text,
-                    tags             = EXCLUDED.tags,
-                    meta_items       = EXCLUDED.meta_items,
-                    episode          = EXCLUDED.episode"
-            |> Sql.parameters (postParams post)
-            |> Sql.executeNonQueryAsync
-        do! updatePostCategories post.Id (match oldPost with Some p -> p.CategoryIds | None -> []) post.CategoryIds
-        do! updatePostRevisions  post.Id (match oldPost with Some p -> p.Revisions   | None -> []) post.Revisions
+        do! Document.upsert conn Table.Post postParams post
+        do! updatePostRevisions post.Id (match oldPost with Some p -> p.Revisions | None -> []) post.Revisions
     }
     
     /// Restore posts from a backup
     let restore posts = backgroundTask {
-        let cats      = posts |> List.collect (fun p -> p.CategoryIds |> List.map (fun c -> p.Id, c))
-        let revisions = posts |> List.collect (fun p -> p.Revisions   |> List.map (fun r -> p.Id, r))
+        let revisions = posts |> List.collect (fun p -> p.Revisions |> List.map (fun r -> p.Id, r))
         let! _ =
             Sql.existingConnection conn
             |> Sql.executeTransactionAsync [
-                postInsert, posts     |> List.map postParams
-                catInsert,  cats      |> List.map (fun (postId, catId) -> catParams postId catId)
-                revInsert,  revisions |> List.map (fun (postId, rev)   -> revParams postId rev)
+                docInsertSql Table.Post, posts |> List.map postParams
+                Revisions.insertSql Table.PostRevision,
+                    revisions |> List.map (fun (postId, rev) -> Revisions.revParams postId PostId.toString rev)
             ]
         ()
     }
     
     /// Update prior permalinks for a post
     let updatePriorPermalinks postId webLogId permalinks = backgroundTask {
-        match! postExists postId webLogId with
-        | true ->
-            let! _ =
-                Sql.existingConnection conn
-                |> Sql.query "UPDATE post SET prior_permalinks = @prior WHERE id = @id"
-                |> Sql.parameters
-                    [   "@id",    Sql.string      (PostId.toString postId)
-                        "@prior", Sql.stringArray (permalinks |> List.map Permalink.toString |> Array.ofList) ]
-                |> Sql.executeNonQueryAsync
+        use! txn = conn.BeginTransactionAsync ()
+        match! findById postId webLogId with
+        | Some post ->
+            do! Document.update conn Table.Post postParams { post with PriorPermalinks = permalinks }
+            do! txn.CommitAsync ()
             return true
-        | false -> return false
+        | None -> return false
     }
     
     interface IPostData with

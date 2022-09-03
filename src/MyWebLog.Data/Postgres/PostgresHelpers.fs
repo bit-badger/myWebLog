@@ -2,14 +2,73 @@
 [<AutoOpen>]
 module MyWebLog.Data.Postgres.PostgresHelpers
 
+/// The table names used in the PostgreSQL implementation
+[<RequireQualifiedAccess>]
+module Table =
+    
+    /// Categories
+    [<Literal>]
+    let Category = "category"
+    
+    /// Database Version
+    [<Literal>]
+    let DbVersion = "db_version"
+    
+    /// Pages
+    [<Literal>]
+    let Page = "page"
+    
+    /// Page Revisions
+    [<Literal>]
+    let PageRevision = "page_revision"
+    
+    /// Posts
+    [<Literal>]
+    let Post = "post"
+    
+    /// Post Comments
+    [<Literal>]
+    let PostComment = "post_comment"
+    
+    /// Post Revisions
+    [<Literal>]
+    let PostRevision = "post_revision"
+    
+    /// Tag/URL Mappings
+    [<Literal>]
+    let TagMap = "tag_map"
+    
+    /// Themes
+    [<Literal>]
+    let Theme = "theme"
+    
+    /// Theme Assets
+    [<Literal>]
+    let ThemeAsset = "theme_asset"
+    
+    /// Uploads
+    [<Literal>]
+    let Upload = "upload"
+    
+    /// Web Logs
+    [<Literal>]
+    let WebLog = "web_log"
+    
+    /// Users
+    [<Literal>]
+    let WebLogUser = "web_log_user"
+
+
 open System
 open System.Threading.Tasks
 open MyWebLog
 open MyWebLog.Data
-open Newtonsoft.Json
 open NodaTime
 open Npgsql
 open Npgsql.FSharp
+
+/// Create a WHERE clause fragment for the web log ID
+let webLogWhere = "data ->> 'WebLogId' = @webLogId"
 
 /// Create a SQL parameter for the web log ID
 let webLogIdParam webLogId =
@@ -37,8 +96,8 @@ let inClause<'T> colNameAndPrefix paramName (valueFunc: 'T -> string) (items : '
              |> Seq.head)
         |> function sql, ps -> $"{sql})", ps
 
-/// Create the SQL and parameters for the array equivalent of an IN clause
-let arrayInClause<'T> name (valueFunc : 'T -> string) (items : 'T list) =
+/// Create the SQL and parameters for the array-in-JSON equivalent of an IN clause
+let jsonArrayInClause<'T> name (valueFunc : 'T -> string) (items : 'T list) =
     if List.isEmpty items then "TRUE = FALSE", []
     else
         let mutable idx = 0
@@ -46,11 +105,11 @@ let arrayInClause<'T> name (valueFunc : 'T -> string) (items : 'T list) =
         |> List.skip 1
         |> List.fold (fun (itemS, itemP) it ->
             idx <- idx + 1
-            $"{itemS} OR %s{name} && ARRAY[@{name}{idx}]",
-            ($"@{name}{idx}", Sql.string (valueFunc it)) :: itemP)
+            $"{itemS} OR data -> '%s{name}' ? @{name}{idx}",
+            ($"@{name}{idx}", Sql.jsonb (valueFunc it)) :: itemP)
             (Seq.ofList items
              |> Seq.map (fun it ->
-                 $"{name} && ARRAY[@{name}0]", [ $"@{name}0", Sql.string (valueFunc it) ])
+                 $"data -> '{name}' ? @{name}0", [ $"@{name}0", Sql.string (valueFunc it) ])
              |> Seq.head)
     
 /// Get the first result of the given query
@@ -68,114 +127,61 @@ let optParam<'T> name (it : 'T option) =
     let p = NpgsqlParameter ($"@%s{name}", if Option.isSome it then box it.Value else DBNull.Value)
     p.ParameterName, Sql.parameter p
 
+/// SQL statement to insert into a document table
+let docInsertSql table =
+    $"INSERT INTO %s{table} VALUES (@id, @data)"
+
+/// SQL statement to select a document by its ID
+let docSelectSql table =
+    $"SELECT * FROM %s{table} WHERE id = @id"
+
+/// SQL statement to select documents by their web log IDs
+let docSelectForWebLogSql table =
+    $"SELECT * FROM %s{table} WHERE {webLogWhere}"
+
+/// SQL statement to update a document in a document table
+let docUpdateSql table =
+    $"UPDATE %s{table} SET data = @data WHERE id = @id"
+
+/// SQL statement to insert or update a document in a document table
+let docUpsertSql table =
+    $"{docInsertSql table} ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data"
+
+/// SQL statement to delete a document from a document table by its ID
+let docDeleteSql table =
+    $"DELETE FROM %s{table} WHERE id = @id"
+
+/// SQL statement to count documents for a web log
+let docCountForWebLogSql table =
+    $"SELECT COUNT(id) AS {countName} FROM %s{table} WHERE {webLogWhere}"
+
+/// SQL statement to determine if a document exists for a web log 
+let docExistsForWebLogSql table =
+    $"SELECT EXISTS (SELECT 1 FROM %s{table} WHERE id = @id AND {webLogWhere}) AS {existsName}"
+
 /// Mapping functions for SQL queries
 module Map =
     
-    /// Map an id field to a category ID
-    let toCategoryId (row : RowReader) =
-        CategoryId (row.string "id")
+    /// Map an item by deserializing the document
+    let fromDoc<'T> ser (row : RowReader) =
+        Utils.deserialize<'T> ser (row.string "data")
     
-    /// Create a category from the current row
-    let toCategory (row : RowReader) : Category =
-        {   Id          = toCategoryId row
-            WebLogId    = row.string       "web_log_id" |> WebLogId
-            Name        = row.string       "name"
-            Slug        = row.string       "slug"
-            Description = row.stringOrNone "description"
-            ParentId    = row.stringOrNone "parent_id"  |> Option.map CategoryId
-        }
-
     /// Get a count from a row
     let toCount (row : RowReader) =
         row.int countName
-    
-    /// Create a custom feed from the current row
-    let toCustomFeed (ser : JsonSerializer) (row : RowReader) : CustomFeed =
-        {   Id      = row.string       "id"      |> CustomFeedId
-            Source  = row.string       "source"  |> CustomFeedSource.parse
-            Path    = row.string       "path"    |> Permalink
-            Podcast = row.stringOrNone "podcast" |> Option.map (Utils.deserialize ser)
-        }
     
     /// Get a true/false value as to whether an item exists
     let toExists (row : RowReader) =
         row.bool existsName
     
-    /// Create a meta item from the current row
-    let toMetaItem (row : RowReader) : MetaItem =
-        {   Name  = row.string "name"
-            Value = row.string "value"
-        }
-    
     /// Create a permalink from the current row
     let toPermalink (row : RowReader) =
         Permalink (row.string "permalink")
-    
-    /// Create a page from the current row
-    let toPage (ser : JsonSerializer) (row : RowReader) : Page =
-        { Page.empty with
-            Id              = row.string              "id"         |> PageId
-            WebLogId        = row.string              "web_log_id" |> WebLogId
-            AuthorId        = row.string              "author_id"  |> WebLogUserId
-            Title           = row.string              "title"
-            Permalink       = toPermalink row
-            PriorPermalinks = row.stringArray         "prior_permalinks" |> Array.map Permalink |> List.ofArray
-            PublishedOn     = row.fieldValue<Instant> "published_on"
-            UpdatedOn       = row.fieldValue<Instant> "updated_on"
-            IsInPageList    = row.bool                "is_in_page_list"
-            Template        = row.stringOrNone        "template"
-            Text            = row.string              "page_text"
-            Metadata        = row.stringOrNone        "meta_items"
-                              |> Option.map (Utils.deserialize ser)
-                              |> Option.defaultValue []
-        }
-    
-    /// Create a post from the current row
-    let toPost (ser : JsonSerializer) (row : RowReader) : Post =
-        { Post.empty with
-            Id              = row.string                    "id"         |> PostId
-            WebLogId        = row.string                    "web_log_id" |> WebLogId
-            AuthorId        = row.string                    "author_id"  |> WebLogUserId
-            Status          = row.string                    "status"     |> PostStatus.parse
-            Title           = row.string                    "title"
-            Permalink       = toPermalink row
-            PriorPermalinks = row.stringArray               "prior_permalinks" |> Array.map Permalink |> List.ofArray
-            PublishedOn     = row.fieldValueOrNone<Instant> "published_on"
-            UpdatedOn       = row.fieldValue<Instant>       "updated_on"
-            Template        = row.stringOrNone              "template"
-            Text            = row.string                    "post_text"
-            Episode         = row.stringOrNone              "episode"          |> Option.map (Utils.deserialize ser)
-            CategoryIds     = row.stringArrayOrNone         "category_ids"
-                              |> Option.map (Array.map CategoryId >> List.ofArray)
-                              |> Option.defaultValue []
-            Tags            = row.stringArrayOrNone         "tags"
-                              |> Option.map List.ofArray
-                              |> Option.defaultValue []
-            Metadata        = row.stringOrNone              "meta_items"
-                              |> Option.map (Utils.deserialize ser)
-                              |> Option.defaultValue []
-        }
     
     /// Create a revision from the current row
     let toRevision (row : RowReader) : Revision =
         {   AsOf = row.fieldValue<Instant> "as_of"
             Text = row.string              "revision_text" |> MarkupText.parse
-        }
-    
-    /// Create a tag mapping from the current row
-    let toTagMap (row : RowReader) : TagMap =
-        {   Id       = row.string "id"         |> TagMapId
-            WebLogId = row.string "web_log_id" |> WebLogId
-            Tag      = row.string "tag"
-            UrlValue = row.string "url_value"
-        }
-    
-    /// Create a theme from the current row (excludes templates)
-    let toTheme (row : RowReader) : Theme =
-        { Theme.empty with
-            Id      = row.string "id" |> ThemeId
-            Name    = row.string "name"
-            Version = row.string "version"
         }
     
     /// Create a theme asset from the current row
@@ -185,12 +191,6 @@ module Map =
             Data      = if includeData then row.bytea "data" else [||]
         }
     
-    /// Create a theme template from the current row
-    let toThemeTemplate includeText (row : RowReader) : ThemeTemplate =
-        {   Name = row.string "name"
-            Text = if includeText then row.string "template" else ""
-        }
-
     /// Create an uploaded file from the current row
     let toUpload includeData (row : RowReader) : Upload =
         {   Id        = row.string              "id"         |> UploadId
@@ -199,42 +199,150 @@ module Map =
             UpdatedOn = row.fieldValue<Instant> "updated_on"
             Data      = if includeData then row.bytea "data" else [||]
         }
+
+/// Document manipulation functions
+module Document =
     
-    /// Create a web log from the current row
-    let toWebLog (row : RowReader) : WebLog =
-        {   Id           = row.string       "id"             |> WebLogId
-            Name         = row.string       "name"
-            Slug         = row.string       "slug"
-            Subtitle     = row.stringOrNone "subtitle"
-            DefaultPage  = row.string       "default_page"
-            PostsPerPage = row.int          "posts_per_page"
-            ThemeId      = row.string       "theme_id"       |> ThemeId
-            UrlBase      = row.string       "url_base"
-            TimeZone     = row.string       "time_zone"
-            AutoHtmx     = row.bool         "auto_htmx"
-            Uploads      = row.string       "uploads"        |> UploadDestination.parse
-            Rss          = {
-                IsFeedEnabled     = row.bool         "is_feed_enabled"
-                FeedName          = row.string       "feed_name"
-                ItemsInFeed       = row.intOrNone    "items_in_feed"
-                IsCategoryEnabled = row.bool         "is_category_enabled"
-                IsTagEnabled      = row.bool         "is_tag_enabled"
-                Copyright         = row.stringOrNone "copyright"
-                CustomFeeds       = []
-            }
-        }
+    /// Convert extra SQL to a for that can be appended to a query  
+    let private moreSql sql = sql |> Option.map (fun it -> $" %s{it}") |> Option.defaultValue ""
     
-    /// Create a web log user from the current row
-    let toWebLogUser (row : RowReader) : WebLogUser =
-        {   Id            = row.string                    "id"             |> WebLogUserId
-            WebLogId      = row.string                    "web_log_id"     |> WebLogId
-            Email         = row.string                    "email"
-            FirstName     = row.string                    "first_name"
-            LastName      = row.string                    "last_name"
-            PreferredName = row.string                    "preferred_name"
-            PasswordHash  = row.string                    "password_hash"
-            Url           = row.stringOrNone              "url"
-            AccessLevel   = row.string                    "access_level"   |> AccessLevel.parse
-            CreatedOn     = row.fieldValue<Instant>       "created_on"
-            LastSeenOn    = row.fieldValueOrNone<Instant> "last_seen_on"
-        }
+    /// Count documents for a web log
+    let countByWebLog conn table webLogId extraSql =
+        Sql.existingConnection conn
+        |> Sql.query $"{docCountForWebLogSql table}{moreSql extraSql}"
+        |> Sql.parameters [ webLogIdParam webLogId ]
+        |> Sql.executeRowAsync Map.toCount
+
+    /// Delete a document
+    let delete conn table idParam = backgroundTask {
+        let! _ =
+            Sql.existingConnection conn
+            |> Sql.query (docDeleteSql table)
+            |> Sql.parameters [ "@id", Sql.string idParam ]
+            |> Sql.executeNonQueryAsync
+        ()
+    }
+    
+    /// Determine if a document with the given ID exists
+    let exists<'TKey> conn table (key : 'TKey) (keyFunc : 'TKey -> string) =
+        Sql.existingConnection conn
+        |> Sql.query $"SELECT EXISTS (SELECT 1 FROM %s{table} WHERE id = @id) AS {existsName}"
+        |> Sql.parameters [ "@id", Sql.string (keyFunc key) ]
+        |> Sql.executeRowAsync Map.toExists
+
+    /// Determine whether a document exists with the given key for the given web log
+    let existsByWebLog<'TKey> conn table (key : 'TKey) (keyFunc : 'TKey -> string) webLogId =  
+        Sql.existingConnection conn
+        |> Sql.query (docExistsForWebLogSql table)
+        |> Sql.parameters [ "@id", Sql.string (keyFunc key); webLogIdParam webLogId ]
+        |> Sql.executeRowAsync Map.toExists
+    
+    /// Find a document by its ID
+    let findById<'TKey, 'TDoc> conn table (key : 'TKey) (keyFunc : 'TKey -> string) (docFunc : RowReader -> 'TDoc) =
+        Sql.existingConnection conn
+        |> Sql.query (docSelectSql table)
+        |> Sql.parameters [ "@id", Sql.string (keyFunc key) ]
+        |> Sql.executeAsync docFunc
+        |> tryHead
+    
+    /// Find a document by its ID for the given web log
+    let findByIdAndWebLog<'TKey, 'TDoc> conn table (key : 'TKey) (keyFunc : 'TKey -> string) webLogId
+                                        (docFunc : RowReader -> 'TDoc) =
+        Sql.existingConnection conn
+        |> Sql.query $"{docSelectSql table} AND {webLogWhere}"
+        |> Sql.parameters [ "@id", Sql.string (keyFunc key); webLogIdParam webLogId ]
+        |> Sql.executeAsync docFunc
+        |> tryHead
+    
+    /// Find all documents for the given web log
+    let findByWebLog<'TDoc> conn table webLogId (docFunc : RowReader -> 'TDoc) extraSql =
+        Sql.existingConnection conn
+        |> Sql.query $"{docSelectForWebLogSql table}{moreSql extraSql}"
+        |> Sql.parameters [ webLogIdParam webLogId ]
+        |> Sql.executeAsync docFunc
+
+    /// Insert a new document
+    let insert<'T> conn table (paramFunc : 'T -> (string * SqlValue) list) (doc : 'T) = task {
+        let! _ =
+            Sql.existingConnection conn
+            |> Sql.query (docInsertSql table)
+            |> Sql.parameters (paramFunc doc)
+            |> Sql.executeNonQueryAsync
+        ()
+    }
+        
+    /// Update an existing document
+    let update<'T> conn table (paramFunc : 'T -> (string * SqlValue) list) (doc : 'T) = task {
+        let! _ =
+            Sql.existingConnection conn
+            |> Sql.query (docUpdateSql table)
+            |> Sql.parameters (paramFunc doc)
+            |> Sql.executeNonQueryAsync
+        ()
+    }
+        
+    /// Insert or update a document
+    let upsert<'T> conn table (paramFunc : 'T -> (string * SqlValue) list) (doc : 'T) = task {
+        let! _ =
+            Sql.existingConnection conn
+            |> Sql.query (docUpsertSql table)
+            |> Sql.parameters (paramFunc doc)
+            |> Sql.executeNonQueryAsync
+        ()
+    }
+
+
+/// Functions to support revisions
+module Revisions =
+    
+    /// Find all revisions for the given entity
+    let findByEntityId<'TKey> conn revTable entityTable (key : 'TKey) (keyFunc : 'TKey -> string) =
+        Sql.existingConnection conn
+        |> Sql.query $"SELECT as_of, revision_text FROM %s{revTable} WHERE %s{entityTable}_id = @id ORDER BY as_of DESC"
+        |> Sql.parameters [ "@id", Sql.string (keyFunc key) ]
+        |> Sql.executeAsync Map.toRevision
+    
+    /// Find all revisions for all posts for the given web log
+    let findByWebLog<'TKey> conn revTable entityTable (keyFunc : string -> 'TKey) webLogId =
+        Sql.existingConnection conn
+        |> Sql.query $"
+            SELECT pr.*
+              FROM %s{revTable} pr
+                   INNER JOIN %s{entityTable} p ON p.id = pr.{entityTable}_id
+             WHERE p.{webLogWhere}
+             ORDER BY as_of DESC"
+        |> Sql.parameters [ webLogIdParam webLogId ]
+        |> Sql.executeAsync (fun row -> keyFunc (row.string $"{entityTable}_id"), Map.toRevision row)
+
+    /// Parameters for a revision INSERT statement
+    let revParams<'TKey> (key : 'TKey) (keyFunc : 'TKey -> string) rev = [
+        typedParam "asOf" rev.AsOf
+        "@id",   Sql.string (keyFunc key)
+        "@text", Sql.string (MarkupText.toString rev.Text)
+    ]
+    
+    /// The SQL statement to insert a revision
+    let insertSql table =
+        $"INSERT INTO %s{table} VALUES (@id, @asOf, @text)"
+    
+    /// Update a page's revisions
+    let update<'TKey>
+            conn revTable entityTable (key : 'TKey) (keyFunc : 'TKey -> string) oldRevs newRevs = backgroundTask {
+        let toDelete, toAdd = Utils.diffRevisions oldRevs newRevs
+        if not (List.isEmpty toDelete) || not (List.isEmpty toAdd) then
+            let! _ =
+                Sql.existingConnection conn
+                |> Sql.executeTransactionAsync [
+                    if not (List.isEmpty toDelete) then
+                        $"DELETE FROM %s{revTable} WHERE %s{entityTable}_id = @id AND as_of = @asOf",
+                        toDelete
+                        |> List.map (fun it -> [
+                            "@id", Sql.string (keyFunc key)
+                            typedParam "asOf" it.AsOf
+                        ])
+                    if not (List.isEmpty toAdd) then
+                        insertSql revTable, toAdd |> List.map (revParams key keyFunc)
+                ]
+            ()
+    }
+

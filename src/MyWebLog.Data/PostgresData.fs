@@ -1,6 +1,7 @@
 ﻿namespace MyWebLog.Data
 
 open Microsoft.Extensions.Logging
+open MyWebLog
 open MyWebLog.Data.Postgres
 open Newtonsoft.Json
 open Npgsql
@@ -18,183 +19,98 @@ type PostgresData (conn : NpgsqlConnection, log : ILogger<PostgresData>, ser : J
             |> Sql.query "SELECT tablename FROM pg_tables WHERE schemaname = 'public'"
             |> Sql.executeAsync (fun row -> row.string "tablename")
         let needsTable table = not (List.contains table tables)
+        // Create a document table
+        let docTable table = $"CREATE TABLE %s{table} (id TEXT NOT NULL PRIMARY KEY, data JSONB NOT NULL)"
         let mutable isNew = false
         
         let sql = seq {
             // Theme tables
-            if needsTable "theme" then
+            if needsTable Table.Theme then
                 isNew <- true
-                "CREATE TABLE theme (
-                    id       TEXT NOT NULL PRIMARY KEY,
-                    name     TEXT NOT NULL,
-                    version  TEXT NOT NULL)"
-            if needsTable "theme_template" then
-                "CREATE TABLE theme_template (
-                    theme_id  TEXT NOT NULL REFERENCES theme (id),
-                    name      TEXT NOT NULL,
-                    template  TEXT NOT NULL,
-                    PRIMARY KEY (theme_id, name))"
-            if needsTable "theme_asset" then
-                "CREATE TABLE theme_asset (
-                    theme_id    TEXT        NOT NULL REFERENCES theme (id),
+                docTable Table.Theme
+            if needsTable Table.ThemeAsset then
+                $"CREATE TABLE {Table.ThemeAsset} (
+                    theme_id    TEXT        NOT NULL REFERENCES {Table.Theme} (id) ON DELETE CASCADE,
                     path        TEXT        NOT NULL,
                     updated_on  TIMESTAMPTZ NOT NULL,
                     data        BYTEA       NOT NULL,
                     PRIMARY KEY (theme_id, path))"
             
-            // Web log tables
-            if needsTable "web_log" then
-                "CREATE TABLE web_log (
-                    id                   TEXT    NOT NULL PRIMARY KEY,
-                    name                 TEXT    NOT NULL,
-                    slug                 TEXT    NOT NULL,
-                    subtitle             TEXT,
-                    default_page         TEXT    NOT NULL,
-                    posts_per_page       INTEGER NOT NULL,
-                    theme_id             TEXT    NOT NULL REFERENCES theme (id),
-                    url_base             TEXT    NOT NULL,
-                    time_zone            TEXT    NOT NULL,
-                    auto_htmx            BOOLEAN NOT NULL DEFAULT FALSE,
-                    uploads              TEXT    NOT NULL,
-                    is_feed_enabled      BOOLEAN NOT NULL DEFAULT FALSE,
-                    feed_name            TEXT    NOT NULL,
-                    items_in_feed        INTEGER,
-                    is_category_enabled  BOOLEAN NOT NULL DEFAULT FALSE,
-                    is_tag_enabled       BOOLEAN NOT NULL DEFAULT FALSE,
-                    copyright            TEXT)"
-                "CREATE INDEX web_log_theme_idx ON web_log (theme_id)"
-            if needsTable "web_log_feed" then
-                "CREATE TABLE web_log_feed (
-                    id          TEXT NOT NULL PRIMARY KEY,
-                    web_log_id  TEXT NOT NULL REFERENCES web_log (id),
-                    source      TEXT NOT NULL,
-                    path        TEXT NOT NULL,
-                    podcast     JSONB)"
-                "CREATE INDEX web_log_feed_web_log_idx ON web_log_feed (web_log_id)"
+            // Web log table
+            if needsTable Table.WebLog then
+                docTable Table.WebLog
+                $"CREATE INDEX web_log_theme_idx ON {Table.WebLog} (data ->> '{nameof WebLog.empty.ThemeId}')"
             
             // Category table
-            if needsTable "category" then
-                "CREATE TABLE category (
-                    id           TEXT NOT NULL PRIMARY KEY,
-                    web_log_id   TEXT NOT NULL REFERENCES web_log (id),
-                    name         TEXT NOT NULL,
-                    slug         TEXT NOT NULL,
-                    description  TEXT,
-                    parent_id    TEXT)"
-                "CREATE INDEX category_web_log_idx ON category (web_log_id)"
+            if needsTable Table.Category then
+                docTable Table.Category
+                $"CREATE INDEX category_web_log_idx ON {Table.Category} (data ->> '{nameof Category.empty.WebLogId}')"
             
             // Web log user table
-            if needsTable "web_log_user" then
-                "CREATE TABLE web_log_user (
-                    id              TEXT        NOT NULL PRIMARY KEY,
-                    web_log_id      TEXT        NOT NULL REFERENCES web_log (id),
-                    email           TEXT        NOT NULL,
-                    first_name      TEXT        NOT NULL,
-                    last_name       TEXT        NOT NULL,
-                    preferred_name  TEXT        NOT NULL,
-                    password_hash   TEXT        NOT NULL,
-                    url             TEXT,
-                    access_level    TEXT        NOT NULL,
-                    created_on      TIMESTAMPTZ NOT NULL,
-                    last_seen_on    TIMESTAMPTZ)"
-                "CREATE INDEX web_log_user_web_log_idx ON web_log_user (web_log_id)"
-                "CREATE INDEX web_log_user_email_idx   ON web_log_user (web_log_id, email)"
+            if needsTable Table.WebLogUser then
+                docTable Table.WebLogUser
+                $"CREATE INDEX web_log_user_web_log_idx ON {Table.WebLogUser}
+                    (data ->> '{nameof WebLogUser.empty.WebLogId}')"
+                $"CREATE INDEX web_log_user_email_idx   ON {Table.WebLogUser}
+                    (data ->> '{nameof WebLogUser.empty.WebLogId}', data ->> '{nameof WebLogUser.empty.Email}')"
             
             // Page tables
-            if needsTable "page" then
-                "CREATE TABLE page (
-                    id               TEXT        NOT NULL PRIMARY KEY,
-                    web_log_id       TEXT        NOT NULL REFERENCES web_log (id),
-                    author_id        TEXT        NOT NULL REFERENCES web_log_user (id),
-                    title            TEXT        NOT NULL,
-                    permalink        TEXT        NOT NULL,
-                    prior_permalinks TEXT[]      NOT NULL DEFAULT '{}',
-                    published_on     TIMESTAMPTZ NOT NULL,
-                    updated_on       TIMESTAMPTZ NOT NULL,
-                    is_in_page_list  BOOLEAN     NOT NULL DEFAULT FALSE,
-                    template         TEXT,
-                    page_text        TEXT        NOT NULL,
-                    meta_items       JSONB)"
-                "CREATE INDEX page_web_log_idx   ON page (web_log_id)"
-                "CREATE INDEX page_author_idx    ON page (author_id)"
-                "CREATE INDEX page_permalink_idx ON page (web_log_id, permalink)"
-            if needsTable "page_revision" then
-                "CREATE TABLE page_revision (
-                    page_id        TEXT        NOT NULL REFERENCES page (id),
+            if needsTable Table.Page then
+                docTable Table.Page
+                $"CREATE INDEX page_web_log_idx   ON {Table.Page} (data ->> '{nameof Page.empty.WebLogId}')"
+                $"CREATE INDEX page_author_idx    ON {Table.Page} (data ->> '{nameof Page.empty.AuthorId}')"
+                $"CREATE INDEX page_permalink_idx ON {Table.Page}
+                    (data ->> '{nameof Page.empty.WebLogId}', data ->> '{nameof Page.empty.Permalink}')"
+            if needsTable Table.PageRevision then
+                $"CREATE TABLE {Table.PageRevision} (
+                    page_id        TEXT        NOT NULL REFERENCES {Table.Page} (id) ON DELETE CASCADE,
                     as_of          TIMESTAMPTZ NOT NULL,
                     revision_text  TEXT        NOT NULL,
                     PRIMARY KEY (page_id, as_of))"
             
             // Post tables
-            if needsTable "post" then
-                "CREATE TABLE post (
-                    id               TEXT        NOT NULL PRIMARY KEY,
-                    web_log_id       TEXT        NOT NULL REFERENCES web_log (id),
-                    author_id        TEXT        NOT NULL REFERENCES web_log_user (id),
-                    status           TEXT        NOT NULL,
-                    title            TEXT        NOT NULL,
-                    permalink        TEXT        NOT NULL,
-                    prior_permalinks TEXT[]      NOT NULL DEFAULT '{}',
-                    published_on     TIMESTAMPTZ,
-                    updated_on       TIMESTAMPTZ NOT NULL,
-                    template         TEXT,
-                    post_text        TEXT        NOT NULL,
-                    tags             TEXT[],
-                    meta_items       JSONB,
-                    episode          JSONB)"
-                "CREATE INDEX post_web_log_idx   ON post (web_log_id)"
-                "CREATE INDEX post_author_idx    ON post (author_id)"
-                "CREATE INDEX post_status_idx    ON post (web_log_id, status, updated_on)"
-                "CREATE INDEX post_permalink_idx ON post (web_log_id, permalink)"
-            if needsTable "post_category" then
-                "CREATE TABLE post_category (
-                    post_id      TEXT NOT NULL REFERENCES post (id),
-                    category_id  TEXT NOT NULL REFERENCES category (id),
-                    PRIMARY KEY (post_id, category_id))"
-                "CREATE INDEX post_category_category_idx ON post_category (category_id)"
-            if needsTable "post_revision" then
-                "CREATE TABLE post_revision (
-                    post_id        TEXT        NOT NULL REFERENCES post (id),
+            if needsTable Table.Post then
+                docTable Table.Post
+                $"CREATE INDEX post_web_log_idx   ON {Table.Post} (data ->> '{nameof Post.empty.WebLogId}')"
+                $"CREATE INDEX post_author_idx    ON {Table.Post} (data ->> '{nameof Post.empty.AuthorId}')"
+                $"CREATE INDEX post_status_idx    ON {Table.Post}
+                    (data ->> '{nameof Post.empty.WebLogId}', data ->> '{nameof Post.empty.Status}',
+                     data ->> '{nameof Post.empty.UpdatedOn}')"
+                $"CREATE INDEX post_permalink_idx ON {Table.Post}
+                    (data ->> '{nameof Post.empty.WebLogId}', data ->> '{nameof Post.empty.Permalink}')"
+                $"CREATE INDEX post_category_idx  ON {Table.Post} USING GIN
+                    (data ->> '{nameof Post.empty.CategoryIds}')"
+                $"CREATE INDEX post_tag_idx       ON {Table.Post} USING GIN (data ->> '{nameof Post.empty.Tags}')"
+            if needsTable Table.PostRevision then
+                $"CREATE TABLE {Table.PostRevision} (
+                    post_id        TEXT        NOT NULL REFERENCES {Table.Post} (id) ON DELETE CASCADE,
                     as_of          TIMESTAMPTZ NOT NULL,
                     revision_text  TEXT        NOT NULL,
                     PRIMARY KEY (post_id, as_of))"
-            if needsTable "post_comment" then
-                "CREATE TABLE post_comment (
-                    id              TEXT        NOT NULL PRIMARY KEY,
-                    post_id         TEXT        NOT NULL REFERENCES post(id),
-                    in_reply_to_id  TEXT,
-                    name            TEXT        NOT NULL,
-                    email           TEXT        NOT NULL,
-                    url             TEXT,
-                    status          TEXT        NOT NULL,
-                    posted_on       TIMESTAMPTZ NOT NULL,
-                    comment_text    TEXT        NOT NULL)"
-                "CREATE INDEX post_comment_post_idx ON post_comment (post_id)"
+            if needsTable Table.PostComment then
+                docTable Table.PostComment
+                $"CREATE INDEX post_comment_post_idx ON {Table.PostComment} (data ->> '{nameof Comment.empty.PostId}')"
             
             // Tag map table
-            if needsTable "tag_map" then
-                "CREATE TABLE tag_map (
-                    id          TEXT NOT NULL PRIMARY KEY,
-                    web_log_id  TEXT NOT NULL REFERENCES web_log (id),
-                    tag         TEXT NOT NULL,
-                    url_value   TEXT NOT NULL)"
-                "CREATE INDEX tag_map_web_log_idx ON tag_map (web_log_id)"
+            if needsTable Table.TagMap then
+                docTable Table.TagMap
+                $"CREATE INDEX tag_map_web_log_idx ON {Table.TagMap} (data ->> '{nameof TagMap.empty.WebLogId}')"
             
             // Uploaded file table
-            if needsTable "upload" then
-                "CREATE TABLE upload (
+            if needsTable Table.Upload then
+                $"CREATE TABLE {Table.Upload} (
                     id          TEXT        NOT NULL PRIMARY KEY,
-                    web_log_id  TEXT        NOT NULL REFERENCES web_log (id),
+                    web_log_id  TEXT        NOT NULL REFERENCES {Table.WebLog} (id),
                     path        TEXT        NOT NULL,
                     updated_on  TIMESTAMPTZ NOT NULL,
                     data        BYTEA       NOT NULL)"
-                "CREATE INDEX upload_web_log_idx ON upload (web_log_id)"
-                "CREATE INDEX upload_path_idx    ON upload (web_log_id, path)"
+                $"CREATE INDEX upload_web_log_idx ON {Table.Upload} (web_log_id)"
+                $"CREATE INDEX upload_path_idx    ON {Table.Upload} (web_log_id, path)"
             
             // Database version table
-            if needsTable "db_version" then
-                "CREATE TABLE db_version (id TEXT NOT NULL PRIMARY KEY)"
-                $"INSERT INTO db_version VALUES ('{Utils.currentDbVersion}')"
+            if needsTable Table.DbVersion then
+                $"CREATE TABLE {Table.DbVersion} (id TEXT NOT NULL PRIMARY KEY)"
+                $"INSERT INTO {Table.DbVersion} VALUES ('{Utils.currentDbVersion}')"
         }
         
         Sql.existingConnection conn
@@ -233,15 +149,15 @@ type PostgresData (conn : NpgsqlConnection, log : ILogger<PostgresData>, ser : J
         
     interface IData with
         
-        member _.Category   = PostgresCategoryData   conn
+        member _.Category   = PostgresCategoryData   (conn, ser)
         member _.Page       = PostgresPageData       (conn, ser)
         member _.Post       = PostgresPostData       (conn, ser)
-        member _.TagMap     = PostgresTagMapData     conn
-        member _.Theme      = PostgresThemeData      conn
+        member _.TagMap     = PostgresTagMapData     (conn, ser)
+        member _.Theme      = PostgresThemeData      (conn, ser)
         member _.ThemeAsset = PostgresThemeAssetData conn
         member _.Upload     = PostgresUploadData     conn
         member _.WebLog     = PostgresWebLogData     (conn, ser)
-        member _.WebLogUser = PostgresWebLogUserData conn
+        member _.WebLogUser = PostgresWebLogUserData (conn, ser)
         
         member _.Serializer = ser
         
