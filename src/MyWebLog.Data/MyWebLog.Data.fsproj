@@ -2,6 +2,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\MyWebLog.Domain\MyWebLog.Domain.fsproj" />
+		<ProjectReference Include="..\Npgsql.FSharp.Documents\Npgsql.FSharp.Documents.fsproj" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -17,7 +18,6 @@
 		<PackageReference Include="Npgsql.NodaTime" Version="6.0.6" />
 		<PackageReference Include="RethinkDb.Driver" Version="2.3.150" />
 		<PackageReference Include="RethinkDb.Driver.FSharp" Version="0.9.0-beta-07" />
-		<PackageReference Update="FSharp.Core" Version="6.0.5" />
 	</ItemGroup>
 	
 	<ItemGroup>
@@ -45,7 +45,7 @@
 		<Compile Include="Postgres\PostgresUploadData.fs" />
 		<Compile Include="Postgres\PostgresWebLogData.fs" />
 		<Compile Include="Postgres\PostgresWebLogUserData.fs" />
-        <Compile Include="PostgresData.fs" />
+    <Compile Include="PostgresData.fs" />
 	</ItemGroup>
 
 </Project>

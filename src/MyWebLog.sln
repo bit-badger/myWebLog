@@ -9,6 +9,8 @@ Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "MyWebLog.Data", "MyWebLog.D
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "MyWebLog", "MyWebLog\MyWebLog.fsproj", "{5655B63D-429F-4CCD-A14C-FBD74D987ECB}"
 EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Npgsql.FSharp.Documents", "Npgsql.FSharp.Documents\Npgsql.FSharp.Documents.fsproj", "{C5F5E68A-9C2E-4FC0-A8E3-D7A52CCE668F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,10 @@ Global
 		{5655B63D-429F-4CCD-A14C-FBD74D987ECB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5655B63D-429F-4CCD-A14C-FBD74D987ECB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5655B63D-429F-4CCD-A14C-FBD74D987ECB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C5F5E68A-9C2E-4FC0-A8E3-D7A52CCE668F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C5F5E68A-9C2E-4FC0-A8E3-D7A52CCE668F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C5F5E68A-9C2E-4FC0-A8E3-D7A52CCE668F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C5F5E68A-9C2E-4FC0-A8E3-D7A52CCE668F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -206,6 +206,10 @@ module Document =
     /// Convert extra SQL to a for that can be appended to a query  
     let private moreSql sql = sql |> Option.map (fun it -> $" %s{it}") |> Option.defaultValue ""
     
+    /// Create a parameter for a @> (contains) query
+    let contains<'T> (name : string) ser (value : 'T) =
+        name, Sql.jsonb (Utils.serialize ser value)
+
     /// Count documents for a web log
     let countByWebLog conn table webLogId extraSql =
         Sql.existingConnection conn
