@@ -2,80 +2,65 @@
 
 open MyWebLog
 open MyWebLog.Data
-open Newtonsoft.Json
 open Npgsql
 open Npgsql.FSharp
+open Npgsql.FSharp.Documents
 
 /// PostgreSQL myWebLog web log data implementation        
-type PostgresWebLogData (conn : NpgsqlConnection, ser : JsonSerializer) =
-    
-    // SUPPORT FUNCTIONS
-    
-    /// Map a data row to a web log
-    let toWebLog = Map.fromDoc<WebLog> ser
-    
-    /// The parameters for web log INSERT or UPDATE statements
-    let webLogParams (webLog : WebLog) = [
-        "@id",   Sql.string (WebLogId.toString webLog.Id)
-        "@data", Sql.jsonb  (Utils.serialize ser webLog)
-    ]
-    
-    // IMPLEMENTATION FUNCTIONS
+type PostgresWebLogData (source : NpgsqlDataSource) =
     
     /// Add a web log
-    let add webLog = backgroundTask {
-        do! Document.insert conn Table.WebLog webLogParams webLog
-    }
+    let add (webLog : WebLog) =
+        Sql.fromDataSource source |> Query.insert Table.WebLog (WebLogId.toString webLog.Id) webLog
     
     /// Retrieve all web logs
     let all () =
-        Sql.existingConnection conn
-        |> Sql.query $"SELECT * FROM {Table.WebLog}"
-        |> Sql.executeAsync toWebLog
+        Sql.fromDataSource source
+        |> Query.all<WebLog> Table.WebLog
     
     /// Delete a web log by its ID
     let delete webLogId = backgroundTask {
+        let criteria = Query.whereDataContains "@criteria"
         let! _ =
-            Sql.existingConnection conn
+            Sql.fromDataSource source
             |> Sql.query $"
                 DELETE FROM {Table.PostComment}
-                 WHERE data ->> '{nameof Comment.empty.PostId}' IN (SELECT id FROM {Table.Post} WHERE {webLogWhere});
-                DELETE FROM {Table.Post}        WHERE {webLogWhere};
-                DELETE FROM {Table.Page}        WHERE {webLogWhere};
-                DELETE FROM {Table.Category}    WHERE {webLogWhere};
-                DELETE FROM {Table.TagMap}      WHERE {webLogWhere};
+                 WHERE data->>'{nameof Comment.empty.PostId}' IN (SELECT id FROM {Table.Post} WHERE {criteria});
+                DELETE FROM {Table.Post}        WHERE {criteria};
+                DELETE FROM {Table.Page}        WHERE {criteria};
+                DELETE FROM {Table.Category}    WHERE {criteria};
+                DELETE FROM {Table.TagMap}      WHERE {criteria};
                 DELETE FROM {Table.Upload}      WHERE web_log_id = @webLogId;
-                DELETE FROM {Table.WebLogUser}  WHERE {webLogWhere};
+                DELETE FROM {Table.WebLogUser}  WHERE {criteria};
                 DELETE FROM {Table.WebLog}      WHERE id = @webLogId"
-            |> Sql.parameters [ webLogIdParam webLogId ]
+            |> Sql.parameters [ webLogIdParam webLogId; "@criteria", webLogContains webLogId ]
             |> Sql.executeNonQueryAsync
         ()
     }
     
     /// Find a web log by its host (URL base)
-    let findByHost url =
-        Sql.existingConnection conn
-        |> Sql.query $"SELECT * FROM {Table.WebLog} WHERE data ->> '{nameof WebLog.empty.UrlBase}' = @urlBase"
-        |> Sql.parameters [ "@urlBase", Sql.string url ]
-        |> Sql.executeAsync toWebLog
+    let findByHost (url : string) =
+        Sql.fromDataSource source
+        |> Sql.query $"""{Query.selectFromTable Table.WebLog} WHERE {Query.whereDataContains "@criteria"}"""
+        |> Sql.parameters [ "@criteria", Query.jsonbDocParam {| UrlBase = url |} ]
+        |> Sql.executeAsync fromData<WebLog>
         |> tryHead
     
     /// Find a web log by its ID
     let findById webLogId = 
-        Document.findById conn Table.WebLog webLogId WebLogId.toString toWebLog
+        Sql.fromDataSource source
+        |> Query.tryById<WebLog> Table.WebLog (WebLogId.toString webLogId)
     
     /// Update settings for a web log
-    let updateSettings webLog = backgroundTask {
-        do! Document.update conn Table.WebLog webLogParams webLog
-    }
+    let updateSettings (webLog : WebLog) =
+        Sql.fromDataSource source |> Query.update Table.WebLog (WebLogId.toString webLog.Id) webLog
     
     /// Update RSS options for a web log
     let updateRssOptions (webLog : WebLog) = backgroundTask {
-        use! txn = conn.BeginTransactionAsync ()
         match! findById webLog.Id with
         | Some blog ->
-            do! Document.update conn Table.WebLog webLogParams { blog with Rss = webLog.Rss }
-            do! txn.CommitAsync ()
+            do! Sql.fromDataSource source
+                |> Query.update Table.WebLog (WebLogId.toString webLog.Id) { blog with Rss = webLog.Rss }
         | None -> ()
     }
     

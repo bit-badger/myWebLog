@@ -66,6 +66,7 @@ open MyWebLog.Data
 open NodaTime
 open Npgsql
 open Npgsql.FSharp
+open Npgsql.FSharp.Documents
 
 /// Create a WHERE clause fragment for the web log ID
 let webLogWhere = "data ->> 'WebLogId' = @webLogId"
@@ -73,6 +74,10 @@ let webLogWhere = "data ->> 'WebLogId' = @webLogId"
 /// Create a SQL parameter for the web log ID
 let webLogIdParam webLogId =
     "@webLogId", Sql.string (WebLogId.toString webLogId)
+
+/// Create a parameter for a web log document-contains query
+let webLogContains webLogId =
+    Query.jsonbDocParam {| WebLogId = WebLogId.toString webLogId |}
 
 /// The name of the field to select to be able to use Map.toCount
 let countName = "the_count"
@@ -127,44 +132,8 @@ let optParam<'T> name (it : 'T option) =
     let p = NpgsqlParameter ($"@%s{name}", if Option.isSome it then box it.Value else DBNull.Value)
     p.ParameterName, Sql.parameter p
 
-/// SQL statement to insert into a document table
-let docInsertSql table =
-    $"INSERT INTO %s{table} VALUES (@id, @data)"
-
-/// SQL statement to select a document by its ID
-let docSelectSql table =
-    $"SELECT * FROM %s{table} WHERE id = @id"
-
-/// SQL statement to select documents by their web log IDs
-let docSelectForWebLogSql table =
-    $"SELECT * FROM %s{table} WHERE {webLogWhere}"
-
-/// SQL statement to update a document in a document table
-let docUpdateSql table =
-    $"UPDATE %s{table} SET data = @data WHERE id = @id"
-
-/// SQL statement to insert or update a document in a document table
-let docUpsertSql table =
-    $"{docInsertSql table} ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data"
-
-/// SQL statement to delete a document from a document table by its ID
-let docDeleteSql table =
-    $"DELETE FROM %s{table} WHERE id = @id"
-
-/// SQL statement to count documents for a web log
-let docCountForWebLogSql table =
-    $"SELECT COUNT(id) AS {countName} FROM %s{table} WHERE {webLogWhere}"
-
-/// SQL statement to determine if a document exists for a web log 
-let docExistsForWebLogSql table =
-    $"SELECT EXISTS (SELECT 1 FROM %s{table} WHERE id = @id AND {webLogWhere}) AS {existsName}"
-
 /// Mapping functions for SQL queries
 module Map =
-    
-    /// Map an item by deserializing the document
-    let fromDoc<'T> ser (row : RowReader) =
-        Utils.deserialize<'T> ser (row.string "data")
     
     /// Get a count from a row
     let toCount (row : RowReader) =
@@ -203,112 +172,43 @@ module Map =
 /// Document manipulation functions
 module Document =
     
-    /// Convert extra SQL to a for that can be appended to a query  
-    let private moreSql sql = sql |> Option.map (fun it -> $" %s{it}") |> Option.defaultValue ""
-    
-    /// Create a parameter for a @> (contains) query
-    let contains<'T> (name : string) ser (value : 'T) =
-        name, Sql.jsonb (Utils.serialize ser value)
-
-    /// Count documents for a web log
-    let countByWebLog conn table webLogId extraSql =
-        Sql.existingConnection conn
-        |> Sql.query $"{docCountForWebLogSql table}{moreSql extraSql}"
-        |> Sql.parameters [ webLogIdParam webLogId ]
-        |> Sql.executeRowAsync Map.toCount
-
-    /// Delete a document
-    let delete conn table idParam = backgroundTask {
-        let! _ =
-            Sql.existingConnection conn
-            |> Sql.query (docDeleteSql table)
-            |> Sql.parameters [ "@id", Sql.string idParam ]
-            |> Sql.executeNonQueryAsync
-        ()
-    }
-    
-    /// Determine if a document with the given ID exists
-    let exists<'TKey> conn table (key : 'TKey) (keyFunc : 'TKey -> string) =
-        Sql.existingConnection conn
-        |> Sql.query $"SELECT EXISTS (SELECT 1 FROM %s{table} WHERE id = @id) AS {existsName}"
-        |> Sql.parameters [ "@id", Sql.string (keyFunc key) ]
-        |> Sql.executeRowAsync Map.toExists
-
     /// Determine whether a document exists with the given key for the given web log
-    let existsByWebLog<'TKey> conn table (key : 'TKey) (keyFunc : 'TKey -> string) webLogId =  
-        Sql.existingConnection conn
-        |> Sql.query (docExistsForWebLogSql table)
+    let existsByWebLog<'TKey> source table (key : 'TKey) (keyFunc : 'TKey -> string) webLogId =
+        Sql.fromDataSource source
+        |> Sql.query $"""
+            SELECT EXISTS (
+                       SELECT 1 FROM %s{table} WHERE id = @id AND {Query.whereDataContains "@criteria"}
+                   ) AS {existsName}"""
         |> Sql.parameters [ "@id", Sql.string (keyFunc key); webLogIdParam webLogId ]
         |> Sql.executeRowAsync Map.toExists
     
-    /// Find a document by its ID
-    let findById<'TKey, 'TDoc> conn table (key : 'TKey) (keyFunc : 'TKey -> string) (docFunc : RowReader -> 'TDoc) =
-        Sql.existingConnection conn
-        |> Sql.query (docSelectSql table)
-        |> Sql.parameters [ "@id", Sql.string (keyFunc key) ]
-        |> Sql.executeAsync docFunc
+    /// Find a document by its ID for the given web log
+    let findByIdAndWebLog<'TKey, 'TDoc> source table (key : 'TKey) (keyFunc : 'TKey -> string) webLogId =
+        Sql.fromDataSource source
+        |> Sql.query $"""{Query.selectFromTable table} WHERE id = @id AND {Query.whereDataContains "@criteria"}"""
+        |> Sql.parameters [ "@id", Sql.string (keyFunc key); "@criteria", webLogContains webLogId ]
+        |> Sql.executeAsync fromData<'TDoc>
         |> tryHead
     
     /// Find a document by its ID for the given web log
-    let findByIdAndWebLog<'TKey, 'TDoc> conn table (key : 'TKey) (keyFunc : 'TKey -> string) webLogId
-                                        (docFunc : RowReader -> 'TDoc) =
-        Sql.existingConnection conn
-        |> Sql.query $"{docSelectSql table} AND {webLogWhere}"
-        |> Sql.parameters [ "@id", Sql.string (keyFunc key); webLogIdParam webLogId ]
-        |> Sql.executeAsync docFunc
-        |> tryHead
-    
-    /// Find all documents for the given web log
-    let findByWebLog<'TDoc> conn table webLogId (docFunc : RowReader -> 'TDoc) extraSql =
-        Sql.existingConnection conn
-        |> Sql.query $"{docSelectForWebLogSql table}{moreSql extraSql}"
-        |> Sql.parameters [ webLogIdParam webLogId ]
-        |> Sql.executeAsync docFunc
-
-    /// Insert a new document
-    let insert<'T> conn table (paramFunc : 'T -> (string * SqlValue) list) (doc : 'T) = task {
-        let! _ =
-            Sql.existingConnection conn
-            |> Sql.query (docInsertSql table)
-            |> Sql.parameters (paramFunc doc)
-            |> Sql.executeNonQueryAsync
-        ()
-    }
+    let findByWebLog<'TDoc> source table webLogId : Task<'TDoc list> =
+        Sql.fromDataSource source
+        |> Query.findByContains table {| WebLogId = WebLogId.toString webLogId |}
         
-    /// Update an existing document
-    let update<'T> conn table (paramFunc : 'T -> (string * SqlValue) list) (doc : 'T) = task {
-        let! _ =
-            Sql.existingConnection conn
-            |> Sql.query (docUpdateSql table)
-            |> Sql.parameters (paramFunc doc)
-            |> Sql.executeNonQueryAsync
-        ()
-    }
-        
-    /// Insert or update a document
-    let upsert<'T> conn table (paramFunc : 'T -> (string * SqlValue) list) (doc : 'T) = task {
-        let! _ =
-            Sql.existingConnection conn
-            |> Sql.query (docUpsertSql table)
-            |> Sql.parameters (paramFunc doc)
-            |> Sql.executeNonQueryAsync
-        ()
-    }
-
 
 /// Functions to support revisions
 module Revisions =
     
     /// Find all revisions for the given entity
-    let findByEntityId<'TKey> conn revTable entityTable (key : 'TKey) (keyFunc : 'TKey -> string) =
-        Sql.existingConnection conn
+    let findByEntityId<'TKey> source revTable entityTable (key : 'TKey) (keyFunc : 'TKey -> string) =
+        Sql.fromDataSource source
         |> Sql.query $"SELECT as_of, revision_text FROM %s{revTable} WHERE %s{entityTable}_id = @id ORDER BY as_of DESC"
         |> Sql.parameters [ "@id", Sql.string (keyFunc key) ]
         |> Sql.executeAsync Map.toRevision
     
     /// Find all revisions for all posts for the given web log
-    let findByWebLog<'TKey> conn revTable entityTable (keyFunc : string -> 'TKey) webLogId =
-        Sql.existingConnection conn
+    let findByWebLog<'TKey> source revTable entityTable (keyFunc : string -> 'TKey) webLogId =
+        Sql.fromDataSource source
         |> Sql.query $"
             SELECT pr.*
               FROM %s{revTable} pr
@@ -331,11 +231,11 @@ module Revisions =
     
     /// Update a page's revisions
     let update<'TKey>
-            conn revTable entityTable (key : 'TKey) (keyFunc : 'TKey -> string) oldRevs newRevs = backgroundTask {
+            source revTable entityTable (key : 'TKey) (keyFunc : 'TKey -> string) oldRevs newRevs = backgroundTask {
         let toDelete, toAdd = Utils.diffRevisions oldRevs newRevs
         if not (List.isEmpty toDelete) || not (List.isEmpty toAdd) then
             let! _ =
-                Sql.existingConnection conn
+                Sql.fromDataSource source
                 |> Sql.executeTransactionAsync [
                     if not (List.isEmpty toDelete) then
                         $"DELETE FROM %s{revTable} WHERE %s{entityTable}_id = @id AND as_of = @asOf",

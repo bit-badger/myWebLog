@@ -2,30 +2,36 @@
 
 open MyWebLog
 open MyWebLog.Data
-open Newtonsoft.Json
 open Npgsql
 open Npgsql.FSharp
+open Npgsql.FSharp.Documents
 
 /// PostgreSQL myWebLog category data implementation
-type PostgresCategoryData (conn : NpgsqlConnection, ser : JsonSerializer) =
+type PostgresCategoryData (source : NpgsqlDataSource) =
     
-    /// Convert a data row to a category
-    let toCategory = Map.fromDoc<Category> ser
-    
+    /// Shorthand for turning a web log ID into a string
+    let wls = WebLogId.toString
+
     /// Count all categories for the given web log
     let countAll webLogId =
-        Document.countByWebLog conn Table.Category webLogId None
+        Sql.fromDataSource source
+        |> Query.countByContains Table.Category {| WebLogId = wls webLogId |}
     
     /// Count all top-level categories for the given web log
     let countTopLevel webLogId =
-        Document.countByWebLog conn Table.Category webLogId
-            (Some $"AND data -> '{nameof Category.empty.ParentId}' IS NULL")
+        Sql.fromDataSource source
+        |> Query.countByContains Table.Category {| WebLogId = wls webLogId; ParentId = None |}
     
     /// Retrieve all categories for the given web log in a DotLiquid-friendly format
     let findAllForView webLogId = backgroundTask {
         let! cats =
-            Document.findByWebLog conn Table.Category webLogId toCategory
-                (Some $"ORDER BY LOWER(data ->> '{nameof Category.empty.Name}')")
+            Sql.fromDataSource source
+            |> Sql.query $"""
+                {Query.selectFromTable Table.Category}
+                 WHERE {Query.whereDataContains "@criteria"}
+                 ORDER BY LOWER(data->>'{nameof Category.empty.Name}')"""
+            |> Sql.parameters [ "@criteria", webLogContains webLogId ]
+            |> Sql.executeAsync fromData<Category>
         let ordered = Utils.orderByHierarchy cats None None []
         let counts  =
             ordered
@@ -39,14 +45,16 @@ type PostgresCategoryData (conn : NpgsqlConnection, ser : JsonSerializer) =
                     |> List.ofSeq
                     |> jsonArrayInClause (nameof Post.empty.CategoryIds) id
                 let postCount =
-                    Sql.existingConnection conn
-                    |> Sql.query $"
+                    Sql.fromDataSource source
+                    |> Sql.query $"""
                         SELECT COUNT(DISTINCT id) AS {countName}
                           FROM {Table.Post}
-                         WHERE {webLogWhere}
-                           AND data ->> '{nameof Post.empty.Status}' = '{PostStatus.toString Published}'
-                           AND ({catIdSql})"
-                    |> Sql.parameters (webLogIdParam webLogId :: catIdParams)
+                         WHERE {Query.whereDataContains "@criteria"}
+                           AND ({catIdSql})"""
+                    |> Sql.parameters (
+                        ("@criteria",
+                            Query.jsonbDocParam {| WebLogId = wls webLogId; Status = PostStatus.toString Published |})
+                        :: catIdParams)
                     |> Sql.executeRowAsync Map.toCount
                     |> Async.AwaitTask
                     |> Async.RunSynchronously
@@ -65,76 +73,70 @@ type PostgresCategoryData (conn : NpgsqlConnection, ser : JsonSerializer) =
     }
     /// Find a category by its ID for the given web log
     let findById catId webLogId =
-        Document.findByIdAndWebLog conn Table.Category catId CategoryId.toString webLogId toCategory
+        Document.findByIdAndWebLog<CategoryId, Category> source Table.Category catId CategoryId.toString webLogId
     
     /// Find all categories for the given web log
     let findByWebLog webLogId =
-        Document.findByWebLog conn Table.Category webLogId toCategory None
+        Document.findByWebLog<Category> source Table.Category webLogId
     
     /// Create parameters for a category insert / update
-    let catParameters (cat : Category) = [
-        "@id",   Sql.string (CategoryId.toString cat.Id)
-        "@data", Sql.jsonb  (Utils.serialize ser cat)
-    ]
+    let catParameters (cat : Category) =
+        Query.docParameters (CategoryId.toString cat.Id) cat
     
     /// Delete a category
     let delete catId webLogId = backgroundTask {
         match! findById catId webLogId with
         | Some cat ->
             // Reassign any children to the category's parent category
-            let  parentParam = "@parentId", Sql.string (CategoryId.toString catId)
             let! children =
-                Sql.existingConnection conn
-                |> Sql.query
-                    $"SELECT * FROM {Table.Category} WHERE data ->> '{nameof Category.empty.ParentId}' = @parentId"
-                |> Sql.parameters [ parentParam ]
-                |> Sql.executeAsync toCategory
+                Sql.fromDataSource source
+                |> Query.findByContains Table.Category {| ParentId = CategoryId.toString catId |}
             let hasChildren = not (List.isEmpty children)
             if hasChildren then
                 let! _ =
-                    Sql.existingConnection conn
+                    Sql.fromDataSource source
                     |> Sql.executeTransactionAsync [
-                        docUpdateSql Table.Category,
+                        Query.updateQuery Table.Category,
                         children |> List.map (fun child -> catParameters { child with ParentId = cat.ParentId })
                     ]
                 ()
             // Delete the category off all posts where it is assigned
             let! posts =
-                Sql.existingConnection conn
-                |> Sql.query $"SELECT * FROM {Table.Post} WHERE data -> '{nameof Post.empty.CategoryIds}' ? @id"
+                Sql.fromDataSource source
+                |> Sql.query $"SELECT data FROM {Table.Post} WHERE data->'{nameof Post.empty.CategoryIds}' ? @id"
                 |> Sql.parameters [ "@id", Sql.jsonb (CategoryId.toString catId) ]
-                |> Sql.executeAsync (Map.fromDoc<Post> ser)
+                |> Sql.executeAsync fromData<Post>
             if not (List.isEmpty posts) then
                 let! _ =
-                    Sql.existingConnection conn
+                    Sql.fromDataSource source
                     |> Sql.executeTransactionAsync [
-                        docUpdateSql Table.Post,
+                        Query.updateQuery Table.Post,
                         posts |> List.map (fun post -> [
                             "@id",   Sql.string (PostId.toString post.Id)
-                            "@data", Sql.jsonb  (Utils.serialize ser {
-                                post with
-                                  CategoryIds = post.CategoryIds |> List.filter (fun cat -> cat <> catId)
-                            })
+                            "@data", Query.jsonbDocParam
+                                        { post with
+                                            CategoryIds = post.CategoryIds |> List.filter (fun cat -> cat <> catId)
+                                        }
                         ])
                     ]
                 ()
             // Delete the category itself
-            do! Document.delete conn Table.Category (CategoryId.toString catId)
+            do! Sql.fromDataSource source |> Query.deleteById Table.Category (CategoryId.toString catId)
             return if hasChildren then ReassignedChildCategories else CategoryDeleted
         | None -> return CategoryNotFound
     }
     
     /// Save a category
-    let save cat = backgroundTask {
-        do! Document.upsert conn Table.Category catParameters cat
+    let save (cat : Category) = backgroundTask {
+        do! Sql.fromDataSource source |> Query.save Table.Category (CategoryId.toString cat.Id) cat
     }
     
     /// Restore categories from a backup
     let restore cats = backgroundTask {
         let! _ =
-            Sql.existingConnection conn
+            Sql.fromDataSource source
             |> Sql.executeTransactionAsync [
-                docInsertSql Table.Category, cats |> List.map catParameters
+                Query.insertQuery Table.Category, cats |> List.map catParameters
             ]
         ()
     }

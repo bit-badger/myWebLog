@@ -6,7 +6,7 @@ open Npgsql
 open Npgsql.FSharp
 
 /// PostgreSQL myWebLog uploaded file data implementation        
-type PostgresUploadData (conn : NpgsqlConnection) =
+type PostgresUploadData (source : NpgsqlDataSource) =
 
     /// The INSERT statement for an uploaded file
     let upInsert = $"
@@ -28,7 +28,7 @@ type PostgresUploadData (conn : NpgsqlConnection) =
     /// Save an uploaded file
     let add upload = backgroundTask {
         let! _ =
-            Sql.existingConnection conn
+            Sql.fromDataSource source
             |> Sql.query upInsert
             |> Sql.parameters (upParams upload)
             |> Sql.executeNonQueryAsync
@@ -39,15 +39,15 @@ type PostgresUploadData (conn : NpgsqlConnection) =
     let delete uploadId webLogId = backgroundTask {
         let idParam = [ "@id", Sql.string (UploadId.toString uploadId) ]
         let! path =
-            Sql.existingConnection conn
+            Sql.fromDataSource source
             |> Sql.query $"SELECT path FROM {Table.Upload} WHERE id = @id AND web_log_id = @webLogId"
             |> Sql.parameters (webLogIdParam webLogId :: idParam)
             |> Sql.executeAsync (fun row -> row.string "path")
             |> tryHead
         if Option.isSome path then
             let! _ =
-                Sql.existingConnection conn
-                |> Sql.query (docDeleteSql Table.Upload)
+                Sql.fromDataSource source
+                |> Sql.query $"DELETE FROM {Table.Upload} WHERE id = @id"
                 |> Sql.parameters idParam
                 |> Sql.executeNonQueryAsync
             return Ok path.Value
@@ -56,7 +56,7 @@ type PostgresUploadData (conn : NpgsqlConnection) =
     
     /// Find an uploaded file by its path for the given web log
     let findByPath path webLogId =
-        Sql.existingConnection conn
+        Sql.fromDataSource source
         |> Sql.query $"SELECT * FROM {Table.Upload} WHERE web_log_id = @webLogId AND path = @path"
         |> Sql.parameters [ webLogIdParam webLogId; "@path", Sql.string path ]
         |> Sql.executeAsync (Map.toUpload true)
@@ -64,14 +64,14 @@ type PostgresUploadData (conn : NpgsqlConnection) =
     
     /// Find all uploaded files for the given web log (excludes data)
     let findByWebLog webLogId =
-        Sql.existingConnection conn
+        Sql.fromDataSource source
         |> Sql.query $"SELECT id, web_log_id, path, updated_on FROM {Table.Upload} WHERE web_log_id = @webLogId"
         |> Sql.parameters [ webLogIdParam webLogId ]
         |> Sql.executeAsync (Map.toUpload false)
     
     /// Find all uploaded files for the given web log
     let findByWebLogWithData webLogId =
-        Sql.existingConnection conn
+        Sql.fromDataSource source
         |> Sql.query $"SELECT * FROM {Table.Upload} WHERE web_log_id = @webLogId"
         |> Sql.parameters [ webLogIdParam webLogId ]
         |> Sql.executeAsync (Map.toUpload true)
@@ -80,7 +80,7 @@ type PostgresUploadData (conn : NpgsqlConnection) =
     let restore uploads = backgroundTask {
         for batch in uploads |> List.chunkBySize 5 do
             let! _ =
-                Sql.existingConnection conn
+                Sql.fromDataSource source
                 |> Sql.executeTransactionAsync [
                     upInsert, batch |> List.map upParams
                 ]

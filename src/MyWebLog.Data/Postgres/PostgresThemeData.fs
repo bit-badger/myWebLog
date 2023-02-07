@@ -5,55 +5,52 @@ open MyWebLog.Data
 open Newtonsoft.Json
 open Npgsql
 open Npgsql.FSharp
+open Npgsql.FSharp.Documents
 
 /// PostreSQL myWebLog theme data implementation        
-type PostgresThemeData (conn : NpgsqlConnection, ser : JsonSerializer) =
-    
-    /// Map a data row to a theme
-    let toTheme = Map.fromDoc<Theme> ser
+type PostgresThemeData (source : NpgsqlDataSource) =
     
     /// Clear out the template text from a theme
     let withoutTemplateText row =
-        let theme = toTheme row
+        let theme = fromData<Theme> row
         { theme with Templates = theme.Templates |> List.map (fun template -> { template with Text = "" }) }
     
     /// Retrieve all themes (except 'admin'; excludes template text)
     let all () =
-        Sql.existingConnection conn
-        |> Sql.query $"SELECT * FROM {Table.Theme} WHERE id <> 'admin' ORDER BY id"
+        Sql.fromDataSource source
+        |> Sql.query $"{Query.selectFromTable Table.Theme} WHERE id <> 'admin' ORDER BY id"
         |> Sql.executeAsync withoutTemplateText
     
     /// Does a given theme exist?
     let exists themeId =
-        Document.exists conn Table.Theme themeId ThemeId.toString
+        Sql.fromDataSource source
+        |> Query.existsById Table.Theme (ThemeId.toString themeId)
     
     /// Find a theme by its ID
     let findById themeId =
-        Document.findById conn Table.Theme themeId ThemeId.toString toTheme
+        Sql.fromDataSource source
+        |> Query.tryById<Theme> Table.Theme (ThemeId.toString themeId)
     
     /// Find a theme by its ID (excludes the text of templates)
     let findByIdWithoutText themeId =
-        Document.findById conn Table.Theme themeId ThemeId.toString withoutTemplateText
+        Sql.fromDataSource source
+        |> Sql.query $"{Query.selectFromTable Table.Theme} WHERE id = @id"
+        |> Sql.parameters [ "@id", Sql.string (ThemeId.toString themeId) ]
+        |> Sql.executeAsync withoutTemplateText
+        |> tryHead
     
     /// Delete a theme by its ID
     let delete themeId = backgroundTask {
         match! exists themeId with
         | true ->
-            do! Document.delete conn Table.Theme (ThemeId.toString themeId)
+            do! Sql.fromDataSource source |> Query.deleteById Table.Theme (ThemeId.toString themeId)
             return true
         | false -> return false
     }
     
-    /// Create theme save parameters
-    let themeParams (theme : Theme) = [
-        "@id",   Sql.string (ThemeId.toString theme.Id)
-        "@data", Sql.jsonb  (Utils.serialize ser theme)
-    ]
-    
     /// Save a theme
-    let save (theme : Theme) = backgroundTask {
-        do! Document.upsert conn Table.Theme themeParams theme
-    }
+    let save (theme : Theme) =
+        Sql.fromDataSource source |> Query.save Table.Theme (ThemeId.toString theme.Id) theme
     
     interface IThemeData with
         member _.All () = all ()
@@ -65,18 +62,18 @@ type PostgresThemeData (conn : NpgsqlConnection, ser : JsonSerializer) =
 
 
 /// PostreSQL myWebLog theme data implementation        
-type PostgresThemeAssetData (conn : NpgsqlConnection) =
+type PostgresThemeAssetData (source : NpgsqlDataSource) =
     
     /// Get all theme assets (excludes data)
     let all () =
-        Sql.existingConnection conn
+        Sql.fromDataSource source
         |> Sql.query $"SELECT theme_id, path, updated_on FROM {Table.ThemeAsset}"
         |> Sql.executeAsync (Map.toThemeAsset false)
     
     /// Delete all assets for the given theme
     let deleteByTheme themeId = backgroundTask {
         let! _ =
-            Sql.existingConnection conn
+            Sql.fromDataSource source
             |> Sql.query $"DELETE FROM {Table.ThemeAsset} WHERE theme_id = @themeId"
             |> Sql.parameters [ "@themeId", Sql.string (ThemeId.toString themeId) ]
             |> Sql.executeNonQueryAsync
@@ -86,7 +83,7 @@ type PostgresThemeAssetData (conn : NpgsqlConnection) =
     /// Find a theme asset by its ID
     let findById assetId =
         let (ThemeAssetId (ThemeId themeId, path)) = assetId
-        Sql.existingConnection conn
+        Sql.fromDataSource source
         |> Sql.query $"SELECT * FROM {Table.ThemeAsset} WHERE theme_id = @themeId AND path = @path"
         |> Sql.parameters [ "@themeId", Sql.string themeId; "@path", Sql.string path ]
         |> Sql.executeAsync (Map.toThemeAsset true)
@@ -94,14 +91,14 @@ type PostgresThemeAssetData (conn : NpgsqlConnection) =
     
     /// Get theme assets for the given theme (excludes data)
     let findByTheme themeId =
-        Sql.existingConnection conn
+        Sql.fromDataSource source
         |> Sql.query $"SELECT theme_id, path, updated_on FROM {Table.ThemeAsset} WHERE theme_id = @themeId"
         |> Sql.parameters [ "@themeId", Sql.string (ThemeId.toString themeId) ]
         |> Sql.executeAsync (Map.toThemeAsset false)
     
     /// Get theme assets for the given theme
     let findByThemeWithData themeId =
-        Sql.existingConnection conn
+        Sql.fromDataSource source
         |> Sql.query $"SELECT * FROM {Table.ThemeAsset} WHERE theme_id = @themeId"
         |> Sql.parameters [ "@themeId", Sql.string (ThemeId.toString themeId) ]
         |> Sql.executeAsync (Map.toThemeAsset true)
@@ -110,7 +107,7 @@ type PostgresThemeAssetData (conn : NpgsqlConnection) =
     let save (asset : ThemeAsset) = backgroundTask {
         let (ThemeAssetId (ThemeId themeId, path)) = asset.Id
         let! _ =
-            Sql.existingConnection conn
+            Sql.fromDataSource source
             |> Sql.query $"
                 INSERT INTO {Table.ThemeAsset} (
                     theme_id, path, updated_on, data

@@ -6,28 +6,34 @@ open MyWebLog.Data.Postgres
 open Newtonsoft.Json
 open Npgsql
 open Npgsql.FSharp
+open Npgsql.FSharp.Documents
 
 /// Data implementation for PostgreSQL
-type PostgresData (conn : NpgsqlConnection, log : ILogger<PostgresData>, ser : JsonSerializer) =
+type PostgresData (source : NpgsqlDataSource, log : ILogger<PostgresData>, ser : JsonSerializer) =
     
     /// Create any needed tables
     let ensureTables () = backgroundTask {
-        let _ = NpgsqlConnection.GlobalTypeMapper.UseNodaTime ()
+        // Set up the PostgreSQL document store
+        Configuration.useDataSource source
+        Configuration.useSerializer
+            { new IDocumentSerializer with
+                member _.Serialize<'T> (it : 'T) : string = Utils.serialize ser it
+                member _.Deserialize<'T> (it : string) : 'T = Utils.deserialize ser it
+            }
         
         let! tables =
-            Sql.existingConnection conn
+            Sql.fromDataSource source
             |> Sql.query "SELECT tablename FROM pg_tables WHERE schemaname = 'public'"
             |> Sql.executeAsync (fun row -> row.string "tablename")
         let needsTable table = not (List.contains table tables)
         // Create a document table
-        let docTable table = $"CREATE TABLE %s{table} (id TEXT NOT NULL PRIMARY KEY, data JSONB NOT NULL)"
         let mutable isNew = false
         
         let sql = seq {
             // Theme tables
             if needsTable Table.Theme then
                 isNew <- true
-                docTable Table.Theme
+                Definition.createTable Table.Theme
             if needsTable Table.ThemeAsset then
                 $"CREATE TABLE {Table.ThemeAsset} (
                     theme_id    TEXT        NOT NULL REFERENCES {Table.Theme} (id) ON DELETE CASCADE,
@@ -38,25 +44,22 @@ type PostgresData (conn : NpgsqlConnection, log : ILogger<PostgresData>, ser : J
             
             // Web log table
             if needsTable Table.WebLog then
-                docTable Table.WebLog
-                $"CREATE INDEX web_log_theme_idx ON {Table.WebLog} (data ->> '{nameof WebLog.empty.ThemeId}')"
+                Definition.createTable Table.WebLog
+                Definition.createIndex Table.WebLog Optimized
             
             // Category table
             if needsTable Table.Category then
-                docTable Table.Category
-                $"CREATE INDEX category_web_log_idx ON {Table.Category} (data ->> '{nameof Category.empty.WebLogId}')"
+                Definition.createTable Table.Category
+                Definition.createIndex Table.Category Optimized
             
             // Web log user table
             if needsTable Table.WebLogUser then
-                docTable Table.WebLogUser
-                $"CREATE INDEX web_log_user_web_log_idx ON {Table.WebLogUser}
-                    (data ->> '{nameof WebLogUser.empty.WebLogId}')"
-                $"CREATE INDEX web_log_user_email_idx   ON {Table.WebLogUser}
-                    (data ->> '{nameof WebLogUser.empty.WebLogId}', data ->> '{nameof WebLogUser.empty.Email}')"
+                Definition.createTable Table.WebLogUser
+                Definition.createIndex Table.WebLogUser Optimized
             
             // Page tables
             if needsTable Table.Page then
-                docTable Table.Page
+                Definition.createTable Table.Page
                 $"CREATE INDEX page_web_log_idx   ON {Table.Page} (data ->> '{nameof Page.empty.WebLogId}')"
                 $"CREATE INDEX page_author_idx    ON {Table.Page} (data ->> '{nameof Page.empty.AuthorId}')"
                 $"CREATE INDEX page_permalink_idx ON {Table.Page}
@@ -70,7 +73,7 @@ type PostgresData (conn : NpgsqlConnection, log : ILogger<PostgresData>, ser : J
             
             // Post tables
             if needsTable Table.Post then
-                docTable Table.Post
+                Definition.createTable Table.Post
                 $"CREATE INDEX post_web_log_idx   ON {Table.Post} (data ->> '{nameof Post.empty.WebLogId}')"
                 $"CREATE INDEX post_author_idx    ON {Table.Post} (data ->> '{nameof Post.empty.AuthorId}')"
                 $"CREATE INDEX post_status_idx    ON {Table.Post}
@@ -88,13 +91,13 @@ type PostgresData (conn : NpgsqlConnection, log : ILogger<PostgresData>, ser : J
                     revision_text  TEXT        NOT NULL,
                     PRIMARY KEY (post_id, as_of))"
             if needsTable Table.PostComment then
-                docTable Table.PostComment
+                Definition.createTable Table.PostComment
                 $"CREATE INDEX post_comment_post_idx ON {Table.PostComment} (data ->> '{nameof Comment.empty.PostId}')"
             
             // Tag map table
             if needsTable Table.TagMap then
-                docTable Table.TagMap
-                $"CREATE INDEX tag_map_web_log_idx ON {Table.TagMap} (data ->> '{nameof TagMap.empty.WebLogId}')"
+                Definition.createTable Table.TagMap
+                Definition.createIndex Table.TagMap Optimized
             
             // Uploaded file table
             if needsTable Table.Upload then
@@ -113,7 +116,7 @@ type PostgresData (conn : NpgsqlConnection, log : ILogger<PostgresData>, ser : J
                 $"INSERT INTO {Table.DbVersion} VALUES ('{Utils.currentDbVersion}')"
         }
         
-        Sql.existingConnection conn
+        Sql.fromDataSource source
         |> Sql.executeTransactionAsync
             (sql
              |> Seq.map (fun s ->
@@ -130,7 +133,7 @@ type PostgresData (conn : NpgsqlConnection, log : ILogger<PostgresData>, ser : J
     /// Set a specific database version
     let setDbVersion version = backgroundTask {
         let! _ =
-            Sql.existingConnection conn
+            Sql.fromDataSource source
             |> Sql.query $"DELETE FROM db_version; INSERT INTO db_version VALUES ('%s{version}')"
             |> Sql.executeNonQueryAsync
         ()
@@ -149,15 +152,15 @@ type PostgresData (conn : NpgsqlConnection, log : ILogger<PostgresData>, ser : J
         
     interface IData with
         
-        member _.Category   = PostgresCategoryData   (conn, ser)
-        member _.Page       = PostgresPageData       (conn, ser)
-        member _.Post       = PostgresPostData       (conn, ser)
-        member _.TagMap     = PostgresTagMapData     (conn, ser)
-        member _.Theme      = PostgresThemeData      (conn, ser)
-        member _.ThemeAsset = PostgresThemeAssetData conn
-        member _.Upload     = PostgresUploadData     conn
-        member _.WebLog     = PostgresWebLogData     (conn, ser)
-        member _.WebLogUser = PostgresWebLogUserData (conn, ser)
+        member _.Category   = PostgresCategoryData   source
+        member _.Page       = PostgresPageData       source
+        member _.Post       = PostgresPostData       source
+        member _.TagMap     = PostgresTagMapData     source
+        member _.Theme      = PostgresThemeData      source
+        member _.ThemeAsset = PostgresThemeAssetData source
+        member _.Upload     = PostgresUploadData     source
+        member _.WebLog     = PostgresWebLogData     source
+        member _.WebLogUser = PostgresWebLogUserData source
         
         member _.Serializer = ser
         
@@ -165,7 +168,7 @@ type PostgresData (conn : NpgsqlConnection, log : ILogger<PostgresData>, ser : J
             do! ensureTables ()
             
             let! version =
-                Sql.existingConnection conn
+                Sql.fromDataSource source
                 |> Sql.query "SELECT id FROM db_version"
                 |> Sql.executeAsync (fun row -> row.string "id")
                 |> tryHead

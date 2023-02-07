@@ -2,66 +2,71 @@ namespace MyWebLog.Data.Postgres
 
 open MyWebLog
 open MyWebLog.Data
-open Newtonsoft.Json
 open Npgsql
 open Npgsql.FSharp
+open Npgsql.FSharp.Documents
 
 /// PostgreSQL myWebLog tag mapping data implementation        
-type PostgresTagMapData (conn : NpgsqlConnection, ser : JsonSerializer) =
+type PostgresTagMapData (source : NpgsqlDataSource) =
     
-    /// Map a data row to a tag mapping
-    let toTagMap = Map.fromDoc<TagMap> ser
+    /// Shorthand for turning a web log ID into a string
+    let wls = WebLogId.toString
+
+    /// A query to select tag map(s) by JSON document containment criteria
+    let tagMapByCriteria =
+        $"""{Query.selectFromTable Table.TagMap} WHERE {Query.whereDataContains "@criteria"}"""
     
     /// Find a tag mapping by its ID for the given web log
     let findById tagMapId webLogId =
-        Document.findByIdAndWebLog conn Table.TagMap tagMapId TagMapId.toString webLogId toTagMap
+        Document.findByIdAndWebLog<TagMapId, TagMap> source Table.TagMap tagMapId TagMapId.toString webLogId
     
     /// Delete a tag mapping for the given web log
     let delete tagMapId webLogId = backgroundTask {
-        let! exists = Document.existsByWebLog conn Table.TagMap tagMapId TagMapId.toString webLogId
+        let! exists = Document.existsByWebLog source Table.TagMap tagMapId TagMapId.toString webLogId
         if exists then
-            do! Document.delete conn Table.TagMap (TagMapId.toString tagMapId)
+            do! Sql.fromDataSource source |> Query.deleteById Table.TagMap (TagMapId.toString tagMapId)
             return true
         else return false
     }
     
     /// Find a tag mapping by its URL value for the given web log
-    let findByUrlValue urlValue webLogId =
-        Sql.existingConnection conn
-        |> Sql.query $"{docSelectForWebLogSql Table.TagMap} AND data ->> '{nameof TagMap.empty.UrlValue}' = @urlValue"
-        |> Sql.parameters [ webLogIdParam webLogId; "@urlValue", Sql.string urlValue ]
-        |> Sql.executeAsync toTagMap
+    let findByUrlValue (urlValue : string) webLogId =
+        Sql.fromDataSource source
+        |> Sql.query tagMapByCriteria
+        |> Sql.parameters [ "@criteria", Query.jsonbDocParam {| WebLogId = wls webLogId; UrlValue = urlValue |} ]
+        |> Sql.executeAsync fromData<TagMap>
         |> tryHead
     
     /// Get all tag mappings for the given web log
     let findByWebLog webLogId =
-        Document.findByWebLog conn Table.TagMap webLogId toTagMap (Some "ORDER BY tag")
+        Sql.fromDataSource source
+        |> Sql.query $"{tagMapByCriteria} ORDER BY data->>'tag'"
+        |> Sql.parameters [ "@criteria", webLogContains webLogId ]
+        |> Sql.executeAsync fromData<TagMap>
     
     /// Find any tag mappings in a list of tags for the given web log
     let findMappingForTags tags webLogId =
         let tagSql, tagParams = jsonArrayInClause (nameof TagMap.empty.Tag) id tags
-        Sql.existingConnection conn
-        |> Sql.query $"{docSelectForWebLogSql Table.TagMap} AND ({tagSql})"
-        |> Sql.parameters (webLogIdParam webLogId :: tagParams)
-        |> Sql.executeAsync toTagMap
+        Sql.fromDataSource source
+        |> Sql.query $"{tagMapByCriteria} AND ({tagSql})"
+        |> Sql.parameters (("@criteria", webLogContains webLogId) :: tagParams)
+        |> Sql.executeAsync fromData<TagMap>
     
     /// The parameters for saving a tag mapping
-    let tagMapParams (tagMap : TagMap) = [
-        "@id",   Sql.string (TagMapId.toString tagMap.Id)
-        "@data", Sql.jsonb  (Utils.serialize ser tagMap)
-    ]
+    let tagMapParams (tagMap : TagMap) =
+        Query.docParameters (TagMapId.toString tagMap.Id) tagMap
     
     /// Save a tag mapping
-    let save tagMap = backgroundTask {
-        do! Document.upsert conn Table.TagMap tagMapParams tagMap
+    let save (tagMap : TagMap) = backgroundTask {
+        do! Sql.fromDataSource source |> Query.save Table.TagMap (TagMapId.toString tagMap.Id) tagMap
     }
     
     /// Restore tag mappings from a backup
     let restore tagMaps = backgroundTask {
         let! _ =
-            Sql.existingConnection conn
+            Sql.fromDataSource source
             |> Sql.executeTransactionAsync [
-                docInsertSql Table.TagMap, tagMaps |> List.map tagMapParams
+                Query.insertQuery Table.TagMap, tagMaps |> List.map tagMapParams
             ]
         ()
     }

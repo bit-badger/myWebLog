@@ -2,60 +2,63 @@ namespace MyWebLog.Data.Postgres
 
 open MyWebLog
 open MyWebLog.Data
-open Newtonsoft.Json
 open NodaTime
 open Npgsql
 open Npgsql.FSharp
+open Npgsql.FSharp.Documents
 
 /// PostgreSQL myWebLog post data implementation        
-type PostgresPostData (conn : NpgsqlConnection, ser : JsonSerializer) =
+type PostgresPostData (source : NpgsqlDataSource) =
 
     // SUPPORT FUNCTIONS
     
+    /// Shorthand for turning a web log ID into a string
+    let wls = WebLogId.toString
+
     /// Append revisions to a post
     let appendPostRevisions (post : Post) = backgroundTask {
-        let! revisions = Revisions.findByEntityId conn Table.PostRevision Table.Post post.Id PostId.toString
+        let! revisions = Revisions.findByEntityId source Table.PostRevision Table.Post post.Id PostId.toString
         return { post with Revisions = revisions }
     }
     
-    /// Shorthand for mapping to a post
-    let toPost = Map.fromDoc<Post> ser
-    
     /// Return a post with no revisions, prior permalinks, or text
     let postWithoutText row =
-        { toPost row with Text = "" }
+        { fromData<Post> row with Text = "" }
     
     /// Update a post's revisions
     let updatePostRevisions postId oldRevs newRevs =
-        Revisions.update conn Table.PostRevision Table.Post postId PostId.toString oldRevs newRevs
+        Revisions.update source Table.PostRevision Table.Post postId PostId.toString oldRevs newRevs
     
     /// Does the given post exist?
     let postExists postId webLogId =
-        Document.existsByWebLog conn Table.Post postId PostId.toString webLogId
+        Document.existsByWebLog source Table.Post postId PostId.toString webLogId
     
-    /// Query to select posts by web log ID and status
-    let postsByWebLogAndStatus =
-        $"{docSelectForWebLogSql Table.Post} AND data ->> '{nameof Post.empty.Status}' = @status"
+    /// Query to select posts by JSON document containment criteria
+    let postsByCriteria =
+        $"""{Query.selectFromTable Table.Post} WHERE {Query.whereDataContains "@criteria"}"""
     
     // IMPLEMENTATION FUNCTIONS
     
     /// Count posts in a status for the given web log
     let countByStatus status webLogId =
-        Sql.existingConnection conn
-        |> Sql.query $"{docCountForWebLogSql Table.Post} AND data ->> '{nameof Post.empty.Status}' = @status"
-        |> Sql.parameters [ webLogIdParam webLogId; "@status", Sql.string (PostStatus.toString status) ]
+        Sql.fromDataSource source
+        |> Sql.query
+            $"""SELECT COUNT(id) AS {countName} FROM {Table.Post} WHERE {Query.whereDataContains "@criteria"}"""
+        |> Sql.parameters
+            [ "@criteria", Query.jsonbDocParam {| WebLogId = wls webLogId; Status = PostStatus.toString status |} ]
         |> Sql.executeRowAsync Map.toCount
     
     /// Find a post by its ID for the given web log (excluding revisions)
     let findById postId webLogId =
-        Document.findByIdAndWebLog conn Table.Post postId PostId.toString webLogId toPost
+        Document.findByIdAndWebLog<PostId, Post> source Table.Post postId PostId.toString webLogId
     
     /// Find a post by its permalink for the given web log (excluding revisions and prior permalinks)
     let findByPermalink permalink webLogId =
-        Sql.existingConnection conn
-        |> Sql.query $"{docSelectForWebLogSql Table.Post} AND data ->> '{nameof Post.empty.Permalink}' = @link"
-        |> Sql.parameters [ webLogIdParam webLogId; "@link", Sql.string (Permalink.toString permalink) ]
-        |> Sql.executeAsync toPost
+        Sql.fromDataSource source
+        |> Sql.query postsByCriteria
+        |> Sql.parameters
+            [ "@criteria", Query.jsonbDocParam {| WebLogId = wls webLogId; Permalink = Permalink.toString permalink |} ]
+        |> Sql.executeAsync fromData<Post>
         |> tryHead
     
     /// Find a complete post by its ID for the given web log
@@ -71,12 +74,13 @@ type PostgresPostData (conn : NpgsqlConnection, ser : JsonSerializer) =
     let delete postId webLogId = backgroundTask {
         match! postExists postId webLogId with
         | true ->
+            let theId = PostId.toString postId
             let! _ =
-                Sql.existingConnection conn
-                |> Sql.query $"
-                    DELETE FROM {Table.PostComment} WHERE data ->> '{nameof Comment.empty.PostId}' = @id;
-                    DELETE FROM {Table.Post}        WHERE id = @id"
-                |> Sql.parameters [ "@id", Sql.string (PostId.toString postId) ]
+                Sql.fromDataSource source
+                |> Sql.query $"""
+                    DELETE FROM {Table.PostComment} WHERE {Query.whereDataContains "@criteria"};
+                    DELETE FROM {Table.Post}        WHERE id = @id"""
+                |> Sql.parameters [ "@id", Sql.string theId; "@criteria", Query.jsonbDocParam {| PostId = theId |} ]
                 |> Sql.executeNonQueryAsync
             return true
         | false -> return false
@@ -89,21 +93,21 @@ type PostgresPostData (conn : NpgsqlConnection, ser : JsonSerializer) =
             let linkSql, linkParams =
                 jsonArrayInClause (nameof Post.empty.PriorPermalinks) Permalink.toString permalinks
             return!
-                Sql.existingConnection conn
-                |> Sql.query $"
-                    SELECT data ->> '{nameof Post.empty.Permalink}' AS permalink
+                Sql.fromDataSource source
+                |> Sql.query $"""
+                    SELECT data->>'{nameof Post.empty.Permalink}' AS permalink
                       FROM {Table.Post}
-                     WHERE {webLogWhere}
-                       AND ({linkSql})"
-                |> Sql.parameters (webLogIdParam webLogId :: linkParams)
+                     WHERE {Query.whereDataContains "@criteria"}
+                       AND ({linkSql})"""
+                |> Sql.parameters (("@criteria", webLogContains webLogId) :: linkParams)
                 |> Sql.executeAsync Map.toPermalink
                 |> tryHead
     }
     
     /// Get all complete posts for the given web log
     let findFullByWebLog webLogId = backgroundTask {
-        let! posts     = Document.findByWebLog conn Table.Post webLogId toPost None
-        let! revisions = Revisions.findByWebLog conn Table.PostRevision Table.Post PostId webLogId
+        let! posts     = Document.findByWebLog<Post> source Table.Post webLogId
+        let! revisions = Revisions.findByWebLog source Table.PostRevision Table.Post PostId webLogId
         return
             posts
             |> List.map (fun it ->
@@ -113,92 +117,88 @@ type PostgresPostData (conn : NpgsqlConnection, ser : JsonSerializer) =
     /// Get a page of categorized posts for the given web log (excludes revisions)
     let findPageOfCategorizedPosts webLogId categoryIds pageNbr postsPerPage =
         let catSql, catParams = jsonArrayInClause (nameof Post.empty.CategoryIds) CategoryId.toString categoryIds
-        Sql.existingConnection conn
+        Sql.fromDataSource source
         |> Sql.query $"
-            {postsByWebLogAndStatus}
+            {postsByCriteria}
                AND ({catSql})
              ORDER BY published_on DESC
              LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"
-        |> Sql.parameters
-            [   webLogIdParam webLogId
-                "@status", Sql.string (PostStatus.toString Published)
-                yield! catParams   ]
-        |> Sql.executeAsync toPost
+        |> Sql.parameters (
+            ("@criteria", Query.jsonbDocParam {| WebLogId = wls webLogId; Status = PostStatus.toString Published |})
+            :: catParams)
+        |> Sql.executeAsync fromData<Post>
     
     /// Get a page of posts for the given web log (excludes text and revisions)
     let findPageOfPosts webLogId pageNbr postsPerPage =
-        Sql.existingConnection conn
+        Sql.fromDataSource source
         |> Sql.query $"
-            {docSelectForWebLogSql Table.Post}
-             ORDER BY data ->> '{nameof Post.empty.PublishedOn}' DESC NULLS FIRST,
-                      data ->> '{nameof Post.empty.UpdatedOn}'
+            {postsByCriteria}
+             ORDER BY data->>'{nameof Post.empty.PublishedOn}' DESC NULLS FIRST,
+                      data->>'{nameof Post.empty.UpdatedOn}'
              LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"
-        |> Sql.parameters [ webLogIdParam webLogId ]
+        |> Sql.parameters [ "@criteria", webLogContains webLogId ]
         |> Sql.executeAsync postWithoutText
     
     /// Get a page of published posts for the given web log (excludes revisions)
     let findPageOfPublishedPosts webLogId pageNbr postsPerPage =
-        Sql.existingConnection conn
+        Sql.fromDataSource source
         |> Sql.query $"
-            {postsByWebLogAndStatus}
-             ORDER BY data ->> '{nameof Post.empty.PublishedOn}' DESC
+            {postsByCriteria}
+             ORDER BY data->>'{nameof Post.empty.PublishedOn}' DESC
              LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"
-        |> Sql.parameters [ webLogIdParam webLogId; "@status", Sql.string (PostStatus.toString Published) ]
-        |> Sql.executeAsync toPost
+        |> Sql.parameters
+            [ "@criteria", Query.jsonbDocParam {| WebLogId = wls webLogId; Status = PostStatus.toString Published |} ]
+        |> Sql.executeAsync fromData<Post>
     
     /// Get a page of tagged posts for the given web log (excludes revisions and prior permalinks)
     let findPageOfTaggedPosts webLogId (tag : string) pageNbr postsPerPage =
-        Sql.existingConnection conn
+        Sql.fromDataSource source
         |> Sql.query $"
-            {postsByWebLogAndStatus}
-               AND data -> '{nameof Post.empty.Tags}' ? @tag
-             ORDER BY data ->> '{nameof Post.empty.PublishedOn}' DESC
+            {postsByCriteria}
+               AND data->'{nameof Post.empty.Tags}' ? @tag
+             ORDER BY data->>'{nameof Post.empty.PublishedOn}' DESC
              LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"
         |> Sql.parameters
-            [   webLogIdParam webLogId
-                "@status", Sql.string (PostStatus.toString Published)
-                "@tag",    Sql.jsonb  tag
+            [   "@criteria", Query.jsonbDocParam {| WebLogId = wls webLogId; Status = PostStatus.toString Published |}
+                "@tag",      Sql.jsonb tag
             ]
-        |> Sql.executeAsync toPost
+        |> Sql.executeAsync fromData<Post>
     
     /// Find the next newest and oldest post from a publish date for the given web log
     let findSurroundingPosts webLogId (publishedOn : Instant) = backgroundTask {
         let queryParams () = Sql.parameters [
-            webLogIdParam webLogId
+            "@criteria", Query.jsonbDocParam {| WebLogId = wls webLogId; Status = PostStatus.toString Published |}
             typedParam "publishedOn" publishedOn
-            "@status", Sql.string (PostStatus.toString Published)
         ]
         let! older =
-            Sql.existingConnection conn
+            Sql.fromDataSource source
             |> Sql.query $"
-                {postsByWebLogAndStatus}
-                   AND data ->> '{nameof Post.empty.PublishedOn}' < @publishedOn
-                 ORDER BY data ->> '{nameof Post.empty.PublishedOn}' DESC
+                {postsByCriteria}
+                   AND data->>'{nameof Post.empty.PublishedOn}' < @publishedOn
+                 ORDER BY data->>'{nameof Post.empty.PublishedOn}' DESC
                  LIMIT 1"
             |> queryParams ()
-            |> Sql.executeAsync toPost
+            |> Sql.executeAsync fromData<Post>
         let! newer =
-            Sql.existingConnection conn
+            Sql.fromDataSource source
             |> Sql.query $"
-                {postsByWebLogAndStatus}
-                   AND data ->> '{nameof Post.empty.PublishedOn}' > @publishedOn
-                 ORDER BY data ->> '{nameof Post.empty.PublishedOn}'
+                {postsByCriteria}
+                   AND data->>'{nameof Post.empty.PublishedOn}' > @publishedOn
+                 ORDER BY data->>'{nameof Post.empty.PublishedOn}'
                  LIMIT 1"
             |> queryParams ()
-            |> Sql.executeAsync toPost
+            |> Sql.executeAsync fromData<Post>
         return List.tryHead older, List.tryHead newer
     }
     
     /// The parameters for saving a post
-    let postParams (post : Post) = [
-        "@id",   Sql.string (PostId.toString post.Id)
-        "@data", Sql.jsonb  (Utils.serialize ser post)
-    ]
+    let postParams (post : Post) =
+        Query.docParameters (PostId.toString post.Id) post
     
     /// Save a post
     let save (post : Post) = backgroundTask {
         let! oldPost = findFullById post.Id post.WebLogId
-        do! Document.upsert conn Table.Post postParams post
+        do! Sql.fromDataSource source |> Query.save Table.Post (PostId.toString post.Id) post
         do! updatePostRevisions post.Id (match oldPost with Some p -> p.Revisions | None -> []) post.Revisions
     }
     
@@ -206,9 +206,9 @@ type PostgresPostData (conn : NpgsqlConnection, ser : JsonSerializer) =
     let restore posts = backgroundTask {
         let revisions = posts |> List.collect (fun p -> p.Revisions |> List.map (fun r -> p.Id, r))
         let! _ =
-            Sql.existingConnection conn
+            Sql.fromDataSource source
             |> Sql.executeTransactionAsync [
-                docInsertSql Table.Post, posts |> List.map postParams
+                Query.insertQuery Table.Post, posts |> List.map postParams
                 Revisions.insertSql Table.PostRevision,
                     revisions |> List.map (fun (postId, rev) -> Revisions.revParams postId PostId.toString rev)
             ]
@@ -217,11 +217,10 @@ type PostgresPostData (conn : NpgsqlConnection, ser : JsonSerializer) =
     
     /// Update prior permalinks for a post
     let updatePriorPermalinks postId webLogId permalinks = backgroundTask {
-        use! txn = conn.BeginTransactionAsync ()
         match! findById postId webLogId with
         | Some post ->
-            do! Document.update conn Table.Post postParams { post with PriorPermalinks = permalinks }
-            do! txn.CommitAsync ()
+            do! Sql.fromDataSource source
+                |> Query.update Table.Post (PostId.toString post.Id) { post with PriorPermalinks = permalinks }
             return true
         | None -> return false
     }

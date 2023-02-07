@@ -64,9 +64,12 @@ module DataImplementation =
         elif hasConnStr "PostgreSQL" then
             let log  = sp.GetRequiredService<ILogger<PostgresData>> ()
             // NpgsqlLogManager.Provider <- ConsoleLoggingProvider NpgsqlLogLevel.Debug
-            let conn = new NpgsqlConnection (connStr "PostgreSQL")
+            let builder = NpgsqlDataSourceBuilder (connStr "PostgreSQL")
+            let _ = builder.UseNodaTime ()
+            let source = builder.Build ()
+            use conn = source.CreateConnection ()
             log.LogInformation $"Using PostgreSQL database {conn.Host}:{conn.Port}/{conn.Database}"
-            PostgresData (conn, log, Json.configure (JsonSerializer.CreateDefault ()))
+            PostgresData (source, log, Json.configure (JsonSerializer.CreateDefault ()))
         else
             createSQLite "Data Source=./myweblog.db;Cache=Shared"
 
