@@ -36,9 +36,15 @@ open Npgsql
 module DataImplementation =
     
     open MyWebLog.Converters
-    // open Npgsql.Logging
     open RethinkDb.Driver.FSharp
     open RethinkDb.Driver.Net
+
+    /// Create an NpgsqlDataSource from the connection string, configuring appropriately
+    let createNpgsqlDataSource (cfg : IConfiguration) =
+        let builder = NpgsqlDataSourceBuilder (cfg.GetConnectionString "PostgreSQL")
+        let _ = builder.UseNodaTime ()
+        let _ = builder.UseLoggerFactory(LoggerFactory.Create(fun it -> it.AddConsole () |> ignore))
+        builder.Build ()
 
     /// Get the configured data implementation
     let get (sp : IServiceProvider) : IData =
@@ -62,12 +68,10 @@ module DataImplementation =
             let conn       = await (rethinkCfg.CreateConnectionAsync log)
             RethinkDbData (conn, rethinkCfg, log)
         elif hasConnStr "PostgreSQL" then
-            let log  = sp.GetRequiredService<ILogger<PostgresData>> ()
-            // NpgsqlLogManager.Provider <- ConsoleLoggingProvider NpgsqlLogLevel.Debug
-            let builder = NpgsqlDataSourceBuilder (connStr "PostgreSQL")
-            let _ = builder.UseNodaTime ()
-            let source = builder.Build ()
+            let source = createNpgsqlDataSource config
             use conn = source.CreateConnection ()
+            let log  = sp.GetRequiredService<ILogger<PostgresData>> ()
+            log.LogWarning (sprintf "%s %s" conn.DataSource conn.Database)
             log.LogInformation $"Using PostgreSQL database {conn.Host}:{conn.Port}/{conn.Database}"
             PostgresData (source, log, Json.configure (JsonSerializer.CreateDefault ()))
         else
@@ -155,16 +159,16 @@ let rec main args =
         let cachePath = defaultArg (Option.ofObj (cfg.GetConnectionString "SQLiteCachePath")) "./session.db"
         let _ = builder.Services.AddSqliteCache (fun o -> o.CachePath <- cachePath)
         ()
-    | :? PostgresData ->
-        // ADO.NET connections are designed to work as per-request instantiation
-        let cfg  = sp.GetRequiredService<IConfiguration> ()
+    | :? PostgresData as postgres ->
+        // ADO.NET Data Sources are designed to work as singletons
         let _ =
-            builder.Services.AddScoped<NpgsqlConnection> (fun sp ->
-                new NpgsqlConnection (cfg.GetConnectionString "PostgreSQL"))
-        let _ = builder.Services.AddScoped<IData, PostgresData> ()
+            builder.Services.AddSingleton<NpgsqlDataSource> (fun sp ->
+                DataImplementation.createNpgsqlDataSource (sp.GetRequiredService<IConfiguration> ()))
+        let _ = builder.Services.AddSingleton<IData> postgres
         let _ =
             builder.Services.AddSingleton<IDistributedCache> (fun sp ->
-                Postgres.DistributedCache (cfg.GetConnectionString "PostgreSQL") :> IDistributedCache)
+                Postgres.DistributedCache ((sp.GetRequiredService<IConfiguration> ()).GetConnectionString "PostgreSQL")
+                :> IDistributedCache)
         ()
     | _ -> ()
     
