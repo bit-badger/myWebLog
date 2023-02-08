@@ -33,7 +33,7 @@ type PostgresWebLogData (source : NpgsqlDataSource) =
                 DELETE FROM {Table.Upload}      WHERE web_log_id = @webLogId;
                 DELETE FROM {Table.WebLogUser}  WHERE {criteria};
                 DELETE FROM {Table.WebLog}      WHERE id = @webLogId"
-            |> Sql.parameters [ webLogIdParam webLogId; "@criteria", webLogContains webLogId ]
+            |> Sql.parameters [ webLogIdParam webLogId; webLogContains webLogId ]
             |> Sql.executeNonQueryAsync
         ()
     }

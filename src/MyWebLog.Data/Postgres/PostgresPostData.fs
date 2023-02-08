@@ -12,9 +12,6 @@ type PostgresPostData (source : NpgsqlDataSource) =
 
     // SUPPORT FUNCTIONS
     
-    /// Shorthand for turning a web log ID into a string
-    let wls = WebLogId.toString
-
     /// Append revisions to a post
     let appendPostRevisions (post : Post) = backgroundTask {
         let! revisions = Revisions.findByEntityId source Table.PostRevision Table.Post post.Id PostId.toString
@@ -45,7 +42,7 @@ type PostgresPostData (source : NpgsqlDataSource) =
         |> Sql.query
             $"""SELECT COUNT(id) AS {countName} FROM {Table.Post} WHERE {Query.whereDataContains "@criteria"}"""
         |> Sql.parameters
-            [ "@criteria", Query.jsonbDocParam {| WebLogId = wls webLogId; Status = PostStatus.toString status |} ]
+            [ "@criteria", Query.jsonbDocParam {| webLogDoc webLogId with Status = PostStatus.toString status |} ]
         |> Sql.executeRowAsync Map.toCount
     
     /// Find a post by its ID for the given web log (excluding revisions)
@@ -57,7 +54,7 @@ type PostgresPostData (source : NpgsqlDataSource) =
         Sql.fromDataSource source
         |> Sql.query postsByCriteria
         |> Sql.parameters
-            [ "@criteria", Query.jsonbDocParam {| WebLogId = wls webLogId; Permalink = Permalink.toString permalink |} ]
+            [ "@criteria", Query.jsonbDocParam {| webLogDoc webLogId with Permalink = Permalink.toString permalink |} ]
         |> Sql.executeAsync fromData<Post>
         |> tryHead
     
@@ -99,7 +96,7 @@ type PostgresPostData (source : NpgsqlDataSource) =
                       FROM {Table.Post}
                      WHERE {Query.whereDataContains "@criteria"}
                        AND ({linkSql})"""
-                |> Sql.parameters (("@criteria", webLogContains webLogId) :: linkParams)
+                |> Sql.parameters (webLogContains webLogId :: linkParams)
                 |> Sql.executeAsync Map.toPermalink
                 |> tryHead
     }
@@ -124,7 +121,7 @@ type PostgresPostData (source : NpgsqlDataSource) =
              ORDER BY published_on DESC
              LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"
         |> Sql.parameters (
-            ("@criteria", Query.jsonbDocParam {| WebLogId = wls webLogId; Status = PostStatus.toString Published |})
+            ("@criteria", Query.jsonbDocParam {| webLogDoc webLogId with Status = PostStatus.toString Published |})
             :: catParams)
         |> Sql.executeAsync fromData<Post>
     
@@ -136,7 +133,7 @@ type PostgresPostData (source : NpgsqlDataSource) =
              ORDER BY data->>'{nameof Post.empty.PublishedOn}' DESC NULLS FIRST,
                       data->>'{nameof Post.empty.UpdatedOn}'
              LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"
-        |> Sql.parameters [ "@criteria", webLogContains webLogId ]
+        |> Sql.parameters [ webLogContains webLogId ]
         |> Sql.executeAsync postWithoutText
     
     /// Get a page of published posts for the given web log (excludes revisions)
@@ -147,7 +144,7 @@ type PostgresPostData (source : NpgsqlDataSource) =
              ORDER BY data->>'{nameof Post.empty.PublishedOn}' DESC
              LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"
         |> Sql.parameters
-            [ "@criteria", Query.jsonbDocParam {| WebLogId = wls webLogId; Status = PostStatus.toString Published |} ]
+            [ "@criteria", Query.jsonbDocParam {| webLogDoc webLogId with Status = PostStatus.toString Published |} ]
         |> Sql.executeAsync fromData<Post>
     
     /// Get a page of tagged posts for the given web log (excludes revisions and prior permalinks)
@@ -159,7 +156,7 @@ type PostgresPostData (source : NpgsqlDataSource) =
              ORDER BY data->>'{nameof Post.empty.PublishedOn}' DESC
              LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"
         |> Sql.parameters
-            [   "@criteria", Query.jsonbDocParam {| WebLogId = wls webLogId; Status = PostStatus.toString Published |}
+            [   "@criteria", Query.jsonbDocParam {| webLogDoc webLogId with Status = PostStatus.toString Published |}
                 "@tag",      Sql.jsonb tag
             ]
         |> Sql.executeAsync fromData<Post>
@@ -167,7 +164,7 @@ type PostgresPostData (source : NpgsqlDataSource) =
     /// Find the next newest and oldest post from a publish date for the given web log
     let findSurroundingPosts webLogId (publishedOn : Instant) = backgroundTask {
         let queryParams () = Sql.parameters [
-            "@criteria", Query.jsonbDocParam {| WebLogId = wls webLogId; Status = PostStatus.toString Published |}
+            "@criteria", Query.jsonbDocParam {| webLogDoc webLogId with Status = PostStatus.toString Published |}
             typedParam "publishedOn" publishedOn
         ]
         let! older =

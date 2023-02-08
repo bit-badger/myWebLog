@@ -200,11 +200,11 @@ type DistributedCache (connStr : string) =
     }
     
     interface IDistributedCache with
-        member this.Get key = get key CancellationToken.None |> sync
-        member this.GetAsync (key, token) = get key token
-        member this.Refresh key = refresh key CancellationToken.None |> sync
-        member this.RefreshAsync (key, token) = refresh key token
-        member this.Remove key = remove key CancellationToken.None |> sync
-        member this.RemoveAsync (key, token) = remove key token
-        member this.Set (key, value, options) = set key value options CancellationToken.None |> sync
-        member this.SetAsync (key, value, options, token) = set key value options token
+        member _.Get key = get key CancellationToken.None |> sync
+        member _.GetAsync (key, token) = get key token
+        member _.Refresh key = refresh key CancellationToken.None |> sync
+        member _.RefreshAsync (key, token) = refresh key token
+        member _.Remove key = remove key CancellationToken.None |> sync
+        member _.RemoveAsync (key, token) = remove key token
+        member _.Set (key, value, options) = set key value options CancellationToken.None |> sync
+        member _.SetAsync (key, value, options, token) = set key value options token

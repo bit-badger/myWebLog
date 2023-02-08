@@ -9,9 +9,6 @@ open Npgsql.FSharp.Documents
 /// PostgreSQL myWebLog user data implementation        
 type PostgresWebLogUserData (source : NpgsqlDataSource) =
     
-    /// Shorthand for making a web log ID into a string
-    let wls = WebLogId.toString
-    
     /// Query to get users by JSON document containment criteria
     let userByCriteria =
         $"""{Query.selectFromTable Table.WebLogUser} WHERE {Query.whereDataContains "@criteria"}"""
@@ -51,7 +48,7 @@ type PostgresWebLogUserData (source : NpgsqlDataSource) =
     let findByEmail (email : string) webLogId =
         Sql.fromDataSource source
         |> Sql.query userByCriteria
-        |> Sql.parameters [ "@criteria", Query.jsonbDocParam {| WebLogId = wls webLogId; Email = email |} ]
+        |> Sql.parameters [ "@criteria", Query.jsonbDocParam {| webLogDoc webLogId with Email = email |} ]
         |> Sql.executeAsync fromData<WebLogUser>
         |> tryHead
     
@@ -59,7 +56,7 @@ type PostgresWebLogUserData (source : NpgsqlDataSource) =
     let findByWebLog webLogId =
         Sql.fromDataSource source
         |> Sql.query $"{userByCriteria} ORDER BY LOWER(data->>'{nameof WebLogUser.empty.PreferredName}')"
-        |> Sql.parameters [ "@criteria", webLogContains webLogId ]
+        |> Sql.parameters [ webLogContains webLogId ]
         |> Sql.executeAsync fromData<WebLogUser>
     
     /// Find the names of users by their IDs for the given web log
@@ -68,7 +65,7 @@ type PostgresWebLogUserData (source : NpgsqlDataSource) =
         let! users =
             Sql.fromDataSource source
             |> Sql.query $"{userByCriteria} {idSql}"
-            |> Sql.parameters (("@criteria", webLogContains webLogId) :: idParams)
+            |> Sql.parameters (webLogContains webLogId :: idParams)
             |> Sql.executeAsync fromData<WebLogUser>
         return
             users

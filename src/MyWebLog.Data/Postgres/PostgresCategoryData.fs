@@ -9,18 +9,15 @@ open Npgsql.FSharp.Documents
 /// PostgreSQL myWebLog category data implementation
 type PostgresCategoryData (source : NpgsqlDataSource) =
     
-    /// Shorthand for turning a web log ID into a string
-    let wls = WebLogId.toString
-
     /// Count all categories for the given web log
     let countAll webLogId =
         Sql.fromDataSource source
-        |> Query.countByContains Table.Category {| WebLogId = wls webLogId |}
+        |> Query.countByContains Table.Category (webLogDoc webLogId)
     
     /// Count all top-level categories for the given web log
     let countTopLevel webLogId =
         Sql.fromDataSource source
-        |> Query.countByContains Table.Category {| WebLogId = wls webLogId; ParentId = None |}
+        |> Query.countByContains Table.Category {| webLogDoc webLogId with ParentId = None |}
     
     /// Retrieve all categories for the given web log in a DotLiquid-friendly format
     let findAllForView webLogId = backgroundTask {
@@ -30,7 +27,7 @@ type PostgresCategoryData (source : NpgsqlDataSource) =
                 {Query.selectFromTable Table.Category}
                  WHERE {Query.whereDataContains "@criteria"}
                  ORDER BY LOWER(data->>'{nameof Category.empty.Name}')"""
-            |> Sql.parameters [ "@criteria", webLogContains webLogId ]
+            |> Sql.parameters [ webLogContains webLogId ]
             |> Sql.executeAsync fromData<Category>
         let ordered = Utils.orderByHierarchy cats None None []
         let counts  =
@@ -53,7 +50,7 @@ type PostgresCategoryData (source : NpgsqlDataSource) =
                            AND ({catIdSql})"""
                     |> Sql.parameters (
                         ("@criteria",
-                            Query.jsonbDocParam {| WebLogId = wls webLogId; Status = PostStatus.toString Published |})
+                            Query.jsonbDocParam {| webLogDoc webLogId with Status = PostStatus.toString Published |})
                         :: catIdParams)
                     |> Sql.executeRowAsync Map.toCount
                     |> Async.AwaitTask

@@ -11,9 +11,6 @@ type PostgresPageData (source : NpgsqlDataSource) =
     
     // SUPPORT FUNCTIONS
     
-    /// Shorthand for turning a web log ID into a string
-    let wls = WebLogId.toString
-
     /// Append revisions to a page
     let appendPageRevisions (page : Page) = backgroundTask {
         let! revisions = Revisions.findByEntityId source Table.PageRevision Table.Page page.Id PageId.toString
@@ -32,27 +29,28 @@ type PostgresPageData (source : NpgsqlDataSource) =
     let pageExists pageId webLogId =
         Document.existsByWebLog source Table.Page pageId PageId.toString webLogId
     
+    /// Select pages via a JSON document containment query
+    let pageByCriteria =
+        $"""{Query.selectFromTable Table.Page} WHERE {Query.whereDataContains "@criteria"}"""
+    
     // IMPLEMENTATION FUNCTIONS
     
     /// Get all pages for a web log (without text or revisions)
     let all webLogId =
         Sql.fromDataSource source
-        |> Sql.query $"""
-            {Query.selectFromTable Table.Page}
-             WHERE {Query.whereDataContains "@criteria"}
-            ORDER BY LOWER(data->>'{nameof Page.empty.Title}')"""
-        |> Sql.parameters [ "@criteria", webLogContains webLogId ]
+        |> Sql.query $"{pageByCriteria} ORDER BY LOWER(data->>'{nameof Page.empty.Title}')"
+        |> Sql.parameters [ webLogContains webLogId ]
         |> Sql.executeAsync fromData<Page>
     
     /// Count all pages for the given web log
     let countAll webLogId =
         Sql.fromDataSource source
-        |> Query.countByContains Table.Page {| WebLogId = wls webLogId |}
+        |> Query.countByContains Table.Page (webLogDoc webLogId)
     
     /// Count all pages shown in the page list for the given web log
     let countListed webLogId =
         Sql.fromDataSource source
-        |> Query.countByContains Table.Page {| WebLogId = wls webLogId; IsInPageList = true |}
+        |> Query.countByContains Table.Page {| webLogDoc webLogId with IsInPageList = true |}
     
     /// Find a page by its ID (without revisions)
     let findById pageId webLogId =
@@ -79,7 +77,7 @@ type PostgresPageData (source : NpgsqlDataSource) =
     /// Find a page by its permalink for the given web log
     let findByPermalink permalink webLogId =
         Sql.fromDataSource source
-        |> Query.findByContains<Page> Table.Page {| WebLogId = wls webLogId; Permalink = Permalink.toString permalink |}
+        |> Query.findByContains<Page> Table.Page {| webLogDoc webLogId with Permalink = Permalink.toString permalink |}
         |> tryHead
     
     /// Find the current permalink within a set of potential prior permalinks for the given web log
@@ -96,7 +94,7 @@ type PostgresPageData (source : NpgsqlDataSource) =
                       FROM page
                      WHERE {Query.whereDataContains "@criteria"}
                        AND ({linkSql})"""
-                |> Sql.parameters (("@criteria", webLogContains webLogId) :: linkParams)
+                |> Sql.parameters (webLogContains webLogId :: linkParams)
                 |> Sql.executeAsync Map.toPermalink
                 |> tryHead
     }
@@ -114,26 +112,18 @@ type PostgresPageData (source : NpgsqlDataSource) =
     /// Get all listed pages for the given web log (without revisions or text)
     let findListed webLogId =
         Sql.fromDataSource source
-        |> Sql.query $"""
-            {Query.selectFromTable Table.Page}
-             WHERE {Query.whereDataContains "@criteria"}
-             ORDER BY LOWER(data->>'{nameof Page.empty.Title}')"""
-        |> Sql.parameters [ "@criteria", Query.jsonbDocParam {| WebLogId = wls webLogId; IsInPageList = true |} ]
+        |> Sql.query $"{pageByCriteria} ORDER BY LOWER(data->>'{nameof Page.empty.Title}')"
+        |> Sql.parameters [ "@criteria", Query.jsonbDocParam {| webLogDoc webLogId with IsInPageList = true |} ]
         |> Sql.executeAsync pageWithoutText
     
     /// Get a page of pages for the given web log (without revisions)
     let findPageOfPages webLogId pageNbr =
         Sql.fromDataSource source
-        |> Sql.query $"""
-            {Query.selectFromTable Table.Page}
-             WHERE {Query.whereDataContains "@criteria"}
+        |> Sql.query $"
+            {pageByCriteria}
              ORDER BY LOWER(data->>'{nameof Page.empty.Title}')
-             LIMIT @pageSize OFFSET @toSkip"""
-        |> Sql.parameters
-            [   "@criteria", webLogContains webLogId
-                "@pageSize", Sql.int 26
-                "@toSkip", Sql.int ((pageNbr - 1) * 25)
-            ]
+             LIMIT @pageSize OFFSET @toSkip"
+        |> Sql.parameters [ webLogContains webLogId; "@pageSize", Sql.int 26; "@toSkip", Sql.int ((pageNbr - 1) * 25) ]
         |> Sql.executeAsync fromData<Page>
     
     /// The parameters for saving a page

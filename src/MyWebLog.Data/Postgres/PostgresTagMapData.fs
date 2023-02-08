@@ -9,9 +9,6 @@ open Npgsql.FSharp.Documents
 /// PostgreSQL myWebLog tag mapping data implementation        
 type PostgresTagMapData (source : NpgsqlDataSource) =
     
-    /// Shorthand for turning a web log ID into a string
-    let wls = WebLogId.toString
-
     /// A query to select tag map(s) by JSON document containment criteria
     let tagMapByCriteria =
         $"""{Query.selectFromTable Table.TagMap} WHERE {Query.whereDataContains "@criteria"}"""
@@ -33,7 +30,7 @@ type PostgresTagMapData (source : NpgsqlDataSource) =
     let findByUrlValue (urlValue : string) webLogId =
         Sql.fromDataSource source
         |> Sql.query tagMapByCriteria
-        |> Sql.parameters [ "@criteria", Query.jsonbDocParam {| WebLogId = wls webLogId; UrlValue = urlValue |} ]
+        |> Sql.parameters [ "@criteria", Query.jsonbDocParam {| webLogDoc webLogId with UrlValue = urlValue |} ]
         |> Sql.executeAsync fromData<TagMap>
         |> tryHead
     
@@ -41,7 +38,7 @@ type PostgresTagMapData (source : NpgsqlDataSource) =
     let findByWebLog webLogId =
         Sql.fromDataSource source
         |> Sql.query $"{tagMapByCriteria} ORDER BY data->>'tag'"
-        |> Sql.parameters [ "@criteria", webLogContains webLogId ]
+        |> Sql.parameters [ webLogContains webLogId ]
         |> Sql.executeAsync fromData<TagMap>
     
     /// Find any tag mappings in a list of tags for the given web log
@@ -49,7 +46,7 @@ type PostgresTagMapData (source : NpgsqlDataSource) =
         let tagSql, tagParams = jsonArrayInClause (nameof TagMap.empty.Tag) id tags
         Sql.fromDataSource source
         |> Sql.query $"{tagMapByCriteria} AND ({tagSql})"
-        |> Sql.parameters (("@criteria", webLogContains webLogId) :: tagParams)
+        |> Sql.parameters (webLogContains webLogId :: tagParams)
         |> Sql.executeAsync fromData<TagMap>
     
     /// The parameters for saving a tag mapping

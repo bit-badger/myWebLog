@@ -68,16 +68,17 @@ open Npgsql
 open Npgsql.FSharp
 open Npgsql.FSharp.Documents
 
-/// Create a WHERE clause fragment for the web log ID
-let webLogWhere = "data ->> 'WebLogId' = @webLogId"
-
 /// Create a SQL parameter for the web log ID
 let webLogIdParam webLogId =
     "@webLogId", Sql.string (WebLogId.toString webLogId)
 
+/// Create an anonymous record with the given web log ID
+let webLogDoc webLogId =
+    {| WebLogId = WebLogId.toString webLogId |}
+
 /// Create a parameter for a web log document-contains query
 let webLogContains webLogId =
-    Query.jsonbDocParam {| WebLogId = WebLogId.toString webLogId |}
+    "@criteria", Query.jsonbDocParam (webLogDoc webLogId)
 
 /// The name of the field to select to be able to use Map.toCount
 let countName = "the_count"
@@ -110,11 +111,11 @@ let jsonArrayInClause<'T> name (valueFunc : 'T -> string) (items : 'T list) =
         |> List.skip 1
         |> List.fold (fun (itemS, itemP) it ->
             idx <- idx + 1
-            $"{itemS} OR data -> '%s{name}' ? @{name}{idx}",
+            $"{itemS} OR data->'%s{name}' ? @{name}{idx}",
             ($"@{name}{idx}", Sql.jsonb (valueFunc it)) :: itemP)
             (Seq.ofList items
              |> Seq.map (fun it ->
-                 $"data -> '{name}' ? @{name}0", [ $"@{name}0", Sql.string (valueFunc it) ])
+                 $"data->'{name}' ? @{name}0", [ $"@{name}0", Sql.string (valueFunc it) ])
              |> Seq.head)
     
 /// Get the first result of the given query
@@ -179,21 +180,21 @@ module Document =
             SELECT EXISTS (
                        SELECT 1 FROM %s{table} WHERE id = @id AND {Query.whereDataContains "@criteria"}
                    ) AS {existsName}"""
-        |> Sql.parameters [ "@id", Sql.string (keyFunc key); webLogIdParam webLogId ]
+        |> Sql.parameters [ "@id", Sql.string (keyFunc key); webLogContains webLogId ]
         |> Sql.executeRowAsync Map.toExists
     
     /// Find a document by its ID for the given web log
     let findByIdAndWebLog<'TKey, 'TDoc> source table (key : 'TKey) (keyFunc : 'TKey -> string) webLogId =
         Sql.fromDataSource source
         |> Sql.query $"""{Query.selectFromTable table} WHERE id = @id AND {Query.whereDataContains "@criteria"}"""
-        |> Sql.parameters [ "@id", Sql.string (keyFunc key); "@criteria", webLogContains webLogId ]
+        |> Sql.parameters [ "@id", Sql.string (keyFunc key); webLogContains webLogId ]
         |> Sql.executeAsync fromData<'TDoc>
         |> tryHead
     
     /// Find a document by its ID for the given web log
     let findByWebLog<'TDoc> source table webLogId : Task<'TDoc list> =
         Sql.fromDataSource source
-        |> Query.findByContains table {| WebLogId = WebLogId.toString webLogId |}
+        |> Query.findByContains table (webLogDoc webLogId)
         
 
 /// Functions to support revisions
@@ -209,13 +210,13 @@ module Revisions =
     /// Find all revisions for all posts for the given web log
     let findByWebLog<'TKey> source revTable entityTable (keyFunc : string -> 'TKey) webLogId =
         Sql.fromDataSource source
-        |> Sql.query $"
+        |> Sql.query $"""
             SELECT pr.*
               FROM %s{revTable} pr
                    INNER JOIN %s{entityTable} p ON p.id = pr.{entityTable}_id
-             WHERE p.{webLogWhere}
-             ORDER BY as_of DESC"
-        |> Sql.parameters [ webLogIdParam webLogId ]
+             WHERE p.{Query.whereDataContains "@criteria"}
+             ORDER BY as_of DESC"""
+        |> Sql.parameters [ webLogContains webLogId ]
         |> Sql.executeAsync (fun row -> keyFunc (row.string $"{entityTable}_id"), Map.toRevision row)
 
     /// Parameters for a revision INSERT statement
