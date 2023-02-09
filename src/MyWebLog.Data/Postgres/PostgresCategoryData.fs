@@ -1,5 +1,6 @@
 ﻿namespace MyWebLog.Data.Postgres
 
+open Microsoft.Extensions.Logging
 open MyWebLog
 open MyWebLog.Data
 open Npgsql
@@ -7,26 +8,26 @@ open Npgsql.FSharp
 open Npgsql.FSharp.Documents
 
 /// PostgreSQL myWebLog category data implementation
-type PostgresCategoryData (source : NpgsqlDataSource) =
+type PostgresCategoryData (source : NpgsqlDataSource, log : ILogger) =
     
     /// Count all categories for the given web log
     let countAll webLogId =
+        log.LogTrace "Category.countAll"
         Sql.fromDataSource source
         |> Query.countByContains Table.Category (webLogDoc webLogId)
     
     /// Count all top-level categories for the given web log
     let countTopLevel webLogId =
+        log.LogTrace "Category.countTopLevel"
         Sql.fromDataSource source
         |> Query.countByContains Table.Category {| webLogDoc webLogId with ParentId = None |}
     
     /// Retrieve all categories for the given web log in a DotLiquid-friendly format
     let findAllForView webLogId = backgroundTask {
+        log.LogTrace "Category.findAllForView"
         let! cats =
             Sql.fromDataSource source
-            |> Sql.query $"""
-                {Query.selectFromTable Table.Category}
-                 WHERE {Query.whereDataContains "@criteria"}
-                 ORDER BY LOWER(data->>'{nameof Category.empty.Name}')"""
+            |> Sql.query $"{selectWithCriteria Table.Category} ORDER BY LOWER(data ->> '{nameof Category.empty.Name}')"
             |> Sql.parameters [ webLogContains webLogId ]
             |> Sql.executeAsync fromData<Category>
         let ordered = Utils.orderByHierarchy cats None None []
@@ -40,18 +41,19 @@ type PostgresCategoryData (source : NpgsqlDataSource) =
                     |> Seq.map (fun cat -> cat.Id)
                     |> Seq.append (Seq.singleton it.Id)
                     |> List.ofSeq
-                    |> jsonArrayInClause (nameof Post.empty.CategoryIds) id
+                    |> arrayContains (nameof Post.empty.CategoryIds) id
                 let postCount =
                     Sql.fromDataSource source
                     |> Sql.query $"""
                         SELECT COUNT(DISTINCT id) AS {countName}
                           FROM {Table.Post}
                          WHERE {Query.whereDataContains "@criteria"}
-                           AND ({catIdSql})"""
-                    |> Sql.parameters (
-                        ("@criteria",
-                            Query.jsonbDocParam {| webLogDoc webLogId with Status = PostStatus.toString Published |})
-                        :: catIdParams)
+                           AND {catIdSql}"""
+                    |> Sql.parameters
+                        [   "@criteria",
+                                Query.jsonbDocParam {| webLogDoc webLogId with Status = PostStatus.toString Published |}
+                            catIdParams
+                        ]
                     |> Sql.executeRowAsync Map.toCount
                     |> Async.AwaitTask
                     |> Async.RunSynchronously
@@ -70,10 +72,12 @@ type PostgresCategoryData (source : NpgsqlDataSource) =
     }
     /// Find a category by its ID for the given web log
     let findById catId webLogId =
+        log.LogTrace "Category.findById"
         Document.findByIdAndWebLog<CategoryId, Category> source Table.Category catId CategoryId.toString webLogId
     
     /// Find all categories for the given web log
     let findByWebLog webLogId =
+        log.LogTrace "Category.findByWebLog"
         Document.findByWebLog<Category> source Table.Category webLogId
     
     /// Create parameters for a category insert / update
@@ -82,6 +86,7 @@ type PostgresCategoryData (source : NpgsqlDataSource) =
     
     /// Delete a category
     let delete catId webLogId = backgroundTask {
+        log.LogTrace "Category.delete"
         match! findById catId webLogId with
         | Some cat ->
             // Reassign any children to the category's parent category
@@ -100,8 +105,8 @@ type PostgresCategoryData (source : NpgsqlDataSource) =
             // Delete the category off all posts where it is assigned
             let! posts =
                 Sql.fromDataSource source
-                |> Sql.query $"SELECT data FROM {Table.Post} WHERE data->'{nameof Post.empty.CategoryIds}' ? @id"
-                |> Sql.parameters [ "@id", Sql.jsonb (CategoryId.toString catId) ]
+                |> Sql.query $"SELECT data FROM {Table.Post} WHERE data -> '{nameof Post.empty.CategoryIds}' @> @id"
+                |> Sql.parameters [ "@id", Query.jsonbDocParam [| CategoryId.toString catId |] ]
                 |> Sql.executeAsync fromData<Post>
             if not (List.isEmpty posts) then
                 let! _ =
@@ -125,11 +130,13 @@ type PostgresCategoryData (source : NpgsqlDataSource) =
     
     /// Save a category
     let save (cat : Category) = backgroundTask {
+        log.LogTrace "Category.save"
         do! Sql.fromDataSource source |> Query.save Table.Category (CategoryId.toString cat.Id) cat
     }
     
     /// Restore categories from a backup
     let restore cats = backgroundTask {
+        log.LogTrace "Category.restore"
         let! _ =
             Sql.fromDataSource source
             |> Sql.executeTransactionAsync [

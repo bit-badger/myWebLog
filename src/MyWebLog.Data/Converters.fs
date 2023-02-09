@@ -165,6 +165,7 @@ module Json =
                 Converters                     = ser.Converters,
                 DefaultValueHandling           = ser.DefaultValueHandling,
                 DateFormatHandling             = ser.DateFormatHandling,
+                DateParseHandling              = ser.DateParseHandling,
                 MetadataPropertyHandling       = ser.MetadataPropertyHandling,
                 MissingMemberHandling          = ser.MissingMemberHandling,
                 NullValueHandling              = ser.NullValueHandling,

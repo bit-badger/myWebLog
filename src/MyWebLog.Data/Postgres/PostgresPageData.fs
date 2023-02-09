@@ -14,59 +14,55 @@ type PostgresPageData (source : NpgsqlDataSource, log : ILogger) =
     
     /// Append revisions to a page
     let appendPageRevisions (page : Page) = backgroundTask {
-        log.LogTrace "PostgresPageData.appendPageRevisions"
+        log.LogTrace "Page.appendPageRevisions"
         let! revisions = Revisions.findByEntityId source Table.PageRevision Table.Page page.Id PageId.toString
         return { page with Revisions = revisions }
     }
     
     /// Return a page with no text or revisions
     let pageWithoutText (row : RowReader) =
-        log.LogDebug ("data: {0}", row.string "data")
         { fromData<Page> row with Text = "" }
     
     /// Update a page's revisions
     let updatePageRevisions pageId oldRevs newRevs =
-        log.LogTrace "PostgresPageData.updatePageRevisions"
+        log.LogTrace "Page.updatePageRevisions"
         Revisions.update source Table.PageRevision Table.Page pageId PageId.toString oldRevs newRevs
     
     /// Does the given page exist?
     let pageExists pageId webLogId =
+        log.LogTrace "Page.pageExists"
         Document.existsByWebLog source Table.Page pageId PageId.toString webLogId
-    
-    /// Select pages via a JSON document containment query
-    let pageByCriteria =
-        $"""{Query.selectFromTable Table.Page} WHERE {Query.whereDataContains "@criteria"}"""
     
     // IMPLEMENTATION FUNCTIONS
     
     /// Get all pages for a web log (without text or revisions)
     let all webLogId =
-        log.LogTrace "PostgresPageData.all"
+        log.LogTrace "Page.all"
         Sql.fromDataSource source
-        |> Sql.query $"{pageByCriteria} ORDER BY LOWER(data->>'{nameof Page.empty.Title}')"
+        |> Sql.query $"{selectWithCriteria Table.Page} ORDER BY LOWER(data ->> '{nameof Page.empty.Title}')"
         |> Sql.parameters [ webLogContains webLogId ]
         |> Sql.executeAsync fromData<Page>
     
     /// Count all pages for the given web log
     let countAll webLogId =
-        log.LogTrace "PostgresPageData.countAll"
+        log.LogTrace "Page.countAll"
         Sql.fromDataSource source
         |> Query.countByContains Table.Page (webLogDoc webLogId)
     
     /// Count all pages shown in the page list for the given web log
     let countListed webLogId =
-        log.LogTrace "PostgresPageData.countListed"
+        log.LogTrace "Page.countListed"
         Sql.fromDataSource source
         |> Query.countByContains Table.Page {| webLogDoc webLogId with IsInPageList = true |}
     
     /// Find a page by its ID (without revisions)
     let findById pageId webLogId =
-        log.LogTrace "PostgresPageData.findById"
+        log.LogTrace "Page.findById"
         Document.findByIdAndWebLog<PageId, Page> source Table.Page pageId PageId.toString webLogId
     
     /// Find a complete page by its ID
     let findFullById pageId webLogId = backgroundTask {
-        log.LogTrace "PostgresPageData.findFullById"
+        log.LogTrace "Page.findFullById"
         match! findById pageId webLogId with
         | Some page ->
             let! withMore = appendPageRevisions page
@@ -76,7 +72,7 @@ type PostgresPageData (source : NpgsqlDataSource, log : ILogger) =
     
     /// Delete a page by its ID
     let delete pageId webLogId = backgroundTask {
-        log.LogTrace "PostgresPageData.delete"
+        log.LogTrace "Page.delete"
         match! pageExists pageId webLogId with
         | true ->
             do! Sql.fromDataSource source |> Query.deleteById Table.Page (PageId.toString pageId)
@@ -86,34 +82,33 @@ type PostgresPageData (source : NpgsqlDataSource, log : ILogger) =
     
     /// Find a page by its permalink for the given web log
     let findByPermalink permalink webLogId =
-        log.LogTrace "PostgresPageData.findByPermalink"
+        log.LogTrace "Page.findByPermalink"
         Sql.fromDataSource source
         |> Query.findByContains<Page> Table.Page {| webLogDoc webLogId with Permalink = Permalink.toString permalink |}
         |> tryHead
     
     /// Find the current permalink within a set of potential prior permalinks for the given web log
     let findCurrentPermalink permalinks webLogId = backgroundTask {
-        log.LogTrace "PostgresPageData.findCurrentPermalink"
+        log.LogTrace "Page.findCurrentPermalink"
         if List.isEmpty permalinks then return None
         else
-            let linkSql, linkParams =
-                jsonArrayInClause (nameof Page.empty.PriorPermalinks) Permalink.toString permalinks
+            let linkSql, linkParam =
+                arrayContains (nameof Page.empty.PriorPermalinks) Permalink.toString permalinks
             return!
-                // TODO: stopped here
                 Sql.fromDataSource source
                 |> Sql.query $"""
-                    SELECT data->>'{nameof Page.empty.Permalink}' AS permalink
+                    SELECT data ->> '{nameof Page.empty.Permalink}' AS permalink
                       FROM page
                      WHERE {Query.whereDataContains "@criteria"}
-                       AND ({linkSql})"""
-                |> Sql.parameters (webLogContains webLogId :: linkParams)
+                       AND {linkSql}"""
+                |> Sql.parameters [ webLogContains webLogId; linkParam ]
                 |> Sql.executeAsync Map.toPermalink
                 |> tryHead
     }
     
     /// Get all complete pages for the given web log
     let findFullByWebLog webLogId = backgroundTask {
-        log.LogTrace "PostgresPageData.findFullByWebLog"
+        log.LogTrace "Page.findFullByWebLog"
         let! pages     = Document.findByWebLog<Page> source Table.Page webLogId
         let! revisions = Revisions.findByWebLog source Table.PageRevision Table.Page PageId webLogId 
         return
@@ -124,30 +119,26 @@ type PostgresPageData (source : NpgsqlDataSource, log : ILogger) =
     
     /// Get all listed pages for the given web log (without revisions or text)
     let findListed webLogId =
-        log.LogTrace "PostgresPageData.findListed"
+        log.LogTrace "Page.findListed"
         Sql.fromDataSource source
-        |> Sql.query $"{pageByCriteria} ORDER BY LOWER(data->>'{nameof Page.empty.Title}')"
+        |> Sql.query $"{selectWithCriteria Table.Page} ORDER BY LOWER(data ->> '{nameof Page.empty.Title}')"
         |> Sql.parameters [ "@criteria", Query.jsonbDocParam {| webLogDoc webLogId with IsInPageList = true |} ]
         |> Sql.executeAsync pageWithoutText
     
     /// Get a page of pages for the given web log (without revisions)
     let findPageOfPages webLogId pageNbr =
-        log.LogTrace "PostgresPageData.findPageOfPages"
+        log.LogTrace "Page.findPageOfPages"
         Sql.fromDataSource source
         |> Sql.query $"
-            {pageByCriteria}
+            {selectWithCriteria Table.Page}
              ORDER BY LOWER(data->>'{nameof Page.empty.Title}')
              LIMIT @pageSize OFFSET @toSkip"
         |> Sql.parameters [ webLogContains webLogId; "@pageSize", Sql.int 26; "@toSkip", Sql.int ((pageNbr - 1) * 25) ]
         |> Sql.executeAsync fromData<Page>
     
-    /// The parameters for saving a page
-    let pageParams (page : Page) =
-        Query.docParameters (PageId.toString page.Id) page
-
     /// Restore pages from a backup
     let restore (pages : Page list) = backgroundTask {
-        log.LogTrace "PostgresPageData.restore"
+        log.LogTrace "Page.restore"
         let revisions = pages |> List.collect (fun p -> p.Revisions |> List.map (fun r -> p.Id, r))
         let! _ =
             Sql.fromDataSource source
@@ -163,16 +154,16 @@ type PostgresPageData (source : NpgsqlDataSource, log : ILogger) =
     
     /// Save a page
     let save (page : Page) = backgroundTask {
-        log.LogTrace "PostgresPageData.save"
+        log.LogTrace "Page.save"
         let! oldPage = findFullById page.Id page.WebLogId
-        do! Sql.fromDataSource source |> Query.save Table.Page (PageId.toString page.Id) page
+        do! Sql.fromDataSource source |> Query.save Table.Page (PageId.toString page.Id) { page with Revisions = [] }
         do! updatePageRevisions page.Id (match oldPage with Some p -> p.Revisions | None -> []) page.Revisions
         ()
     }
     
     /// Update a page's prior permalinks
     let updatePriorPermalinks pageId webLogId permalinks = backgroundTask {
-        log.LogTrace "PostgresPageData.updatePriorPermalinks"
+        log.LogTrace "Page.updatePriorPermalinks"
         match! findById pageId webLogId with
         | Some page ->
             do! Sql.fromDataSource source

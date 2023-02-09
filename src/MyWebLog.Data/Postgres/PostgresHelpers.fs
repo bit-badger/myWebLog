@@ -86,6 +86,10 @@ let countName = "the_count"
 /// The name of the field to select to be able to use Map.toExists
 let existsName = "does_exist"
 
+/// A SQL string to select data from a table with the given JSON document contains criteria
+let selectWithCriteria tableName =
+    $"""{Query.selectFromTable tableName} WHERE {Query.whereDataContains "@criteria"}"""
+
 /// Create the SQL and parameters for an IN clause
 let inClause<'T> colNameAndPrefix paramName (valueFunc: 'T -> string) (items : 'T list) =
     if List.isEmpty items then "", []
@@ -102,22 +106,11 @@ let inClause<'T> colNameAndPrefix paramName (valueFunc: 'T -> string) (items : '
              |> Seq.head)
         |> function sql, ps -> $"{sql})", ps
 
-/// Create the SQL and parameters for the array-in-JSON equivalent of an IN clause
-let jsonArrayInClause<'T> name (valueFunc : 'T -> string) (items : 'T list) =
-    if List.isEmpty items then "TRUE = FALSE", []
-    else
-        let mutable idx = 0
-        items
-        |> List.skip 1
-        |> List.fold (fun (itemS, itemP) it ->
-            idx <- idx + 1
-            $"{itemS} OR data->'%s{name}' ? @{name}{idx}",
-            ($"@{name}{idx}", Sql.jsonb (valueFunc it)) :: itemP)
-            (Seq.ofList items
-             |> Seq.map (fun it ->
-                 $"data->'{name}' ? @{name}0", [ $"@{name}0", Sql.string (valueFunc it) ])
-             |> Seq.head)
-    
+/// Create the SQL and parameters for match-any array query
+let arrayContains<'T> name (valueFunc : 'T -> string) (items : 'T list) =
+    $"data['{name}'] ?| @{name}Values",
+    ($"@{name}Values", Sql.stringArray (items |> List.map valueFunc |> Array.ofList))
+
 /// Get the first result of the given query
 let tryHead<'T> (query : Task<'T list>) = backgroundTask {
     let! results = query

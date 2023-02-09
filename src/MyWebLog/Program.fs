@@ -43,7 +43,7 @@ module DataImplementation =
     let createNpgsqlDataSource (cfg : IConfiguration) =
         let builder = NpgsqlDataSourceBuilder (cfg.GetConnectionString "PostgreSQL")
         let _ = builder.UseNodaTime ()
-        let _ = builder.UseLoggerFactory(LoggerFactory.Create(fun it -> it.AddConsole () |> ignore))
+        // let _ = builder.UseLoggerFactory(LoggerFactory.Create(fun it -> it.AddConsole () |> ignore))
         builder.Build ()
 
     /// Get the configured data implementation
@@ -71,8 +71,7 @@ module DataImplementation =
             let source = createNpgsqlDataSource config
             use conn = source.CreateConnection ()
             let log  = sp.GetRequiredService<ILogger<PostgresData>> ()
-            log.LogWarning (sprintf "%s %s" conn.DataSource conn.Database)
-            log.LogInformation $"Using PostgreSQL database {conn.Host}:{conn.Port}/{conn.Database}"
+            log.LogInformation $"Using PostgreSQL database {conn.Database}"
             PostgresData (source, log, Json.configure (JsonSerializer.CreateDefault ()))
         else
             createSQLite "Data Source=./myweblog.db;Cache=Shared"
@@ -167,8 +166,7 @@ let rec main args =
         let _ = builder.Services.AddSingleton<IData> postgres
         let _ =
             builder.Services.AddSingleton<IDistributedCache> (fun sp ->
-                Postgres.DistributedCache ((sp.GetRequiredService<IConfiguration> ()).GetConnectionString "PostgreSQL")
-                :> IDistributedCache)
+                Postgres.DistributedCache (sp.GetRequiredService<NpgsqlDataSource> ()) :> IDistributedCache)
         ()
     | _ -> ()
     

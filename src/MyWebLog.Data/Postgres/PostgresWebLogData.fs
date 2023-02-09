@@ -1,5 +1,6 @@
 ﻿namespace MyWebLog.Data.Postgres
 
+open Microsoft.Extensions.Logging
 open MyWebLog
 open MyWebLog.Data
 open Npgsql
@@ -7,19 +8,22 @@ open Npgsql.FSharp
 open Npgsql.FSharp.Documents
 
 /// PostgreSQL myWebLog web log data implementation        
-type PostgresWebLogData (source : NpgsqlDataSource) =
+type PostgresWebLogData (source : NpgsqlDataSource, log : ILogger) =
     
     /// Add a web log
     let add (webLog : WebLog) =
+        log.LogTrace "WebLog.add"
         Sql.fromDataSource source |> Query.insert Table.WebLog (WebLogId.toString webLog.Id) webLog
     
     /// Retrieve all web logs
     let all () =
+        log.LogTrace "WebLog.all"
         Sql.fromDataSource source
         |> Query.all<WebLog> Table.WebLog
     
     /// Delete a web log by its ID
     let delete webLogId = backgroundTask {
+        log.LogTrace "WebLog.delete"
         let criteria = Query.whereDataContains "@criteria"
         let! _ =
             Sql.fromDataSource source
@@ -40,23 +44,27 @@ type PostgresWebLogData (source : NpgsqlDataSource) =
     
     /// Find a web log by its host (URL base)
     let findByHost (url : string) =
+        log.LogTrace "WebLog.findByHost"
         Sql.fromDataSource source
-        |> Sql.query $"""{Query.selectFromTable Table.WebLog} WHERE {Query.whereDataContains "@criteria"}"""
+        |> Sql.query (selectWithCriteria Table.WebLog)
         |> Sql.parameters [ "@criteria", Query.jsonbDocParam {| UrlBase = url |} ]
         |> Sql.executeAsync fromData<WebLog>
         |> tryHead
     
     /// Find a web log by its ID
     let findById webLogId = 
+        log.LogTrace "WebLog.findById"
         Sql.fromDataSource source
         |> Query.tryById<WebLog> Table.WebLog (WebLogId.toString webLogId)
     
     /// Update settings for a web log
     let updateSettings (webLog : WebLog) =
+        log.LogTrace "WebLog.updateSettings"
         Sql.fromDataSource source |> Query.update Table.WebLog (WebLogId.toString webLog.Id) webLog
     
     /// Update RSS options for a web log
     let updateRssOptions (webLog : WebLog) = backgroundTask {
+        log.LogTrace "WebLog.updateRssOptions"
         match! findById webLog.Id with
         | Some blog ->
             do! Sql.fromDataSource source

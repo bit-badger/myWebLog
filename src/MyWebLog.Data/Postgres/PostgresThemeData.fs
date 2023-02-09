@@ -1,14 +1,14 @@
 ﻿namespace MyWebLog.Data.Postgres
 
+open Microsoft.Extensions.Logging
 open MyWebLog
 open MyWebLog.Data
-open Newtonsoft.Json
 open Npgsql
 open Npgsql.FSharp
 open Npgsql.FSharp.Documents
 
 /// PostreSQL myWebLog theme data implementation        
-type PostgresThemeData (source : NpgsqlDataSource) =
+type PostgresThemeData (source : NpgsqlDataSource, log : ILogger) =
     
     /// Clear out the template text from a theme
     let withoutTemplateText row =
@@ -17,22 +17,26 @@ type PostgresThemeData (source : NpgsqlDataSource) =
     
     /// Retrieve all themes (except 'admin'; excludes template text)
     let all () =
+        log.LogTrace "Theme.all"
         Sql.fromDataSource source
         |> Sql.query $"{Query.selectFromTable Table.Theme} WHERE id <> 'admin' ORDER BY id"
         |> Sql.executeAsync withoutTemplateText
     
     /// Does a given theme exist?
     let exists themeId =
+        log.LogTrace "Theme.exists"
         Sql.fromDataSource source
         |> Query.existsById Table.Theme (ThemeId.toString themeId)
     
     /// Find a theme by its ID
     let findById themeId =
+        log.LogTrace "Theme.findById"
         Sql.fromDataSource source
         |> Query.tryById<Theme> Table.Theme (ThemeId.toString themeId)
     
     /// Find a theme by its ID (excludes the text of templates)
     let findByIdWithoutText themeId =
+        log.LogTrace "Theme.findByIdWithoutText"
         Sql.fromDataSource source
         |> Sql.query $"{Query.selectFromTable Table.Theme} WHERE id = @id"
         |> Sql.parameters [ "@id", Sql.string (ThemeId.toString themeId) ]
@@ -41,6 +45,7 @@ type PostgresThemeData (source : NpgsqlDataSource) =
     
     /// Delete a theme by its ID
     let delete themeId = backgroundTask {
+        log.LogTrace "Theme.delete"
         match! exists themeId with
         | true ->
             do! Sql.fromDataSource source |> Query.deleteById Table.Theme (ThemeId.toString themeId)
@@ -50,6 +55,7 @@ type PostgresThemeData (source : NpgsqlDataSource) =
     
     /// Save a theme
     let save (theme : Theme) =
+        log.LogTrace "Theme.save"
         Sql.fromDataSource source |> Query.save Table.Theme (ThemeId.toString theme.Id) theme
     
     interface IThemeData with
@@ -62,16 +68,18 @@ type PostgresThemeData (source : NpgsqlDataSource) =
 
 
 /// PostreSQL myWebLog theme data implementation        
-type PostgresThemeAssetData (source : NpgsqlDataSource) =
+type PostgresThemeAssetData (source : NpgsqlDataSource, log : ILogger) =
     
     /// Get all theme assets (excludes data)
     let all () =
+        log.LogTrace "ThemeAsset.all"
         Sql.fromDataSource source
         |> Sql.query $"SELECT theme_id, path, updated_on FROM {Table.ThemeAsset}"
         |> Sql.executeAsync (Map.toThemeAsset false)
     
     /// Delete all assets for the given theme
     let deleteByTheme themeId = backgroundTask {
+        log.LogTrace "ThemeAsset.deleteByTheme"
         let! _ =
             Sql.fromDataSource source
             |> Sql.query $"DELETE FROM {Table.ThemeAsset} WHERE theme_id = @themeId"
@@ -82,6 +90,7 @@ type PostgresThemeAssetData (source : NpgsqlDataSource) =
     
     /// Find a theme asset by its ID
     let findById assetId =
+        log.LogTrace "ThemeAsset.findById"
         let (ThemeAssetId (ThemeId themeId, path)) = assetId
         Sql.fromDataSource source
         |> Sql.query $"SELECT * FROM {Table.ThemeAsset} WHERE theme_id = @themeId AND path = @path"
@@ -91,6 +100,7 @@ type PostgresThemeAssetData (source : NpgsqlDataSource) =
     
     /// Get theme assets for the given theme (excludes data)
     let findByTheme themeId =
+        log.LogTrace "ThemeAsset.findByTheme"
         Sql.fromDataSource source
         |> Sql.query $"SELECT theme_id, path, updated_on FROM {Table.ThemeAsset} WHERE theme_id = @themeId"
         |> Sql.parameters [ "@themeId", Sql.string (ThemeId.toString themeId) ]
@@ -98,6 +108,7 @@ type PostgresThemeAssetData (source : NpgsqlDataSource) =
     
     /// Get theme assets for the given theme
     let findByThemeWithData themeId =
+        log.LogTrace "ThemeAsset.findByThemeWithData"
         Sql.fromDataSource source
         |> Sql.query $"SELECT * FROM {Table.ThemeAsset} WHERE theme_id = @themeId"
         |> Sql.parameters [ "@themeId", Sql.string (ThemeId.toString themeId) ]
@@ -105,6 +116,7 @@ type PostgresThemeAssetData (source : NpgsqlDataSource) =
     
     /// Save a theme asset
     let save (asset : ThemeAsset) = backgroundTask {
+        log.LogTrace "ThemeAsset.save"
         let (ThemeAssetId (ThemeId themeId, path)) = asset.Id
         let! _ =
             Sql.fromDataSource source

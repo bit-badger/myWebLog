@@ -152,19 +152,20 @@ type PostgresData (source : NpgsqlDataSource, log : ILogger<PostgresData>, ser :
         
     interface IData with
         
-        member _.Category   = PostgresCategoryData   source
+        member _.Category   = PostgresCategoryData   (source, log)
         member _.Page       = PostgresPageData       (source, log)
-        member _.Post       = PostgresPostData       source
-        member _.TagMap     = PostgresTagMapData     source
-        member _.Theme      = PostgresThemeData      source
-        member _.ThemeAsset = PostgresThemeAssetData source
-        member _.Upload     = PostgresUploadData     source
-        member _.WebLog     = PostgresWebLogData     source
-        member _.WebLogUser = PostgresWebLogUserData source
+        member _.Post       = PostgresPostData       (source, log)
+        member _.TagMap     = PostgresTagMapData     (source, log)
+        member _.Theme      = PostgresThemeData      (source, log)
+        member _.ThemeAsset = PostgresThemeAssetData (source, log)
+        member _.Upload     = PostgresUploadData     (source, log)
+        member _.WebLog     = PostgresWebLogData     (source, log)
+        member _.WebLogUser = PostgresWebLogUserData (source, log)
         
         member _.Serializer = ser
         
         member _.StartUp () = backgroundTask {
+            log.LogTrace "PostgresData.StartUp"
             do! ensureTables ()
             
             let! version =

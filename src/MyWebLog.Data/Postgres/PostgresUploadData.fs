@@ -1,12 +1,13 @@
 ﻿namespace MyWebLog.Data.Postgres
 
+open Microsoft.Extensions.Logging
 open MyWebLog
 open MyWebLog.Data
 open Npgsql
 open Npgsql.FSharp
 
 /// PostgreSQL myWebLog uploaded file data implementation        
-type PostgresUploadData (source : NpgsqlDataSource) =
+type PostgresUploadData (source : NpgsqlDataSource, log : ILogger) =
 
     /// The INSERT statement for an uploaded file
     let upInsert = $"
@@ -27,6 +28,7 @@ type PostgresUploadData (source : NpgsqlDataSource) =
     
     /// Save an uploaded file
     let add upload = backgroundTask {
+        log.LogTrace "Upload.add"
         let! _ =
             Sql.fromDataSource source
             |> Sql.query upInsert
@@ -37,6 +39,7 @@ type PostgresUploadData (source : NpgsqlDataSource) =
     
     /// Delete an uploaded file by its ID
     let delete uploadId webLogId = backgroundTask {
+        log.LogTrace "Upload.delete"
         let idParam = [ "@id", Sql.string (UploadId.toString uploadId) ]
         let! path =
             Sql.fromDataSource source
@@ -56,6 +59,7 @@ type PostgresUploadData (source : NpgsqlDataSource) =
     
     /// Find an uploaded file by its path for the given web log
     let findByPath path webLogId =
+        log.LogTrace "Upload.findByPath"
         Sql.fromDataSource source
         |> Sql.query $"SELECT * FROM {Table.Upload} WHERE web_log_id = @webLogId AND path = @path"
         |> Sql.parameters [ webLogIdParam webLogId; "@path", Sql.string path ]
@@ -64,6 +68,7 @@ type PostgresUploadData (source : NpgsqlDataSource) =
     
     /// Find all uploaded files for the given web log (excludes data)
     let findByWebLog webLogId =
+        log.LogTrace "Upload.findByWebLog"
         Sql.fromDataSource source
         |> Sql.query $"SELECT id, web_log_id, path, updated_on FROM {Table.Upload} WHERE web_log_id = @webLogId"
         |> Sql.parameters [ webLogIdParam webLogId ]
@@ -71,6 +76,7 @@ type PostgresUploadData (source : NpgsqlDataSource) =
     
     /// Find all uploaded files for the given web log
     let findByWebLogWithData webLogId =
+        log.LogTrace "Upload.findByWebLogWithData"
         Sql.fromDataSource source
         |> Sql.query $"SELECT * FROM {Table.Upload} WHERE web_log_id = @webLogId"
         |> Sql.parameters [ webLogIdParam webLogId ]
@@ -78,12 +84,11 @@ type PostgresUploadData (source : NpgsqlDataSource) =
     
     /// Restore uploads from a backup
     let restore uploads = backgroundTask {
+        log.LogTrace "Upload.restore"
         for batch in uploads |> List.chunkBySize 5 do
             let! _ =
                 Sql.fromDataSource source
-                |> Sql.executeTransactionAsync [
-                    upInsert, batch |> List.map upParams
-                ]
+                |> Sql.executeTransactionAsync [ upInsert, batch |> List.map upParams ]
             ()
     }
     
