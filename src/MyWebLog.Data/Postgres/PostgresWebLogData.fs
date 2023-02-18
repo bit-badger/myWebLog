@@ -23,19 +23,19 @@ type PostgresWebLogData (source : NpgsqlDataSource, log : ILogger) =
     /// Delete a web log by its ID
     let delete webLogId = backgroundTask {
         log.LogTrace "WebLog.delete"
-        let criteria = Query.whereDataContains "@criteria"
         let! _ =
             Sql.fromDataSource source
-            |> Sql.query $"
+            |> Sql.query $"""
                 DELETE FROM {Table.PostComment}
-                 WHERE data->>'{nameof Comment.empty.PostId}' IN (SELECT id FROM {Table.Post} WHERE {criteria});
-                DELETE FROM {Table.Post}        WHERE {criteria};
-                DELETE FROM {Table.Page}        WHERE {criteria};
-                DELETE FROM {Table.Category}    WHERE {criteria};
-                DELETE FROM {Table.TagMap}      WHERE {criteria};
-                DELETE FROM {Table.Upload}      WHERE web_log_id = @webLogId;
-                DELETE FROM {Table.WebLogUser}  WHERE {criteria};
-                DELETE FROM {Table.WebLog}      WHERE id = @webLogId"
+                 WHERE data ->> '{nameof Comment.empty.PostId}' IN
+                           (SELECT id FROM {Table.Post} WHERE {Query.whereDataContains "@criteria"});
+                {Query.Delete.byContains Table.Post};
+                {Query.Delete.byContains Table.Page};
+                {Query.Delete.byContains Table.Category};
+                {Query.Delete.byContains Table.TagMap};
+                {Query.Delete.byContains Table.WebLogUser};
+                DELETE FROM {Table.Upload} WHERE web_log_id = @webLogId;
+                DELETE FROM {Table.WebLog} WHERE id         = @webLogId"""
             |> Sql.parameters [ webLogIdParam webLogId; webLogContains webLogId ]
             |> Sql.executeNonQueryAsync
         ()
@@ -58,13 +58,13 @@ type PostgresWebLogData (source : NpgsqlDataSource, log : ILogger) =
     /// Update settings for a web log
     let updateSettings (webLog : WebLog) =
         log.LogTrace "WebLog.updateSettings"
-        update Table.WebLog (WebLogId.toString webLog.Id) webLog
+        Update.full Table.WebLog (WebLogId.toString webLog.Id) webLog
     
     /// Update RSS options for a web log
     let updateRssOptions (webLog : WebLog) = backgroundTask {
         log.LogTrace "WebLog.updateRssOptions"
         match! findById webLog.Id with
-        | Some blog -> do! update Table.WebLog (WebLogId.toString webLog.Id) { blog with Rss = webLog.Rss }
+        | Some _ -> do! Update.partialById Table.WebLog (WebLogId.toString webLog.Id) {| Rss = webLog.Rss |}
         | None -> ()
     }
     

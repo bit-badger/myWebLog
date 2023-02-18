@@ -3,7 +3,6 @@ namespace MyWebLog.Data.Postgres
 open Microsoft.Extensions.Logging
 open MyWebLog
 open MyWebLog.Data
-open NodaTime
 open NodaTime.Text
 open Npgsql
 open Npgsql.FSharp
@@ -230,11 +229,11 @@ type PostgresPostData (source : NpgsqlDataSource, log : ILogger) =
     /// Update prior permalinks for a post
     let updatePriorPermalinks postId webLogId permalinks = backgroundTask {
         log.LogTrace "Post.updatePriorPermalinks"
-        match! findById postId webLogId with
-        | Some post ->
-            do! update Table.Post (PostId.toString post.Id) { post with PriorPermalinks = permalinks }
+        match! postExists postId webLogId with
+        | true ->
+            do! Update.partialById Table.Post (PostId.toString postId) {| PriorPermalinks = permalinks |}
             return true
-        | None -> return false
+        | false -> return false
     }
     
     interface IPostData with

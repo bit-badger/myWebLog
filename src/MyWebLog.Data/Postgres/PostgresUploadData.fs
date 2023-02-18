@@ -50,7 +50,7 @@ type PostgresUploadData (source : NpgsqlDataSource, log : ILogger) =
         if Option.isSome path then
             let! _ =
                 Sql.fromDataSource source
-                |> Sql.query $"DELETE FROM {Table.Upload} WHERE id = @id"
+                |> Sql.query (Documents.Query.Delete.byId Table.Upload)
                 |> Sql.parameters idParam
                 |> Sql.executeNonQueryAsync
             return Ok path.Value

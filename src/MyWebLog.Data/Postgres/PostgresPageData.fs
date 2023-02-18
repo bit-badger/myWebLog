@@ -161,11 +161,11 @@ type PostgresPageData (source : NpgsqlDataSource, log : ILogger) =
     /// Update a page's prior permalinks
     let updatePriorPermalinks pageId webLogId permalinks = backgroundTask {
         log.LogTrace "Page.updatePriorPermalinks"
-        match! findById pageId webLogId with
-        | Some page ->
-            do! update Table.Page (PageId.toString page.Id) { page with PriorPermalinks = permalinks }
+        match! pageExists pageId webLogId with
+        | true ->
+            do! Update.partialById Table.Page (PageId.toString pageId) {| PriorPermalinks = permalinks |}
             return true
-        | None -> return false
+        | false -> return false
     }
     
     interface IPageData with

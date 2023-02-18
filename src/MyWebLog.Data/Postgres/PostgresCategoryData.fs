@@ -88,14 +88,17 @@ type PostgresCategoryData (source : NpgsqlDataSource, log : ILogger) =
         match! findById catId webLogId with
         | Some cat ->
             // Reassign any children to the category's parent category
-            let! children = Find.byContains Table.Category {| ParentId = CategoryId.toString catId |}
+            let! children = Find.byContains<Category> Table.Category {| ParentId = CategoryId.toString catId |}
             let hasChildren = not (List.isEmpty children)
             if hasChildren then
                 let! _ =
                     Sql.fromDataSource source
                     |> Sql.executeTransactionAsync [
-                        Query.update Table.Category,
-                        children |> List.map (fun child -> catParameters { child with ParentId = cat.ParentId })
+                        Query.Update.partialById Table.Category,
+                        children |> List.map (fun child -> [
+                            "@id",   Sql.string (CategoryId.toString child.Id)
+                            "@data", Query.jsonbDocParam {| ParentId = cat.ParentId |}
+                        ])
                     ]
                 ()
             // Delete the category off all posts where it is assigned
@@ -108,13 +111,11 @@ type PostgresCategoryData (source : NpgsqlDataSource, log : ILogger) =
                 let! _ =
                     Sql.fromDataSource source
                     |> Sql.executeTransactionAsync [
-                        Query.update Table.Post,
+                        Query.Update.partialById Table.Post,
                         posts |> List.map (fun post -> [
                             "@id",   Sql.string (PostId.toString post.Id)
                             "@data", Query.jsonbDocParam
-                                        { post with
-                                            CategoryIds = post.CategoryIds |> List.filter (fun cat -> cat <> catId)
-                                        }
+                                        {| CategoryIds = post.CategoryIds |> List.filter (fun cat -> cat <> catId) |}
                         ])
                     ]
                 ()

@@ -86,10 +86,10 @@ type PostgresWebLogUserData (source : NpgsqlDataSource, log : ILogger) =
     /// Set a user's last seen date/time to now
     let setLastSeen userId webLogId = backgroundTask {
         log.LogTrace "WebLogUser.setLastSeen"
-        match! findById userId webLogId with
-        | Some user ->
-            do! update Table.WebLogUser (WebLogUserId.toString userId) { user with LastSeenOn = Some (Noda.now ()) } 
-        | None -> ()
+        match! Document.existsByWebLog source Table.WebLogUser userId WebLogUserId.toString webLogId with
+        | true ->
+            do! Update.partialById Table.WebLogUser (WebLogUserId.toString userId) {| LastSeenOn = Some (Noda.now ()) |}
+        | false -> ()
     }
     
     /// Save a user
