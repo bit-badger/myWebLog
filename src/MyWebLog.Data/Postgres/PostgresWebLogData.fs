@@ -13,13 +13,12 @@ type PostgresWebLogData (source : NpgsqlDataSource, log : ILogger) =
     /// Add a web log
     let add (webLog : WebLog) =
         log.LogTrace "WebLog.add"
-        Sql.fromDataSource source |> Query.insert Table.WebLog (WebLogId.toString webLog.Id) webLog
+        insert Table.WebLog (WebLogId.toString webLog.Id) webLog
     
     /// Retrieve all web logs
     let all () =
         log.LogTrace "WebLog.all"
-        Sql.fromDataSource source
-        |> Query.all<WebLog> Table.WebLog
+        all<WebLog> Table.WebLog
     
     /// Delete a web log by its ID
     let delete webLogId = backgroundTask {
@@ -54,21 +53,18 @@ type PostgresWebLogData (source : NpgsqlDataSource, log : ILogger) =
     /// Find a web log by its ID
     let findById webLogId = 
         log.LogTrace "WebLog.findById"
-        Sql.fromDataSource source
-        |> Query.tryById<WebLog> Table.WebLog (WebLogId.toString webLogId)
+        Find.byId<WebLog> Table.WebLog (WebLogId.toString webLogId)
     
     /// Update settings for a web log
     let updateSettings (webLog : WebLog) =
         log.LogTrace "WebLog.updateSettings"
-        Sql.fromDataSource source |> Query.update Table.WebLog (WebLogId.toString webLog.Id) webLog
+        update Table.WebLog (WebLogId.toString webLog.Id) webLog
     
     /// Update RSS options for a web log
     let updateRssOptions (webLog : WebLog) = backgroundTask {
         log.LogTrace "WebLog.updateRssOptions"
         match! findById webLog.Id with
-        | Some blog ->
-            do! Sql.fromDataSource source
-                |> Query.update Table.WebLog (WebLogId.toString webLog.Id) { blog with Rss = webLog.Rss }
+        | Some blog -> do! update Table.WebLog (WebLogId.toString webLog.Id) { blog with Rss = webLog.Rss }
         | None -> ()
     }
     

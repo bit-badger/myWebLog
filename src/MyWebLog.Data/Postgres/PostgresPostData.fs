@@ -111,7 +111,7 @@ type PostgresPostData (source : NpgsqlDataSource, log : ILogger) =
     /// Get all complete posts for the given web log
     let findFullByWebLog webLogId = backgroundTask {
         log.LogTrace "Post.findFullByWebLog"
-        let! posts     = Document.findByWebLog<Post> source Table.Post webLogId
+        let! posts     = Document.findByWebLog<Post> Table.Post webLogId
         let! revisions = Revisions.findByWebLog source Table.PostRevision Table.Post PostId webLogId
         return
             posts
@@ -207,7 +207,7 @@ type PostgresPostData (source : NpgsqlDataSource, log : ILogger) =
     let save (post : Post) = backgroundTask {
         log.LogTrace "Post.save"
         let! oldPost = findFullById post.Id post.WebLogId
-        do! Sql.fromDataSource source |> Query.save Table.Post (PostId.toString post.Id) { post with Revisions = [] }
+        do! save Table.Post (PostId.toString post.Id) { post with Revisions = [] }
         do! updatePostRevisions post.Id (match oldPost with Some p -> p.Revisions | None -> []) post.Revisions
     }
     
@@ -218,7 +218,7 @@ type PostgresPostData (source : NpgsqlDataSource, log : ILogger) =
         let! _ =
             Sql.fromDataSource source
             |> Sql.executeTransactionAsync [
-                Query.insertQuery Table.Post,
+                Query.insert Table.Post,
                 posts
                 |> List.map (fun post -> Query.docParameters (PostId.toString post.Id) { post with Revisions = [] })
                 Revisions.insertSql Table.PostRevision,
@@ -232,8 +232,7 @@ type PostgresPostData (source : NpgsqlDataSource, log : ILogger) =
         log.LogTrace "Post.updatePriorPermalinks"
         match! findById postId webLogId with
         | Some post ->
-            do! Sql.fromDataSource source
-                |> Query.update Table.Post (PostId.toString post.Id) { post with PriorPermalinks = permalinks }
+            do! update Table.Post (PostId.toString post.Id) { post with PriorPermalinks = permalinks }
             return true
         | None -> return false
     }

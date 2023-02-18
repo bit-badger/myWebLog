@@ -185,10 +185,9 @@ module Document =
         |> tryHead
     
     /// Find a document by its ID for the given web log
-    let findByWebLog<'TDoc> source table webLogId : Task<'TDoc list> =
-        Sql.fromDataSource source
-        |> Query.findByContains table (webLogDoc webLogId)
-        
+    let findByWebLog<'TDoc> table webLogId : Task<'TDoc list> =
+        Find.byContains table (webLogDoc webLogId)
+    
 
 /// Functions to support revisions
 module Revisions =

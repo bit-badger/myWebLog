@@ -20,7 +20,7 @@ type PostgresTagMapData (source : NpgsqlDataSource, log : ILogger) =
         log.LogTrace "TagMap.delete"
         let! exists = Document.existsByWebLog source Table.TagMap tagMapId TagMapId.toString webLogId
         if exists then
-            do! Sql.fromDataSource source |> Query.deleteById Table.TagMap (TagMapId.toString tagMapId)
+            do! Delete.byId Table.TagMap (TagMapId.toString tagMapId)
             return true
         else return false
     }
@@ -52,16 +52,15 @@ type PostgresTagMapData (source : NpgsqlDataSource, log : ILogger) =
         |> Sql.executeAsync fromData<TagMap>
     
     /// Save a tag mapping
-    let save (tagMap : TagMap) = backgroundTask {
-        do! Sql.fromDataSource source |> Query.save Table.TagMap (TagMapId.toString tagMap.Id) tagMap
-    }
+    let save (tagMap : TagMap) =
+        save Table.TagMap (TagMapId.toString tagMap.Id) tagMap
     
     /// Restore tag mappings from a backup
     let restore (tagMaps : TagMap list) = backgroundTask {
         let! _ =
             Sql.fromDataSource source
             |> Sql.executeTransactionAsync [
-                Query.insertQuery Table.TagMap,
+                Query.insert Table.TagMap,
                 tagMaps |> List.map (fun tagMap -> Query.docParameters (TagMapId.toString tagMap.Id) tagMap)
             ]
         ()

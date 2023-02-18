@@ -13,14 +13,12 @@ type PostgresCategoryData (source : NpgsqlDataSource, log : ILogger) =
     /// Count all categories for the given web log
     let countAll webLogId =
         log.LogTrace "Category.countAll"
-        Sql.fromDataSource source
-        |> Query.countByContains Table.Category (webLogDoc webLogId)
+        Count.byContains Table.Category (webLogDoc webLogId)
     
     /// Count all top-level categories for the given web log
     let countTopLevel webLogId =
         log.LogTrace "Category.countTopLevel"
-        Sql.fromDataSource source
-        |> Query.countByContains Table.Category {| webLogDoc webLogId with ParentId = None |}
+        Count.byContains Table.Category {| webLogDoc webLogId with ParentId = None |}
     
     /// Retrieve all categories for the given web log in a DotLiquid-friendly format
     let findAllForView webLogId = backgroundTask {
@@ -78,7 +76,7 @@ type PostgresCategoryData (source : NpgsqlDataSource, log : ILogger) =
     /// Find all categories for the given web log
     let findByWebLog webLogId =
         log.LogTrace "Category.findByWebLog"
-        Document.findByWebLog<Category> source Table.Category webLogId
+        Document.findByWebLog<Category> Table.Category webLogId
     
     /// Create parameters for a category insert / update
     let catParameters (cat : Category) =
@@ -90,15 +88,13 @@ type PostgresCategoryData (source : NpgsqlDataSource, log : ILogger) =
         match! findById catId webLogId with
         | Some cat ->
             // Reassign any children to the category's parent category
-            let! children =
-                Sql.fromDataSource source
-                |> Query.findByContains Table.Category {| ParentId = CategoryId.toString catId |}
+            let! children = Find.byContains Table.Category {| ParentId = CategoryId.toString catId |}
             let hasChildren = not (List.isEmpty children)
             if hasChildren then
                 let! _ =
                     Sql.fromDataSource source
                     |> Sql.executeTransactionAsync [
-                        Query.updateQuery Table.Category,
+                        Query.update Table.Category,
                         children |> List.map (fun child -> catParameters { child with ParentId = cat.ParentId })
                     ]
                 ()
@@ -112,7 +108,7 @@ type PostgresCategoryData (source : NpgsqlDataSource, log : ILogger) =
                 let! _ =
                     Sql.fromDataSource source
                     |> Sql.executeTransactionAsync [
-                        Query.updateQuery Table.Post,
+                        Query.update Table.Post,
                         posts |> List.map (fun post -> [
                             "@id",   Sql.string (PostId.toString post.Id)
                             "@data", Query.jsonbDocParam
@@ -123,7 +119,7 @@ type PostgresCategoryData (source : NpgsqlDataSource, log : ILogger) =
                     ]
                 ()
             // Delete the category itself
-            do! Sql.fromDataSource source |> Query.deleteById Table.Category (CategoryId.toString catId)
+            do! Delete.byId Table.Category (CategoryId.toString catId)
             return if hasChildren then ReassignedChildCategories else CategoryDeleted
         | None -> return CategoryNotFound
     }
@@ -131,7 +127,7 @@ type PostgresCategoryData (source : NpgsqlDataSource, log : ILogger) =
     /// Save a category
     let save (cat : Category) = backgroundTask {
         log.LogTrace "Category.save"
-        do! Sql.fromDataSource source |> Query.save Table.Category (CategoryId.toString cat.Id) cat
+        do! save Table.Category (CategoryId.toString cat.Id) cat
     }
     
     /// Restore categories from a backup
@@ -140,7 +136,7 @@ type PostgresCategoryData (source : NpgsqlDataSource, log : ILogger) =
         let! _ =
             Sql.fromDataSource source
             |> Sql.executeTransactionAsync [
-                Query.insertQuery Table.Category, cats |> List.map catParameters
+                Query.insert Table.Category, cats |> List.map catParameters
             ]
         ()
     }

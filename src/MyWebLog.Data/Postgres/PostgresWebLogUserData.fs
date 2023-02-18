@@ -34,7 +34,7 @@ type PostgresWebLogUserData (source : NpgsqlDataSource, log : ILogger) =
             if isAuthor then
                 return Error "User has pages or posts; cannot delete"
             else
-                do! Sql.fromDataSource source |> Query.deleteById Table.WebLogUser usrId
+                do! Delete.byId Table.WebLogUser usrId
                 return Ok true
         | None -> return Error "User does not exist"
     }
@@ -77,7 +77,7 @@ type PostgresWebLogUserData (source : NpgsqlDataSource, log : ILogger) =
         let! _ =
             Sql.fromDataSource source
             |> Sql.executeTransactionAsync [
-                Query.insertQuery Table.WebLogUser,
+                Query.insert Table.WebLogUser,
                 users |> List.map (fun user -> Query.docParameters (WebLogUserId.toString user.Id) user)
             ]
         ()
@@ -88,16 +88,14 @@ type PostgresWebLogUserData (source : NpgsqlDataSource, log : ILogger) =
         log.LogTrace "WebLogUser.setLastSeen"
         match! findById userId webLogId with
         | Some user ->
-            do! Sql.fromDataSource source
-                |> Query.update Table.WebLogUser (WebLogUserId.toString userId)
-                       { user with LastSeenOn = Some (Noda.now ()) } 
+            do! update Table.WebLogUser (WebLogUserId.toString userId) { user with LastSeenOn = Some (Noda.now ()) } 
         | None -> ()
     }
     
     /// Save a user
     let save (user : WebLogUser) =
         log.LogTrace "WebLogUser.save"
-        Sql.fromDataSource source |> Query.save Table.WebLogUser (WebLogUserId.toString user.Id) user
+        save Table.WebLogUser (WebLogUserId.toString user.Id) user
     
     interface IWebLogUserData with
         member _.Add user = save user

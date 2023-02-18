@@ -2,7 +2,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\MyWebLog.Domain\MyWebLog.Domain.fsproj" />
-		<ProjectReference Include="..\Npgsql.FSharp.Documents\Npgsql.FSharp.Documents.fsproj" />
+		<ProjectReference Include="..\..\..\Npgsql.Documents\src\Npgsql.FSharp.Documents\Npgsql.FSharp.Documents.fsproj" />
 	</ItemGroup>
 
 	<ItemGroup>

@@ -25,14 +25,12 @@ type PostgresThemeData (source : NpgsqlDataSource, log : ILogger) =
     /// Does a given theme exist?
     let exists themeId =
         log.LogTrace "Theme.exists"
-        Sql.fromDataSource source
-        |> Query.existsById Table.Theme (ThemeId.toString themeId)
+        Exists.byId Table.Theme (ThemeId.toString themeId)
     
     /// Find a theme by its ID
     let findById themeId =
         log.LogTrace "Theme.findById"
-        Sql.fromDataSource source
-        |> Query.tryById<Theme> Table.Theme (ThemeId.toString themeId)
+        Find.byId<Theme> Table.Theme (ThemeId.toString themeId)
     
     /// Find a theme by its ID (excludes the text of templates)
     let findByIdWithoutText themeId =
@@ -48,7 +46,7 @@ type PostgresThemeData (source : NpgsqlDataSource, log : ILogger) =
         log.LogTrace "Theme.delete"
         match! exists themeId with
         | true ->
-            do! Sql.fromDataSource source |> Query.deleteById Table.Theme (ThemeId.toString themeId)
+            do! Delete.byId Table.Theme (ThemeId.toString themeId)
             return true
         | false -> return false
     }
@@ -56,7 +54,7 @@ type PostgresThemeData (source : NpgsqlDataSource, log : ILogger) =
     /// Save a theme
     let save (theme : Theme) =
         log.LogTrace "Theme.save"
-        Sql.fromDataSource source |> Query.save Table.Theme (ThemeId.toString theme.Id) theme
+        save Table.Theme (ThemeId.toString theme.Id) theme
     
     interface IThemeData with
         member _.All () = all ()

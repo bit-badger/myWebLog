@@ -16,7 +16,7 @@ type PostgresData (source : NpgsqlDataSource, log : ILogger<PostgresData>, ser :
         // Set up the PostgreSQL document store
         Configuration.useDataSource source
         Configuration.useSerializer
-            { new IDocumentSerializer with
+            { new Documents.IDocumentSerializer with
                 member _.Serialize<'T> (it : 'T) : string = Utils.serialize ser it
                 member _.Deserialize<'T> (it : string) : 'T = Utils.deserialize ser it
             }
