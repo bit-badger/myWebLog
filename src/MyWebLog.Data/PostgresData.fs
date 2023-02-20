@@ -1,8 +1,8 @@
 ﻿namespace MyWebLog.Data
 
-open Microsoft.Extensions.Logging
 open BitBadger.Npgsql.Documents
 open BitBadger.Npgsql.FSharp.Documents
+open Microsoft.Extensions.Logging
 open MyWebLog
 open MyWebLog.Data.Postgres
 open Newtonsoft.Json
@@ -139,6 +139,23 @@ type PostgresData (source : NpgsqlDataSource, log : ILogger<PostgresData>, ser :
     let migrate version = backgroundTask {
         match version with
         | Some "v2-rc2" -> ()
+        | Some "v2" ->
+            printfn "** MANUAL DATABASE UPGRADE REQUIRED **\n"
+            printfn "The data structure for PostgreSQL changed significantly between v2-rc2 and v2."
+            printfn "To migrate your data:"
+            printfn " - Using a v2-rc2 executable, back up each web log"
+            printfn " - Drop all tables from the database"
+            printfn " - Using this executable, restore each backup"
+
+            let! webLogs =
+                Configuration.dataSource ()
+                |> Sql.fromDataSource
+                |> Sql.query $"SELECT url_base FROM {Table.WebLog}"
+                |> Sql.executeAsync (fun row -> row.string "url_base")
+            
+            printfn "\nCommands to back up all web logs:"
+            webLogs |> List.iter (printfn "myWebLog backup %s")
+            exit 1
         // Future versions will be inserted here
         | Some _
         | None ->

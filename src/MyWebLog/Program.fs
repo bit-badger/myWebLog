@@ -10,7 +10,7 @@ type WebLogMiddleware (next : RequestDelegate, log : ILogger<WebLogMiddleware>) 
     /// Is the debug level enabled on the logger?
     let isDebug = log.IsEnabled LogLevel.Debug
         
-    member this.InvokeAsync (ctx : HttpContext) = task {
+    member _.InvokeAsync (ctx : HttpContext) = task {
         /// Create the full path of the request
         let path = $"{ctx.Request.Scheme}://{ctx.Request.Host.Value}{ctx.Request.Path.Value}"
         match WebLogCache.tryGet path with
@@ -165,8 +165,8 @@ let rec main args =
                 DataImplementation.createNpgsqlDataSource (sp.GetRequiredService<IConfiguration> ()))
         let _ = builder.Services.AddSingleton<IData> postgres
         let _ =
-            builder.Services.AddSingleton<IDistributedCache> (fun sp ->
-                Postgres.DistributedCache (sp.GetRequiredService<NpgsqlDataSource> ()) :> IDistributedCache)
+            builder.Services.AddSingleton<IDistributedCache> (fun _ ->
+                Postgres.DistributedCache () :> IDistributedCache)
         ()
     | _ -> ()
     
