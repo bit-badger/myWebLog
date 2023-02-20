@@ -12,9 +12,14 @@ let all pageNbr : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     return!
         hashForPage "Pages"
         |> withAntiCsrf ctx
-        |> addToHash "pages"     (pages |> List.map (DisplayPage.fromPageMinimal ctx.WebLog))
+        |> addToHash "pages"     (pages
+                                  |> Seq.ofList
+                                  |> Seq.truncate 25
+                                  |> Seq.map (DisplayPage.fromPageMinimal ctx.WebLog)
+                                  |> List.ofSeq)
         |> addToHash "page_nbr"  pageNbr
         |> addToHash "prev_page" (if pageNbr = 2 then "" else $"/page/{pageNbr - 1}")
+        |> addToHash "has_next"  (List.length pages > 25)
         |> addToHash "next_page" $"/page/{pageNbr + 1}"
         |> adminView "page-list" next ctx
 }

@@ -6,7 +6,7 @@
     {%- assign title_col = "col-12 col-md-5" -%}
     {%- assign link_col  = "col-12 col-md-5" -%}
     {%- assign upd8_col  = "col-12 col-md-2" -%}
-    <form method="post" class="container" hx-target="body">
+    <form method="post" class="container mb-3" hx-target="body">
       <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
       <div class="row mwl-table-heading">
         <div class="{{ title_col }}">
@@ -49,7 +49,7 @@
         </div>
       {%- endfor %}
     </form>
-    {% if page_nbr > 1 or page_count == 25 %}
+    {% if page_nbr > 1 or has_next %}
       <div class="d-flex justify-content-evenly mb-3">
         <div>
           {% if page_nbr > 1 %}
@@ -61,7 +61,7 @@
           {% endif %}
         </div>
         <div class="text-right">
-          {% if page_count == 25 %}
+          {% if has_next %}
             <p>
               <a class="btn btn-secondary" href="{{ "admin/pages" | append: next_page | relative_link }}">
                 Next &raquo;

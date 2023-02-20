@@ -3,7 +3,7 @@
   <a href="{{ "admin/post/new/edit" | relative_link }}" class="btn btn-primary btn-sm mb-3">Write a New Post</a>
   {%- assign post_count = model.posts | size -%}
   {%- if post_count > 0 %}
-    <form method="post" class="container" hx-target="body">
+    <form method="post" class="container mb-3" hx-target="body">
       <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
       {%- assign date_col   = "col-xs-12 col-md-3 col-lg-2" -%}
       {%- assign title_col  = "col-xs-12 col-md-7 col-lg-6 col-xl-5 col-xxl-4" -%}
