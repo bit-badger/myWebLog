@@ -1,12 +1,13 @@
 ﻿namespace MyWebLog.Data
 
 open Microsoft.Extensions.Logging
+open BitBadger.Npgsql.Documents
+open BitBadger.Npgsql.FSharp.Documents
 open MyWebLog
 open MyWebLog.Data.Postgres
 open Newtonsoft.Json
 open Npgsql
 open Npgsql.FSharp
-open Npgsql.FSharp.Documents
 
 /// Data implementation for PostgreSQL
 type PostgresData (source : NpgsqlDataSource, log : ILogger<PostgresData>, ser : JsonSerializer) =
@@ -16,7 +17,7 @@ type PostgresData (source : NpgsqlDataSource, log : ILogger<PostgresData>, ser :
         // Set up the PostgreSQL document store
         Configuration.useDataSource source
         Configuration.useSerializer
-            { new Documents.IDocumentSerializer with
+            { new IDocumentSerializer with
                 member _.Serialize<'T> (it : 'T) : string = Utils.serialize ser it
                 member _.Deserialize<'T> (it : string) : 'T = Utils.deserialize ser it
             }
@@ -131,13 +132,8 @@ type PostgresData (source : NpgsqlDataSource, log : ILogger<PostgresData>, ser :
     }
     
     /// Set a specific database version
-    let setDbVersion version = backgroundTask {
-        let! _ =
-            Sql.fromDataSource source
-            |> Sql.query $"DELETE FROM db_version; INSERT INTO db_version VALUES ('%s{version}')"
-            |> Sql.executeNonQueryAsync
-        ()
-    }
+    let setDbVersion version =
+        Custom.nonQuery $"DELETE FROM db_version; INSERT INTO db_version VALUES ('%s{version}')" []
     
     /// Do required data migration between versions
     let migrate version = backgroundTask {
@@ -152,15 +148,15 @@ type PostgresData (source : NpgsqlDataSource, log : ILogger<PostgresData>, ser :
         
     interface IData with
         
-        member _.Category   = PostgresCategoryData   (source, log)
-        member _.Page       = PostgresPageData       (source, log)
-        member _.Post       = PostgresPostData       (source, log)
-        member _.TagMap     = PostgresTagMapData     (source, log)
-        member _.Theme      = PostgresThemeData      (source, log)
-        member _.ThemeAsset = PostgresThemeAssetData (source, log)
-        member _.Upload     = PostgresUploadData     (source, log)
-        member _.WebLog     = PostgresWebLogData     (source, log)
-        member _.WebLogUser = PostgresWebLogUserData (source, log)
+        member _.Category   = PostgresCategoryData   log
+        member _.Page       = PostgresPageData       log
+        member _.Post       = PostgresPostData       log
+        member _.TagMap     = PostgresTagMapData     log
+        member _.Theme      = PostgresThemeData      log
+        member _.ThemeAsset = PostgresThemeAssetData log
+        member _.Upload     = PostgresUploadData     log
+        member _.WebLog     = PostgresWebLogData     log
+        member _.WebLogUser = PostgresWebLogUserData log
         
         member _.Serializer = ser
         
@@ -168,11 +164,7 @@ type PostgresData (source : NpgsqlDataSource, log : ILogger<PostgresData>, ser :
             log.LogTrace "PostgresData.StartUp"
             do! ensureTables ()
             
-            let! version =
-                Sql.fromDataSource source
-                |> Sql.query "SELECT id FROM db_version"
-                |> Sql.executeAsync (fun row -> row.string "id")
-                |> tryHead
+            let! version = Custom.single "SELECT id FROM db_version" [] (fun row -> row.string "id")
             match version with
             | Some v when v = Utils.currentDbVersion -> ()
             | Some _

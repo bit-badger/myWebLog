@@ -1,13 +1,13 @@
 ﻿namespace MyWebLog.Data.Postgres
 
+open BitBadger.Npgsql.FSharp.Documents
 open Microsoft.Extensions.Logging
 open MyWebLog
 open MyWebLog.Data
-open Npgsql
 open Npgsql.FSharp
 
 /// PostgreSQL myWebLog uploaded file data implementation        
-type PostgresUploadData (source : NpgsqlDataSource, log : ILogger) =
+type PostgresUploadData (log : ILogger) =
 
     /// The INSERT statement for an uploaded file
     let upInsert = $"
@@ -27,32 +27,19 @@ type PostgresUploadData (source : NpgsqlDataSource, log : ILogger) =
     ]
     
     /// Save an uploaded file
-    let add upload = backgroundTask {
+    let add upload =
         log.LogTrace "Upload.add"
-        let! _ =
-            Sql.fromDataSource source
-            |> Sql.query upInsert
-            |> Sql.parameters (upParams upload)
-            |> Sql.executeNonQueryAsync
-        ()
-    }
+        Custom.nonQuery upInsert (upParams upload)
     
     /// Delete an uploaded file by its ID
     let delete uploadId webLogId = backgroundTask {
         log.LogTrace "Upload.delete"
         let idParam = [ "@id", Sql.string (UploadId.toString uploadId) ]
         let! path =
-            Sql.fromDataSource source
-            |> Sql.query $"SELECT path FROM {Table.Upload} WHERE id = @id AND web_log_id = @webLogId"
-            |> Sql.parameters (webLogIdParam webLogId :: idParam)
-            |> Sql.executeAsync (fun row -> row.string "path")
-            |> tryHead
+            Custom.single $"SELECT path FROM {Table.Upload} WHERE id = @id AND web_log_id = @webLogId"
+                          (webLogIdParam webLogId :: idParam) (fun row -> row.string "path")
         if Option.isSome path then
-            let! _ =
-                Sql.fromDataSource source
-                |> Sql.query (Documents.Query.Delete.byId Table.Upload)
-                |> Sql.parameters idParam
-                |> Sql.executeNonQueryAsync
+            do! Custom.nonQuery (Query.Delete.byId Table.Upload) idParam
             return Ok path.Value
         else return Error $"""Upload ID {UploadId.toString uploadId} not found"""
     }
@@ -60,34 +47,28 @@ type PostgresUploadData (source : NpgsqlDataSource, log : ILogger) =
     /// Find an uploaded file by its path for the given web log
     let findByPath path webLogId =
         log.LogTrace "Upload.findByPath"
-        Sql.fromDataSource source
-        |> Sql.query $"SELECT * FROM {Table.Upload} WHERE web_log_id = @webLogId AND path = @path"
-        |> Sql.parameters [ webLogIdParam webLogId; "@path", Sql.string path ]
-        |> Sql.executeAsync (Map.toUpload true)
-        |> tryHead
+        Custom.single $"SELECT * FROM {Table.Upload} WHERE web_log_id = @webLogId AND path = @path"
+                      [ webLogIdParam webLogId; "@path", Sql.string path ] (Map.toUpload true)
     
     /// Find all uploaded files for the given web log (excludes data)
     let findByWebLog webLogId =
         log.LogTrace "Upload.findByWebLog"
-        Sql.fromDataSource source
-        |> Sql.query $"SELECT id, web_log_id, path, updated_on FROM {Table.Upload} WHERE web_log_id = @webLogId"
-        |> Sql.parameters [ webLogIdParam webLogId ]
-        |> Sql.executeAsync (Map.toUpload false)
+        Custom.list $"SELECT id, web_log_id, path, updated_on FROM {Table.Upload} WHERE web_log_id = @webLogId"
+                    [ webLogIdParam webLogId ] (Map.toUpload false)
     
     /// Find all uploaded files for the given web log
     let findByWebLogWithData webLogId =
         log.LogTrace "Upload.findByWebLogWithData"
-        Sql.fromDataSource source
-        |> Sql.query $"SELECT * FROM {Table.Upload} WHERE web_log_id = @webLogId"
-        |> Sql.parameters [ webLogIdParam webLogId ]
-        |> Sql.executeAsync (Map.toUpload true)
+        Custom.list $"SELECT * FROM {Table.Upload} WHERE web_log_id = @webLogId" [ webLogIdParam webLogId ]
+                    (Map.toUpload true)
     
     /// Restore uploads from a backup
     let restore uploads = backgroundTask {
         log.LogTrace "Upload.restore"
         for batch in uploads |> List.chunkBySize 5 do
             let! _ =
-                Sql.fromDataSource source
+                Configuration.dataSource ()
+                |> Sql.fromDataSource
                 |> Sql.executeTransactionAsync [ upInsert, batch |> List.map upParams ]
             ()
     }

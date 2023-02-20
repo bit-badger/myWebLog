@@ -1,20 +1,18 @@
 namespace MyWebLog.Data.Postgres
 
+open BitBadger.Npgsql.FSharp.Documents
 open Microsoft.Extensions.Logging
 open MyWebLog
 open MyWebLog.Data
-open Npgsql
 open Npgsql.FSharp
-open Npgsql.FSharp.Documents
 
 /// PostgreSQL myWebLog user data implementation        
-type PostgresWebLogUserData (source : NpgsqlDataSource, log : ILogger) =
+type PostgresWebLogUserData (log : ILogger) =
     
     /// Find a user by their ID for the given web log
     let findById userId webLogId =
         log.LogTrace "WebLogUser.findById"
-        Document.findByIdAndWebLog<WebLogUserId, WebLogUser>
-            source Table.WebLogUser userId WebLogUserId.toString webLogId
+        Document.findByIdAndWebLog<WebLogUserId, WebLogUser> Table.WebLogUser userId WebLogUserId.toString webLogId
     
     /// Delete a user if they have no posts or pages
     let delete userId webLogId = backgroundTask {
@@ -22,19 +20,19 @@ type PostgresWebLogUserData (source : NpgsqlDataSource, log : ILogger) =
         match! findById userId webLogId with
         | Some _ ->
             let  criteria = Query.whereDataContains "@criteria"
-            let  usrId    = WebLogUserId.toString userId
             let! isAuthor =
-                Sql.fromDataSource source
+                Configuration.dataSource ()
+                |> Sql.fromDataSource
                 |> Sql.query $"
                     SELECT (   EXISTS (SELECT 1 FROM {Table.Page} WHERE {criteria}
                             OR EXISTS (SELECT 1 FROM {Table.Post} WHERE {criteria}))
                         AS {existsName}"
-                |> Sql.parameters [ "@criteria", Query.jsonbDocParam {| AuthorId = usrId |} ]
+                |> Sql.parameters [ "@criteria", Query.jsonbDocParam {| AuthorId = userId |} ]
                 |> Sql.executeRowAsync Map.toExists
             if isAuthor then
                 return Error "User has pages or posts; cannot delete"
             else
-                do! Delete.byId Table.WebLogUser usrId
+                do! Delete.byId Table.WebLogUser (WebLogUserId.toString userId)
                 return Ok true
         | None -> return Error "User does not exist"
     }
@@ -42,30 +40,24 @@ type PostgresWebLogUserData (source : NpgsqlDataSource, log : ILogger) =
     /// Find a user by their e-mail address for the given web log
     let findByEmail (email : string) webLogId =
         log.LogTrace "WebLogUser.findByEmail"
-        Sql.fromDataSource source
-        |> Sql.query (selectWithCriteria Table.WebLogUser)
-        |> Sql.parameters [ "@criteria", Query.jsonbDocParam {| webLogDoc webLogId with Email = email |} ]
-        |> Sql.executeAsync fromData<WebLogUser>
-        |> tryHead
+        Custom.single (selectWithCriteria Table.WebLogUser)
+                      [ "@criteria", Query.jsonbDocParam {| webLogDoc webLogId with Email = email |} ]
+                      fromData<WebLogUser>
     
     /// Get all users for the given web log
     let findByWebLog webLogId =
         log.LogTrace "WebLogUser.findByWebLog"
-        Sql.fromDataSource source
-        |> Sql.query
+        Custom.list
             $"{selectWithCriteria Table.WebLogUser} ORDER BY LOWER(data->>'{nameof WebLogUser.empty.PreferredName}')"
-        |> Sql.parameters [ webLogContains webLogId ]
-        |> Sql.executeAsync fromData<WebLogUser>
+            [ webLogContains webLogId ] fromData<WebLogUser>
     
     /// Find the names of users by their IDs for the given web log
     let findNames webLogId userIds = backgroundTask {
         log.LogTrace "WebLogUser.findNames"
         let idSql, idParams = inClause "AND id" "id" WebLogUserId.toString userIds
         let! users =
-            Sql.fromDataSource source
-            |> Sql.query $"{selectWithCriteria Table.WebLogUser} {idSql}"
-            |> Sql.parameters (webLogContains webLogId :: idParams)
-            |> Sql.executeAsync fromData<WebLogUser>
+            Custom.list $"{selectWithCriteria Table.WebLogUser} {idSql}" (webLogContains webLogId :: idParams)
+                        fromData<WebLogUser>
         return
             users
             |> List.map (fun u -> { Name = WebLogUserId.toString u.Id; Value = WebLogUser.displayName u })
@@ -75,7 +67,8 @@ type PostgresWebLogUserData (source : NpgsqlDataSource, log : ILogger) =
     let restore (users : WebLogUser list) = backgroundTask {
         log.LogTrace "WebLogUser.restore"
         let! _ =
-            Sql.fromDataSource source
+            Configuration.dataSource ()
+            |> Sql.fromDataSource
             |> Sql.executeTransactionAsync [
                 Query.insert Table.WebLogUser,
                 users |> List.map (fun user -> Query.docParameters (WebLogUserId.toString user.Id) user)
@@ -86,7 +79,7 @@ type PostgresWebLogUserData (source : NpgsqlDataSource, log : ILogger) =
     /// Set a user's last seen date/time to now
     let setLastSeen userId webLogId = backgroundTask {
         log.LogTrace "WebLogUser.setLastSeen"
-        match! Document.existsByWebLog source Table.WebLogUser userId WebLogUserId.toString webLogId with
+        match! Document.existsByWebLog Table.WebLogUser userId WebLogUserId.toString webLogId with
         | true ->
             do! Update.partialById Table.WebLogUser (WebLogUserId.toString userId) {| LastSeenOn = Some (Noda.now ()) |}
         | false -> ()

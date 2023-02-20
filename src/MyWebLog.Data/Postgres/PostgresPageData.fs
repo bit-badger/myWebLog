@@ -1,21 +1,20 @@
 namespace MyWebLog.Data.Postgres
 
+open BitBadger.Npgsql.FSharp.Documents
 open Microsoft.Extensions.Logging
 open MyWebLog
 open MyWebLog.Data
-open Npgsql
 open Npgsql.FSharp
-open Npgsql.FSharp.Documents
 
 /// PostgreSQL myWebLog page data implementation        
-type PostgresPageData (source : NpgsqlDataSource, log : ILogger) =
+type PostgresPageData (log : ILogger) =
     
     // SUPPORT FUNCTIONS
     
     /// Append revisions to a page
     let appendPageRevisions (page : Page) = backgroundTask {
         log.LogTrace "Page.appendPageRevisions"
-        let! revisions = Revisions.findByEntityId source Table.PageRevision Table.Page page.Id PageId.toString
+        let! revisions = Revisions.findByEntityId Table.PageRevision Table.Page page.Id PageId.toString
         return { page with Revisions = revisions }
     }
     
@@ -26,22 +25,20 @@ type PostgresPageData (source : NpgsqlDataSource, log : ILogger) =
     /// Update a page's revisions
     let updatePageRevisions pageId oldRevs newRevs =
         log.LogTrace "Page.updatePageRevisions"
-        Revisions.update source Table.PageRevision Table.Page pageId PageId.toString oldRevs newRevs
+        Revisions.update Table.PageRevision Table.Page pageId PageId.toString oldRevs newRevs
     
     /// Does the given page exist?
     let pageExists pageId webLogId =
         log.LogTrace "Page.pageExists"
-        Document.existsByWebLog source Table.Page pageId PageId.toString webLogId
+        Document.existsByWebLog Table.Page pageId PageId.toString webLogId
     
     // IMPLEMENTATION FUNCTIONS
     
     /// Get all pages for a web log (without text or revisions)
     let all webLogId =
         log.LogTrace "Page.all"
-        Sql.fromDataSource source
-        |> Sql.query $"{selectWithCriteria Table.Page} ORDER BY LOWER(data ->> '{nameof Page.empty.Title}')"
-        |> Sql.parameters [ webLogContains webLogId ]
-        |> Sql.executeAsync fromData<Page>
+        Custom.list $"{selectWithCriteria Table.Page} ORDER BY LOWER(data ->> '{nameof Page.empty.Title}')"
+                    [ webLogContains webLogId ] fromData<Page>
     
     /// Count all pages for the given web log
     let countAll webLogId =
@@ -56,7 +53,7 @@ type PostgresPageData (source : NpgsqlDataSource, log : ILogger) =
     /// Find a page by its ID (without revisions)
     let findById pageId webLogId =
         log.LogTrace "Page.findById"
-        Document.findByIdAndWebLog<PageId, Page> source Table.Page pageId PageId.toString webLogId
+        Document.findByIdAndWebLog<PageId, Page> Table.Page pageId PageId.toString webLogId
     
     /// Find a complete page by its ID
     let findFullById pageId webLogId = backgroundTask {
@@ -92,22 +89,18 @@ type PostgresPageData (source : NpgsqlDataSource, log : ILogger) =
             let linkSql, linkParam =
                 arrayContains (nameof Page.empty.PriorPermalinks) Permalink.toString permalinks
             return!
-                Sql.fromDataSource source
-                |> Sql.query $"""
-                    SELECT data ->> '{nameof Page.empty.Permalink}' AS permalink
-                      FROM page
-                     WHERE {Query.whereDataContains "@criteria"}
-                       AND {linkSql}"""
-                |> Sql.parameters [ webLogContains webLogId; linkParam ]
-                |> Sql.executeAsync Map.toPermalink
-                |> tryHead
+                Custom.single
+                    $"""SELECT data ->> '{nameof Page.empty.Permalink}' AS permalink
+                          FROM page
+                         WHERE {Query.whereDataContains "@criteria"}
+                           AND {linkSql}""" [ webLogContains webLogId; linkParam ] Map.toPermalink
     }
     
     /// Get all complete pages for the given web log
     let findFullByWebLog webLogId = backgroundTask {
         log.LogTrace "Page.findFullByWebLog"
         let! pages     = Document.findByWebLog<Page> Table.Page webLogId
-        let! revisions = Revisions.findByWebLog source Table.PageRevision Table.Page PageId webLogId 
+        let! revisions = Revisions.findByWebLog Table.PageRevision Table.Page PageId webLogId 
         return
             pages
             |> List.map (fun it ->
@@ -117,28 +110,27 @@ type PostgresPageData (source : NpgsqlDataSource, log : ILogger) =
     /// Get all listed pages for the given web log (without revisions or text)
     let findListed webLogId =
         log.LogTrace "Page.findListed"
-        Sql.fromDataSource source
-        |> Sql.query $"{selectWithCriteria Table.Page} ORDER BY LOWER(data ->> '{nameof Page.empty.Title}')"
-        |> Sql.parameters [ "@criteria", Query.jsonbDocParam {| webLogDoc webLogId with IsInPageList = true |} ]
-        |> Sql.executeAsync pageWithoutText
+        Custom.list $"{selectWithCriteria Table.Page} ORDER BY LOWER(data ->> '{nameof Page.empty.Title}')"
+                    [ "@criteria", Query.jsonbDocParam {| webLogDoc webLogId with IsInPageList = true |} ]
+                    pageWithoutText
     
     /// Get a page of pages for the given web log (without revisions)
     let findPageOfPages webLogId pageNbr =
         log.LogTrace "Page.findPageOfPages"
-        Sql.fromDataSource source
-        |> Sql.query $"
-            {selectWithCriteria Table.Page}
-             ORDER BY LOWER(data->>'{nameof Page.empty.Title}')
-             LIMIT @pageSize OFFSET @toSkip"
-        |> Sql.parameters [ webLogContains webLogId; "@pageSize", Sql.int 26; "@toSkip", Sql.int ((pageNbr - 1) * 25) ]
-        |> Sql.executeAsync fromData<Page>
+        Custom.list
+            $"{selectWithCriteria Table.Page}
+               ORDER BY LOWER(data->>'{nameof Page.empty.Title}')
+               LIMIT @pageSize OFFSET @toSkip"
+            [ webLogContains webLogId; "@pageSize", Sql.int 26; "@toSkip", Sql.int ((pageNbr - 1) * 25) ]
+            fromData<Page>
     
     /// Restore pages from a backup
     let restore (pages : Page list) = backgroundTask {
         log.LogTrace "Page.restore"
         let revisions = pages |> List.collect (fun p -> p.Revisions |> List.map (fun r -> p.Id, r))
         let! _ =
-            Sql.fromDataSource source
+            Configuration.dataSource ()
+            |> Sql.fromDataSource
             |> Sql.executeTransactionAsync [
                 Query.insert Table.Page,
                 pages

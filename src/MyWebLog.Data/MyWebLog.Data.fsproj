@@ -2,10 +2,10 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\MyWebLog.Domain\MyWebLog.Domain.fsproj" />
-		<ProjectReference Include="..\..\..\Npgsql.Documents\src\Npgsql.FSharp.Documents\Npgsql.FSharp.Documents.fsproj" />
 	</ItemGroup>
 
 	<ItemGroup>
+		<PackageReference Include="BitBadger.Npgsql.FSharp.Documents" Version="1.0.0-beta" />
 		<PackageReference Include="Microsoft.Data.Sqlite" Version="6.0.8" />
 		<PackageReference Include="Microsoft.Extensions.Caching.Abstractions" Version="6.0.0" />
 		<PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="6.0.0" />

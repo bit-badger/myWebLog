@@ -1,14 +1,12 @@
 ﻿namespace MyWebLog.Data.Postgres
 
+open BitBadger.Npgsql.FSharp.Documents
 open Microsoft.Extensions.Logging
 open MyWebLog
 open MyWebLog.Data
-open Npgsql
-open Npgsql.FSharp
-open Npgsql.FSharp.Documents
 
 /// PostgreSQL myWebLog web log data implementation        
-type PostgresWebLogData (source : NpgsqlDataSource, log : ILogger) =
+type PostgresWebLogData (log : ILogger) =
     
     /// Add a web log
     let add (webLog : WebLog) =
@@ -18,15 +16,13 @@ type PostgresWebLogData (source : NpgsqlDataSource, log : ILogger) =
     /// Retrieve all web logs
     let all () =
         log.LogTrace "WebLog.all"
-        all<WebLog> Table.WebLog
+        Find.all<WebLog> Table.WebLog
     
     /// Delete a web log by its ID
-    let delete webLogId = backgroundTask {
+    let delete webLogId =
         log.LogTrace "WebLog.delete"
-        let! _ =
-            Sql.fromDataSource source
-            |> Sql.query $"""
-                DELETE FROM {Table.PostComment}
+        Custom.nonQuery
+            $"""DELETE FROM {Table.PostComment}
                  WHERE data ->> '{nameof Comment.empty.PostId}' IN
                            (SELECT id FROM {Table.Post} WHERE {Query.whereDataContains "@criteria"});
                 {Query.Delete.byContains Table.Post};
@@ -36,19 +32,13 @@ type PostgresWebLogData (source : NpgsqlDataSource, log : ILogger) =
                 {Query.Delete.byContains Table.WebLogUser};
                 DELETE FROM {Table.Upload} WHERE web_log_id = @webLogId;
                 DELETE FROM {Table.WebLog} WHERE id         = @webLogId"""
-            |> Sql.parameters [ webLogIdParam webLogId; webLogContains webLogId ]
-            |> Sql.executeNonQueryAsync
-        ()
-    }
+            [ webLogIdParam webLogId; webLogContains webLogId ]
     
     /// Find a web log by its host (URL base)
     let findByHost (url : string) =
         log.LogTrace "WebLog.findByHost"
-        Sql.fromDataSource source
-        |> Sql.query (selectWithCriteria Table.WebLog)
-        |> Sql.parameters [ "@criteria", Query.jsonbDocParam {| UrlBase = url |} ]
-        |> Sql.executeAsync fromData<WebLog>
-        |> tryHead
+        Custom.single (selectWithCriteria Table.WebLog) [ "@criteria", Query.jsonbDocParam {| UrlBase = url |} ]
+                      fromData<WebLog>
     
     /// Find a web log by its ID
     let findById webLogId = 

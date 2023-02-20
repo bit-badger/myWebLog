@@ -1,14 +1,13 @@
 ﻿namespace MyWebLog.Data.Postgres
 
+open BitBadger.Npgsql.FSharp.Documents
 open Microsoft.Extensions.Logging
 open MyWebLog
 open MyWebLog.Data
-open Npgsql
 open Npgsql.FSharp
-open Npgsql.FSharp.Documents
 
 /// PostgreSQL myWebLog category data implementation
-type PostgresCategoryData (source : NpgsqlDataSource, log : ILogger) =
+type PostgresCategoryData (log : ILogger) =
     
     /// Count all categories for the given web log
     let countAll webLogId =
@@ -24,10 +23,8 @@ type PostgresCategoryData (source : NpgsqlDataSource, log : ILogger) =
     let findAllForView webLogId = backgroundTask {
         log.LogTrace "Category.findAllForView"
         let! cats =
-            Sql.fromDataSource source
-            |> Sql.query $"{selectWithCriteria Table.Category} ORDER BY LOWER(data ->> '{nameof Category.empty.Name}')"
-            |> Sql.parameters [ webLogContains webLogId ]
-            |> Sql.executeAsync fromData<Category>
+            Custom.list $"{selectWithCriteria Table.Category} ORDER BY LOWER(data ->> '{nameof Category.empty.Name}')"
+                        [ webLogContains webLogId ] fromData<Category>
         let ordered = Utils.orderByHierarchy cats None None []
         let counts  =
             ordered
@@ -41,7 +38,8 @@ type PostgresCategoryData (source : NpgsqlDataSource, log : ILogger) =
                     |> List.ofSeq
                     |> arrayContains (nameof Post.empty.CategoryIds) id
                 let postCount =
-                    Sql.fromDataSource source
+                    Configuration.dataSource ()
+                    |> Sql.fromDataSource
                     |> Sql.query $"""
                         SELECT COUNT(DISTINCT id) AS {countName}
                           FROM {Table.Post}
@@ -71,7 +69,7 @@ type PostgresCategoryData (source : NpgsqlDataSource, log : ILogger) =
     /// Find a category by its ID for the given web log
     let findById catId webLogId =
         log.LogTrace "Category.findById"
-        Document.findByIdAndWebLog<CategoryId, Category> source Table.Category catId CategoryId.toString webLogId
+        Document.findByIdAndWebLog<CategoryId, Category> Table.Category catId CategoryId.toString webLogId
     
     /// Find all categories for the given web log
     let findByWebLog webLogId =
@@ -92,7 +90,8 @@ type PostgresCategoryData (source : NpgsqlDataSource, log : ILogger) =
             let hasChildren = not (List.isEmpty children)
             if hasChildren then
                 let! _ =
-                    Sql.fromDataSource source
+                    Configuration.dataSource ()
+                    |> Sql.fromDataSource
                     |> Sql.executeTransactionAsync [
                         Query.Update.partialById Table.Category,
                         children |> List.map (fun child -> [
@@ -103,13 +102,12 @@ type PostgresCategoryData (source : NpgsqlDataSource, log : ILogger) =
                 ()
             // Delete the category off all posts where it is assigned
             let! posts =
-                Sql.fromDataSource source
-                |> Sql.query $"SELECT data FROM {Table.Post} WHERE data -> '{nameof Post.empty.CategoryIds}' @> @id"
-                |> Sql.parameters [ "@id", Query.jsonbDocParam [| CategoryId.toString catId |] ]
-                |> Sql.executeAsync fromData<Post>
+                Custom.list $"SELECT data FROM {Table.Post} WHERE data -> '{nameof Post.empty.CategoryIds}' @> @id"
+                            [ "@id", Query.jsonbDocParam [| CategoryId.toString catId |] ] fromData<Post>
             if not (List.isEmpty posts) then
                 let! _ =
-                    Sql.fromDataSource source
+                    Configuration.dataSource ()
+                    |> Sql.fromDataSource
                     |> Sql.executeTransactionAsync [
                         Query.Update.partialById Table.Post,
                         posts |> List.map (fun post -> [
@@ -135,7 +133,8 @@ type PostgresCategoryData (source : NpgsqlDataSource, log : ILogger) =
     let restore cats = backgroundTask {
         log.LogTrace "Category.restore"
         let! _ =
-            Sql.fromDataSource source
+            Configuration.dataSource ()
+            |> Sql.fromDataSource
             |> Sql.executeTransactionAsync [
                 Query.insert Table.Category, cats |> List.map catParameters
             ]

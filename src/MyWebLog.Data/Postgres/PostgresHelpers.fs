@@ -61,20 +61,20 @@ module Table =
 
 open System
 open System.Threading.Tasks
+open BitBadger.Npgsql.FSharp.Documents
 open MyWebLog
 open MyWebLog.Data
 open NodaTime
 open Npgsql
 open Npgsql.FSharp
-open Npgsql.FSharp.Documents
 
 /// Create a SQL parameter for the web log ID
 let webLogIdParam webLogId =
     "@webLogId", Sql.string (WebLogId.toString webLogId)
 
 /// Create an anonymous record with the given web log ID
-let webLogDoc webLogId =
-    {| WebLogId = WebLogId.toString webLogId |}
+let webLogDoc (webLogId : WebLogId) =
+    {| WebLogId = webLogId |}
 
 /// Create a parameter for a web log document-contains query
 let webLogContains webLogId =
@@ -167,8 +167,9 @@ module Map =
 module Document =
     
     /// Determine whether a document exists with the given key for the given web log
-    let existsByWebLog<'TKey> source table (key : 'TKey) (keyFunc : 'TKey -> string) webLogId =
-        Sql.fromDataSource source
+    let existsByWebLog<'TKey> table (key : 'TKey) (keyFunc : 'TKey -> string) webLogId =
+        Configuration.dataSource ()
+        |> Sql.fromDataSource
         |> Sql.query $"""
             SELECT EXISTS (
                        SELECT 1 FROM %s{table} WHERE id = @id AND {Query.whereDataContains "@criteria"}
@@ -177,12 +178,9 @@ module Document =
         |> Sql.executeRowAsync Map.toExists
     
     /// Find a document by its ID for the given web log
-    let findByIdAndWebLog<'TKey, 'TDoc> source table (key : 'TKey) (keyFunc : 'TKey -> string) webLogId =
-        Sql.fromDataSource source
-        |> Sql.query $"""{Query.selectFromTable table} WHERE id = @id AND {Query.whereDataContains "@criteria"}"""
-        |> Sql.parameters [ "@id", Sql.string (keyFunc key); webLogContains webLogId ]
-        |> Sql.executeAsync fromData<'TDoc>
-        |> tryHead
+    let findByIdAndWebLog<'TKey, 'TDoc> table (key : 'TKey) (keyFunc : 'TKey -> string) webLogId =
+        Custom.single $"""{Query.selectFromTable table} WHERE id = @id AND {Query.whereDataContains "@criteria"}"""
+                      [ "@id", Sql.string (keyFunc key); webLogContains webLogId ] fromData<'TDoc>
     
     /// Find a document by its ID for the given web log
     let findByWebLog<'TDoc> table webLogId : Task<'TDoc list> =
@@ -193,23 +191,19 @@ module Document =
 module Revisions =
     
     /// Find all revisions for the given entity
-    let findByEntityId<'TKey> source revTable entityTable (key : 'TKey) (keyFunc : 'TKey -> string) =
-        Sql.fromDataSource source
-        |> Sql.query $"SELECT as_of, revision_text FROM %s{revTable} WHERE %s{entityTable}_id = @id ORDER BY as_of DESC"
-        |> Sql.parameters [ "@id", Sql.string (keyFunc key) ]
-        |> Sql.executeAsync Map.toRevision
+    let findByEntityId<'TKey> revTable entityTable (key : 'TKey) (keyFunc : 'TKey -> string) =
+        Custom.list $"SELECT as_of, revision_text FROM %s{revTable} WHERE %s{entityTable}_id = @id ORDER BY as_of DESC"
+                    [ "@id", Sql.string (keyFunc key) ] Map.toRevision
     
     /// Find all revisions for all posts for the given web log
-    let findByWebLog<'TKey> source revTable entityTable (keyFunc : string -> 'TKey) webLogId =
-        Sql.fromDataSource source
-        |> Sql.query $"""
-            SELECT pr.*
-              FROM %s{revTable} pr
-                   INNER JOIN %s{entityTable} p ON p.id = pr.{entityTable}_id
-             WHERE p.{Query.whereDataContains "@criteria"}
-             ORDER BY as_of DESC"""
-        |> Sql.parameters [ webLogContains webLogId ]
-        |> Sql.executeAsync (fun row -> keyFunc (row.string $"{entityTable}_id"), Map.toRevision row)
+    let findByWebLog<'TKey> revTable entityTable (keyFunc : string -> 'TKey) webLogId =
+        Custom.list
+            $"""SELECT pr.*
+                  FROM %s{revTable} pr
+                       INNER JOIN %s{entityTable} p ON p.id = pr.{entityTable}_id
+                 WHERE p.{Query.whereDataContains "@criteria"}
+                 ORDER BY as_of DESC"""
+            [ webLogContains webLogId ] (fun row -> keyFunc (row.string $"{entityTable}_id"), Map.toRevision row)
 
     /// Parameters for a revision INSERT statement
     let revParams<'TKey> (key : 'TKey) (keyFunc : 'TKey -> string) rev = [
@@ -223,12 +217,12 @@ module Revisions =
         $"INSERT INTO %s{table} VALUES (@id, @asOf, @text)"
     
     /// Update a page's revisions
-    let update<'TKey>
-            source revTable entityTable (key : 'TKey) (keyFunc : 'TKey -> string) oldRevs newRevs = backgroundTask {
+    let update<'TKey> revTable entityTable (key : 'TKey) (keyFunc : 'TKey -> string) oldRevs newRevs = backgroundTask {
         let toDelete, toAdd = Utils.diffRevisions oldRevs newRevs
         if not (List.isEmpty toDelete) || not (List.isEmpty toAdd) then
             let! _ =
-                Sql.fromDataSource source
+                Configuration.dataSource ()
+                |> Sql.fromDataSource
                 |> Sql.executeTransactionAsync [
                     if not (List.isEmpty toDelete) then
                         $"DELETE FROM %s{revTable} WHERE %s{entityTable}_id = @id AND as_of = @asOf",
