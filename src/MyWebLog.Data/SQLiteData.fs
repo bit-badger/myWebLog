@@ -529,11 +529,18 @@ type SQLiteData (conn : SqliteConnection, log : ILogger<SQLiteData>, ser : JsonS
         do! setDbVersion "v2-rc2"
     }
     
+    /// Migrate from v2-rc2 to v2
+    let migrateV2Rc2ToV2 () = backgroundTask {
+        Utils.logMigrationStep log "v2-rc2 to v2" "Setting database version; no migration required"
+        do! setDbVersion "v2"
+    }
+
     /// Migrate data among versions (up only)
     let migrate version = backgroundTask {
         
         match version with
-        | Some v when v = "v2-rc2" -> ()
+        | Some v when v = "v2" -> ()
+        | Some v when v = "v2-rc2" -> do! migrateV2Rc2ToV2 ()
         | Some v when v = "v2-rc1" -> do! migrateV2Rc1ToV2Rc2 ()
         | Some _
         | None ->

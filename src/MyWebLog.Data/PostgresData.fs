@@ -135,27 +135,37 @@ type PostgresData (source : NpgsqlDataSource, log : ILogger<PostgresData>, ser :
     let setDbVersion version =
         Custom.nonQuery $"DELETE FROM db_version; INSERT INTO db_version VALUES ('%s{version}')" []
     
+    /// Migrate from v2-rc2 to v2 (manual migration required)
+    let migrateV2Rc2ToV2 () = backgroundTask {
+        Utils.logMigrationStep log "v2-rc2 to v2" "Requires user action"
+        
+        let! webLogs =
+            Configuration.dataSource ()
+            |> Sql.fromDataSource
+            |> Sql.query $"SELECT url_base, slug FROM {Table.WebLog}"
+            |> Sql.executeAsync (fun row -> row.string "url_base", row.string "slug")
+        
+        [   "** MANUAL DATABASE UPGRADE REQUIRED **"; ""
+            "The data structure for PostgreSQL changed significantly between v2-rc2 and v2."
+            "To migrate your data:"
+            " - Use a v2-rc2 executable to back up each web log"
+            " - Drop all tables from the database"
+            " - Use this executable to restore each backup"; ""
+            "Commands to back up all web logs:"
+            yield! webLogs |> List.map (fun (url, slug) -> sprintf "./myWebLog backup %s v2-rc2.%s.json" url slug)
+        ]
+        |> String.concat "\n"
+        |> log.LogWarning
+        
+        log.LogCritical "myWebLog will now exit"
+        exit 1
+    }
+
     /// Do required data migration between versions
     let migrate version = backgroundTask {
         match version with
-        | Some "v2-rc2" -> ()
-        | Some "v2" ->
-            printfn "** MANUAL DATABASE UPGRADE REQUIRED **\n"
-            printfn "The data structure for PostgreSQL changed significantly between v2-rc2 and v2."
-            printfn "To migrate your data:"
-            printfn " - Using a v2-rc2 executable, back up each web log"
-            printfn " - Drop all tables from the database"
-            printfn " - Using this executable, restore each backup"
-
-            let! webLogs =
-                Configuration.dataSource ()
-                |> Sql.fromDataSource
-                |> Sql.query $"SELECT url_base FROM {Table.WebLog}"
-                |> Sql.executeAsync (fun row -> row.string "url_base")
-            
-            printfn "\nCommands to back up all web logs:"
-            webLogs |> List.iter (printfn "myWebLog backup %s")
-            exit 1
+        | Some "v2" -> ()
+        | Some "v2-rc2" -> do! migrateV2Rc2ToV2 ()
         // Future versions will be inserted here
         | Some _
         | None ->

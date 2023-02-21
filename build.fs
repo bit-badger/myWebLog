@@ -1,17 +1,11 @@
-#r "paket:
-nuget Fake.DotNet.Cli
-nuget Fake.IO.FileSystem
-nuget Fake.IO.Zip
-nuget Fake.Core.Target //"
-#load ".fake/build.fsx/intellisense.fsx"
 open System.IO
 open Fake.Core
 open Fake.DotNet
 open Fake.IO
 open Fake.IO.Globbing.Operators
-open Fake.Core.TargetOperators
 
-Target.initEnvironment ()
+let execContext = Context.FakeExecutionContext.Create false "build.fsx" []
+Context.setExecutionContext (Context.RuntimeContext.Fake execContext)
 
 /// The output directory for release ZIPs
 let releasePath = "releases"
@@ -105,43 +99,56 @@ Target.create "RemoveThemeArchives" (fun _ ->
 
 Target.create "CI" ignore
 
-"Clean"
-  ==> "All"
+open Fake.Core.TargetOperators
 
-"Clean"
-  ?=> "Build"
-  ==> "All"
+let dependencies = [
+    "Clean"
+      ==> "All"
 
-"Clean"
-  ?=> "ZipDefaultTheme"
-  ==> "All"
+    "Clean"
+      ?=> "Build"
+      ==> "All"
 
-"Clean"
-  ?=> "ZipAdminTheme"
-  ==> "All"
+    "Clean"
+      ?=> "ZipDefaultTheme"
+      ==> "All"
 
-"Build"
-  ==> "PublishWindows"
-  ==> "All"
+    "Clean"
+      ?=> "ZipAdminTheme"
+      ==> "All"
 
-"Build"
-  ==> "PublishLinux"
-  ==> "All"
+    "Build"
+      ==> "PublishWindows"
+      ==> "All"
 
-"PublishWindows"
-  ==> "PackageWindows"
-  ==> "All"
+    "Build"
+      ==> "PublishLinux"
+      ==> "All"
 
-"PublishLinux"
-  ==> "PackageLinux"
-  ==> "All"
+    "PublishWindows"
+      ==> "PackageWindows"
+      ==> "All"
 
-"PackageLinux"
-  ==> "RepackageLinux"
-  ==> "All"
+    "PublishLinux"
+      ==> "PackageLinux"
+      ==> "All"
 
-"All"
-  ==> "RemoveThemeArchives"
-  ==> "CI"
+    "PackageLinux"
+      ==> "RepackageLinux"
+      ==> "All"
 
-Target.runOrDefault "All"
+    "All"
+      ==> "RemoveThemeArchives"
+      ==> "CI"
+]
+
+[<EntryPoint>]
+let main args =
+    try
+        match args with
+        | [| target |] -> Target.runOrDefault target
+        | _ -> Target.runOrDefault "All"
+        0
+    with e ->
+        printfn "%A" e
+        1
