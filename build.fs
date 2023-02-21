@@ -38,7 +38,7 @@ let publishFor rid (_ : TargetParameter) =
 
 /// Package published output for the given runtime ID
 let packageFor (rid : string) (_ : TargetParameter) =
-    let path = $"{projectPath}/bin/Release/net6.0/{rid}/publish"
+    let path = $"{projectPath}/bin/Release/net7.0/{rid}/publish"
     let prodSettings = $"{path}/appsettings.Production.json"
     if File.exists prodSettings then File.delete prodSettings
     [ !! $"{path}/**/*"
