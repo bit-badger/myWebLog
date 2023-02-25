@@ -38,13 +38,7 @@ type PostgresPostData (log : ILogger) =
     /// Count posts in a status for the given web log
     let countByStatus status webLogId =
         log.LogTrace "Post.countByStatus"
-        Configuration.dataSource ()
-        |> Sql.fromDataSource
-        |> Sql.query
-            $"""SELECT COUNT(id) AS {countName} FROM {Table.Post} WHERE {Query.whereDataContains "@criteria"}"""
-        |> Sql.parameters
-            [ "@criteria", Query.jsonbDocParam {| webLogDoc webLogId with Status = PostStatus.toString status |} ]
-        |> Sql.executeRowAsync Map.toCount
+        Count.byContains Table.Post {| webLogDoc webLogId with Status = PostStatus.toString status |}
     
     /// Find a post by its ID for the given web log (excluding revisions)
     let findById postId webLogId =

@@ -38,19 +38,15 @@ type PostgresCategoryData (log : ILogger) =
                     |> List.ofSeq
                     |> arrayContains (nameof Post.empty.CategoryIds) id
                 let postCount =
-                    Configuration.dataSource ()
-                    |> Sql.fromDataSource
-                    |> Sql.query $"""
-                        SELECT COUNT(DISTINCT id) AS {countName}
-                          FROM {Table.Post}
-                         WHERE {Query.whereDataContains "@criteria"}
-                           AND {catIdSql}"""
-                    |> Sql.parameters
+                    Custom.scalar
+                        $"""SELECT COUNT(DISTINCT id) AS {countName}
+                              FROM {Table.Post}
+                             WHERE {Query.whereDataContains "@criteria"}
+                               AND {catIdSql}"""
                         [   "@criteria",
                                 Query.jsonbDocParam {| webLogDoc webLogId with Status = PostStatus.toString Published |}
                             catIdParams
-                        ]
-                    |> Sql.executeRowAsync Map.toCount
+                        ] Map.toCount
                     |> Async.AwaitTask
                     |> Async.RunSynchronously
                 it.Id, postCount)

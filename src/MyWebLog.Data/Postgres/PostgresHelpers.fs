@@ -168,14 +168,11 @@ module Document =
     
     /// Determine whether a document exists with the given key for the given web log
     let existsByWebLog<'TKey> table (key : 'TKey) (keyFunc : 'TKey -> string) webLogId =
-        Configuration.dataSource ()
-        |> Sql.fromDataSource
-        |> Sql.query $"""
-            SELECT EXISTS (
-                       SELECT 1 FROM %s{table} WHERE id = @id AND {Query.whereDataContains "@criteria"}
-                   ) AS {existsName}"""
-        |> Sql.parameters [ "@id", Sql.string (keyFunc key); webLogContains webLogId ]
-        |> Sql.executeRowAsync Map.toExists
+        Custom.scalar
+            $""" SELECT EXISTS (
+                          SELECT 1 FROM %s{table} WHERE id = @id AND {Query.whereDataContains "@criteria"}
+                        ) AS {existsName}"""
+            [ "@id", Sql.string (keyFunc key); webLogContains webLogId ] Map.toExists
     
     /// Find a document by its ID for the given web log
     let findByIdAndWebLog<'TKey, 'TDoc> table (key : 'TKey) (keyFunc : 'TKey -> string) webLogId =

@@ -48,13 +48,10 @@ type DistributedCache () =
     do
         task {
             let! exists =
-                Configuration.dataSource ()
-                |> Sql.fromDataSource
-                |> Sql.query $"
-                    SELECT EXISTS
+                Custom.scalar
+                    $"SELECT EXISTS
                         (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'session')
-                      AS {existsName}"
-                |> Sql.executeRowAsync Map.toExists
+                      AS {existsName}" [] Map.toExists
             if not exists then
                 do! Custom.nonQuery
                         "CREATE TABLE session (

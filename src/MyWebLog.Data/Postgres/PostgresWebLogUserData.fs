@@ -21,14 +21,11 @@ type PostgresWebLogUserData (log : ILogger) =
         | Some _ ->
             let  criteria = Query.whereDataContains "@criteria"
             let! isAuthor =
-                Configuration.dataSource ()
-                |> Sql.fromDataSource
-                |> Sql.query $"
-                    SELECT (   EXISTS (SELECT 1 FROM {Table.Page} WHERE {criteria}
-                            OR EXISTS (SELECT 1 FROM {Table.Post} WHERE {criteria}))
-                        AS {existsName}"
-                |> Sql.parameters [ "@criteria", Query.jsonbDocParam {| AuthorId = userId |} ]
-                |> Sql.executeRowAsync Map.toExists
+                Custom.scalar
+                    $" SELECT (   EXISTS (SELECT 1 FROM {Table.Page} WHERE {criteria}
+                               OR EXISTS (SELECT 1 FROM {Table.Post} WHERE {criteria})
+                              ) AS {existsName}"
+                    [ "@criteria", Query.jsonbDocParam {| AuthorId = userId |} ] Map.toExists
             if isAuthor then
                 return Error "User has pages or posts; cannot delete"
             else
