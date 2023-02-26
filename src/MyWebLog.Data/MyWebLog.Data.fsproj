@@ -6,13 +6,13 @@
 
 	<ItemGroup>
 		<PackageReference Include="BitBadger.Npgsql.FSharp.Documents" Version="1.0.0-beta2" />
-		<PackageReference Include="Microsoft.Data.Sqlite" Version="6.0.8" />
-		<PackageReference Include="Microsoft.Extensions.Caching.Abstractions" Version="6.0.0" />
-		<PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="6.0.0" />
+		<PackageReference Include="Microsoft.Data.Sqlite" Version="7.0.3" />
+		<PackageReference Include="Microsoft.Extensions.Caching.Abstractions" Version="7.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="7.0.0" />
 		<PackageReference Include="Microsoft.FSharpLu.Json" Version="0.11.7" />
-		<PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
-		<PackageReference Include="NodaTime.Serialization.JsonNet" Version="3.0.0" />
-		<PackageReference Include="Npgsql.NodaTime" Version="7.0.1" />
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.2" />
+		<PackageReference Include="NodaTime.Serialization.JsonNet" Version="3.0.1" />
+		<PackageReference Include="Npgsql.NodaTime" Version="7.0.2" />
 		<PackageReference Include="RethinkDb.Driver" Version="2.3.150" />
 		<PackageReference Include="RethinkDb.Driver.FSharp" Version="0.9.0-beta-07" />
 	</ItemGroup>

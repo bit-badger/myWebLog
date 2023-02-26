@@ -32,24 +32,34 @@ let zipTheme (name : string) (_ : TargetParameter) =
     |> Seq.filter (fun (_, name) -> not (name.EndsWith ".zip"))
     |> Zip.zipSpec $"{releasePath}/{name}-theme.zip"
 
+/// Frameworks supported by this build
+let frameworks = [ "net6.0"; "net7.0" ]
+
 /// Publish the project for the given runtime ID    
 let publishFor rid (_ : TargetParameter) =
-    DotNet.publish (fun opts -> { opts with Runtime = Some rid; SelfContained = Some false; NoLogo = true }) projName
+    frameworks
+    |> List.iter (fun fwk ->
+        DotNet.publish
+            (fun opts ->
+                { opts with Runtime = Some rid; SelfContained = Some false; NoLogo = true; Framework = Some fwk })
+            projName)
 
 /// Package published output for the given runtime ID
-let packageFor (rid : string) (_ : TargetParameter) =
-    let path = $"{projectPath}/bin/Release/net7.0/{rid}/publish"
-    let prodSettings = $"{path}/appsettings.Production.json"
-    if File.exists prodSettings then File.delete prodSettings
-    [ !! $"{path}/**/*"
-        |> Zip.filesAsSpecs path
-        |> Seq.map (fun (orig, dest) ->
-            orig, if dest.StartsWith "MyWebLog" then dest.Replace ("MyWebLog", "myWebLog") else dest)
-      Seq.singleton ($"{releasePath}/admin-theme.zip", "admin-theme.zip")
-      Seq.singleton ($"{releasePath}/default-theme.zip", "default-theme.zip")
-    ]
-    |> Seq.concat
-    |> Zip.zipSpec $"{releasePath}/myWebLog-{version}.{rid}.zip"
+let packageFor rid (_ : TargetParameter) =
+    frameworks
+    |> List.iter (fun fwk ->
+        let path = $"{projectPath}/bin/Release/{fwk}/%s{rid}/publish"
+        let prodSettings = $"{path}/appsettings.Production.json"
+        if File.exists prodSettings then File.delete prodSettings
+        [   !! $"{path}/**/*"
+            |> Zip.filesAsSpecs path
+            |> Seq.map (fun (orig, dest) ->
+                orig, if dest.StartsWith "MyWebLog" then dest.Replace ("MyWebLog", "myWebLog") else dest)
+            Seq.singleton ($"{releasePath}/admin-theme.zip", "admin-theme.zip")
+            Seq.singleton ($"{releasePath}/default-theme.zip", "default-theme.zip")
+        ]
+        |> Seq.concat
+        |> Zip.zipSpec $"{releasePath}/myWebLog-{version}.{fwk}.{rid}.zip")
 
 
 Target.create "Clean" (fun _ ->
@@ -74,19 +84,21 @@ Target.create "PackageLinux" (packageFor "linux-x64")
 
 Target.create "RepackageLinux" (fun _ ->
     let workDir = $"{releasePath}/linux"
-    let zipArchive = $"{releasePath}/myWebLog-{version}.linux-x64.zip"
-    let sh command args = 
-        CreateProcess.fromRawCommand command args
-        |> CreateProcess.redirectOutput
-        |> Proc.run
-        |> ignore
-    Shell.mkdir workDir
-    Zip.unzip workDir zipArchive
-    Shell.cd workDir
-    sh "chmod" [ "+x"; "./myWebLog" ]
-    sh "tar" [ "cfj"; $"../myWebLog-{version}.linux-x64.tar.bz2"; "." ]
-    Shell.cd "../.."
-    Shell.rm zipArchive
+    frameworks
+    |> List.iter (fun fwk ->
+        let zipArchive = $"{releasePath}/myWebLog-{version}.{fwk}.linux-x64.zip"
+        let sh command args = 
+            CreateProcess.fromRawCommand command args
+            |> CreateProcess.redirectOutput
+            |> Proc.run
+            |> ignore
+        Shell.mkdir workDir
+        Zip.unzip workDir zipArchive
+        Shell.cd workDir
+        sh "chmod" [ "+x"; "./myWebLog" ]
+        sh "tar" [ "cfj"; $"../myWebLog-{version}.{fwk}.linux-x64.tar.bz2"; "." ]
+        Shell.cd "../.."
+        Shell.rm zipArchive)
     Shell.rm_rf workDir
 )
 
