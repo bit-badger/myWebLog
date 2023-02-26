@@ -1,100 +1,61 @@
 namespace MyWebLog.Data.Postgres
 
+open BitBadger.Npgsql.FSharp.Documents
+open Microsoft.Extensions.Logging
 open MyWebLog
 open MyWebLog.Data
-open Npgsql
 open Npgsql.FSharp
 
 /// PostgreSQL myWebLog tag mapping data implementation        
-type PostgresTagMapData (conn : NpgsqlConnection) =
-
+type PostgresTagMapData (log : ILogger) =
+    
     /// Find a tag mapping by its ID for the given web log
     let findById tagMapId webLogId =
-        Sql.existingConnection conn
-        |> Sql.query "SELECT * FROM tag_map WHERE id = @id AND web_log_id = @webLogId"
-        |> Sql.parameters [ "@id", Sql.string (TagMapId.toString tagMapId); webLogIdParam webLogId ]
-        |> Sql.executeAsync Map.toTagMap
-        |> tryHead
+        log.LogTrace "TagMap.findById"
+        Document.findByIdAndWebLog<TagMapId, TagMap> Table.TagMap tagMapId TagMapId.toString webLogId
     
     /// Delete a tag mapping for the given web log
     let delete tagMapId webLogId = backgroundTask {
-        let idParams = [ "@id", Sql.string (TagMapId.toString tagMapId) ]
-        let! exists =
-            Sql.existingConnection conn
-            |> Sql.query $"
-                SELECT EXISTS
-                    (SELECT 1 FROM tag_map WHERE id = @id AND web_log_id = @webLogId)
-                  AS {existsName}"
-            |> Sql.parameters (webLogIdParam webLogId :: idParams)
-            |> Sql.executeRowAsync Map.toExists
+        log.LogTrace "TagMap.delete"
+        let! exists = Document.existsByWebLog Table.TagMap tagMapId TagMapId.toString webLogId
         if exists then
-            let! _ =
-                Sql.existingConnection conn
-                |> Sql.query "DELETE FROM tag_map WHERE id = @id"
-                |> Sql.parameters idParams
-                |> Sql.executeNonQueryAsync
+            do! Delete.byId Table.TagMap (TagMapId.toString tagMapId)
             return true
         else return false
     }
     
     /// Find a tag mapping by its URL value for the given web log
-    let findByUrlValue urlValue webLogId =
-        Sql.existingConnection conn
-        |> Sql.query "SELECT * FROM tag_map WHERE web_log_id = @webLogId AND url_value = @urlValue"
-        |> Sql.parameters [ webLogIdParam webLogId; "@urlValue", Sql.string urlValue ]
-        |> Sql.executeAsync Map.toTagMap
-        |> tryHead
-    
+    let findByUrlValue (urlValue : string) webLogId =
+        log.LogTrace "TagMap.findByUrlValue"
+        Custom.single (selectWithCriteria Table.TagMap)
+                      [ "@criteria", Query.jsonbDocParam {| webLogDoc webLogId with UrlValue = urlValue |} ]
+                      fromData<TagMap>
+
     /// Get all tag mappings for the given web log
     let findByWebLog webLogId =
-        Sql.existingConnection conn
-        |> Sql.query "SELECT * FROM tag_map WHERE web_log_id = @webLogId ORDER BY tag"
-        |> Sql.parameters [ webLogIdParam webLogId ]
-        |> Sql.executeAsync Map.toTagMap
+        log.LogTrace "TagMap.findByWebLog"
+        Custom.list $"{selectWithCriteria Table.TagMap} ORDER BY data ->> 'tag'" [ webLogContains webLogId ]
+                    fromData<TagMap>
     
     /// Find any tag mappings in a list of tags for the given web log
     let findMappingForTags tags webLogId =
-        let tagSql, tagParams = inClause "AND tag" "tag" id tags
-        Sql.existingConnection conn
-        |> Sql.query $"SELECT * FROM tag_map WHERE web_log_id = @webLogId {tagSql}"
-        |> Sql.parameters (webLogIdParam webLogId :: tagParams)
-        |> Sql.executeAsync Map.toTagMap
-    
-    /// The INSERT statement for a tag mapping
-    let tagMapInsert =
-        "INSERT INTO tag_map (
-            id, web_log_id, tag, url_value
-        ) VALUES (
-            @id, @webLogId, @tag, @urlValue
-        )"
-    
-    /// The parameters for saving a tag mapping
-    let tagMapParams (tagMap : TagMap) = [
-        webLogIdParam tagMap.WebLogId
-        "@id",       Sql.string (TagMapId.toString tagMap.Id)
-        "@tag",      Sql.string tagMap.Tag
-        "@urlValue", Sql.string tagMap.UrlValue
-    ]
+        log.LogTrace "TagMap.findMappingForTags"
+        let tagSql, tagParam = arrayContains (nameof TagMap.empty.Tag) id tags
+        Custom.list $"{selectWithCriteria Table.TagMap} AND {tagSql}" [ webLogContains webLogId; tagParam ]
+                    fromData<TagMap>
     
     /// Save a tag mapping
-    let save tagMap = backgroundTask {
-        let! _ =
-            Sql.existingConnection conn
-            |> Sql.query $"
-                {tagMapInsert} ON CONFLICT (id) DO UPDATE
-                SET tag       = EXCLUDED.tag,
-                    url_value = EXCLUDED.url_value"
-            |> Sql.parameters (tagMapParams tagMap)
-            |> Sql.executeNonQueryAsync
-        ()
-    }
+    let save (tagMap : TagMap) =
+        save Table.TagMap (TagMapId.toString tagMap.Id) tagMap
     
     /// Restore tag mappings from a backup
-    let restore tagMaps = backgroundTask {
+    let restore (tagMaps : TagMap list) = backgroundTask {
         let! _ =
-            Sql.existingConnection conn
+            Configuration.dataSource ()
+            |> Sql.fromDataSource
             |> Sql.executeTransactionAsync [
-                tagMapInsert, tagMaps |> List.map tagMapParams
+                Query.insert Table.TagMap,
+                tagMaps |> List.map (fun tagMap -> Query.docParameters (TagMapId.toString tagMap.Id) tagMap)
             ]
         ()
     }

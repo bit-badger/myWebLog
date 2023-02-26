@@ -2,6 +2,7 @@ namespace MyWebLog.Data.Postgres
 
 open System.Threading
 open System.Threading.Tasks
+open BitBadger.Npgsql.FSharp.Documents
 open Microsoft.Extensions.Caching.Distributed
 open NodaTime
 open Npgsql.FSharp
@@ -40,32 +41,26 @@ module private Helpers =
 
 
 /// A distributed cache implementation in PostgreSQL used to handle sessions for myWebLog
-type DistributedCache (connStr : string) =
+type DistributedCache () =
     
     // ~~~ INITIALIZATION ~~~
     
     do
         task {
             let! exists =
-                Sql.connect connStr
-                |> Sql.query $"
-                    SELECT EXISTS
+                Custom.scalar
+                    $"SELECT EXISTS
                         (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'session')
-                      AS {existsName}"
-                |> Sql.executeRowAsync Map.toExists
+                      AS {existsName}" [] Map.toExists
             if not exists then
-                let! _ =
-                    Sql.connect connStr
-                    |> Sql.query
+                do! Custom.nonQuery
                         "CREATE TABLE session (
                             id                  TEXT        NOT NULL PRIMARY KEY,
                             payload             BYTEA       NOT NULL,
                             expire_at           TIMESTAMPTZ NOT NULL,
                             sliding_expiration  INTERVAL,
                             absolute_expiration TIMESTAMPTZ);
-                        CREATE INDEX idx_session_expiration ON session (expire_at)"
-                    |> Sql.executeNonQueryAsync
-                ()
+                        CREATE INDEX idx_session_expiration ON session (expire_at)" []
         } |> sync
     
     // ~~~ SUPPORT FUNCTIONS ~~~
@@ -74,16 +69,13 @@ type DistributedCache (connStr : string) =
     let getEntry key = backgroundTask {
         let idParam = "@id", Sql.string key
         let! tryEntry =
-            Sql.connect connStr
-            |> Sql.query "SELECT * FROM session WHERE id = @id"
-            |> Sql.parameters [ idParam ]
-            |> Sql.executeAsync (fun row ->
-                {   Id                 = row.string                     "id"
-                    Payload            = row.bytea                      "payload"
-                    ExpireAt           = row.fieldValue<Instant>        "expire_at"
-                    SlidingExpiration  = row.fieldValueOrNone<Duration> "sliding_expiration"
-                    AbsoluteExpiration = row.fieldValueOrNone<Instant>  "absolute_expiration"   })
-            |> tryHead
+            Custom.single "SELECT * FROM session WHERE id = @id" [ idParam ]
+                          (fun row ->
+                              {   Id                 = row.string                     "id"
+                                  Payload            = row.bytea                      "payload"
+                                  ExpireAt           = row.fieldValue<Instant>        "expire_at"
+                                  SlidingExpiration  = row.fieldValueOrNone<Duration> "sliding_expiration"
+                                  AbsoluteExpiration = row.fieldValueOrNone<Instant>  "absolute_expiration"   })
         match tryEntry with
         | Some entry ->
             let now      = getNow ()
@@ -96,11 +88,8 @@ type DistributedCache (connStr : string) =
                     true, { entry with ExpireAt = absExp }
                 else true, { entry with ExpireAt = now.Plus slideExp }
             if needsRefresh then
-                let! _ =
-                    Sql.connect connStr
-                    |> Sql.query "UPDATE session SET expire_at = @expireAt WHERE id = @id"
-                    |> Sql.parameters [ expireParam item.ExpireAt; idParam ]
-                    |> Sql.executeNonQueryAsync
+                do! Custom.nonQuery "UPDATE session SET expire_at = @expireAt WHERE id = @id"
+                                    [ expireParam item.ExpireAt; idParam ]
                 ()
             return if item.ExpireAt > now then Some entry else None
         | None -> return None
@@ -113,26 +102,16 @@ type DistributedCache (connStr : string) =
     let purge () = backgroundTask {
         let now = getNow ()
         if lastPurge.Plus (Duration.FromMinutes 30L) < now then
-            let! _ =
-                Sql.connect connStr
-                |> Sql.query "DELETE FROM session WHERE expire_at < @expireAt"
-                |> Sql.parameters [ expireParam now ]
-                |> Sql.executeNonQueryAsync
+            do! Custom.nonQuery "DELETE FROM session WHERE expire_at < @expireAt" [ expireParam now ]
             lastPurge <- now
     }
     
     /// Remove a cache entry
-    let removeEntry key = backgroundTask {
-        let! _ =
-            Sql.connect connStr
-            |> Sql.query "DELETE FROM session WHERE id = @id"
-            |> Sql.parameters [ "@id", Sql.string key ]
-            |> Sql.executeNonQueryAsync
-        ()
-    }
+    let removeEntry key =
+        Delete.byId "session" key
     
     /// Save an entry
-    let saveEntry (opts : DistributedCacheEntryOptions) key payload = backgroundTask {
+    let saveEntry (opts : DistributedCacheEntryOptions) key payload =
         let now = getNow ()
         let expireAt, slideExp, absExp =
             if opts.SlidingExpiration.HasValue then
@@ -148,27 +127,21 @@ type DistributedCache (connStr : string) =
                 // Default to 1 hour sliding expiration
                 let slide = Duration.FromHours 1
                 now.Plus slide, Some slide, None
-        let! _ =
-            Sql.connect connStr
-            |> Sql.query
-                "INSERT INTO session (
-                    id, payload, expire_at, sliding_expiration, absolute_expiration
-                ) VALUES (
-                    @id, @payload, @expireAt, @slideExp, @absExp
-                ) ON CONFLICT (id) DO UPDATE
-                SET payload             = EXCLUDED.payload,
-                    expire_at           = EXCLUDED.expire_at,
-                    sliding_expiration  = EXCLUDED.sliding_expiration,
-                    absolute_expiration = EXCLUDED.absolute_expiration"
-            |> Sql.parameters
-                [   "@id",      Sql.string key
-                    "@payload", Sql.bytea payload
-                    expireParam expireAt
-                    optParam "slideExp" slideExp
-                    optParam "absExp"   absExp ]
-            |> Sql.executeNonQueryAsync
-        ()
-    }
+        Custom.nonQuery
+            "INSERT INTO session (
+                id, payload, expire_at, sliding_expiration, absolute_expiration
+            ) VALUES (
+                @id, @payload, @expireAt, @slideExp, @absExp
+            ) ON CONFLICT (id) DO UPDATE
+            SET payload             = EXCLUDED.payload,
+                expire_at           = EXCLUDED.expire_at,
+                sliding_expiration  = EXCLUDED.sliding_expiration,
+                absolute_expiration = EXCLUDED.absolute_expiration"
+            [   "@id",      Sql.string key
+                "@payload", Sql.bytea payload
+                expireParam expireAt
+                optParam "slideExp" slideExp
+                optParam "absExp"   absExp ]
         
     // ~~~ IMPLEMENTATION FUNCTIONS ~~~
     
@@ -200,11 +173,11 @@ type DistributedCache (connStr : string) =
     }
     
     interface IDistributedCache with
-        member this.Get key = get key CancellationToken.None |> sync
-        member this.GetAsync (key, token) = get key token
-        member this.Refresh key = refresh key CancellationToken.None |> sync
-        member this.RefreshAsync (key, token) = refresh key token
-        member this.Remove key = remove key CancellationToken.None |> sync
-        member this.RemoveAsync (key, token) = remove key token
-        member this.Set (key, value, options) = set key value options CancellationToken.None |> sync
-        member this.SetAsync (key, value, options, token) = set key value options token
+        member _.Get key = get key CancellationToken.None |> sync
+        member _.GetAsync (key, token) = get key token
+        member _.Refresh key = refresh key CancellationToken.None |> sync
+        member _.RefreshAsync (key, token) = refresh key token
+        member _.Remove key = remove key CancellationToken.None |> sync
+        member _.RemoveAsync (key, token) = remove key token
+        member _.Set (key, value, options) = set key value options CancellationToken.None |> sync
+        member _.SetAsync (key, value, options, token) = set key value options token

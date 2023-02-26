@@ -10,7 +10,7 @@ type WebLogMiddleware (next : RequestDelegate, log : ILogger<WebLogMiddleware>) 
     /// Is the debug level enabled on the logger?
     let isDebug = log.IsEnabled LogLevel.Debug
         
-    member this.InvokeAsync (ctx : HttpContext) = task {
+    member _.InvokeAsync (ctx : HttpContext) = task {
         /// Create the full path of the request
         let path = $"{ctx.Request.Scheme}://{ctx.Request.Host.Value}{ctx.Request.Path.Value}"
         match WebLogCache.tryGet path with
@@ -36,9 +36,15 @@ open Npgsql
 module DataImplementation =
     
     open MyWebLog.Converters
-    // open Npgsql.Logging
     open RethinkDb.Driver.FSharp
     open RethinkDb.Driver.Net
+
+    /// Create an NpgsqlDataSource from the connection string, configuring appropriately
+    let createNpgsqlDataSource (cfg : IConfiguration) =
+        let builder = NpgsqlDataSourceBuilder (cfg.GetConnectionString "PostgreSQL")
+        let _ = builder.UseNodaTime ()
+        // let _ = builder.UseLoggerFactory(LoggerFactory.Create(fun it -> it.AddConsole () |> ignore))
+        builder.Build ()
 
     /// Get the configured data implementation
     let get (sp : IServiceProvider) : IData =
@@ -62,11 +68,11 @@ module DataImplementation =
             let conn       = await (rethinkCfg.CreateConnectionAsync log)
             RethinkDbData (conn, rethinkCfg, log)
         elif hasConnStr "PostgreSQL" then
+            let source = createNpgsqlDataSource config
+            use conn = source.CreateConnection ()
             let log  = sp.GetRequiredService<ILogger<PostgresData>> ()
-            // NpgsqlLogManager.Provider <- ConsoleLoggingProvider NpgsqlLogLevel.Debug
-            let conn = new NpgsqlConnection (connStr "PostgreSQL")
-            log.LogInformation $"Using PostgreSQL database {conn.Host}:{conn.Port}/{conn.Database}"
-            PostgresData (conn, log, Json.configure (JsonSerializer.CreateDefault ()))
+            log.LogInformation $"Using PostgreSQL database {conn.Database}"
+            PostgresData (source, log, Json.configure (JsonSerializer.CreateDefault ()))
         else
             createSQLite "Data Source=./myweblog.db;Cache=Shared"
 
@@ -152,16 +158,15 @@ let rec main args =
         let cachePath = defaultArg (Option.ofObj (cfg.GetConnectionString "SQLiteCachePath")) "./session.db"
         let _ = builder.Services.AddSqliteCache (fun o -> o.CachePath <- cachePath)
         ()
-    | :? PostgresData ->
-        // ADO.NET connections are designed to work as per-request instantiation
-        let cfg  = sp.GetRequiredService<IConfiguration> ()
+    | :? PostgresData as postgres ->
+        // ADO.NET Data Sources are designed to work as singletons
         let _ =
-            builder.Services.AddScoped<NpgsqlConnection> (fun sp ->
-                new NpgsqlConnection (cfg.GetConnectionString "PostgreSQL"))
-        let _ = builder.Services.AddScoped<IData, PostgresData> ()
+            builder.Services.AddSingleton<NpgsqlDataSource> (fun sp ->
+                DataImplementation.createNpgsqlDataSource (sp.GetRequiredService<IConfiguration> ()))
+        let _ = builder.Services.AddSingleton<IData> postgres
         let _ =
-            builder.Services.AddSingleton<IDistributedCache> (fun sp ->
-                Postgres.DistributedCache (cfg.GetConnectionString "PostgreSQL") :> IDistributedCache)
+            builder.Services.AddSingleton<IDistributedCache> (fun _ ->
+                Postgres.DistributedCache () :> IDistributedCache)
         ()
     | _ -> ()
     

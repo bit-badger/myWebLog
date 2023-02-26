@@ -5,7 +5,6 @@ open MyWebLog
 open RethinkDb.Driver
 
 /// Functions to assist with retrieving data
-[<AutoOpen>]
 module private RethinkHelpers =
     
     /// Table names
@@ -90,6 +89,7 @@ open System
 open Microsoft.Extensions.Logging
 open MyWebLog.ViewModels
 open RethinkDb.Driver.FSharp
+open RethinkHelpers
 
 /// RethinkDB implementation of data functions for myWebLog
 type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<RethinkDbData>) =
@@ -214,11 +214,18 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
         logStep "Setting database version to v2-rc2"
         do! setDbVersion "v2-rc2"
     }
+
+    /// Migrate from v2-rc2 to v2
+    let migrateV2Rc2ToV2 () = backgroundTask {
+        Utils.logMigrationStep log "v2-rc2 to v2" "Setting database version; no migration required"
+        do! setDbVersion "v2"
+    }
     
     /// Migrate data between versions
     let migrate version = backgroundTask {
         match version with
-        | Some v when v = "v2-rc2" -> ()
+        | Some v when v = "v2" -> ()
+        | Some v when v = "v2-rc2" -> do! migrateV2Rc2ToV2 ()
         | Some v when v = "v2-rc1" -> do! migrateV2Rc1ToV2Rc2 ()
         | Some _
         | None ->

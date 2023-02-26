@@ -120,7 +120,6 @@ module ViewContext =
     /// The current web log
     [<Literal>]
     let WebLog = "web_log"
-    
 
 
 /// The HTTP item key for loading the session

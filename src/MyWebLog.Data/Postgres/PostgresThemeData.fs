@@ -1,129 +1,53 @@
 ﻿namespace MyWebLog.Data.Postgres
 
+open BitBadger.Npgsql.FSharp.Documents
+open Microsoft.Extensions.Logging
 open MyWebLog
 open MyWebLog.Data
-open Npgsql
 open Npgsql.FSharp
 
 /// PostreSQL myWebLog theme data implementation        
-type PostgresThemeData (conn : NpgsqlConnection) =
+type PostgresThemeData (log : ILogger) =
+    
+    /// Clear out the template text from a theme
+    let withoutTemplateText row =
+        let theme = fromData<Theme> row
+        { theme with Templates = theme.Templates |> List.map (fun template -> { template with Text = "" }) }
     
     /// Retrieve all themes (except 'admin'; excludes template text)
-    let all () = backgroundTask {
-        let! themes =
-            Sql.existingConnection conn
-            |> Sql.query "SELECT * FROM theme WHERE id <> 'admin' ORDER BY id"
-            |> Sql.executeAsync Map.toTheme
-        let! templates =
-            Sql.existingConnection conn
-            |> Sql.query "SELECT name, theme_id FROM theme_template WHERE theme_id <> 'admin' ORDER BY name"
-            |> Sql.executeAsync (fun row -> ThemeId (row.string "theme_id"), Map.toThemeTemplate false row)
-        return
-            themes
-            |> List.map (fun t ->
-                { t with Templates = templates |> List.filter (fun tt -> fst tt = t.Id) |> List.map snd })
-    }
+    let all () =
+        log.LogTrace "Theme.all"
+        Custom.list $"{Query.selectFromTable Table.Theme} WHERE id <> 'admin' ORDER BY id" []  withoutTemplateText
     
     /// Does a given theme exist?
     let exists themeId =
-        Sql.existingConnection conn
-        |> Sql.query "SELECT EXISTS (SELECT 1 FROM theme WHERE id = @id) AS does_exist"
-        |> Sql.parameters [ "@id", Sql.string (ThemeId.toString themeId) ]
-        |> Sql.executeRowAsync Map.toExists
+        log.LogTrace "Theme.exists"
+        Exists.byId Table.Theme (ThemeId.toString themeId)
     
     /// Find a theme by its ID
-    let findById themeId = backgroundTask {
-        let themeIdParam = [ "@id", Sql.string (ThemeId.toString themeId) ]
-        let! theme =
-            Sql.existingConnection conn
-            |> Sql.query "SELECT * FROM theme WHERE id = @id"
-            |> Sql.parameters themeIdParam
-            |> Sql.executeAsync Map.toTheme
-            |> tryHead
-        if Option.isSome theme then
-            let! templates =
-                Sql.existingConnection conn
-                |> Sql.query "SELECT * FROM theme_template WHERE theme_id = @id"
-                |> Sql.parameters themeIdParam
-                |> Sql.executeAsync (Map.toThemeTemplate true)
-            return Some { theme.Value with Templates = templates }
-        else return None
-    }
+    let findById themeId =
+        log.LogTrace "Theme.findById"
+        Find.byId<Theme> Table.Theme (ThemeId.toString themeId)
     
     /// Find a theme by its ID (excludes the text of templates)
-    let findByIdWithoutText themeId = backgroundTask {
-        match! findById themeId with
-        | Some theme ->
-            return Some {
-                theme with Templates = theme.Templates |> List.map (fun t -> { t with Text = "" })
-            }
-        | None -> return None
-    }
+    let findByIdWithoutText themeId =
+        log.LogTrace "Theme.findByIdWithoutText"
+        Custom.single (Query.Find.byId Table.Theme) [ "@id", Sql.string (ThemeId.toString themeId) ] withoutTemplateText
     
     /// Delete a theme by its ID
     let delete themeId = backgroundTask {
-        let idParams = [ "@id", Sql.string (ThemeId.toString themeId) ]
-        let! exists =
-            Sql.existingConnection conn
-            |> Sql.query $"SELECT EXISTS (SELECT 1 FROM theme WHERE id = @id) AS {existsName}"
-            |> Sql.parameters idParams
-            |> Sql.executeRowAsync Map.toExists
-        if exists then
-            let! _ =
-                Sql.existingConnection conn
-                |> Sql.query
-                    "DELETE FROM theme_asset    WHERE theme_id = @id;
-                     DELETE FROM theme_template WHERE theme_id = @id;
-                     DELETE FROM theme          WHERE id       = @id"
-                |> Sql.parameters idParams
-                |> Sql.executeNonQueryAsync
+        log.LogTrace "Theme.delete"
+        match! exists themeId with
+        | true ->
+            do! Delete.byId Table.Theme (ThemeId.toString themeId)
             return true
-        else return false
+        | false -> return false
     }
     
     /// Save a theme
-    let save (theme : Theme) = backgroundTask {
-        let! oldTheme     = findById theme.Id
-        let  themeIdParam = Sql.string (ThemeId.toString theme.Id)
-        let! _ =
-            Sql.existingConnection conn
-            |> Sql.query
-                "INSERT INTO theme VALUES (@id, @name, @version)
-                 ON CONFLICT (id) DO UPDATE
-                 SET name    = EXCLUDED.name,
-                     version = EXCLUDED.version"
-            |> Sql.parameters
-                [   "@id",      themeIdParam
-                    "@name",    Sql.string theme.Name
-                    "@version", Sql.string theme.Version ]
-            |> Sql.executeNonQueryAsync
-        
-        let toDelete, _ =
-            Utils.diffLists (oldTheme |> Option.map (fun t -> t.Templates) |> Option.defaultValue [])
-                            theme.Templates (fun t -> t.Name)
-        let toAddOrUpdate =
-            theme.Templates
-            |> List.filter (fun t -> not (toDelete |> List.exists (fun d -> d.Name = t.Name)))
-        
-        if not (List.isEmpty toDelete) || not (List.isEmpty toAddOrUpdate) then
-            let! _ =
-                Sql.existingConnection conn
-                |> Sql.executeTransactionAsync [
-                    if not (List.isEmpty toDelete) then
-                        "DELETE FROM theme_template WHERE theme_id = @themeId AND name = @name",
-                        toDelete |> List.map (fun tmpl -> [ "@themeId", themeIdParam; "@name", Sql.string tmpl.Name ])
-                    if not (List.isEmpty toAddOrUpdate) then
-                        "INSERT INTO theme_template VALUES (@themeId, @name, @template)
-                         ON CONFLICT (theme_id, name) DO UPDATE
-                         SET template = EXCLUDED.template",
-                        toAddOrUpdate |> List.map (fun tmpl -> [
-                            "@themeId",  themeIdParam
-                            "@name",     Sql.string tmpl.Name
-                            "@template", Sql.string tmpl.Text
-                        ])
-                ]
-            ()
-    }
+    let save (theme : Theme) =
+        log.LogTrace "Theme.save"
+        save Table.Theme (ThemeId.toString theme.Id) theme
     
     interface IThemeData with
         member _.All () = all ()
@@ -135,68 +59,54 @@ type PostgresThemeData (conn : NpgsqlConnection) =
 
 
 /// PostreSQL myWebLog theme data implementation        
-type PostgresThemeAssetData (conn : NpgsqlConnection) =
+type PostgresThemeAssetData (log : ILogger) =
     
     /// Get all theme assets (excludes data)
     let all () =
-        Sql.existingConnection conn
-        |> Sql.query "SELECT theme_id, path, updated_on FROM theme_asset"
-        |> Sql.executeAsync (Map.toThemeAsset false)
+        log.LogTrace "ThemeAsset.all"
+        Custom.list $"SELECT theme_id, path, updated_on FROM {Table.ThemeAsset}" [] (Map.toThemeAsset false)
     
     /// Delete all assets for the given theme
-    let deleteByTheme themeId = backgroundTask {
-        let! _ =
-            Sql.existingConnection conn
-            |> Sql.query "DELETE FROM theme_asset WHERE theme_id = @themeId"
-            |> Sql.parameters [ "@themeId", Sql.string (ThemeId.toString themeId) ]
-            |> Sql.executeNonQueryAsync
-        ()
-    }
+    let deleteByTheme themeId =
+        log.LogTrace "ThemeAsset.deleteByTheme"
+        Custom.nonQuery $"DELETE FROM {Table.ThemeAsset} WHERE theme_id = @themeId"
+                        [ "@themeId", Sql.string (ThemeId.toString themeId) ]
     
     /// Find a theme asset by its ID
     let findById assetId =
+        log.LogTrace "ThemeAsset.findById"
         let (ThemeAssetId (ThemeId themeId, path)) = assetId
-        Sql.existingConnection conn
-        |> Sql.query "SELECT * FROM theme_asset WHERE theme_id = @themeId AND path = @path"
-        |> Sql.parameters [ "@themeId", Sql.string themeId; "@path", Sql.string path ]
-        |> Sql.executeAsync (Map.toThemeAsset true)
-        |> tryHead
+        Custom.single $"SELECT * FROM {Table.ThemeAsset} WHERE theme_id = @themeId AND path = @path"
+                      [ "@themeId", Sql.string themeId; "@path", Sql.string path ] (Map.toThemeAsset true)
     
     /// Get theme assets for the given theme (excludes data)
     let findByTheme themeId =
-        Sql.existingConnection conn
-        |> Sql.query "SELECT theme_id, path, updated_on FROM theme_asset WHERE theme_id = @themeId"
-        |> Sql.parameters [ "@themeId", Sql.string (ThemeId.toString themeId) ]
-        |> Sql.executeAsync (Map.toThemeAsset false)
+        log.LogTrace "ThemeAsset.findByTheme"
+        Custom.list $"SELECT theme_id, path, updated_on FROM {Table.ThemeAsset} WHERE theme_id = @themeId"
+                    [ "@themeId", Sql.string (ThemeId.toString themeId) ] (Map.toThemeAsset false)
     
     /// Get theme assets for the given theme
     let findByThemeWithData themeId =
-        Sql.existingConnection conn
-        |> Sql.query "SELECT * FROM theme_asset WHERE theme_id = @themeId"
-        |> Sql.parameters [ "@themeId", Sql.string (ThemeId.toString themeId) ]
-        |> Sql.executeAsync (Map.toThemeAsset true)
+        log.LogTrace "ThemeAsset.findByThemeWithData"
+        Custom.list $"SELECT * FROM {Table.ThemeAsset} WHERE theme_id = @themeId"
+                    [ "@themeId", Sql.string (ThemeId.toString themeId) ] (Map.toThemeAsset true)
     
     /// Save a theme asset
-    let save (asset : ThemeAsset) = backgroundTask {
+    let save (asset : ThemeAsset) =
+        log.LogTrace "ThemeAsset.save"
         let (ThemeAssetId (ThemeId themeId, path)) = asset.Id
-        let! _ =
-            Sql.existingConnection conn
-            |> Sql.query
-                "INSERT INTO theme_asset (
-                    theme_id, path, updated_on, data
-                ) VALUES (
-                    @themeId, @path, @updatedOn, @data
-                ) ON CONFLICT (theme_id, path) DO UPDATE
-                SET updated_on = EXCLUDED.updated_on,
-                    data       = EXCLUDED.data"
-            |> Sql.parameters
-                [   "@themeId", Sql.string themeId
-                    "@path",    Sql.string path
-                    "@data",    Sql.bytea  asset.Data
-                    typedParam "updatedOn" asset.UpdatedOn ]
-            |> Sql.executeNonQueryAsync
-        ()
-    }
+        Custom.nonQuery
+            $"INSERT INTO {Table.ThemeAsset} (
+                  theme_id, path, updated_on, data
+              ) VALUES (
+                  @themeId, @path, @updatedOn, @data
+              ) ON CONFLICT (theme_id, path) DO UPDATE
+              SET updated_on = EXCLUDED.updated_on,
+                  data       = EXCLUDED.data"
+            [   "@themeId", Sql.string themeId
+                "@path",    Sql.string path
+                "@data",    Sql.bytea  asset.Data
+                typedParam "updatedOn" asset.UpdatedOn ]
     
     interface IThemeAssetData with
         member _.All () = all ()

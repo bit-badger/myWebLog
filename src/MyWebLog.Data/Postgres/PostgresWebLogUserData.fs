@@ -1,140 +1,91 @@
 namespace MyWebLog.Data.Postgres
 
+open BitBadger.Npgsql.FSharp.Documents
+open Microsoft.Extensions.Logging
 open MyWebLog
 open MyWebLog.Data
-open Npgsql
 open Npgsql.FSharp
 
 /// PostgreSQL myWebLog user data implementation        
-type PostgresWebLogUserData (conn : NpgsqlConnection) =
+type PostgresWebLogUserData (log : ILogger) =
     
-    /// The INSERT statement for a user
-    let userInsert =
-        "INSERT INTO web_log_user (
-            id, web_log_id, email, first_name, last_name, preferred_name, password_hash, url, access_level,
-            created_on, last_seen_on
-        ) VALUES (
-            @id, @webLogId, @email, @firstName, @lastName, @preferredName, @passwordHash, @url, @accessLevel,
-            @createdOn, @lastSeenOn
-        )"
-    
-    /// Parameters for saving web log users
-    let userParams (user : WebLogUser) = [
-        "@id",            Sql.string       (WebLogUserId.toString user.Id)
-        "@webLogId",      Sql.string       (WebLogId.toString user.WebLogId)
-        "@email",         Sql.string       user.Email
-        "@firstName",     Sql.string       user.FirstName
-        "@lastName",      Sql.string       user.LastName
-        "@preferredName", Sql.string       user.PreferredName
-        "@passwordHash",  Sql.string       user.PasswordHash
-        "@url",           Sql.stringOrNone user.Url
-        "@accessLevel",   Sql.string       (AccessLevel.toString user.AccessLevel)
-        typedParam "createdOn"  user.CreatedOn
-        optParam   "lastSeenOn" user.LastSeenOn
-    ]
-
     /// Find a user by their ID for the given web log
     let findById userId webLogId =
-        Sql.existingConnection conn
-        |> Sql.query "SELECT * FROM web_log_user WHERE id = @id AND web_log_id = @webLogId"
-        |> Sql.parameters [ "@id", Sql.string (WebLogUserId.toString userId); webLogIdParam webLogId ]
-        |> Sql.executeAsync Map.toWebLogUser
-        |> tryHead
+        log.LogTrace "WebLogUser.findById"
+        Document.findByIdAndWebLog<WebLogUserId, WebLogUser> Table.WebLogUser userId WebLogUserId.toString webLogId
     
     /// Delete a user if they have no posts or pages
     let delete userId webLogId = backgroundTask {
+        log.LogTrace "WebLogUser.delete"
         match! findById userId webLogId with
         | Some _ ->
-            let userParam = [ "@userId", Sql.string (WebLogUserId.toString userId) ]
+            let  criteria = Query.whereDataContains "@criteria"
             let! isAuthor =
-                Sql.existingConnection conn
-                |> Sql.query
-                    "SELECT (   EXISTS (SELECT 1 FROM page WHERE author_id = @userId
-                             OR EXISTS (SELECT 1 FROM post WHERE author_id = @userId)) AS does_exist"
-                |> Sql.parameters userParam
-                |> Sql.executeRowAsync Map.toExists
+                Custom.scalar
+                    $" SELECT (   EXISTS (SELECT 1 FROM {Table.Page} WHERE {criteria}
+                               OR EXISTS (SELECT 1 FROM {Table.Post} WHERE {criteria})
+                              ) AS {existsName}"
+                    [ "@criteria", Query.jsonbDocParam {| AuthorId = userId |} ] Map.toExists
             if isAuthor then
                 return Error "User has pages or posts; cannot delete"
             else
-                let! _ =
-                    Sql.existingConnection conn
-                    |> Sql.query "DELETE FROM web_log_user WHERE id = @userId"
-                    |> Sql.parameters userParam
-                    |> Sql.executeNonQueryAsync
+                do! Delete.byId Table.WebLogUser (WebLogUserId.toString userId)
                 return Ok true
         | None -> return Error "User does not exist"
     }
     
     /// Find a user by their e-mail address for the given web log
-    let findByEmail email webLogId =
-        Sql.existingConnection conn
-        |> Sql.query "SELECT * FROM web_log_user WHERE web_log_id = @webLogId AND email = @email"
-        |> Sql.parameters [ webLogIdParam webLogId; "@email", Sql.string email ]
-        |> Sql.executeAsync Map.toWebLogUser
-        |> tryHead
+    let findByEmail (email : string) webLogId =
+        log.LogTrace "WebLogUser.findByEmail"
+        Custom.single (selectWithCriteria Table.WebLogUser)
+                      [ "@criteria", Query.jsonbDocParam {| webLogDoc webLogId with Email = email |} ]
+                      fromData<WebLogUser>
     
     /// Get all users for the given web log
     let findByWebLog webLogId =
-        Sql.existingConnection conn
-        |> Sql.query "SELECT * FROM web_log_user WHERE web_log_id = @webLogId ORDER BY LOWER(preferred_name)"
-        |> Sql.parameters [ webLogIdParam webLogId ]
-        |> Sql.executeAsync Map.toWebLogUser
+        log.LogTrace "WebLogUser.findByWebLog"
+        Custom.list
+            $"{selectWithCriteria Table.WebLogUser} ORDER BY LOWER(data->>'{nameof WebLogUser.empty.PreferredName}')"
+            [ webLogContains webLogId ] fromData<WebLogUser>
     
     /// Find the names of users by their IDs for the given web log
     let findNames webLogId userIds = backgroundTask {
+        log.LogTrace "WebLogUser.findNames"
         let idSql, idParams = inClause "AND id" "id" WebLogUserId.toString userIds
         let! users =
-            Sql.existingConnection conn
-            |> Sql.query $"SELECT * FROM web_log_user WHERE web_log_id = @webLogId {idSql}"
-            |> Sql.parameters (webLogIdParam webLogId :: idParams)
-            |> Sql.executeAsync Map.toWebLogUser
+            Custom.list $"{selectWithCriteria Table.WebLogUser} {idSql}" (webLogContains webLogId :: idParams)
+                        fromData<WebLogUser>
         return
             users
             |> List.map (fun u -> { Name = WebLogUserId.toString u.Id; Value = WebLogUser.displayName u })
     }
     
     /// Restore users from a backup
-    let restore users = backgroundTask {
+    let restore (users : WebLogUser list) = backgroundTask {
+        log.LogTrace "WebLogUser.restore"
         let! _ =
-            Sql.existingConnection conn
+            Configuration.dataSource ()
+            |> Sql.fromDataSource
             |> Sql.executeTransactionAsync [
-                userInsert, users |> List.map userParams
+                Query.insert Table.WebLogUser,
+                users |> List.map (fun user -> Query.docParameters (WebLogUserId.toString user.Id) user)
             ]
         ()
     }
     
     /// Set a user's last seen date/time to now
     let setLastSeen userId webLogId = backgroundTask {
-        let! _ =
-            Sql.existingConnection conn
-            |> Sql.query "UPDATE web_log_user SET last_seen_on = @lastSeenOn WHERE id = @id AND web_log_id = @webLogId"
-            |> Sql.parameters
-                [   webLogIdParam webLogId
-                    typedParam "lastSeenOn" (Noda.now ())
-                    "@id", Sql.string (WebLogUserId.toString userId) ]
-            |> Sql.executeNonQueryAsync
-        ()
+        log.LogTrace "WebLogUser.setLastSeen"
+        match! Document.existsByWebLog Table.WebLogUser userId WebLogUserId.toString webLogId with
+        | true ->
+            do! Update.partialById Table.WebLogUser (WebLogUserId.toString userId) {| LastSeenOn = Some (Noda.now ()) |}
+        | false -> ()
     }
     
     /// Save a user
-    let save user = backgroundTask {
-        let! _ =
-            Sql.existingConnection conn
-            |> Sql.query $"
-                {userInsert} ON CONFLICT (id) DO UPDATE
-                SET email          = @email,
-                    first_name     = @firstName,
-                    last_name      = @lastName,
-                    preferred_name = @preferredName,
-                    password_hash  = @passwordHash,
-                    url            = @url,
-                    access_level   = @accessLevel,
-                    created_on     = @createdOn,
-                    last_seen_on   = @lastSeenOn"
-            |> Sql.parameters (userParams user)
-            |> Sql.executeNonQueryAsync
-        ()
-    }
+    let save (user : WebLogUser) =
+        log.LogTrace "WebLogUser.save"
+        save Table.WebLogUser (WebLogUserId.toString user.Id) user
     
     interface IWebLogUserData with
         member _.Add user = save user

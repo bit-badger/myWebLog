@@ -1,16 +1,17 @@
 ﻿namespace MyWebLog.Data.Postgres
 
+open BitBadger.Npgsql.FSharp.Documents
+open Microsoft.Extensions.Logging
 open MyWebLog
 open MyWebLog.Data
-open Npgsql
 open Npgsql.FSharp
 
 /// PostgreSQL myWebLog uploaded file data implementation        
-type PostgresUploadData (conn : NpgsqlConnection) =
+type PostgresUploadData (log : ILogger) =
 
     /// The INSERT statement for an uploaded file
-    let upInsert =
-        "INSERT INTO upload (
+    let upInsert = $"
+        INSERT INTO {Table.Upload} (
             id, web_log_id, path, updated_on, data
         ) VALUES (
             @id, @webLogId, @path, @updatedOn, @data
@@ -26,64 +27,49 @@ type PostgresUploadData (conn : NpgsqlConnection) =
     ]
     
     /// Save an uploaded file
-    let add upload = backgroundTask {
-        let! _ =
-            Sql.existingConnection conn
-            |> Sql.query upInsert
-            |> Sql.parameters (upParams upload)
-            |> Sql.executeNonQueryAsync
-        ()
-    }
+    let add upload =
+        log.LogTrace "Upload.add"
+        Custom.nonQuery upInsert (upParams upload)
     
     /// Delete an uploaded file by its ID
     let delete uploadId webLogId = backgroundTask {
-        let theParams = [ "@id", Sql.string (UploadId.toString uploadId); webLogIdParam webLogId ]
+        log.LogTrace "Upload.delete"
+        let idParam = [ "@id", Sql.string (UploadId.toString uploadId) ]
         let! path =
-            Sql.existingConnection conn
-            |> Sql.query "SELECT path FROM upload WHERE id = @id AND web_log_id = @webLogId"
-            |> Sql.parameters theParams
-            |> Sql.executeAsync (fun row -> row.string "path")
-            |> tryHead
+            Custom.single $"SELECT path FROM {Table.Upload} WHERE id = @id AND web_log_id = @webLogId"
+                          (webLogIdParam webLogId :: idParam) (fun row -> row.string "path")
         if Option.isSome path then
-            let! _ =
-                Sql.existingConnection conn
-                |> Sql.query "DELETE FROM upload WHERE id = @id AND web_log_id = @webLogId"
-                |> Sql.parameters theParams
-                |> Sql.executeNonQueryAsync
+            do! Custom.nonQuery (Query.Delete.byId Table.Upload) idParam
             return Ok path.Value
         else return Error $"""Upload ID {UploadId.toString uploadId} not found"""
     }
     
     /// Find an uploaded file by its path for the given web log
     let findByPath path webLogId =
-        Sql.existingConnection conn
-        |> Sql.query "SELECT * FROM upload WHERE web_log_id = @webLogId AND path = @path"
-        |> Sql.parameters [ webLogIdParam webLogId; "@path", Sql.string path ]
-        |> Sql.executeAsync (Map.toUpload true)
-        |> tryHead
+        log.LogTrace "Upload.findByPath"
+        Custom.single $"SELECT * FROM {Table.Upload} WHERE web_log_id = @webLogId AND path = @path"
+                      [ webLogIdParam webLogId; "@path", Sql.string path ] (Map.toUpload true)
     
     /// Find all uploaded files for the given web log (excludes data)
     let findByWebLog webLogId =
-        Sql.existingConnection conn
-        |> Sql.query "SELECT id, web_log_id, path, updated_on FROM upload WHERE web_log_id = @webLogId"
-        |> Sql.parameters [ webLogIdParam webLogId ]
-        |> Sql.executeAsync (Map.toUpload false)
+        log.LogTrace "Upload.findByWebLog"
+        Custom.list $"SELECT id, web_log_id, path, updated_on FROM {Table.Upload} WHERE web_log_id = @webLogId"
+                    [ webLogIdParam webLogId ] (Map.toUpload false)
     
     /// Find all uploaded files for the given web log
     let findByWebLogWithData webLogId =
-        Sql.existingConnection conn
-        |> Sql.query "SELECT * FROM upload WHERE web_log_id = @webLogId"
-        |> Sql.parameters [ webLogIdParam webLogId ]
-        |> Sql.executeAsync (Map.toUpload true)
+        log.LogTrace "Upload.findByWebLogWithData"
+        Custom.list $"SELECT * FROM {Table.Upload} WHERE web_log_id = @webLogId" [ webLogIdParam webLogId ]
+                    (Map.toUpload true)
     
     /// Restore uploads from a backup
     let restore uploads = backgroundTask {
+        log.LogTrace "Upload.restore"
         for batch in uploads |> List.chunkBySize 5 do
             let! _ =
-                Sql.existingConnection conn
-                |> Sql.executeTransactionAsync [
-                    upInsert, batch |> List.map upParams
-                ]
+                Configuration.dataSource ()
+                |> Sql.fromDataSource
+                |> Sql.executeTransactionAsync [ upInsert, batch |> List.map upParams ]
             ()
     }
     

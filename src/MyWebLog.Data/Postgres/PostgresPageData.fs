@@ -1,107 +1,63 @@
 namespace MyWebLog.Data.Postgres
 
+open BitBadger.Npgsql.FSharp.Documents
+open Microsoft.Extensions.Logging
 open MyWebLog
 open MyWebLog.Data
-open Newtonsoft.Json
-open Npgsql
 open Npgsql.FSharp
 
 /// PostgreSQL myWebLog page data implementation        
-type PostgresPageData (conn : NpgsqlConnection, ser : JsonSerializer) =
+type PostgresPageData (log : ILogger) =
     
     // SUPPORT FUNCTIONS
     
-    /// Append revisions and permalinks to a page
+    /// Append revisions to a page
     let appendPageRevisions (page : Page) = backgroundTask {
-        let! revisions =
-            Sql.existingConnection conn
-            |> Sql.query "SELECT as_of, revision_text FROM page_revision WHERE page_id = @pageId ORDER BY as_of DESC"
-            |> Sql.parameters [ "@pageId", Sql.string (PageId.toString page.Id) ]
-            |> Sql.executeAsync Map.toRevision
+        log.LogTrace "Page.appendPageRevisions"
+        let! revisions = Revisions.findByEntityId Table.PageRevision Table.Page page.Id PageId.toString
         return { page with Revisions = revisions }
     }
     
-    /// Shorthand to map to a page
-    let toPage = Map.toPage ser
-    
     /// Return a page with no text or revisions
-    let pageWithoutText row =
-        { toPage row with Text = "" }
-    
-    /// The INSERT statement for a page revision
-    let revInsert = "INSERT INTO page_revision VALUES (@pageId, @asOf, @text)"
-    
-    /// Parameters for a revision INSERT statement
-    let revParams pageId rev = [
-        typedParam "asOf" rev.AsOf
-        "@pageId", Sql.string (PageId.toString pageId)
-        "@text",   Sql.string (MarkupText.toString rev.Text)
-    ]
+    let pageWithoutText (row : RowReader) =
+        { fromData<Page> row with Text = "" }
     
     /// Update a page's revisions
-    let updatePageRevisions pageId oldRevs newRevs = backgroundTask {
-        let toDelete, toAdd = Utils.diffRevisions oldRevs newRevs
-        if not (List.isEmpty toDelete) || not (List.isEmpty toAdd) then
-            let! _ =
-                Sql.existingConnection conn
-                |> Sql.executeTransactionAsync [
-                    if not (List.isEmpty toDelete) then
-                        "DELETE FROM page_revision WHERE page_id = @pageId AND as_of = @asOf",
-                        toDelete
-                        |> List.map (fun it -> [
-                            "@pageId", Sql.string (PageId.toString pageId)
-                            typedParam "asOf" it.AsOf
-                        ])
-                    if not (List.isEmpty toAdd) then
-                        revInsert, toAdd |> List.map (revParams pageId)
-                ]
-            ()
-    }
+    let updatePageRevisions pageId oldRevs newRevs =
+        log.LogTrace "Page.updatePageRevisions"
+        Revisions.update Table.PageRevision Table.Page pageId PageId.toString oldRevs newRevs
     
     /// Does the given page exist?
     let pageExists pageId webLogId =
-        Sql.existingConnection conn
-        |> Sql.query $"SELECT EXISTS (SELECT 1 FROM page WHERE id = @id AND web_log_id = @webLogId) AS {existsName}"
-        |> Sql.parameters [ "@id", Sql.string (PageId.toString pageId); webLogIdParam webLogId ]
-        |> Sql.executeRowAsync Map.toExists
+        log.LogTrace "Page.pageExists"
+        Document.existsByWebLog Table.Page pageId PageId.toString webLogId
     
     // IMPLEMENTATION FUNCTIONS
     
-    /// Get all pages for a web log (without text, revisions, prior permalinks, or metadata)
+    /// Get all pages for a web log (without text or revisions)
     let all webLogId =
-        Sql.existingConnection conn
-        |> Sql.query "SELECT * FROM page WHERE web_log_id = @webLogId ORDER BY LOWER(title)"
-        |> Sql.parameters [ webLogIdParam webLogId ]
-        |> Sql.executeAsync pageWithoutText
+        log.LogTrace "Page.all"
+        Custom.list $"{selectWithCriteria Table.Page} ORDER BY LOWER(data ->> '{nameof Page.empty.Title}')"
+                    [ webLogContains webLogId ] fromData<Page>
     
     /// Count all pages for the given web log
     let countAll webLogId =
-        Sql.existingConnection conn
-        |> Sql.query $"SELECT COUNT(id) AS {countName} FROM page WHERE web_log_id = @webLogId"
-        |> Sql.parameters [ webLogIdParam webLogId ]
-        |> Sql.executeRowAsync Map.toCount
+        log.LogTrace "Page.countAll"
+        Count.byContains Table.Page (webLogDoc webLogId)
     
     /// Count all pages shown in the page list for the given web log
     let countListed webLogId =
-        Sql.existingConnection conn
-        |> Sql.query $"
-            SELECT COUNT(id) AS {countName}
-              FROM page
-             WHERE web_log_id      = @webLogId
-               AND is_in_page_list = TRUE"
-        |> Sql.parameters [ webLogIdParam webLogId ]
-        |> Sql.executeRowAsync Map.toCount
+        log.LogTrace "Page.countListed"
+        Count.byContains Table.Page {| webLogDoc webLogId with IsInPageList = true |}
     
     /// Find a page by its ID (without revisions)
     let findById pageId webLogId =
-        Sql.existingConnection conn
-        |> Sql.query "SELECT * FROM page WHERE id = @id AND web_log_id = @webLogId"
-        |> Sql.parameters [ "@id", Sql.string (PageId.toString pageId); webLogIdParam webLogId ]
-        |> Sql.executeAsync toPage
-        |> tryHead
+        log.LogTrace "Page.findById"
+        Document.findByIdAndWebLog<PageId, Page> Table.Page pageId PageId.toString webLogId
     
     /// Find a complete page by its ID
     let findFullById pageId webLogId = backgroundTask {
+        log.LogTrace "Page.findFullById"
         match! findById pageId webLogId with
         | Some page ->
             let! withMore = appendPageRevisions page
@@ -111,57 +67,40 @@ type PostgresPageData (conn : NpgsqlConnection, ser : JsonSerializer) =
     
     /// Delete a page by its ID
     let delete pageId webLogId = backgroundTask {
+        log.LogTrace "Page.delete"
         match! pageExists pageId webLogId with
         | true ->
-            let! _ =
-                Sql.existingConnection conn
-                |> Sql.query
-                    "DELETE FROM page_revision WHERE page_id = @id;
-                     DELETE FROM page          WHERE id      = @id"
-                |> Sql.parameters [ "@id", Sql.string (PageId.toString pageId) ]
-                |> Sql.executeNonQueryAsync
+            do! Delete.byId Table.Page (PageId.toString pageId)
             return true
         | false -> return false
     }
     
     /// Find a page by its permalink for the given web log
     let findByPermalink permalink webLogId =
-        Sql.existingConnection conn
-        |> Sql.query "SELECT * FROM page WHERE web_log_id = @webLogId AND permalink = @link"
-        |> Sql.parameters [ webLogIdParam webLogId; "@link", Sql.string (Permalink.toString permalink) ]
-        |> Sql.executeAsync toPage
+        log.LogTrace "Page.findByPermalink"
+        Find.byContains<Page> Table.Page {| webLogDoc webLogId with Permalink = Permalink.toString permalink |}
         |> tryHead
     
     /// Find the current permalink within a set of potential prior permalinks for the given web log
     let findCurrentPermalink permalinks webLogId = backgroundTask {
+        log.LogTrace "Page.findCurrentPermalink"
         if List.isEmpty permalinks then return None
         else
-            let linkSql, linkParams = arrayInClause "prior_permalinks" Permalink.toString permalinks
+            let linkSql, linkParam =
+                arrayContains (nameof Page.empty.PriorPermalinks) Permalink.toString permalinks
             return!
-                Sql.existingConnection conn
-                |> Sql.query $"SELECT permalink FROM page WHERE web_log_id = @webLogId AND ({linkSql})"
-                |> Sql.parameters (webLogIdParam webLogId :: linkParams)
-                |> Sql.executeAsync Map.toPermalink
-                |> tryHead
+                Custom.single
+                    $"""SELECT data ->> '{nameof Page.empty.Permalink}' AS permalink
+                          FROM page
+                         WHERE {Query.whereDataContains "@criteria"}
+                           AND {linkSql}""" [ webLogContains webLogId; linkParam ] Map.toPermalink
     }
     
     /// Get all complete pages for the given web log
     let findFullByWebLog webLogId = backgroundTask {
-        let! pages =
-            Sql.existingConnection conn
-            |> Sql.query "SELECT * FROM page WHERE web_log_id = @webLogId"
-            |> Sql.parameters [ webLogIdParam webLogId ]
-            |> Sql.executeAsync toPage
-        let! revisions =
-            Sql.existingConnection conn
-            |> Sql.query
-                "SELECT *
-                   FROM page_revision pr
-                        INNER JOIN page p ON p.id = pr.page_id
-                  WHERE p.web_log_id = @webLogId
-                  ORDER BY pr.as_of DESC"
-            |> Sql.parameters [ webLogIdParam webLogId ]
-            |> Sql.executeAsync (fun row -> PageId (row.string "page_id"), Map.toRevision row)
+        log.LogTrace "Page.findFullByWebLog"
+        let! pages     = Document.findByWebLog<Page> Table.Page webLogId
+        let! revisions = Revisions.findByWebLog Table.PageRevision Table.Page PageId webLogId 
         return
             pages
             |> List.map (fun it ->
@@ -170,95 +109,53 @@ type PostgresPageData (conn : NpgsqlConnection, ser : JsonSerializer) =
     
     /// Get all listed pages for the given web log (without revisions or text)
     let findListed webLogId =
-        Sql.existingConnection conn
-        |> Sql.query "SELECT * FROM page WHERE web_log_id = @webLogId AND is_in_page_list = TRUE ORDER BY LOWER(title)"
-        |> Sql.parameters [ webLogIdParam webLogId ]
-        |> Sql.executeAsync pageWithoutText
+        log.LogTrace "Page.findListed"
+        Custom.list $"{selectWithCriteria Table.Page} ORDER BY LOWER(data ->> '{nameof Page.empty.Title}')"
+                    [ "@criteria", Query.jsonbDocParam {| webLogDoc webLogId with IsInPageList = true |} ]
+                    pageWithoutText
     
     /// Get a page of pages for the given web log (without revisions)
     let findPageOfPages webLogId pageNbr =
-        Sql.existingConnection conn
-        |> Sql.query
-            "SELECT *
-               FROM page
-              WHERE web_log_id = @webLogId
-              ORDER BY LOWER(title)
-              LIMIT @pageSize OFFSET @toSkip"
-        |> Sql.parameters [ webLogIdParam webLogId; "@pageSize", Sql.int 26; "@toSkip", Sql.int ((pageNbr - 1) * 25) ]
-        |> Sql.executeAsync toPage
+        log.LogTrace "Page.findPageOfPages"
+        Custom.list
+            $"{selectWithCriteria Table.Page}
+               ORDER BY LOWER(data->>'{nameof Page.empty.Title}')
+               LIMIT @pageSize OFFSET @toSkip"
+            [ webLogContains webLogId; "@pageSize", Sql.int 26; "@toSkip", Sql.int ((pageNbr - 1) * 25) ]
+            fromData<Page>
     
-    /// The INSERT statement for a page
-    let pageInsert =
-        "INSERT INTO page (
-            id, web_log_id, author_id, title, permalink, prior_permalinks, published_on, updated_on, is_in_page_list,
-            template, page_text, meta_items
-        ) VALUES (
-            @id, @webLogId, @authorId, @title, @permalink, @priorPermalinks, @publishedOn, @updatedOn, @isInPageList,
-            @template, @text, @metaItems
-        )"
-    
-    /// The parameters for saving a page
-    let pageParams (page : Page) = [
-        webLogIdParam page.WebLogId
-        "@id",              Sql.string       (PageId.toString page.Id)
-        "@authorId",        Sql.string       (WebLogUserId.toString page.AuthorId)
-        "@title",           Sql.string       page.Title
-        "@permalink",       Sql.string       (Permalink.toString page.Permalink)
-        "@isInPageList",    Sql.bool         page.IsInPageList
-        "@template",        Sql.stringOrNone page.Template
-        "@text",            Sql.string       page.Text
-        "@metaItems",       Sql.jsonb        (Utils.serialize ser page.Metadata)
-        "@priorPermalinks", Sql.stringArray  (page.PriorPermalinks |> List.map Permalink.toString |> Array.ofList)
-        typedParam "publishedOn" page.PublishedOn
-        typedParam "updatedOn"   page.UpdatedOn
-    ]
-
     /// Restore pages from a backup
     let restore (pages : Page list) = backgroundTask {
+        log.LogTrace "Page.restore"
         let revisions = pages |> List.collect (fun p -> p.Revisions |> List.map (fun r -> p.Id, r))
         let! _ =
-            Sql.existingConnection conn
+            Configuration.dataSource ()
+            |> Sql.fromDataSource
             |> Sql.executeTransactionAsync [
-                pageInsert, pages     |> List.map pageParams
-                revInsert,  revisions |> List.map (fun (pageId, rev) -> revParams pageId rev)
+                Query.insert Table.Page,
+                pages
+                |> List.map (fun page -> Query.docParameters (PageId.toString page.Id) { page with Revisions = [] })
+                Revisions.insertSql Table.PageRevision,
+                    revisions |> List.map (fun (pageId, rev) -> Revisions.revParams pageId PageId.toString rev)
             ]
         ()
     }
     
     /// Save a page
     let save (page : Page) = backgroundTask {
+        log.LogTrace "Page.save"
         let! oldPage = findFullById page.Id page.WebLogId
-        let! _ =
-            Sql.existingConnection conn
-            |> Sql.query $"
-                {pageInsert} ON CONFLICT (id) DO UPDATE
-                SET author_id        = EXCLUDED.author_id,
-                    title            = EXCLUDED.title,
-                    permalink        = EXCLUDED.permalink,
-                    prior_permalinks = EXCLUDED.prior_permalinks,
-                    published_on     = EXCLUDED.published_on,
-                    updated_on       = EXCLUDED.updated_on,
-                    is_in_page_list  = EXCLUDED.is_in_page_list,
-                    template         = EXCLUDED.template,
-                    page_text        = EXCLUDED.page_text,
-                    meta_items       = EXCLUDED.meta_items"
-            |> Sql.parameters (pageParams page)
-            |> Sql.executeNonQueryAsync
+        do! save Table.Page (PageId.toString page.Id) { page with Revisions = [] }
         do! updatePageRevisions page.Id (match oldPage with Some p -> p.Revisions | None -> []) page.Revisions
         ()
     }
     
     /// Update a page's prior permalinks
     let updatePriorPermalinks pageId webLogId permalinks = backgroundTask {
+        log.LogTrace "Page.updatePriorPermalinks"
         match! pageExists pageId webLogId with
         | true ->
-            let! _ =
-                Sql.existingConnection conn
-                |> Sql.query "UPDATE page SET prior_permalinks = @prior WHERE id = @id"
-                |> Sql.parameters
-                    [   "@id",    Sql.string      (PageId.toString pageId)
-                        "@prior", Sql.stringArray (permalinks |> List.map Permalink.toString |> Array.ofList) ]
-                |> Sql.executeNonQueryAsync
+            do! Update.partialById Table.Page (PageId.toString pageId) {| PriorPermalinks = permalinks |}
             return true
         | false -> return false
     }

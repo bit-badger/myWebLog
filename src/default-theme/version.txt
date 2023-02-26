@@ -1,2 +1,2 @@
 myWebLog Default Theme
-2.0.0-rc2
+2.0.0

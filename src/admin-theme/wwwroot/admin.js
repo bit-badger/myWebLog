@@ -334,27 +334,34 @@ this.Admin = {
       const theToast = new bootstrap.Toast(toast, options)
       theToast.show()
     })
+  },
+
+  /**
+   * Initialize any toasts that were pre-rendered from the server
+   */
+  showPreRenderedMessages() {
+    [...document.querySelectorAll(".toast")].forEach(el => {
+      if (el.getAttribute("data-mwl-shown") === "true" && el.className.indexOf("hide") >= 0) {
+        document.removeChild(el)
+      } else {
+        const toast = new bootstrap.Toast(el,
+            el.getAttribute("data-bs-autohide") === "false"
+                ? { autohide: false } : { delay: 6000, autohide: true })
+        toast.show()
+        el.setAttribute("data-mwl-shown", "true")
+      }
+    })
   }
 }
 
 htmx.on("htmx:afterOnLoad", function (evt) {
   const hdrs = evt.detail.xhr.getAllResponseHeaders()
+  // Initialize any toasts that were pre-rendered from the server
+  Admin.showPreRenderedMessages()
   // Show messages if there were any in the response
   if (hdrs.indexOf("x-message") >= 0) {
     Admin.showMessage(evt.detail.xhr.getResponseHeader("x-message"))
   }
-  // Initialize any toasts that were pre-rendered from the server
-  [...document.querySelectorAll(".toast")].forEach(el => {
-    if (el.getAttribute("data-mwl-shown") === "true" && el.className.indexOf("hide") >= 0) {
-      document.removeChild(el)
-    } else {
-      const toast = new bootstrap.Toast(el,
-          el.getAttribute("data-bs-autohide") === "false"
-              ? { autohide: false } : { delay: 6000, autohide: true })
-      toast.show()
-      el.setAttribute("data-mwl-shown", "true")
-    }
-  })
 })
 
 htmx.on("htmx:responseError", function (evt) {
@@ -365,3 +372,5 @@ htmx.on("htmx:responseError", function (evt) {
     Admin.showMessage(`danger|||${xhr.status}: ${xhr.statusText}`)
   }
 })
+
+document.addEventListener("DOMContentLoaded", Admin.showPreRenderedMessages, { once: true})
