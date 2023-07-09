@@ -23,13 +23,15 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="DotLiquid" Version="2.2.682" />
-    <PackageReference Include="Giraffe" Version="6.0.0" />
-    <PackageReference Include="Giraffe.Htmx" Version="1.8.5" />
-    <PackageReference Include="Giraffe.ViewEngine.Htmx" Version="1.8.5" />
-    <PackageReference Include="NeoSmart.Caching.Sqlite" Version="6.0.1" />
+    <PackageReference Include="BitBadger.AspNetCore.CanonicalDomains" Version="1.0.0" />
+    <PackageReference Include="DotLiquid" Version="2.2.692" />
+    <PackageReference Include="Giraffe" Version="6.2.0" />
+    <PackageReference Include="Giraffe.Htmx" Version="1.9.2" />
+    <PackageReference Include="Giraffe.ViewEngine.Htmx" Version="1.9.2" />
+    <PackageReference Include="NeoSmart.Caching.Sqlite" Version="6.1.0" />
     <PackageReference Include="RethinkDB.DistributedCache" Version="1.0.0-rc1" />
     <PackageReference Include="System.ServiceModel.Syndication" Version="7.0.0" />
+    <PackageReference Update="FSharp.Core" Version="7.0.300" />
   </ItemGroup>
 
   <ItemGroup>

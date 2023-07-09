@@ -99,6 +99,8 @@ let showHelp () =
 
 
 open System.IO
+open System.Linq
+open BitBadger.AspNetCore.CanonicalDomains
 open Giraffe
 open Giraffe.EndpointRouting
 open Microsoft.AspNetCore.Authentication.Cookies
@@ -200,6 +202,10 @@ let rec main args =
             do! Maintenance.loadTheme [| ""; themeFile |] app.Services
             
         let _ = app.UseForwardedHeaders ()
+        
+        let domainCfg = app.Services.GetRequiredService<IConfiguration>().GetSection "CanonicalDomains"
+        if domainCfg.AsEnumerable().Count () > 0 then app.UseCanonicalDomains () |> ignore
+        
         let _ = app.UseCookiePolicy (CookiePolicyOptions (MinimumSameSitePolicy = SameSiteMode.Strict))
         let _ = app.UseMiddleware<WebLogMiddleware> ()
         let _ = app.UseAuthentication ()
