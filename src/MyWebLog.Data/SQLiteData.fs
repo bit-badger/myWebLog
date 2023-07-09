@@ -210,7 +210,7 @@ type SQLiteData (conn : SqliteConnection, log : ILogger<SQLiteData>, ser : JsonS
             // Database version table
             if needsTable "db_version" then
                 "CREATE TABLE db_version (id TEXT PRIMARY KEY);
-                 INSERT INTO db_version VALUES ('v2-rc1')"
+                 INSERT INTO db_version VALUES ('v2')"
         }
         |> Seq.map (fun sql ->
             log.LogInformation $"Creating {(sql.Split ' ')[2]} table..."

@@ -203,8 +203,9 @@ let rec main args =
             
         let _ = app.UseForwardedHeaders ()
         
-        let domainCfg = app.Services.GetRequiredService<IConfiguration>().GetSection "CanonicalDomains"
-        if domainCfg.AsEnumerable().Count () > 0 then app.UseCanonicalDomains () |> ignore
+        (app.Services.GetRequiredService<IConfiguration>().GetSection "CanonicalDomains").Value
+        |> (isNull >> not)
+        |> function true -> app.UseCanonicalDomains () |> ignore | false -> ()
         
         let _ = app.UseCookiePolicy (CookiePolicyOptions (MinimumSameSitePolicy = SameSiteMode.Strict))
         let _ = app.UseMiddleware<WebLogMiddleware> ()
