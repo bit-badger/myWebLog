@@ -226,7 +226,9 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
         match version with
         | Some v when v = "v2" -> ()
         | Some v when v = "v2-rc2" -> do! migrateV2Rc2ToV2 ()
-        | Some v when v = "v2-rc1" -> do! migrateV2Rc1ToV2Rc2 ()
+        | Some v when v = "v2-rc1" ->
+            do! migrateV2Rc1ToV2Rc2 ()
+            do! migrateV2Rc2ToV2 ()
         | Some _
         | None ->
             log.LogWarning $"Unknown database version; assuming {Utils.currentDbVersion}"
@@ -926,7 +928,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     // Files can be large; we'll do 5 at a time
                     for batch in uploads |> List.chunkBySize 5 do
                         do! rethink {
-                            withTable Table.TagMap
+                            withTable Table.Upload
                             insert batch
                             write; withRetryOnce; ignoreResult conn
                         }
