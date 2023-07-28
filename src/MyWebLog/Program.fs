@@ -27,6 +27,7 @@ type WebLogMiddleware (next : RequestDelegate, log : ILogger<WebLogMiddleware>) 
 
 
 open System
+open BitBadger.Npgsql.FSharp.Documents
 open Microsoft.Extensions.DependencyInjection
 open MyWebLog.Data
 open Newtonsoft.Json
@@ -44,7 +45,7 @@ module DataImplementation =
         let builder = NpgsqlDataSourceBuilder (cfg.GetConnectionString "PostgreSQL")
         let _ = builder.UseNodaTime ()
         // let _ = builder.UseLoggerFactory(LoggerFactory.Create(fun it -> it.AddConsole () |> ignore))
-        builder.Build ()
+        (builder.Build >> Configuration.useDataSource) ()
 
     /// Get the configured data implementation
     let get (sp : IServiceProvider) : IData =
@@ -68,11 +69,11 @@ module DataImplementation =
             let conn       = await (rethinkCfg.CreateConnectionAsync log)
             RethinkDbData (conn, rethinkCfg, log)
         elif hasConnStr "PostgreSQL" then
-            let source = createNpgsqlDataSource config
-            use conn = source.CreateConnection ()
+            createNpgsqlDataSource config
+            use conn = Configuration.dataSource().CreateConnection ()
             let log  = sp.GetRequiredService<ILogger<PostgresData>> ()
             log.LogInformation $"Using PostgreSQL database {conn.Database}"
-            PostgresData (source, log, Json.configure (JsonSerializer.CreateDefault ()))
+            PostgresData (log, Json.configure (JsonSerializer.CreateDefault ()))
         else
             createSQLite "Data Source=./myweblog.db;Cache=Shared"
 
@@ -99,7 +100,6 @@ let showHelp () =
 
 
 open System.IO
-open System.Linq
 open BitBadger.AspNetCore.CanonicalDomains
 open Giraffe
 open Giraffe.EndpointRouting
@@ -111,7 +111,7 @@ open NeoSmart.Caching.Sqlite
 open RethinkDB.DistributedCache
 
 [<EntryPoint>]
-let rec main args =
+let main args =
 
     let builder = WebApplication.CreateBuilder(args)
     let _ = builder.Services.Configure<ForwardedHeadersOptions>(fun (opts : ForwardedHeadersOptions) ->
@@ -162,9 +162,7 @@ let rec main args =
         ()
     | :? PostgresData as postgres ->
         // ADO.NET Data Sources are designed to work as singletons
-        let _ =
-            builder.Services.AddSingleton<NpgsqlDataSource> (fun sp ->
-                DataImplementation.createNpgsqlDataSource (sp.GetRequiredService<IConfiguration> ()))
+        let _ = builder.Services.AddSingleton<NpgsqlDataSource> (Configuration.dataSource ())
         let _ = builder.Services.AddSingleton<IData> postgres
         let _ =
             builder.Services.AddSingleton<IDistributedCache> (fun _ ->

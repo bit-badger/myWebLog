@@ -6,16 +6,14 @@ open Microsoft.Extensions.Logging
 open MyWebLog
 open MyWebLog.Data.Postgres
 open Newtonsoft.Json
-open Npgsql
 open Npgsql.FSharp
 
 /// Data implementation for PostgreSQL
-type PostgresData (source : NpgsqlDataSource, log : ILogger<PostgresData>, ser : JsonSerializer) =
+type PostgresData (log : ILogger<PostgresData>, ser : JsonSerializer) =
     
     /// Create any needed tables
     let ensureTables () = backgroundTask {
         // Set up the PostgreSQL document store
-        Configuration.useDataSource source
         Configuration.useSerializer
             { new IDocumentSerializer with
                 member _.Serialize<'T> (it : 'T) : string = Utils.serialize ser it
@@ -23,9 +21,8 @@ type PostgresData (source : NpgsqlDataSource, log : ILogger<PostgresData>, ser :
             }
         
         let! tables =
-            Sql.fromDataSource source
-            |> Sql.query "SELECT tablename FROM pg_tables WHERE schemaname = 'public'"
-            |> Sql.executeAsync (fun row -> row.string "tablename")
+            Custom.list "SELECT tablename FROM pg_tables WHERE schemaname = 'public'" []
+                        (fun row -> row.string "tablename")
         let needsTable table = not (List.contains table tables)
         // Create a document table
         let mutable isNew = false
@@ -117,7 +114,8 @@ type PostgresData (source : NpgsqlDataSource, log : ILogger<PostgresData>, ser :
                 $"INSERT INTO {Table.DbVersion} VALUES ('{Utils.currentDbVersion}')"
         }
         
-        Sql.fromDataSource source
+        Configuration.dataSource ()
+        |> Sql.fromDataSource
         |> Sql.executeTransactionAsync
             (sql
              |> Seq.map (fun s ->
