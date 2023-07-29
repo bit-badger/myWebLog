@@ -65,7 +65,8 @@ type SQLiteData (conn : SqliteConnection, log : ILogger<SQLiteData>, ser : JsonS
                     items_in_feed        INTEGER,
                     is_category_enabled  INTEGER NOT NULL DEFAULT 0,
                     is_tag_enabled       INTEGER NOT NULL DEFAULT 0,
-                    copyright            TEXT);
+                    copyright            TEXT,
+                    redirect_rules       TEXT NOT NULL DEFAULT '[]');
                 CREATE INDEX web_log_theme_idx ON web_log (theme_id)"
             if needsTable "web_log_feed" then
                 "CREATE TABLE web_log_feed (
@@ -535,15 +536,34 @@ type SQLiteData (conn : SqliteConnection, log : ILogger<SQLiteData>, ser : JsonS
         do! setDbVersion "v2"
     }
 
+    /// Migrate from v2 to v2.1
+    let migrateV2ToV2point1 () = backgroundTask {
+        Utils.logMigrationStep log "v2 to v2.1" "Adding redirect rules to web_log table"
+        use cmd = conn.CreateCommand ()
+        cmd.CommandText <- "ALTER TABLE web_log ADD COLUMN redirect_rules TEXT NOT NULL DEFAULT '[]'"
+        do! write cmd
+
+        Utils.logMigrationStep log "v2 to v2.1" "Setting database version to v2.1"
+        do! setDbVersion "v2.1"
+    }
+
     /// Migrate data among versions (up only)
     let migrate version = backgroundTask {
+        let mutable v = defaultArg version ""
+
+        if v = "v2-rc1" then
+            do! migrateV2Rc1ToV2Rc2 ()
+            v <- "v2-rc2"
         
-        match version with
-        | Some v when v = "v2" -> ()
-        | Some v when v = "v2-rc2" -> do! migrateV2Rc2ToV2 ()
-        | Some v when v = "v2-rc1" -> do! migrateV2Rc1ToV2Rc2 ()
-        | Some _
-        | None ->
+        if v = "v2-rc2" then
+            do! migrateV2Rc2ToV2 ()
+            v <- "v2"
+        
+        if v = "v2" then
+            do! migrateV2ToV2point1 ()
+            v <- "v2.1"
+        
+        if v <> "v2.1" then
             log.LogWarning $"Unknown database version; assuming {Utils.currentDbVersion}"
             do! setDbVersion Utils.currentDbVersion
     }
@@ -580,9 +600,5 @@ type SQLiteData (conn : SqliteConnection, log : ILogger<SQLiteData>, ser : JsonS
             use cmd = conn.CreateCommand ()
             cmd.CommandText <- "SELECT id FROM db_version"
             use! rdr = cmd.ExecuteReaderAsync ()
-            let version = if rdr.Read () then Some (Map.getString "id" rdr) else None
-            match version with
-            | Some v when v = "v2-rc2" -> ()
-            | Some _
-            | None -> do! migrate version
+            do! migrate (if rdr.Read () then Some (Map.getString "id" rdr) else None)
         }

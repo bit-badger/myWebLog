@@ -6,7 +6,7 @@ open MyWebLog
 open MyWebLog.ViewModels
 
 /// The current database version
-let currentDbVersion = "v2"
+let currentDbVersion = "v2.1"
 
 /// Create a category hierarchy from the given list of categories
 let rec orderByHierarchy (cats : Category list) parentId slugBase parentNames = seq {

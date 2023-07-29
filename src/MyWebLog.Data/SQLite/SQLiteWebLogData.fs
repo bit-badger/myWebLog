@@ -26,17 +26,18 @@ type SQLiteWebLogData (conn : SqliteConnection, ser : JsonSerializer) =
     
     /// Add parameters for web log INSERT or UPDATE statements
     let addWebLogParameters (cmd : SqliteCommand) (webLog : WebLog) =
-        [   cmd.Parameters.AddWithValue ("@id",           WebLogId.toString webLog.Id)
-            cmd.Parameters.AddWithValue ("@name",         webLog.Name)
-            cmd.Parameters.AddWithValue ("@slug",         webLog.Slug)
-            cmd.Parameters.AddWithValue ("@subtitle",     maybe webLog.Subtitle)
-            cmd.Parameters.AddWithValue ("@defaultPage",  webLog.DefaultPage)
-            cmd.Parameters.AddWithValue ("@postsPerPage", webLog.PostsPerPage)
-            cmd.Parameters.AddWithValue ("@themeId",      ThemeId.toString webLog.ThemeId)
-            cmd.Parameters.AddWithValue ("@urlBase",      webLog.UrlBase)
-            cmd.Parameters.AddWithValue ("@timeZone",     webLog.TimeZone)
-            cmd.Parameters.AddWithValue ("@autoHtmx",     webLog.AutoHtmx)
-            cmd.Parameters.AddWithValue ("@uploads",      UploadDestination.toString webLog.Uploads)
+        [   cmd.Parameters.AddWithValue ("@id",            WebLogId.toString webLog.Id)
+            cmd.Parameters.AddWithValue ("@name",          webLog.Name)
+            cmd.Parameters.AddWithValue ("@slug",          webLog.Slug)
+            cmd.Parameters.AddWithValue ("@subtitle",      maybe webLog.Subtitle)
+            cmd.Parameters.AddWithValue ("@defaultPage",   webLog.DefaultPage)
+            cmd.Parameters.AddWithValue ("@postsPerPage",  webLog.PostsPerPage)
+            cmd.Parameters.AddWithValue ("@themeId",       ThemeId.toString webLog.ThemeId)
+            cmd.Parameters.AddWithValue ("@urlBase",       webLog.UrlBase)
+            cmd.Parameters.AddWithValue ("@timeZone",      webLog.TimeZone)
+            cmd.Parameters.AddWithValue ("@autoHtmx",      webLog.AutoHtmx)
+            cmd.Parameters.AddWithValue ("@uploads",       UploadDestination.toString webLog.Uploads)
+            cmd.Parameters.AddWithValue ("@redirectRules", Utils.serialize ser webLog.RedirectRules)
         ] |> ignore
         addWebLogRssParameters cmd webLog
     
@@ -129,10 +130,12 @@ type SQLiteWebLogData (conn : SqliteConnection, ser : JsonSerializer) =
         cmd.CommandText <-
             "INSERT INTO web_log (
                 id, name, slug, subtitle, default_page, posts_per_page, theme_id, url_base, time_zone, auto_htmx,
-                uploads, is_feed_enabled, feed_name, items_in_feed, is_category_enabled, is_tag_enabled, copyright
+                uploads, is_feed_enabled, feed_name, items_in_feed, is_category_enabled, is_tag_enabled, copyright,
+                redirect_rules
             ) VALUES (
                 @id, @name, @slug, @subtitle, @defaultPage, @postsPerPage, @themeId, @urlBase, @timeZone, @autoHtmx,
-                @uploads, @isFeedEnabled, @feedName, @itemsInFeed, @isCategoryEnabled, @isTagEnabled, @copyright
+                @uploads, @isFeedEnabled, @feedName, @itemsInFeed, @isCategoryEnabled, @isTagEnabled, @copyright,
+                @redirectRules
             )"
         addWebLogParameters cmd webLog
         do! write cmd
@@ -145,7 +148,7 @@ type SQLiteWebLogData (conn : SqliteConnection, ser : JsonSerializer) =
         cmd.CommandText <- "SELECT * FROM web_log"
         use! rdr = cmd.ExecuteReaderAsync ()
         let! webLogs =
-            toList Map.toWebLog rdr
+            toList (Map.toWebLog ser) rdr
             |> List.map (fun webLog -> backgroundTask { return! appendCustomFeeds webLog })
             |> Task.WhenAll
         return List.ofArray webLogs
@@ -184,7 +187,7 @@ type SQLiteWebLogData (conn : SqliteConnection, ser : JsonSerializer) =
         cmd.Parameters.AddWithValue ("@urlBase", url) |> ignore
         use! rdr = cmd.ExecuteReaderAsync ()
         if rdr.Read () then
-            let! webLog = appendCustomFeeds (Map.toWebLog rdr)
+            let! webLog = appendCustomFeeds (Map.toWebLog ser rdr)
             return Some webLog
         else
             return None
@@ -197,7 +200,7 @@ type SQLiteWebLogData (conn : SqliteConnection, ser : JsonSerializer) =
         addWebLogId cmd webLogId
         use! rdr = cmd.ExecuteReaderAsync ()
         if rdr.Read () then
-            let! webLog = appendCustomFeeds (Map.toWebLog rdr)
+            let! webLog = appendCustomFeeds (Map.toWebLog ser rdr)
             return Some webLog
         else
             return None
@@ -223,7 +226,8 @@ type SQLiteWebLogData (conn : SqliteConnection, ser : JsonSerializer) =
                     items_in_feed       = @itemsInFeed,
                     is_category_enabled = @isCategoryEnabled,
                     is_tag_enabled      = @isTagEnabled,
-                    copyright           = @copyright
+                    copyright           = @copyright,
+                    redirect_rules      = @redirectRules
               WHERE id = @id"
         addWebLogParameters cmd webLog
         do! write cmd

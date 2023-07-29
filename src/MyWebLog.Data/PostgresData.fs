@@ -159,14 +159,28 @@ type PostgresData (log : ILogger<PostgresData>, ser : JsonSerializer) =
         exit 1
     }
 
+    /// Migrate from v2 to v2.1
+    let migrateV2ToV2point1 () = backgroundTask {
+        Utils.logMigrationStep log "v2 to v2.1" "Adding empty redirect rule set to all weblogs"
+        do! Custom.nonQuery $"UPDATE {Table.WebLog} SET data['RedirectRules'] = '[]'::json" []
+
+        Utils.logMigrationStep log "v2 to v2.1" "Setting database to version 2.1"
+        do! setDbVersion "v2.1"
+    }
+
     /// Do required data migration between versions
     let migrate version = backgroundTask {
-        match version with
-        | Some "v2" -> ()
-        | Some "v2-rc2" -> do! migrateV2Rc2ToV2 ()
-        // Future versions will be inserted here
-        | Some _
-        | None ->
+        let mutable v = defaultArg version ""
+
+        if v = "v2-rc2" then 
+            do! migrateV2Rc2ToV2 ()
+            v <- "v2"
+        
+        if v = "v2" then
+            do! migrateV2ToV2point1 ()
+            v <- "v2.1"
+        
+        if v <> "v2.1" then
             log.LogWarning $"Unknown database version; assuming {Utils.currentDbVersion}"
             do! setDbVersion Utils.currentDbVersion
     }
@@ -190,8 +204,5 @@ type PostgresData (log : ILogger<PostgresData>, ser : JsonSerializer) =
             do! ensureTables ()
             
             let! version = Custom.single "SELECT id FROM db_version" [] (fun row -> row.string "id")
-            match version with
-            | Some v when v = Utils.currentDbVersion -> ()
-            | Some _
-            | None -> do! migrate version 
+            do! migrate version
         }

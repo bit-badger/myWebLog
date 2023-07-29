@@ -422,6 +422,17 @@ module PostId =
     let create () = PostId (newId ())
 
 
+/// A redirection for a previously valid URL
+type RedirectRule =
+    {   /// The From string or pattern
+        From : string
+        /// The To string or pattern
+        To : string
+        /// Whether to use regular expressions on this rule
+        IsRegex : bool
+    }
+
+
 /// An identifier for a custom feed
 type CustomFeedId = CustomFeedId of string
 

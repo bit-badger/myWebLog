@@ -271,19 +271,19 @@ module Map =
         }
     
     /// Create a web log from the current row in the given data reader
-    let toWebLog rdr : WebLog =
-        {   Id           = getString  "id"             rdr |> WebLogId
-            Name         = getString  "name"           rdr
-            Slug         = getString  "slug"           rdr
-            Subtitle     = tryString  "subtitle"       rdr
-            DefaultPage  = getString  "default_page"   rdr
-            PostsPerPage = getInt     "posts_per_page" rdr
-            ThemeId      = getString  "theme_id"       rdr |> ThemeId
-            UrlBase      = getString  "url_base"       rdr
-            TimeZone     = getString  "time_zone"      rdr
-            AutoHtmx     = getBoolean "auto_htmx"      rdr
-            Uploads      = getString  "uploads"        rdr |> UploadDestination.parse
-            Rss          = {
+    let toWebLog ser rdr : WebLog =
+        {   Id            = getString  "id"             rdr |> WebLogId
+            Name          = getString  "name"           rdr
+            Slug          = getString  "slug"           rdr
+            Subtitle      = tryString  "subtitle"       rdr
+            DefaultPage   = getString  "default_page"   rdr
+            PostsPerPage  = getInt     "posts_per_page" rdr
+            ThemeId       = getString  "theme_id"       rdr |> ThemeId
+            UrlBase       = getString  "url_base"       rdr
+            TimeZone      = getString  "time_zone"      rdr
+            AutoHtmx      = getBoolean "auto_htmx"      rdr
+            Uploads       = getString  "uploads"        rdr |> UploadDestination.parse
+            Rss           = {
                 IsFeedEnabled     = getBoolean "is_feed_enabled"     rdr
                 FeedName          = getString  "feed_name"           rdr
                 ItemsInFeed       = tryInt     "items_in_feed"       rdr
@@ -292,6 +292,7 @@ module Map =
                 Copyright         = tryString  "copyright"           rdr
                 CustomFeeds       = []
             }
+            RedirectRules = getString "redirect_rules" rdr |> Utils.deserialize ser
         }
     
     /// Create a web log user from the current row in the given data reader

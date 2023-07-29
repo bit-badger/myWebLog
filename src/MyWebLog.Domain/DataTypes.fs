@@ -375,6 +375,9 @@ type WebLog =
         
         /// Where uploads are placed
         Uploads : UploadDestination
+
+        /// Redirect rules for this weblog
+        RedirectRules : RedirectRule list
     }
 
 /// Functions to support web logs
@@ -382,18 +385,19 @@ module WebLog =
     
     /// An empty web log
     let empty =
-        {   Id           = WebLogId.empty
-            Name         = ""
-            Slug         = ""
-            Subtitle     = None
-            DefaultPage  = ""
-            PostsPerPage = 10
-            ThemeId      = ThemeId "default"
-            UrlBase      = ""
-            TimeZone     = ""
-            Rss          = RssOptions.empty
-            AutoHtmx     = false
-            Uploads      = Database
+        {   Id            = WebLogId.empty
+            Name          = ""
+            Slug          = ""
+            Subtitle      = None
+            DefaultPage   = ""
+            PostsPerPage  = 10
+            ThemeId       = ThemeId "default"
+            UrlBase       = ""
+            TimeZone      = ""
+            Rss           = RssOptions.empty
+            AutoHtmx      = false
+            Uploads       = Database
+            RedirectRules = []
         }
     
     /// Get the host (including scheme) and extra path from the URL base

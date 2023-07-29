@@ -220,17 +220,37 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
         Utils.logMigrationStep log "v2-rc2 to v2" "Setting database version; no migration required"
         do! setDbVersion "v2"
     }
+
+    /// Migrate from v2 to v2.1
+    let migrateV2ToV2point1 () = backgroundTask {
+        Utils.logMigrationStep log "v2 to v2.1" "Adding empty redirect rule set to all weblogs"
+        do! rethink {
+            withTable Table.WebLog
+            update [ nameof WebLog.empty.RedirectRules, [] ]
+            write; withRetryOnce; ignoreResult conn
+        }
+        
+        Utils.logMigrationStep log "v2 to v2.1" "Setting database version to v2.1"
+        do! setDbVersion "v2.1"
+    }
     
     /// Migrate data between versions
     let migrate version = backgroundTask {
-        match version with
-        | Some v when v = "v2" -> ()
-        | Some v when v = "v2-rc2" -> do! migrateV2Rc2ToV2 ()
-        | Some v when v = "v2-rc1" ->
+        let mutable v = defaultArg version ""
+        
+        if v = "v2-rc1" then
             do! migrateV2Rc1ToV2Rc2 ()
+            v <- "v2-rc2"
+
+        if v = "v2-rc2" then
             do! migrateV2Rc2ToV2 ()
-        | Some _
-        | None ->
+            v <- "v2"
+        
+        if v = "v2" then
+            do! migrateV2ToV2point1 ()
+            v <- "v2.1"
+        
+        if v <> "v2.1" then
             log.LogWarning $"Unknown database version; assuming {Utils.currentDbVersion}"
             do! setDbVersion Utils.currentDbVersion
     }
@@ -1185,7 +1205,5 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                  limit 1
                  result; withRetryOnce conn
             }
-            match List.tryHead version with
-            | Some v when v.Id = "v2-rc2" -> ()
-            | it -> do! migrate (it |> Option.map (fun x -> x.Id))
+            do! migrate (List.tryHead version |> Option.map (fun x -> x.Id))
         }
