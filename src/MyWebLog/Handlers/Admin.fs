@@ -7,7 +7,7 @@ open MyWebLog
 open MyWebLog.ViewModels
 open NodaTime
 
-/// ~~ DASHBOARDS ~~
+/// ~~~ DASHBOARDS ~~~
 module Dashboard =
     
     // GET /admin/dashboard
@@ -75,7 +75,7 @@ module Dashboard =
 let toAdminDashboard : HttpHandler = redirectToGet "admin/administration"
 
 
-/// ~~ CACHES ~~
+/// ~~~ CACHES ~~~
 module Cache =
     
     // POST /admin/cache/web-log/{id}/refresh
@@ -126,7 +126,7 @@ module Cache =
     }
 
 
-/// ~~ CATEGORIES ~~
+/// ~~~ CATEGORIES ~~~
 module Category =
     
     open MyWebLog.Data
@@ -214,7 +214,20 @@ module Category =
     }
 
 
-/// ~~ TAG MAPPINGS ~~
+/// ~~~ REDIRECT RULES ~~~
+module RedirectRules =
+
+    // GET /admin/redirect-rules
+    let all : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
+        return!
+            hashForPage "Redirect Rules"
+            |> withAntiCsrf ctx
+            |> addToHash "redirections" ctx.WebLog.RedirectRules
+            |> adminView "redirect-list" next ctx
+    }
+
+
+/// ~~~ TAG MAPPINGS ~~~
 module TagMapping =
     
     open Microsoft.AspNetCore.Http
@@ -278,7 +291,7 @@ module TagMapping =
     }
 
 
-/// ~~ THEMES ~~
+/// ~~~ THEMES ~~~
 module Theme =
     
     open System
@@ -440,7 +453,7 @@ module Theme =
     }
 
 
-/// ~~ WEB LOG SETTINGS ~~
+/// ~~~ WEB LOG SETTINGS ~~~
 module WebLog =
     
     open System.Collections.Generic

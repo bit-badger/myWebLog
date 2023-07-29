@@ -130,6 +130,9 @@ let router : HttpHandler = choose [
                 routef "/%s/revision/%s/preview"     Post.previewRevision
                 routef "/%s/revisions"               Post.editRevisions
             ])
+            subRoute "/redirect-rules" (choose [
+                route "" >=> Admin.RedirectRules.all
+            ])
             subRoute "/settings" (choose [
                 route  ""             >=> Admin.WebLog.settings
                 routef "/rss/%s/edit"     Feed.editCustomFeed

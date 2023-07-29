@@ -226,7 +226,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
         Utils.logMigrationStep log "v2 to v2.1" "Adding empty redirect rule set to all weblogs"
         do! rethink {
             withTable Table.WebLog
-            update [ nameof WebLog.empty.RedirectRules, [] ]
+            update [ nameof WebLog.empty.RedirectRules, [] :> obj ]
             write; withRetryOnce; ignoreResult conn
         }
         

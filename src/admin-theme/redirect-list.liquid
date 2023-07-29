@@ -1,0 +1,58 @@
+<h2 class="my-3">Redirect Rules</h2>
+<article>
+  <a href="{{ "admin/settings" | relative_link }}">&laquo; Back to Settings</a>
+  <div class="container">
+    <div class="row">
+      <div class="col">
+        {%- assign redir_count = redirections | size -%}
+        {% if redir_count > 0 -%}
+          <div class="container">
+            <div class="row mwl-table-heading">
+              <div class="col">From</div>
+              <div class="col">To</div>
+              <div class="col">RegEx?</div>
+            </div>
+          </div>
+          <form method="post" class="container">
+            <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
+            <div class="row mwl-table-detail" id="redir_new"></div>
+              {% for redir in redirections -%}
+                {%- assign map_id = mapping_ids | value: map.tag -%}
+                <div class="row mwl-table-detail" id="redir_{{ forloop.index0 }}">
+                  <div class="col no-wrap">
+                    {{ redir.from }}<br>
+                    <small>
+                      {%- assign redir_url = "admin/settings/redirect-rules/" | append: forloop.index0 -%}
+                      <a href="{{ redir_url | relative_link }}" hx-target="#tag_{{ forloop.index0 }}"
+                        hx-swap="innerHTML show:#redir_{{ forloop.index0 }}:top">
+                        Edit
+                      </a>
+                      {% unless forloop.first %}
+                        <span class="text-muted"> &bull; </span>
+                        {%- assign move_up = redir_url | append: "/up" | relative_link -%}
+                        <a href="{{ move_up }}" hx-post="{{ move_up }}">Move Up</a>
+                      {% endunless %}
+                      {% unless forloop.last %}
+                        <span class="text-muted"> &bull; </span>
+                        {%- assign move_down = redir_url | append: "/down" | relative_link -%}
+                        <a href="{{ move_down }}" hx-post="{{ move_down }}">Move Down</a>
+                      {% endunless %}
+                      <span class="text-muted"> &bull; </span>
+                      {%- assign del_url = redir_url | append: "/delete" | relative_link -%}
+                      <a href="{{ del_url }}" hx-post="{{ del_url }}" class="text-danger">Delete</a>
+                    </small>
+                  </div>
+                  <div class="col">{{ redir.to }}</div>
+                  <div class="col">{% if redir.is_regex %}Yes{% else %}No{% endif %}</div>
+                </div>
+              {%- endfor %}
+          </form>
+        {%- else -%}
+          <div id="tag_new">
+            <p class="text-muted text-center fst-italic">This web log has no redirect rules defined</p>
+          </div>
+        {%- endif %}
+      </div>
+    </div>
+  </div>
+</article>
