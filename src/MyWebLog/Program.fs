@@ -26,6 +26,30 @@ type WebLogMiddleware (next : RequestDelegate, log : ILogger<WebLogMiddleware>) 
     }
 
 
+/// Middleware to check redirects for the current web log
+type RedirectRuleMiddleware (next : RequestDelegate, log : ILogger<RedirectRuleMiddleware>) =
+
+    /// Shorthand for case-insensitive string equality
+    let ciEquals str1 str2 =
+        System.String.Equals (str1, str2, System.StringComparison.InvariantCultureIgnoreCase)
+    
+    member _.InvokeAsync (ctx : HttpContext) = task {
+        let path    = ctx.Request.Path.Value.ToLower ()
+        let matched =
+            WebLogCache.redirectRules ctx.WebLog.Id
+            |> List.tryPick (fun rule ->
+                match rule with
+                | WebLogCache.CachedRedirectRule.Text (urlFrom, urlTo) ->
+                    log.LogInformation $"Checking {path} against from={urlFrom} and to={urlTo}"
+                    if ciEquals path urlFrom then Some urlTo else None
+                | WebLogCache.CachedRedirectRule.RegEx (regExFrom, patternTo) ->
+                    if regExFrom.IsMatch path then Some (regExFrom.Replace (path, patternTo)) else None)
+        match matched with
+        | Some url -> ctx.Response.Redirect (url, permanent = true)
+        | None -> return! next.Invoke ctx
+    }
+
+
 open System
 open BitBadger.Npgsql.FSharp.Documents
 open Microsoft.Extensions.DependencyInjection
@@ -207,6 +231,7 @@ let main args =
         
         let _ = app.UseCookiePolicy (CookiePolicyOptions (MinimumSameSitePolicy = SameSiteMode.Strict))
         let _ = app.UseMiddleware<WebLogMiddleware> ()
+        let _ = app.UseMiddleware<RedirectRuleMiddleware> ()
         let _ = app.UseAuthentication ()
         let _ = app.UseStaticFiles ()
         let _ = app.UseRouting ()

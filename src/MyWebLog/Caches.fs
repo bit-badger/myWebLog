@@ -65,8 +65,20 @@ open System.Collections.Concurrent
 /// settings update page</remarks>
 module WebLogCache =
     
+    open System.Text.RegularExpressions
+
+    /// A redirect rule that caches compiled regular expression rules
+    type CachedRedirectRule =
+    /// A straight text match rule
+    | Text of string * string
+    /// A regular expression match rule
+    | RegEx of Regex * string
+
     /// The cache of web log details
     let mutable private _cache : WebLog list = []
+
+    /// Redirect rules with compiled regular expressions
+    let mutable private _redirectCache = ConcurrentDictionary<WebLogId, CachedRedirectRule list> ()
 
     /// Try to get the web log for the current request (longest matching URL base wins)
     let tryGet (path : string) =
@@ -78,6 +90,16 @@ module WebLogCache =
     /// Cache the web log for a particular host
     let set webLog =
         _cache <- webLog :: (_cache |> List.filter (fun wl -> wl.Id <> webLog.Id))
+        _redirectCache[webLog.Id] <-
+            webLog.RedirectRules
+            |> List.map (fun it ->
+                let relUrl = Permalink >> WebLog.relativeUrl webLog
+                let urlTo = if it.To.Contains "://" then it.To else relUrl it.To
+                if it.IsRegex then
+                    let pattern = if it.From.StartsWith "^" then $"^{relUrl (it.From.Substring 1)}" else it.From
+                    RegEx (new Regex (pattern, RegexOptions.Compiled ||| RegexOptions.IgnoreCase), urlTo)
+                else
+                    Text (relUrl it.From, urlTo))
     
     /// Get all cached web logs
     let all () =
@@ -86,8 +108,12 @@ module WebLogCache =
     /// Fill the web log cache from the database
     let fill (data : IData) = backgroundTask {
         let! webLogs = data.WebLog.All ()
-        _cache <- webLogs
+        webLogs |> List.iter set
     }
+    
+    /// Get the cached redirect rules for the given web log
+    let redirectRules webLogId =
+        _redirectCache[webLogId]
     
     /// Is the given theme in use by any web logs?
     let isThemeInUse themeId =
