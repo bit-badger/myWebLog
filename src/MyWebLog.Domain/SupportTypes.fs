@@ -426,11 +426,23 @@ module PostId =
 type RedirectRule =
     {   /// The From string or pattern
         From : string
+        
         /// The To string or pattern
         To : string
+        
         /// Whether to use regular expressions on this rule
         IsRegex : bool
     }
+
+/// Functions to support redirect rules
+module RedirectRule =
+
+    /// An empty redirect rule
+    let empty =
+        {   From    = ""
+            To      = ""
+            IsRegex = false
+        }
 
 
 /// An identifier for a custom feed

@@ -95,7 +95,7 @@ open Giraffe.Htmx
 let private goAway : HttpHandler = RequestErrors.BAD_REQUEST "really?"
 
 // GET /admin/settings/users
-let all : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
+let all : HttpHandler = fun next ctx -> task {
     let! users = ctx.Data.WebLogUser.FindByWebLog ctx.WebLog.Id
     return!
         hashForPage "User Administration"
@@ -119,7 +119,7 @@ let private showEdit (model : EditUserModel) : HttpHandler = fun next ctx ->
     |> adminBareView "user-edit" next ctx
     
 // GET /admin/settings/user/{id}/edit
-let edit usrId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
+let edit usrId : HttpHandler = fun next ctx -> task {
     let isNew   = usrId = "new"
     let userId  = WebLogUserId usrId
     let tryUser =
@@ -131,7 +131,7 @@ let edit usrId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> tas
 }
 
 // POST /admin/settings/user/{id}/delete
-let delete userId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
+let delete userId : HttpHandler = fun next ctx -> task {
     let data = ctx.Data
     match! data.WebLogUser.FindById (WebLogUserId userId) ctx.WebLog.Id with
     | Some user ->

@@ -107,7 +107,7 @@ let router : HttpHandler = choose [
     subRoute "/admin" (requireUser >=> choose [
         GET_HEAD >=> choose [
             route    "/administration" >=> Admin.Dashboard.admin
-            subRoute "/categor" (choose [
+            subRoute "/categor" (requireAccess WebLogAdmin >=> choose [
                 route  "ies"       >=> Admin.Category.all
                 route  "ies/bare"  >=> Admin.Category.bare
                 routef "y/%s/edit"     Admin.Category.edit
@@ -130,19 +130,20 @@ let router : HttpHandler = choose [
                 routef "/%s/revision/%s/preview"     Post.previewRevision
                 routef "/%s/revisions"               Post.editRevisions
             ])
-            subRoute "/redirect-rules" (choose [
-                route "" >=> Admin.RedirectRules.all
-            ])
-            subRoute "/settings" (choose [
-                route  ""             >=> Admin.WebLog.settings
-                routef "/rss/%s/edit"     Feed.editCustomFeed
-                subRoute "/user" (choose [
-                    route  "s"        >=> User.all
-                    routef "/%s/edit"     User.edit
+            subRoute "/settings" (requireAccess WebLogAdmin >=> choose [
+                route    ""             >=> Admin.WebLog.settings
+                routef   "/rss/%s/edit"     Feed.editCustomFeed
+                subRoute "/redirect-rules" (choose [
+                    route  ""    >=> Admin.RedirectRules.all
+                    routef "/%i"     Admin.RedirectRules.edit
                 ])
                 subRoute "/tag-mapping" (choose [
                     route  "s"        >=> Admin.TagMapping.all
                     routef "/%s/edit"     Admin.TagMapping.edit
+                ])
+                subRoute "/user" (choose [
+                    route  "s"        >=> User.all
+                    routef "/%s/edit"     User.edit
                 ])
             ])
             subRoute "/theme" (choose [
@@ -159,7 +160,7 @@ let router : HttpHandler = choose [
                 routef "/theme/%s/refresh"   Admin.Cache.refreshTheme
                 routef "/web-log/%s/refresh" Admin.Cache.refreshWebLog
             ])
-            subRoute "/category" (choose [
+            subRoute "/category" (requireAccess WebLogAdmin >=> choose [
                 route  "/save"      >=> Admin.Category.save
                 routef "/%s/delete"     Admin.Category.delete
             ])
@@ -180,12 +181,18 @@ let router : HttpHandler = choose [
                 routef "/%s/revision/%s/restore"     Post.restoreRevision
                 routef "/%s/revisions/purge"         Post.purgeRevisions
             ])
-            subRoute "/settings" (choose [
+            subRoute "/settings" (requireAccess WebLogAdmin >=> choose [
                 route ""     >=> Admin.WebLog.saveSettings
                 subRoute "/rss" (choose [
                     route  ""           >=> Feed.saveSettings
                     route  "/save"      >=> Feed.saveCustomFeed
                     routef "/%s/delete"     Feed.deleteCustomFeed
+                ])
+                subRoute "/redirect-rules" (choose [
+                    routef "/%i"        Admin.RedirectRules.save
+                    routef "/%i/up"     Admin.RedirectRules.moveUp
+                    routef "/%i/down"   Admin.RedirectRules.moveDown
+                    routef "/%i/delete" Admin.RedirectRules.delete
                 ])
                 subRoute "/tag-mapping" (choose [
                     route  "/save"      >=> Admin.TagMapping.save

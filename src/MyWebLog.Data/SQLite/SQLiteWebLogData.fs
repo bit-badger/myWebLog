@@ -206,6 +206,33 @@ type SQLiteWebLogData (conn : SqliteConnection, ser : JsonSerializer) =
             return None
     }
     
+    /// Update redirect rules for a web log
+    let updateRedirectRules webLog = backgroundTask {
+        use cmd = conn.CreateCommand ()
+        cmd.CommandText <- "UPDATE web_log SET redirect_rules = @redirectRules WHERE id = @id"
+        cmd.Parameters.AddWithValue ("@redirectRules", Utils.serialize ser webLog.RedirectRules) |> ignore
+        cmd.Parameters.AddWithValue ("@id",            WebLogId.toString webLog.Id)              |> ignore
+        do! write cmd
+    }
+
+    /// Update RSS options for a web log
+    let updateRssOptions webLog = backgroundTask {
+        use cmd = conn.CreateCommand ()
+        cmd.CommandText <-
+            "UPDATE web_log
+                SET is_feed_enabled     = @isFeedEnabled,
+                    feed_name           = @feedName,
+                    items_in_feed       = @itemsInFeed,
+                    is_category_enabled = @isCategoryEnabled,
+                    is_tag_enabled      = @isTagEnabled,
+                    copyright           = @copyright
+              WHERE id = @id"
+        addWebLogRssParameters cmd webLog
+        cmd.Parameters.AddWithValue ("@id", WebLogId.toString webLog.Id) |> ignore
+        do! write cmd
+        do! updateCustomFeeds webLog
+    }
+    
     /// Update settings for a web log
     let updateSettings webLog = backgroundTask {
         use cmd = conn.CreateCommand ()
@@ -233,29 +260,12 @@ type SQLiteWebLogData (conn : SqliteConnection, ser : JsonSerializer) =
         do! write cmd
     }
     
-    /// Update RSS options for a web log
-    let updateRssOptions webLog = backgroundTask {
-        use cmd = conn.CreateCommand ()
-        cmd.CommandText <-
-            "UPDATE web_log
-                SET is_feed_enabled     = @isFeedEnabled,
-                    feed_name           = @feedName,
-                    items_in_feed       = @itemsInFeed,
-                    is_category_enabled = @isCategoryEnabled,
-                    is_tag_enabled      = @isTagEnabled,
-                    copyright           = @copyright
-              WHERE id = @id"
-        addWebLogRssParameters cmd webLog
-        cmd.Parameters.AddWithValue ("@id", WebLogId.toString webLog.Id) |> ignore
-        do! write cmd
-        do! updateCustomFeeds webLog
-    }
-    
     interface IWebLogData with
         member _.Add webLog = add webLog
         member _.All () = all ()
         member _.Delete webLogId = delete webLogId
         member _.FindByHost url = findByHost url
         member _.FindById webLogId = findById webLogId
-        member _.UpdateSettings webLog = updateSettings webLog
+        member _.UpdateRedirectRules webLog = updateRedirectRules webLog
         member _.UpdateRssOptions webLog = updateRssOptions webLog
+        member _.UpdateSettings webLog = updateSettings webLog

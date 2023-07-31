@@ -224,15 +224,17 @@ let register () =
     Template.RegisterTag<UserLinksTag> "user_links"
     
     [ // Domain types
-      typeof<CustomFeed>; typeof<Episode>; typeof<Episode option>;    typeof<MetaItem>; typeof<Page>
-      typeof<RssOptions>; typeof<TagMap>;  typeof<UploadDestination>; typeof<WebLog>
+      typeof<CustomFeed>;   typeof<Episode>;    typeof<Episode option>; typeof<MetaItem>;          typeof<Page>
+      typeof<RedirectRule>; typeof<RssOptions>; typeof<TagMap>;         typeof<UploadDestination>; typeof<WebLog>
       // View models
-      typeof<DashboardModel>;    typeof<DisplayCategory>;       typeof<DisplayCustomFeed>;    typeof<DisplayPage>
-      typeof<DisplayRevision>;   typeof<DisplayTheme>;          typeof<DisplayUpload>;        typeof<DisplayUser>
-      typeof<EditCategoryModel>; typeof<EditCustomFeedModel>;   typeof<EditMyInfoModel>;      typeof<EditPageModel>
-      typeof<EditPostModel>;     typeof<EditRssModel>;          typeof<EditTagMapModel>;      typeof<EditUserModel>
-      typeof<LogOnModel>;        typeof<ManagePermalinksModel>; typeof<ManageRevisionsModel>; typeof<PostDisplay>
-      typeof<PostListItem>;      typeof<SettingsModel>;         typeof<UserMessage>
+      typeof<DashboardModel>;        typeof<DisplayCategory>;       typeof<DisplayCustomFeed>
+      typeof<DisplayPage>;           typeof<DisplayRevision>;       typeof<DisplayTheme>
+      typeof<DisplayUpload>;         typeof<DisplayUser>;           typeof<EditCategoryModel>
+      typeof<EditCustomFeedModel>;   typeof<EditMyInfoModel>;       typeof<EditPageModel>
+      typeof<EditPostModel>;         typeof<EditRedirectRuleModel>; typeof<EditRssModel>
+      typeof<EditTagMapModel>;       typeof<EditUserModel>;         typeof<LogOnModel>
+      typeof<ManagePermalinksModel>; typeof<ManageRevisionsModel>;  typeof<PostDisplay>
+      typeof<PostListItem>;          typeof<SettingsModel>;         typeof<UserMessage>
       // Framework types
       typeof<AntiforgeryTokenSet>; typeof<DateTime option>; typeof<int option>;    typeof<KeyValuePair>
       typeof<MetaItem list>;       typeof<string list>;     typeof<string option>; typeof<TagMap list>

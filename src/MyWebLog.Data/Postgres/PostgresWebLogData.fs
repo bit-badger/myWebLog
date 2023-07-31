@@ -45,11 +45,13 @@ type PostgresWebLogData (log : ILogger) =
         log.LogTrace "WebLog.findById"
         Find.byId<WebLog> Table.WebLog (WebLogId.toString webLogId)
     
-    /// Update settings for a web log
-    let updateSettings (webLog : WebLog) =
-        log.LogTrace "WebLog.updateSettings"
-        Update.full Table.WebLog (WebLogId.toString webLog.Id) webLog
-    
+    let updateRedirectRules (webLog : WebLog) = backgroundTask {
+        log.LogTrace "WebLog.updateRedirectRules"
+        match! findById webLog.Id with
+        | Some _ ->
+            do! Update.partialById Table.WebLog (WebLogId.toString webLog.Id) {| RedirectRules = webLog.RedirectRules |}
+        | None -> ()
+    }
     /// Update RSS options for a web log
     let updateRssOptions (webLog : WebLog) = backgroundTask {
         log.LogTrace "WebLog.updateRssOptions"
@@ -58,11 +60,17 @@ type PostgresWebLogData (log : ILogger) =
         | None -> ()
     }
     
+    /// Update settings for a web log
+    let updateSettings (webLog : WebLog) =
+        log.LogTrace "WebLog.updateSettings"
+        Update.full Table.WebLog (WebLogId.toString webLog.Id) webLog
+    
     interface IWebLogData with
         member _.Add webLog = add webLog
         member _.All () = all ()
         member _.Delete webLogId = delete webLogId
         member _.FindByHost url = findByHost url
         member _.FindById webLogId = findById webLogId
-        member _.UpdateSettings webLog = updateSettings webLog
+        member _.UpdateRedirectRules webLog = updateRedirectRules webLog
         member _.UpdateRssOptions webLog = updateRssOptions webLog
+        member _.UpdateSettings webLog = updateSettings webLog

@@ -807,6 +807,43 @@ type EditPostModel =
             }
 
 
+/// View model to add/edit a redirect rule
+[<CLIMutable; NoComparison; NoEquality>]
+type EditRedirectRuleModel =
+    {   /// The ID (index) of the rule being edited
+        RuleId : int
+
+        /// The "from" side of the rule
+        From : string
+
+        /// The "to" side of the rule
+        To : string
+
+        /// Whether this rule uses a regular expression
+        IsRegex : bool
+
+        /// Whether a new rule should be inserted at the top or appended to the end (ignored for edits)
+        InsertAtTop : bool
+    }
+
+    /// Create a model from an existing rule
+    static member fromRule idx (rule : RedirectRule) =
+        {   RuleId      = idx
+            From        = rule.From
+            To          = rule.To
+            IsRegex     = rule.IsRegex
+            InsertAtTop = false
+        }
+    
+    /// Update a rule with the values from this model
+    member this.UpdateRule (rule : RedirectRule) =
+        { rule with
+            From    = this.From
+            To      = this.To
+            IsRegex = this.IsRegex
+        }
+
+
 /// View model to edit RSS settings
 [<CLIMutable; NoComparison; NoEquality>]
 type EditRssModel =

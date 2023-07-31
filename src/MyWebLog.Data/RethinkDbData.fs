@@ -1031,6 +1031,13 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                     resultOption; withRetryOptionDefault conn
                 }
                 
+                member _.UpdateRedirectRules webLog = rethink {
+                    withTable Table.WebLog
+                    get webLog.Id
+                    update [ nameof WebLog.empty.RedirectRules, webLog.RedirectRules :> obj ]
+                    write; withRetryDefault; ignoreResult conn
+                }
+                
                 member _.UpdateRssOptions webLog = rethink {
                     withTable Table.WebLog
                     get webLog.Id

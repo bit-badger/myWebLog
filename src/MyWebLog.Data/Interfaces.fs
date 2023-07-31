@@ -259,6 +259,9 @@ type IWebLogData =
     /// Find a web log by its ID
     abstract member FindById : WebLogId -> Task<WebLog option>
     
+    /// Update redirect rules for a web log
+    abstract member UpdateRedirectRules : WebLog -> Task<unit>
+    
     /// Update RSS options for a web log
     abstract member UpdateRssOptions : WebLog -> Task<unit>
     

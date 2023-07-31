@@ -162,7 +162,7 @@ type PostgresData (log : ILogger<PostgresData>, ser : JsonSerializer) =
     /// Migrate from v2 to v2.1
     let migrateV2ToV2point1 () = backgroundTask {
         Utils.logMigrationStep log "v2 to v2.1" "Adding empty redirect rule set to all weblogs"
-        do! Custom.nonQuery $"UPDATE {Table.WebLog} SET data['RedirectRules'] = '[]'::json" []
+        do! Custom.nonQuery $"""UPDATE {Table.WebLog} SET data = data + '{{ "RedirectRules": [] }}'::json""" []
 
         Utils.logMigrationStep log "v2 to v2.1" "Setting database to version 2.1"
         do! setDbVersion "v2.1"

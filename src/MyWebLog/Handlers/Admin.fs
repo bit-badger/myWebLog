@@ -132,7 +132,7 @@ module Category =
     open MyWebLog.Data
 
     // GET /admin/categories
-    let all : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
+    let all : HttpHandler = fun next ctx -> task {
         match! TemplateCache.get adminTheme "category-list-body" ctx.Data with
         | Ok catListTemplate ->
             let! hash =
@@ -146,14 +146,14 @@ module Category =
     }
 
     // GET /admin/categories/bare
-    let bare : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx ->
+    let bare : HttpHandler = fun next ctx ->
         hashForPage "Categories"
         |> withAntiCsrf ctx
         |> adminBareView "category-list-body" next ctx
 
 
     // GET /admin/category/{id}/edit
-    let edit catId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
+    let edit catId : HttpHandler = fun next ctx -> task {
         let! result = task {
             match catId with
             | "new" -> return Some ("Add a New Category", { Category.empty with Id = CategoryId "new" })
@@ -173,7 +173,7 @@ module Category =
     }
 
     // POST /admin/category/save
-    let save : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
+    let save : HttpHandler = fun next ctx -> task {
         let  data     = ctx.Data
         let! model    = ctx.BindFormAsync<EditCategoryModel> ()
         let  category =
@@ -196,7 +196,7 @@ module Category =
     }
 
     // POST /admin/category/{id}/delete
-    let delete catId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
+    let delete catId : HttpHandler = fun next ctx -> task {
         let! result = ctx.Data.Category.Delete (CategoryId catId) ctx.WebLog.Id
         match result with
         | CategoryDeleted
@@ -217,13 +217,91 @@ module Category =
 /// ~~~ REDIRECT RULES ~~~
 module RedirectRules =
 
-    // GET /admin/redirect-rules
-    let all : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
+    open Microsoft.AspNetCore.Http
+
+    // GET /admin/settings/redirect-rules
+    let all : HttpHandler = fun next ctx -> task {
         return!
             hashForPage "Redirect Rules"
             |> withAntiCsrf ctx
             |> addToHash "redirections" ctx.WebLog.RedirectRules
             |> adminView "redirect-list" next ctx
+    }
+
+    // GET /admin/settings/redirect-rules/[index]
+    let edit idx : HttpHandler = fun next ctx -> task {
+        if idx = -1 then
+            return!
+                hashForPage "Add Redirect Rule"
+                |> addToHash "model" (EditRedirectRuleModel.fromRule -1 RedirectRule.empty)
+                |> withAntiCsrf ctx
+                |> adminBareView "redirect-edit" next ctx
+        else        
+            let rules = ctx.WebLog.RedirectRules
+            if rules.Length < idx || idx < 0 then
+                return! Error.notFound next ctx
+            else
+                return!
+                    hashForPage "Edit Redirect Rule"
+                    |> addToHash "model" (EditRedirectRuleModel.fromRule idx (List.item idx rules))
+                    |> withAntiCsrf ctx
+                    |> adminBareView "redirect-edit" next ctx
+    }
+
+    /// Update the web log's redirect rules in the database, the request web log, and the web log cache
+    let private updateRedirectRules (ctx : HttpContext) webLog = backgroundTask {
+        do! ctx.Data.WebLog.UpdateRedirectRules webLog
+        ctx.Items["webLog"] <- webLog
+        WebLogCache.set webLog
+    }
+
+    // POST /admin/settings/redirect-rules/[index]
+    let save idx : HttpHandler = fun next ctx -> task {
+        let! model    = ctx.BindFormAsync<EditRedirectRuleModel> ()
+        let  isNew    = idx = -1
+        let  rules    = ctx.WebLog.RedirectRules
+        let  rule     = model.UpdateRule (if isNew then RedirectRule.empty else List.item idx rules)
+        let  newRules =
+            match isNew with
+            | true when model.InsertAtTop -> List.insertAt 0 rule rules
+            | true -> List.insertAt (rules.Length) rule rules
+            | false -> rules |> List.removeAt idx |> List.insertAt idx rule
+        do! updateRedirectRules ctx { ctx.WebLog with RedirectRules = newRules }
+        do! addMessage ctx { UserMessage.success with Message = "Redirect rule saved successfully" }
+        return! all next ctx
+    }
+
+    // POST /admin/settings/redirect-rules/[index]/up
+    let moveUp idx : HttpHandler = fun next ctx -> task {
+        if idx < 1 || idx >= ctx.WebLog.RedirectRules.Length then
+            return! Error.notFound next ctx
+        else
+            let toMove   = List.item idx ctx.WebLog.RedirectRules
+            let newRules = ctx.WebLog.RedirectRules |> List.removeAt idx |> List.insertAt (idx - 1) toMove
+            do! updateRedirectRules ctx { ctx.WebLog with RedirectRules = newRules }
+            return! all next ctx
+    }
+
+    // POST /admin/settings/redirect-rules/[index]/down
+    let moveDown idx : HttpHandler = fun next ctx -> task {
+        if idx < 0 || idx >= ctx.WebLog.RedirectRules.Length - 1 then
+            return! Error.notFound next ctx
+        else
+            let toMove   = List.item idx ctx.WebLog.RedirectRules
+            let newRules = ctx.WebLog.RedirectRules |> List.removeAt idx |> List.insertAt (idx + 1) toMove
+            do! updateRedirectRules ctx { ctx.WebLog with RedirectRules = newRules }
+            return! all next ctx
+    }
+
+    // POST /admin/settings/redirect-rules/[index]/delete
+    let delete idx : HttpHandler = fun next ctx -> task {
+        if idx < 0 || idx >= ctx.WebLog.RedirectRules.Length then
+            return! Error.notFound next ctx
+        else
+            let rules = ctx.WebLog.RedirectRules |> List.removeAt idx
+            do! updateRedirectRules ctx { ctx.WebLog with RedirectRules = rules }
+            do! addMessage ctx { UserMessage.success with Message = "Redirect rule deleted successfully" }
+            return! all next ctx
     }
 
 
@@ -243,7 +321,7 @@ module TagMapping =
     }
 
     // GET /admin/settings/tag-mappings
-    let all : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
+    let all : HttpHandler = fun next ctx -> task {
         let! hash =
             hashForPage ""
             |> withAntiCsrf    ctx
@@ -252,7 +330,7 @@ module TagMapping =
     }
 
     // GET /admin/settings/tag-mapping/{id}/edit
-    let edit tagMapId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
+    let edit tagMapId : HttpHandler = fun next ctx -> task {
         let isNew  = tagMapId = "new"
         let tagMap =
             if isNew then someTask { TagMap.empty with Id = TagMapId "new" }
@@ -268,7 +346,7 @@ module TagMapping =
     }
 
     // POST /admin/settings/tag-mapping/save
-    let save : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
+    let save : HttpHandler = fun next ctx -> task {
         let  data   = ctx.Data
         let! model  = ctx.BindFormAsync<EditTagMapModel> ()
         let  tagMap =
@@ -283,7 +361,7 @@ module TagMapping =
     }
 
     // POST /admin/settings/tag-mapping/{id}/delete
-    let delete tagMapId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
+    let delete tagMapId : HttpHandler = fun next ctx -> task {
         match! ctx.Data.TagMap.Delete (TagMapId tagMapId) ctx.WebLog.Id with
         | true  -> do! addMessage ctx { UserMessage.success with Message = "Tag mapping deleted successfully" }
         | false -> do! addMessage ctx { UserMessage.error with Message = "Tag mapping not found; nothing deleted" }
@@ -460,7 +538,7 @@ module WebLog =
     open System.IO
 
     // GET /admin/settings
-    let settings : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
+    let settings : HttpHandler = fun next ctx -> task {
         let data = ctx.Data
         match! TemplateCache.get adminTheme "user-list-body" data with
         | Ok userTemplate ->
@@ -508,7 +586,7 @@ module WebLog =
     }
 
     // POST /admin/settings
-    let saveSettings : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
+    let saveSettings : HttpHandler = fun next ctx -> task {
         let  data  = ctx.Data
         let! model = ctx.BindFormAsync<SettingsModel> ()
         match! data.WebLog.FindById ctx.WebLog.Id with
