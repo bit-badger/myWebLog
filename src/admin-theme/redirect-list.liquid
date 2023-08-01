@@ -18,9 +18,9 @@
         {% if redir_count > 0 -%}
           <div class="container">
             <div class="row mwl-table-heading">
-              <div class="col">From</div>
-              <div class="col">To</div>
-              <div class="col">RegEx?</div>
+              <div class="col-5">From</div>
+              <div class="col-5">To</div>
+              <div class="col-2 text-center">RegEx?</div>
             </div>
           </div>
           <div class="row mwl-table-detail" id="redir_new"></div>
@@ -29,7 +29,7 @@
             {% for redir in redirections -%}
               {%- assign redir_id = "redir_" | append: forloop.index0 -%}
               <div class="row mwl-table-detail" id="{{ redir_id }}">
-                <div class="col no-wrap">
+                <div class="col-5 no-wrap">
                   {{ redir.from }}<br>
                   <small>
                     {%- assign redir_url = "admin/settings/redirect-rules/" | append: forloop.index0 -%}
@@ -55,8 +55,8 @@
                     </a>
                   </small>
                 </div>
-                <div class="col">{{ redir.to }}</div>
-                <div class="col">{% if redir.is_regex %}Yes{% else %}No{% endif %}</div>
+                <div class="col-5">{{ redir.to }}</div>
+                <div class="col-2 text-center">{% if redir.is_regex %}Yes{% else %}No{% endif %}</div>
               </div>
             {%- endfor %}
           </form>
@@ -68,4 +68,9 @@
       </div>
     </div>
   </div>
+  <p class="mt-3 text-muted fst-italic text-center">
+    This is an advanced feature; please
+    <a href="https://bitbadger.solutions/open-source/myweblog/advanced.html#redirect-rules"
+       target="_blank">read and understand the documentation on this feature</a> before adding rules.
+  </p>
 </article>

@@ -384,7 +384,11 @@ module Backup =
         // Restore web log data
         
         printfn "- Restoring web log..."
-        do! data.WebLog.Add restore.WebLog
+        // v2.0 backups will not have redirect rules; fix that if restoring to v2.1 or later
+        let webLog =
+            if isNull (box restore.WebLog.RedirectRules) then { restore.WebLog with RedirectRules = [] }
+            else restore.WebLog
+        do! data.WebLog.Add webLog
         
         printfn "- Restoring users..."
         do! data.WebLogUser.Restore restore.Users
