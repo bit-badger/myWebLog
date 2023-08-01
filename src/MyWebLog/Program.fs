@@ -40,7 +40,6 @@ type RedirectRuleMiddleware (next : RequestDelegate, log : ILogger<RedirectRuleM
             |> List.tryPick (fun rule ->
                 match rule with
                 | WebLogCache.CachedRedirectRule.Text (urlFrom, urlTo) ->
-                    log.LogInformation $"Checking {path} against from={urlFrom} and to={urlTo}"
                     if ciEquals path urlFrom then Some urlTo else None
                 | WebLogCache.CachedRedirectRule.RegEx (regExFrom, patternTo) ->
                     if regExFrom.IsMatch path then Some (regExFrom.Replace (path, patternTo)) else None)
