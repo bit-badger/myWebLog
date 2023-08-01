@@ -788,6 +788,7 @@ type EditPostModel =
                             ImageUrl           = noneIfBlank this.ImageUrl
                             Subtitle           = noneIfBlank this.Subtitle
                             Explicit           = noneIfBlank this.Explicit |> Option.map ExplicitRating.parse
+                            Chapters           = match post.Episode with Some e -> e.Chapters | None -> None
                             ChapterFile        = noneIfBlank this.ChapterFile
                             ChapterType        = noneIfBlank this.ChapterType
                             TranscriptUrl      = noneIfBlank this.TranscriptUrl

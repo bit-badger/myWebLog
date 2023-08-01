@@ -318,6 +318,8 @@ type SQLiteData (conn : SqliteConnection, log : ILogger<SQLiteData>, ser : JsonS
                         Subtitle           = Map.tryString   "subtitle"            epRdr
                         Explicit           = Map.tryString   "explicit"            epRdr
                                              |> Option.map ExplicitRating.parse
+                        Chapters           = Map.tryString   "chapters"            epRdr
+                                             |> Option.map (Utils.deserialize<Chapter list> ser)
                         ChapterFile        = Map.tryString   "chapter_file"        epRdr
                         ChapterType        = Map.tryString   "chapter_type"        epRdr
                         TranscriptUrl      = Map.tryString   "transcript_url"      epRdr

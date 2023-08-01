@@ -161,6 +161,41 @@ module ExplicitRating =
         | x       -> raise (invalidArg "rating" $"{x} is not a valid explicit rating")
 
 
+/// A location (specified by Podcast Index)
+type Location =
+    {   /// The name of the location (free-form text)
+        Name : string
+
+        /// A geographic coordinate string (RFC 5870)
+        Geo : string option
+
+        /// An OpenStreetMap query
+        Osm : string option
+    }
+
+
+/// A chapter in a podcast episode
+type Chapter =
+    {   /// The start time for the chapter
+        StartTime : Duration
+
+        /// The title for this chapter
+        Title : string option
+
+        /// A URL for an image for this chapter
+        ImageUrl : string option
+
+        /// Whether this chapter is hidden
+        IsHidden : bool option
+
+        /// The episode end time for the chapter
+        EndTime : Duration option
+
+        /// A location that applies to a chapter
+        Location : Location option
+    }
+
+
 open NodaTime.Text
 
 /// A podcast episode
@@ -186,6 +221,9 @@ type Episode =
         /// This episode's explicit rating (overrides podcast rating if present)
         Explicit : ExplicitRating option
         
+        /// Chapters for this episode
+        Chapters : Chapter list option
+
         /// A link to a chapter file
         ChapterFile : string option
         
@@ -229,6 +267,7 @@ module Episode =
             ImageUrl           = None
             Subtitle           = None
             Explicit           = None
+            Chapters           = None
             ChapterFile        = None
             ChapterType        = None
             TranscriptUrl      = None
