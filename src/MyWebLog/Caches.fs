@@ -131,7 +131,7 @@ module PageListCache =
     let private fillPages (webLog : WebLog) pages =
         _cache[webLog.Id] <-
             pages
-            |> List.map (fun pg -> DisplayPage.fromPage webLog { pg with Text = "" })
+            |> List.map (fun pg -> DisplayPage.FromPage webLog { pg with Text = "" })
             |> Array.ofList
     
     /// Are there pages cached for this web log?

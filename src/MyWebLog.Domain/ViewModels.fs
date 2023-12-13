@@ -10,7 +10,7 @@ module private Helpers =
     
     /// Create a string option if a string is blank
     let noneIfBlank (it : string) =
-        match (defaultArg (Option.ofObj it) "").Trim () with "" -> None | trimmed -> Some trimmed
+        match (defaultArg (Option.ofObj it) "").Trim() with "" -> None | trimmed -> Some trimmed
 
 
 /// Helper functions that are needed outside this file
@@ -26,67 +26,70 @@ module PublicHelpers =
 
 /// The model used to display the admin dashboard
 [<NoComparison; NoEquality>]
-type DashboardModel =
-    {   /// The number of published posts
-        Posts : int
+type DashboardModel = {
+    /// The number of published posts
+    Posts : int
 
-        /// The number of post drafts
-        Drafts : int
+    /// The number of post drafts
+    Drafts : int
 
-        /// The number of pages
-        Pages : int
+    /// The number of pages
+    Pages : int
 
-        /// The number of pages in the page list
-        ListedPages : int
+    /// The number of pages in the page list
+    ListedPages : int
 
-        /// The number of categories
-        Categories : int
+    /// The number of categories
+    Categories : int
 
-        /// The top-level categories
-        TopLevelCategories : int
-    }
+    /// The top-level categories
+    TopLevelCategories : int
+}
 
 
 /// Details about a category, used to display category lists
 [<NoComparison; NoEquality>]
-type DisplayCategory =
-    {   /// The ID of the category
-        Id : string
-        
-        /// The slug for the category
-        Slug : string
-        
-        /// The name of the category
-        Name : string
-        
-        /// A description of the category
-        Description : string option
-        
-        /// The parent category names for this (sub)category
-        ParentNames : string[]
-        
-        /// The number of posts in this category
-        PostCount : int
-    }
+type DisplayCategory = {
+    /// The ID of the category
+    Id : string
+    
+    /// The slug for the category
+    Slug : string
+    
+    /// The name of the category
+    Name : string
+    
+    /// A description of the category
+    Description : string option
+    
+    /// The parent category names for this (sub)category
+    ParentNames : string[]
+    
+    /// The number of posts in this category
+    PostCount : int
+}
 
 
 /// A display version of a custom feed definition
-type DisplayCustomFeed =
-    {   /// The ID of the custom feed
-        Id : string
-        
-        /// The source of the custom feed
-        Source : string
-        
-        /// The relative path at which the custom feed is served
-        Path : string
-        
-        /// Whether this custom feed is for a podcast
-        IsPodcast : bool
-    }
+type DisplayCustomFeed = {
+    /// The ID of the custom feed
+    Id : string
+    
+    /// The source of the custom feed
+    Source : string
+    
+    /// The relative path at which the custom feed is served
+    Path : string
+    
+    /// Whether this custom feed is for a podcast
+    IsPodcast : bool
+}
+
+/// Support functions for custom feed displays
+module DisplayCustomFeed =
     
     /// Create a display version from a custom feed
-    static member fromFeed (cats : DisplayCategory[]) (feed : CustomFeed) : DisplayCustomFeed =
+    let fromFeed (cats : DisplayCategory[]) (feed : CustomFeed) : DisplayCustomFeed =
         let source =
             match feed.Source with
             | Category (CategoryId catId) -> $"Category: {(cats |> Array.find (fun cat -> cat.Id = catId)).Name}"
@@ -133,7 +136,7 @@ type DisplayPage =
     }
     
     /// Create a minimal display page (no text or metadata) from a database page
-    static member fromPageMinimal webLog (page : Page) =
+    static member FromPageMinimal webLog (page : Page) =
         let pageId = PageId.toString page.Id
         {   Id           = pageId
             AuthorId     = WebLogUserId.toString page.AuthorId
@@ -148,7 +151,7 @@ type DisplayPage =
         }
     
     /// Create a display page from a database page
-    static member fromPage webLog (page : Page) =
+    static member FromPage webLog (page : Page) =
         let _, extra = WebLog.hostAndPath webLog
         let pageId = PageId.toString page.Id
         {   Id           = pageId
@@ -166,20 +169,22 @@ type DisplayPage =
 
 /// Information about a revision used for display
 [<NoComparison; NoEquality>]
-type DisplayRevision =
-    {   /// The as-of date/time for the revision
-        AsOf : DateTime
-        
-        /// The as-of date/time for the revision in the web log's local time zone
-        AsOfLocal : DateTime
-        
-        /// The format of the text of the revision
-        Format : string
-    }
-with
+type DisplayRevision = {
+    /// The as-of date/time for the revision
+    AsOf : DateTime
+    
+    /// The as-of date/time for the revision in the web log's local time zone
+    AsOfLocal : DateTime
+    
+    /// The format of the text of the revision
+    Format : string
+}
 
+/// Functions to support displaying revisions
+module DisplayRevision =
+    
     /// Create a display revision from an actual revision
-    static member fromRevision webLog (rev : Revision) =
+    let fromRevision webLog (rev : Revision) =
         {   AsOf      = rev.AsOf.ToDateTimeUtc ()
             AsOfLocal = WebLog.localTime webLog rev.AsOf
             Format    = MarkupText.sourceType rev.Text
@@ -190,29 +195,31 @@ open System.IO
 
 /// Information about a theme used for display
 [<NoComparison; NoEquality>]
-type DisplayTheme =
-    {   /// The ID / path slug of the theme
-        Id : string
-        
-        /// The name of the theme
-        Name : string
-        
-        /// The version of the theme
-        Version : string
-        
-        /// How many templates are contained in the theme
-        TemplateCount : int
-        
-        /// Whether the theme is in use by any web logs
-        IsInUse : bool
-        
-        /// Whether the theme .zip file exists on the filesystem
-        IsOnDisk : bool
-    }
-with
+type DisplayTheme = {
+    /// The ID / path slug of the theme
+    Id : string
+    
+    /// The name of the theme
+    Name : string
+    
+    /// The version of the theme
+    Version : string
+    
+    /// How many templates are contained in the theme
+    TemplateCount : int
+    
+    /// Whether the theme is in use by any web logs
+    IsInUse : bool
+    
+    /// Whether the theme .zip file exists on the filesystem
+    IsOnDisk : bool
+}
+
+/// Functions to support displaying themes
+module DisplayTheme =
     
     /// Create a display theme from a theme
-    static member fromTheme inUseFunc (theme : Theme) =
+    let fromTheme inUseFunc (theme : Theme) =
         {   Id            = ThemeId.toString theme.Id
             Name          = theme.Name
             Version       = theme.Version
@@ -224,25 +231,28 @@ with
 
 /// Information about an uploaded file used for display
 [<NoComparison; NoEquality>]
-type DisplayUpload =
-    {   /// The ID of the uploaded file
-        Id : string
-        
-        /// The name of the uploaded file
-        Name : string
-        
-        /// The path at which the file is served
-        Path : string
-        
-        /// The date/time the file was updated
-        UpdatedOn : DateTime option
-        
-        /// The source for this file (created from UploadDestination DU)
-        Source : string
-    }
+type DisplayUpload = {
+    /// The ID of the uploaded file
+    Id : string
+    
+    /// The name of the uploaded file
+    Name : string
+    
+    /// The path at which the file is served
+    Path : string
+    
+    /// The date/time the file was updated
+    UpdatedOn : DateTime option
+    
+    /// The source for this file (created from UploadDestination DU)
+    Source : string
+}
+
+/// Functions to support displaying uploads
+module DisplayUpload =
     
     /// Create a display uploaded file
-    static member fromUpload webLog source (upload : Upload) =
+    let fromUpload webLog source (upload : Upload) =
         let path = Permalink.toString upload.Path
         let name = Path.GetFileName path
         {   Id        = UploadId.toString upload.Id
@@ -255,37 +265,40 @@ type DisplayUpload =
 
 /// View model to display a user's information
 [<NoComparison; NoEquality>]
-type DisplayUser =
-    {   /// The ID of the user
-        Id : string
+type DisplayUser = {
+    /// The ID of the user
+    Id : string
 
-        /// The user name (e-mail address)
-        Email : string
+    /// The user name (e-mail address)
+    Email : string
 
-        /// The user's first name
-        FirstName : string
+    /// The user's first name
+    FirstName : string
 
-        /// The user's last name
-        LastName : string
+    /// The user's last name
+    LastName : string
 
-        /// The user's preferred name
-        PreferredName : string
+    /// The user's preferred name
+    PreferredName : string
 
-        /// The URL of the user's personal site
-        Url : string
+    /// The URL of the user's personal site
+    Url : string
 
-        /// The user's access level
-        AccessLevel : string
-        
-        /// When the user was created
-        CreatedOn : DateTime
-        
-        /// When the user last logged on
-        LastSeenOn : Nullable<DateTime>
-    }
+    /// The user's access level
+    AccessLevel : string
+    
+    /// When the user was created
+    CreatedOn : DateTime
+    
+    /// When the user last logged on
+    LastSeenOn : Nullable<DateTime>
+}
+
+/// Functions to support displaying a user's information
+module DisplayUser =
     
     /// Construct a displayed user from a web log user
-    static member fromUser webLog (user : WebLogUser) =
+    let fromUser webLog (user : WebLogUser) =
         {   Id            = WebLogUserId.toString user.Id
             Email         = user.Email
             FirstName     = user.FirstName

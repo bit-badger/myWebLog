@@ -27,17 +27,9 @@ type SQLiteData (conn : SqliteConnection, log : ILogger<SQLiteData>, ser : JsonS
             not (List.contains table tables)
         seq {
             // Theme tables
-            if needsTable "theme" then
-                "CREATE TABLE theme (
-                    id       TEXT PRIMARY KEY,
-                    name     TEXT NOT NULL,
-                    version  TEXT NOT NULL)"
-            if needsTable "theme_template" then
-                "CREATE TABLE theme_template (
-                    theme_id  TEXT NOT NULL REFERENCES theme (id),
-                    name      TEXT NOT NULL,
-                    template  TEXT NOT NULL,
-                    PRIMARY KEY (theme_id, name))"
+            if needsTable Table.Theme then
+                $"CREATE TABLE {Table.Theme} (data TEXT NOT NULL);
+                  CREATE UNIQUE INDEX idx_{Table.Theme}_key ON {Table.Theme} (data ->> 'Id')";
             if needsTable "theme_asset" then
                 "CREATE TABLE theme_asset (
                     theme_id    TEXT NOT NULL REFERENCES theme (id),
@@ -46,139 +38,54 @@ type SQLiteData (conn : SqliteConnection, log : ILogger<SQLiteData>, ser : JsonS
                     data        BLOB NOT NULL,
                     PRIMARY KEY (theme_id, path))"
             
-            // Web log tables
-            if needsTable "web_log" then
-                "CREATE TABLE web_log (
-                    id                   TEXT PRIMARY KEY,
-                    name                 TEXT NOT NULL,
-                    slug                 TEXT NOT NULL,
-                    subtitle             TEXT,
-                    default_page         TEXT NOT NULL,
-                    posts_per_page       INTEGER NOT NULL,
-                    theme_id             TEXT NOT NULL REFERENCES theme (id),
-                    url_base             TEXT NOT NULL,
-                    time_zone            TEXT NOT NULL,
-                    auto_htmx            INTEGER NOT NULL DEFAULT 0,
-                    uploads              TEXT NOT NULL,
-                    is_feed_enabled      INTEGER NOT NULL DEFAULT 0,
-                    feed_name            TEXT NOT NULL,
-                    items_in_feed        INTEGER,
-                    is_category_enabled  INTEGER NOT NULL DEFAULT 0,
-                    is_tag_enabled       INTEGER NOT NULL DEFAULT 0,
-                    copyright            TEXT,
-                    redirect_rules       TEXT NOT NULL DEFAULT '[]');
-                CREATE INDEX web_log_theme_idx ON web_log (theme_id)"
-            if needsTable "web_log_feed" then
-                "CREATE TABLE web_log_feed (
-                    id          TEXT PRIMARY KEY,
-                    web_log_id  TEXT NOT NULL REFERENCES web_log (id),
-                    source      TEXT NOT NULL,
-                    path        TEXT NOT NULL,
-                    podcast     TEXT);
-                CREATE INDEX web_log_feed_web_log_idx ON web_log_feed (web_log_id)"
+            // Web log table
+            if needsTable Table.WebLog then
+                $"CREATE TABLE {Table.WebLog} (data TEXT NOT NULL);
+                  CREATE UNIQUE INDEX idx_{Table.WebLog}_key ON {Table.WebLog} (data ->> 'Id')"
             
             // Category table
-            if needsTable "category" then
-                "CREATE TABLE category (
-                    id           TEXT PRIMARY KEY,
-                    web_log_id   TEXT NOT NULL REFERENCES web_log (id),
-                    name         TEXT NOT NULL,
-                    slug         TEXT NOT NULL,
-                    description  TEXT,
-                    parent_id    TEXT);
-                CREATE INDEX category_web_log_idx ON category (web_log_id)"
+            if needsTable Table.Category then
+                $"CREATE TABLE {Table.Category} (data TEXT NOT NULL);
+                  CREATE UNIQUE INDEX idx_{Table.Category}_key ON {Table.Category} (data -> 'Id');
+                  CREATE INDEX idx_{Table.Category}_web_log ON {Table.Category} (data ->> 'WebLogId')"
             
             // Web log user table
-            if needsTable "web_log_user" then
-                "CREATE TABLE web_log_user (
-                    id              TEXT PRIMARY KEY,
-                    web_log_id      TEXT NOT NULL REFERENCES web_log (id),
-                    email           TEXT NOT NULL,
-                    first_name      TEXT NOT NULL,
-                    last_name       TEXT NOT NULL,
-                    preferred_name  TEXT NOT NULL,
-                    password_hash   TEXT NOT NULL,
-                    url             TEXT,
-                    access_level    TEXT NOT NULL,
-                    created_on      TEXT NOT NULL,
-                    last_seen_on    TEXT);
-                CREATE INDEX web_log_user_web_log_idx ON web_log_user (web_log_id);
-                CREATE INDEX web_log_user_email_idx   ON web_log_user (web_log_id, email)"
+            if needsTable Table.WebLogUser then
+                $"CREATE TABLE web_log_user (data TEXT NOT NULL);
+                  CREATE UNIQUE INDEX idx_{Table.WebLogUser}_key ON {Table.WebLogUser} (data ->> 'Id');
+                  CREATE INDEX idx_{Table.WebLogUser}_email ON {Table.WebLogUser} (data ->> 'WebLogId', data ->> 'Email')"
             
             // Page tables
-            if needsTable "page" then
-                "CREATE TABLE page (
-                    id               TEXT PRIMARY KEY,
-                    web_log_id       TEXT NOT NULL REFERENCES web_log (id),
-                    author_id        TEXT NOT NULL REFERENCES web_log_user (id),
-                    title            TEXT NOT NULL,
-                    permalink        TEXT NOT NULL,
-                    published_on     TEXT NOT NULL,
-                    updated_on       TEXT NOT NULL,
-                    is_in_page_list  INTEGER NOT NULL DEFAULT 0,
-                    template         TEXT,
-                    page_text        TEXT NOT NULL,
-                    meta_items       TEXT);
-                CREATE INDEX page_web_log_idx   ON page (web_log_id);
-                CREATE INDEX page_author_idx    ON page (author_id);
-                CREATE INDEX page_permalink_idx ON page (web_log_id, permalink)"
-            if needsTable "page_permalink" then
-                "CREATE TABLE page_permalink (
-                    page_id    TEXT NOT NULL REFERENCES page (id),
-                    permalink  TEXT NOT NULL,
-                    PRIMARY KEY (page_id, permalink))"
-            if needsTable "page_revision" then
+            if needsTable Table.Page then
+                $"CREATE TABLE {Table.Page} (data TEXT NOT NULL);
+                  CREATE UNIQUE INDEX idx_{Table.Page}_key ON {Table.Page} (data ->> 'Id');
+                  CREATE INDEX idx_{Table.Page}_author ON {Table.Page} (data ->> 'AuthorId');
+                  CREATE INDEX idx_{Table.Page}_permalink ON {Table.Page} (data ->> 'WebLogId', data ->> 'Permalink')"
+            if needsTable Table.PageRevision then
                 "CREATE TABLE page_revision (
-                    page_id        TEXT NOT NULL REFERENCES page (id),
+                    page_id        TEXT NOT NULL,
                     as_of          TEXT NOT NULL,
                     revision_text  TEXT NOT NULL,
                     PRIMARY KEY (page_id, as_of))"
             
             // Post tables
-            if needsTable "post" then
-                "CREATE TABLE post (
-                    id            TEXT PRIMARY KEY,
-                    web_log_id    TEXT NOT NULL REFERENCES web_log (id),
-                    author_id     TEXT NOT NULL REFERENCES web_log_user (id),
-                    status        TEXT NOT NULL,
-                    title         TEXT NOT NULL,
-                    permalink     TEXT NOT NULL,
-                    published_on  TEXT,
-                    updated_on    TEXT NOT NULL,
-                    template      TEXT,
-                    post_text     TEXT NOT NULL,
-                    meta_items    TEXT,
-                    episode       TEXT);
-                CREATE INDEX post_web_log_idx   ON post (web_log_id);
-                CREATE INDEX post_author_idx    ON post (author_id);
-                CREATE INDEX post_status_idx    ON post (web_log_id, status, updated_on);
-                CREATE INDEX post_permalink_idx ON post (web_log_id, permalink)"
-            if needsTable "post_category" then
-                "CREATE TABLE post_category (
-                    post_id      TEXT NOT NULL REFERENCES post (id),
-                    category_id  TEXT NOT NULL REFERENCES category (id),
-                    PRIMARY KEY (post_id, category_id));
-                CREATE INDEX post_category_category_idx ON post_category (category_id)"
-            if needsTable "post_tag" then
-                "CREATE TABLE post_tag (
-                    post_id  TEXT NOT NULL REFERENCES post (id),
-                    tag      TEXT NOT NULL,
-                    PRIMARY KEY (post_id, tag))"
-            if needsTable "post_permalink" then
-                "CREATE TABLE post_permalink (
-                    post_id    TEXT NOT NULL REFERENCES post (id),
-                    permalink  TEXT NOT NULL,
-                    PRIMARY KEY (post_id, permalink))"
-            if needsTable "post_revision" then
-                "CREATE TABLE post_revision (
-                    post_id        TEXT NOT NULL REFERENCES post (id),
+            if needsTable Table.Post then
+                $"CREATE TABLE {Table.Post} (data TEXT NOT NULL);
+                  CREATE UNIQUE INDEX idx_{Table.Post}_key ON {Table.Post} (data ->> 'Id');
+                  CREATE INDEX idx_{Table.Post}_author ON {Table.Post} (data ->> 'AuthorId');
+                  CREATE INDEX idx_{Table.Post}_status ON {Table.Post} (data ->> 'WebLogId', data ->> 'Status', data ->> 'UpdatedOn');
+                  CREATE INDEX idx_{Table.Post}_permalink ON {Table.Post} (data ->> 'WebLogId', data ->> 'Permalink')"
+                  // TODO: index categories by post?
+            if needsTable Table.PostRevision then
+                $"CREATE TABLE {Table.PostRevision} (
+                    post_id        TEXT NOT NULL,
                     as_of          TEXT NOT NULL,
                     revision_text  TEXT NOT NULL,
                     PRIMARY KEY (post_id, as_of))"
-            if needsTable "post_comment" then
-                "CREATE TABLE post_comment (
+            if needsTable Table.PostComment then
+                $"CREATE TABLE {Table.PostComment} (
                     id              TEXT PRIMARY KEY,
-                    post_id         TEXT NOT NULL REFERENCES post(id),
+                    post_id         TEXT NOT NULL,
                     in_reply_to_id  TEXT,
                     name            TEXT NOT NULL,
                     email           TEXT NOT NULL,
@@ -186,32 +93,28 @@ type SQLiteData (conn : SqliteConnection, log : ILogger<SQLiteData>, ser : JsonS
                     status          TEXT NOT NULL,
                     posted_on       TEXT NOT NULL,
                     comment_text    TEXT NOT NULL);
-                CREATE INDEX post_comment_post_idx ON post_comment (post_id)"
+                  CREATE INDEX idx_{Table.PostComment}_post ON {Table.PostComment} (post_id)"
             
             // Tag map table
-            if needsTable "tag_map" then
-                "CREATE TABLE tag_map (
-                    id          TEXT PRIMARY KEY,
-                    web_log_id  TEXT NOT NULL REFERENCES web_log (id),
-                    tag         TEXT NOT NULL,
-                    url_value   TEXT NOT NULL);
-                CREATE INDEX tag_map_web_log_idx ON tag_map (web_log_id)"
+            if needsTable Table.TagMap then
+                $"CREATE TABLE {Table.TagMap} (data TEXT NOT NULL);
+                  CREATE UNIQUE INDEX idx_{Table.TagMap}_key ON {Table.TagMap} (data ->> 'Id');
+                  CREATE INDEX idx_{Table.TagMap}_tag ON {Table.TagMap} (data ->> 'WebLogId', data ->> 'UrlValue')";
             
             // Uploaded file table
-            if needsTable "upload" then
-                "CREATE TABLE upload (
+            if needsTable Table.Upload then
+                $"CREATE TABLE {Table.Upload} (
                     id          TEXT PRIMARY KEY,
-                    web_log_id  TEXT NOT NULL REFERENCES web_log (id),
+                    web_log_id  TEXT NOT NULL,
                     path        TEXT NOT NULL,
                     updated_on  TEXT NOT NULL,
                     data        BLOB NOT NULL);
-                CREATE INDEX upload_web_log_idx ON upload (web_log_id);
-                CREATE INDEX upload_path_idx    ON upload (web_log_id, path)"
+                  CREATE INDEX idx_{Table.Upload}_path ON {Table.Upload} (web_log_id, path)"
             
             // Database version table
-            if needsTable "db_version" then
-                "CREATE TABLE db_version (id TEXT PRIMARY KEY);
-                 INSERT INTO db_version VALUES ('v2')"
+            if needsTable Table.DbVersion then
+                $"CREATE TABLE {Table.DbVersion} (id TEXT PRIMARY KEY);
+                  INSERT INTO {Table.DbVersion} VALUES ('v2.1')"
         }
         |> Seq.map (fun sql ->
             log.LogInformation $"Creating {(sql.Split ' ')[2]} table..."
@@ -224,7 +127,7 @@ type SQLiteData (conn : SqliteConnection, log : ILogger<SQLiteData>, ser : JsonS
     /// Set the database version to the specified version
     let setDbVersion version = backgroundTask {
         use cmd = conn.CreateCommand ()
-        cmd.CommandText <- $"DELETE FROM db_version; INSERT INTO db_version VALUES ('%s{version}')"
+        cmd.CommandText <- $"DELETE FROM {Table.DbVersion}; INSERT INTO {Table.DbVersion} VALUES ('%s{version}')"
         do! write cmd
     }
     
@@ -600,7 +503,7 @@ type SQLiteData (conn : SqliteConnection, log : ILogger<SQLiteData>, ser : JsonS
             do! ensureTables ()
             
             use cmd = conn.CreateCommand ()
-            cmd.CommandText <- "SELECT id FROM db_version"
+            cmd.CommandText <- $"SELECT id FROM {Table.DbVersion}"
             use! rdr = cmd.ExecuteReaderAsync ()
             do! migrate (if rdr.Read () then Some (Map.getString "id" rdr) else None)
         }

@@ -2,6 +2,63 @@
 [<AutoOpen>]
 module MyWebLog.Data.SQLite.Helpers
 
+/// The table names used in the SQLite implementation
+[<RequireQualifiedAccess>]
+module Table =
+    
+    /// Categories
+    [<Literal>]
+    let Category = "category"
+    
+    /// Database Version
+    [<Literal>]
+    let DbVersion = "db_version"
+    
+    /// Pages
+    [<Literal>]
+    let Page = "page"
+    
+    /// Page Revisions
+    [<Literal>]
+    let PageRevision = "page_revision"
+    
+    /// Posts
+    [<Literal>]
+    let Post = "post"
+    
+    /// Post Comments
+    [<Literal>]
+    let PostComment = "post_comment"
+    
+    /// Post Revisions
+    [<Literal>]
+    let PostRevision = "post_revision"
+    
+    /// Tag/URL Mappings
+    [<Literal>]
+    let TagMap = "tag_map"
+    
+    /// Themes
+    [<Literal>]
+    let Theme = "theme"
+    
+    /// Theme Assets
+    [<Literal>]
+    let ThemeAsset = "theme_asset"
+    
+    /// Uploads
+    [<Literal>]
+    let Upload = "upload"
+    
+    /// Web Logs
+    [<Literal>]
+    let WebLog = "web_log"
+    
+    /// Users
+    [<Literal>]
+    let WebLogUser = "web_log_user"
+
+
 open System
 open Microsoft.Data.Sqlite
 open MyWebLog

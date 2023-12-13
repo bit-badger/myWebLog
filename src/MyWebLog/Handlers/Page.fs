@@ -15,7 +15,7 @@ let all pageNbr : HttpHandler = requireAccess Author >=> fun next ctx -> task {
         |> addToHash "pages"     (pages
                                   |> Seq.ofList
                                   |> Seq.truncate 25
-                                  |> Seq.map (DisplayPage.fromPageMinimal ctx.WebLog)
+                                  |> Seq.map (DisplayPage.FromPageMinimal ctx.WebLog)
                                   |> List.ofSeq)
         |> addToHash "page_nbr"  pageNbr
         |> addToHash "prev_page" (if pageNbr = 2 then "" else $"/page/{pageNbr - 1}")

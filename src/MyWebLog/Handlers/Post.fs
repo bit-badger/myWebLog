@@ -200,7 +200,7 @@ let home : HttpHandler = fun next ctx -> task {
         | Some page ->
             return!
                 hashForPage page.Title
-                |> addToHash "page" (DisplayPage.fromPage webLog page)
+                |> addToHash "page" (DisplayPage.FromPage webLog page)
                 |> addToHash ViewContext.IsHome true
                 |> themedView (defaultArg page.Template "single-page") next ctx
         | None -> return! Error.notFound next ctx

@@ -40,7 +40,7 @@ module CatchAll =
                 debug (fun () -> "Found page by permalink")
                 yield fun next ctx ->
                     hashForPage page.Title
-                    |> addToHash "page"             (DisplayPage.fromPage webLog page)
+                    |> addToHash "page"             (DisplayPage.FromPage webLog page)
                     |> addToHash ViewContext.IsPage true
                     |> themedView (defaultArg page.Template "single-page") next ctx
             | None -> ()
