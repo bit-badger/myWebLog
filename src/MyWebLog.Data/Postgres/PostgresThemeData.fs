@@ -47,7 +47,7 @@ type PostgresThemeData (log : ILogger) =
     /// Save a theme
     let save (theme : Theme) =
         log.LogTrace "Theme.save"
-        save Table.Theme (ThemeId.toString theme.Id) theme
+        save Table.Theme theme
     
     interface IThemeData with
         member _.All () = all ()

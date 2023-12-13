@@ -122,7 +122,7 @@ type PostgresCategoryData (log : ILogger) =
     /// Save a category
     let save (cat : Category) = backgroundTask {
         log.LogTrace "Category.save"
-        do! save Table.Category (CategoryId.toString cat.Id) cat
+        do! save Table.Category cat
     }
     
     /// Restore categories from a backup

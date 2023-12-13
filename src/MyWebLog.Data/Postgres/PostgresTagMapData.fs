@@ -46,7 +46,7 @@ type PostgresTagMapData (log : ILogger) =
     
     /// Save a tag mapping
     let save (tagMap : TagMap) =
-        save Table.TagMap (TagMapId.toString tagMap.Id) tagMap
+        save Table.TagMap tagMap
     
     /// Restore tag mappings from a backup
     let restore (tagMaps : TagMap list) = backgroundTask {

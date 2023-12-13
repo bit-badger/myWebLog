@@ -85,7 +85,7 @@ type PostgresWebLogUserData (log : ILogger) =
     /// Save a user
     let save (user : WebLogUser) =
         log.LogTrace "WebLogUser.save"
-        save Table.WebLogUser (WebLogUserId.toString user.Id) user
+        save Table.WebLogUser user
     
     interface IWebLogUserData with
         member _.Add user = save user

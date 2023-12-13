@@ -175,7 +175,7 @@ type PostgresPostData (log : ILogger) =
     let save (post : Post) = backgroundTask {
         log.LogTrace "Post.save"
         let! oldPost = findFullById post.Id post.WebLogId
-        do! save Table.Post (PostId.toString post.Id) { post with Revisions = [] }
+        do! save Table.Post { post with Revisions = [] }
         do! updatePostRevisions post.Id (match oldPost with Some p -> p.Revisions | None -> []) post.Revisions
     }
     

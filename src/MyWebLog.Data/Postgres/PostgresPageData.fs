@@ -145,7 +145,7 @@ type PostgresPageData (log : ILogger) =
     let save (page : Page) = backgroundTask {
         log.LogTrace "Page.save"
         let! oldPage = findFullById page.Id page.WebLogId
-        do! save Table.Page (PageId.toString page.Id) { page with Revisions = [] }
+        do! save Table.Page { page with Revisions = [] }
         do! updatePageRevisions page.Id (match oldPage with Some p -> p.Revisions | None -> []) page.Revisions
         ()
     }

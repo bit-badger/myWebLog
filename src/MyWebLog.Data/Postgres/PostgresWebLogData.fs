@@ -11,7 +11,7 @@ type PostgresWebLogData (log : ILogger) =
     /// Add a web log
     let add (webLog : WebLog) =
         log.LogTrace "WebLog.add"
-        insert Table.WebLog (WebLogId.toString webLog.Id) webLog
+        insert Table.WebLog webLog
     
     /// Retrieve all web logs
     let all () =

@@ -31,7 +31,6 @@
     <PackageReference Include="NeoSmart.Caching.Sqlite" Version="6.1.0" />
     <PackageReference Include="RethinkDB.DistributedCache" Version="1.0.0-rc1" />
     <PackageReference Include="System.ServiceModel.Syndication" Version="7.0.0" />
-    <PackageReference Update="FSharp.Core" Version="7.0.300" />
   </ItemGroup>
 
   <ItemGroup>
