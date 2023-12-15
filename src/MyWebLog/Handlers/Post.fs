@@ -242,10 +242,10 @@ let edit postId : HttpHandler = requireAccess Author >=> fun next ctx -> task {
                 |> Array.mapi (fun idx (name, value) -> [| string idx; name; value |]))
             |> addToHash "templates" templates
             |> addToHash "explicit_values" [|
-                KeyValuePair.Create ("", "&ndash; Default &ndash;")
-                KeyValuePair.Create (ExplicitRating.toString Yes,   "Yes")
-                KeyValuePair.Create (ExplicitRating.toString No,    "No")
-                KeyValuePair.Create (ExplicitRating.toString Clean, "Clean")
+                KeyValuePair.Create("", "&ndash; Default &ndash;")
+                KeyValuePair.Create(Yes.Value,   "Yes")
+                KeyValuePair.Create(No.Value,    "No")
+                KeyValuePair.Create(Clean.Value, "Clean")
             |]
             |> adminView "post-edit" next ctx
     | Some _ -> return! Error.notAuthorized next ctx

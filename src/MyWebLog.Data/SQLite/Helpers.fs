@@ -362,7 +362,7 @@ module Map =
             PreferredName = getString  "preferred_name" rdr
             PasswordHash  = getString  "password_hash"  rdr
             Url           = tryString  "url"            rdr
-            AccessLevel   = getString  "access_level"   rdr |> AccessLevel.parse
+            AccessLevel   = getString  "access_level"   rdr |> AccessLevel.Parse
             CreatedOn     = getInstant "created_on"     rdr
             LastSeenOn    = tryInstant "last_seen_on"   rdr
         }

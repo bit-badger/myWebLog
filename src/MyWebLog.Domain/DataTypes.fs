@@ -31,7 +31,7 @@ module Category =
     
     /// An empty category
     let empty = {
-        Id          = CategoryId.empty
+        Id          = CategoryId.Empty
         WebLogId    = WebLogId.empty
         Name        = ""
         Slug        = ""
@@ -76,7 +76,7 @@ module Comment =
     
     /// An empty comment
     let empty = {
-        Id          = CommentId.empty
+        Id          = CommentId.Empty
         PostId      = PostId.empty
         InReplyToId = None
         Name        = ""
@@ -485,4 +485,4 @@ module WebLogUser =
     
     /// Does a user have the required access level?
     let hasAccess level user =
-        AccessLevel.hasAccess level user.AccessLevel
+        user.AccessLevel.HasAccess level

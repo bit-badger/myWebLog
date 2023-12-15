@@ -305,7 +305,7 @@ module DisplayUser =
             LastName      = user.LastName
             PreferredName = user.PreferredName
             Url           = defaultArg user.Url ""
-            AccessLevel   = AccessLevel.toString user.AccessLevel
+            AccessLevel   = user.AccessLevel.Value
             CreatedOn     = WebLog.localTime webLog user.CreatedOn
             LastSeenOn    = user.LastSeenOn |> Option.map (WebLog.localTime webLog) |> Option.toNullable
         }
@@ -332,11 +332,11 @@ type EditCategoryModel =
     
     /// Create an edit model from an existing category 
     static member fromCategory (cat : Category) =
-        {   CategoryId  = CategoryId.toString cat.Id
+        {   CategoryId  = cat.Id.Value
             Name        = cat.Name
             Slug        = cat.Slug
             Description = defaultArg cat.Description ""
-            ParentId    = cat.ParentId |> Option.map CategoryId.toString |> Option.defaultValue ""
+            ParentId    = cat.ParentId |> Option.map _.Value |> Option.defaultValue ""
         }
     
     /// Is this a new category?
@@ -457,7 +457,7 @@ type EditCustomFeedModel =
                 ImageUrl         = Permalink.toString p.ImageUrl
                 AppleCategory    = p.AppleCategory
                 AppleSubcategory = defaultArg p.AppleSubcategory ""
-                Explicit         = ExplicitRating.toString p.Explicit
+                Explicit         = p.Explicit.Value
                 DefaultMediaType = defaultArg p.DefaultMediaType ""
                 MediaBaseUrl     = defaultArg p.MediaBaseUrl ""
                 FundingUrl       = defaultArg p.FundingUrl ""
@@ -486,7 +486,7 @@ type EditCustomFeedModel =
                         ImageUrl         = Permalink this.ImageUrl
                         AppleCategory    = this.AppleCategory
                         AppleSubcategory = noneIfBlank this.AppleSubcategory
-                        Explicit         = ExplicitRating.parse this.Explicit
+                        Explicit         = ExplicitRating.Parse this.Explicit
                         DefaultMediaType = noneIfBlank this.DefaultMediaType
                         MediaBaseUrl     = noneIfBlank this.MediaBaseUrl
                         PodcastGuid      = noneIfBlank this.PodcastGuid |> Option.map Guid.Parse
@@ -714,11 +714,11 @@ type EditPostModel =
     /// Create an edit model from an existing past
     static member fromPost webLog (post : Post) =
         let latest =
-            match post.Revisions |> List.sortByDescending (fun r -> r.AsOf) |> List.tryHead with
+            match post.Revisions |> List.sortByDescending (_.AsOf) |> List.tryHead with
             | Some rev -> rev
             | None -> Revision.empty
         let post    = if post.Metadata |> List.isEmpty then { post with Metadata = [ MetaItem.empty ] } else post
-        let episode = defaultArg post.Episode Episode.empty
+        let episode = defaultArg post.Episode Episode.Empty
         {   PostId             = PostId.toString post.Id
             Title              = post.Title
             Permalink          = Permalink.toString post.Permalink
@@ -726,22 +726,22 @@ type EditPostModel =
             Text               = MarkupText.text       latest.Text
             Tags               = String.Join (", ", post.Tags)
             Template           = defaultArg post.Template ""
-            CategoryIds        = post.CategoryIds |> List.map CategoryId.toString |> Array.ofList
+            CategoryIds        = post.CategoryIds |> List.map (_.Value) |> Array.ofList
             Status             = PostStatus.toString post.Status
             DoPublish          = false
-            MetaNames          = post.Metadata |> List.map (fun m -> m.Name)  |> Array.ofList
-            MetaValues         = post.Metadata |> List.map (fun m -> m.Value) |> Array.ofList
+            MetaNames          = post.Metadata |> List.map (_.Name)  |> Array.ofList
+            MetaValues         = post.Metadata |> List.map (_.Value) |> Array.ofList
             SetPublished       = false
             PubOverride        = post.PublishedOn |> Option.map (WebLog.localTime webLog) |> Option.toNullable
             SetUpdated         = false
             IsEpisode          = Option.isSome post.Episode
             Media              = episode.Media
             Length             = episode.Length
-            Duration           = defaultArg (Episode.formatDuration episode) ""
+            Duration           = defaultArg (episode.FormatDuration()) ""
             MediaType          = defaultArg episode.MediaType ""
             ImageUrl           = defaultArg episode.ImageUrl ""
             Subtitle           = defaultArg episode.Subtitle ""
-            Explicit           = defaultArg (episode.Explicit |> Option.map ExplicitRating.toString) ""
+            Explicit           = defaultArg (episode.Explicit |> Option.map (_.Value)) ""
             ChapterFile        = defaultArg episode.ChapterFile ""
             ChapterType        = defaultArg episode.ChapterType ""
             TranscriptUrl      = defaultArg episode.TranscriptUrl ""
@@ -800,7 +800,7 @@ type EditPostModel =
                             MediaType          = noneIfBlank this.MediaType
                             ImageUrl           = noneIfBlank this.ImageUrl
                             Subtitle           = noneIfBlank this.Subtitle
-                            Explicit           = noneIfBlank this.Explicit |> Option.map ExplicitRating.parse
+                            Explicit           = noneIfBlank this.Explicit |> Option.map ExplicitRating.Parse
                             Chapters           = match post.Episode with Some e -> e.Chapters | None -> None
                             ChapterFile        = noneIfBlank this.ChapterFile
                             ChapterType        = noneIfBlank this.ChapterType
@@ -960,7 +960,7 @@ type EditUserModel =
     /// Construct a displayed user from a web log user
     static member fromUser (user : WebLogUser) =
         {   Id              = WebLogUserId.toString user.Id
-            AccessLevel     = AccessLevel.toString user.AccessLevel
+            AccessLevel     = user.AccessLevel.Value
             Url             = defaultArg user.Url ""
             Email           = user.Email
             FirstName       = user.FirstName
@@ -974,9 +974,9 @@ type EditUserModel =
     member this.IsNew = this.Id = "new"
     
     /// Update a user with values from this model (excludes password)
-    member this.UpdateUser (user : WebLogUser) =
+    member this.UpdateUser (user: WebLogUser) =
         { user with
-            AccessLevel   = AccessLevel.parse this.AccessLevel
+            AccessLevel   = AccessLevel.Parse this.AccessLevel
             Email         = this.Email
             Url           = noneIfBlank this.Url
             FirstName     = this.FirstName
@@ -1126,7 +1126,7 @@ type PostListItem =
             PublishedOn = post.PublishedOn |> Option.map inTZ |> Option.toNullable
             UpdatedOn   = inTZ post.UpdatedOn
             Text        = addBaseToRelativeUrls extra post.Text
-            CategoryIds = post.CategoryIds |> List.map CategoryId.toString
+            CategoryIds = post.CategoryIds |> List.map _.Value
             Tags        = post.Tags
             Episode     = post.Episode
             Metadata    = post.Metadata

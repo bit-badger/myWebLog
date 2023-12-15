@@ -106,7 +106,7 @@ type PostgresPostData (log : ILogger) =
     /// Get a page of categorized posts for the given web log (excludes revisions)
     let findPageOfCategorizedPosts webLogId categoryIds pageNbr postsPerPage =
         log.LogTrace "Post.findPageOfCategorizedPosts"
-        let catSql, catParam = arrayContains (nameof Post.empty.CategoryIds) CategoryId.toString categoryIds
+        let catSql, catParam = arrayContains (nameof Post.empty.CategoryIds) (_.Value) categoryIds
         Custom.list
             $"{selectWithCriteria Table.Post}
                  AND {catSql}

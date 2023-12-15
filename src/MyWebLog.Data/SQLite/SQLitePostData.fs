@@ -83,7 +83,7 @@ type SQLitePostData (conn : SqliteConnection, ser : JsonSerializer) =
     
     /// Update a post's assigned categories
     let updatePostCategories postId oldCats newCats = backgroundTask {
-        let toDelete, toAdd = Utils.diffLists oldCats newCats CategoryId.toString
+        let toDelete, toAdd = Utils.diffLists<CategoryId, string> oldCats newCats _.Value
         if List.isEmpty toDelete && List.isEmpty toAdd then
             return ()
         else
@@ -91,8 +91,8 @@ type SQLitePostData (conn : SqliteConnection, ser : JsonSerializer) =
             [   cmd.Parameters.AddWithValue ("@postId",     PostId.toString postId)
                 cmd.Parameters.Add          ("@categoryId", SqliteType.Text)
             ] |> ignore
-            let runCmd catId = backgroundTask {
-                cmd.Parameters["@categoryId"].Value <- CategoryId.toString catId
+            let runCmd (catId: CategoryId) = backgroundTask {
+                cmd.Parameters["@categoryId"].Value <- catId.Value
                 do! write cmd
             }
             cmd.CommandText <- "DELETE FROM post_category WHERE post_id = @postId AND category_id = @categoryId" 
@@ -301,7 +301,7 @@ type SQLitePostData (conn : SqliteConnection, ser : JsonSerializer) =
     /// Get a page of categorized posts for the given web log (excludes revisions and prior permalinks)
     let findPageOfCategorizedPosts webLogId categoryIds pageNbr postsPerPage = backgroundTask {
         use cmd = conn.CreateCommand ()
-        let catSql, catParams = inClause "AND pc.category_id" "catId" CategoryId.toString categoryIds
+        let catSql, catParams = inClause "AND pc.category_id" "catId" (_.Value) categoryIds
         cmd.CommandText <- $"
             {selectPost}
                    INNER JOIN post_category pc ON pc.post_id = p.id

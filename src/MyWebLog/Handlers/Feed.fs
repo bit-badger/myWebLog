@@ -48,8 +48,8 @@ let deriveFeedType (ctx : HttpContext) feedPath : (FeedType * int) option =
 
 /// Determine the function to retrieve posts for the given feed
 let private getFeedPosts ctx feedType =
-    let childIds catId =
-        let cat = CategoryCache.get ctx |> Array.find (fun c -> c.Id = CategoryId.toString catId)
+    let childIds (catId: CategoryId) =
+        let cat = CategoryCache.get ctx |> Array.find (fun c -> c.Id = catId.Value)
         getCategoryIds cat.Slug ctx
     let data = ctx.Data
     match feedType with
@@ -116,7 +116,7 @@ let private toFeedItem webLog (authors : MetaItem list) (cats : DisplayCategory[
         Name = (authors |> List.find (fun a -> a.Name = WebLogUserId.toString post.AuthorId)).Value))
     [ post.CategoryIds
       |> List.map (fun catId ->
-          let cat = cats |> Array.find (fun c -> c.Id = CategoryId.toString catId)
+          let cat = cats |> Array.find (fun c -> c.Id = catId.Value)
           SyndicationCategory (cat.Name, WebLog.absoluteUrl webLog (Permalink $"category/{cat.Slug}/"), cat.Name))
       post.Tags
       |> List.map (fun tag ->
@@ -143,28 +143,27 @@ let private addEpisode webLog (podcast : PodcastOptions) (episode : Episode) (po
         | link -> WebLog.absoluteUrl webLog (Permalink link)
     let epMediaType = [ episode.MediaType; podcast.DefaultMediaType ] |> List.tryFind Option.isSome |> Option.flatten
     let epImageUrl = defaultArg episode.ImageUrl (Permalink.toString podcast.ImageUrl) |> toAbsolute webLog
-    let epExplicit = defaultArg episode.Explicit podcast.Explicit |> ExplicitRating.toString
+    let epExplicit = (defaultArg episode.Explicit podcast.Explicit).Value
     
-    let xmlDoc    = XmlDocument ()
+    let xmlDoc    = XmlDocument()
     let enclosure =
         let it = xmlDoc.CreateElement "enclosure"
-        it.SetAttribute ("url", epMediaUrl)
-        it.SetAttribute ("length", string episode.Length)
-        epMediaType |> Option.iter (fun typ -> it.SetAttribute ("type", typ))
+        it.SetAttribute("url", epMediaUrl)
+        it.SetAttribute("length", string episode.Length)
+        epMediaType |> Option.iter (fun typ -> it.SetAttribute("type", typ))
         it
     let image =
-        let it = xmlDoc.CreateElement ("itunes", "image", Namespace.iTunes)
-        it.SetAttribute ("href", epImageUrl)
+        let it = xmlDoc.CreateElement("itunes", "image", Namespace.iTunes)
+        it.SetAttribute("href", epImageUrl)
         it
         
     item.ElementExtensions.Add enclosure
     item.ElementExtensions.Add image
-    item.ElementExtensions.Add ("creator",  Namespace.dc,     podcast.DisplayedAuthor)
-    item.ElementExtensions.Add ("author",   Namespace.iTunes, podcast.DisplayedAuthor)
-    item.ElementExtensions.Add ("explicit", Namespace.iTunes, epExplicit)
-    episode.Subtitle |> Option.iter (fun it -> item.ElementExtensions.Add ("subtitle", Namespace.iTunes, it))
-    Episode.formatDuration episode
-    |> Option.iter (fun it -> item.ElementExtensions.Add ("duration", Namespace.iTunes, it))
+    item.ElementExtensions.Add("creator",  Namespace.dc,     podcast.DisplayedAuthor)
+    item.ElementExtensions.Add("author",   Namespace.iTunes, podcast.DisplayedAuthor)
+    item.ElementExtensions.Add("explicit", Namespace.iTunes, epExplicit)
+    episode.Subtitle |> Option.iter (fun it -> item.ElementExtensions.Add("subtitle", Namespace.iTunes, it))
+    episode.FormatDuration() |> Option.iter (fun it -> item.ElementExtensions.Add("duration", Namespace.iTunes, it))
     
     match episode.ChapterFile with
     | Some chapters ->
@@ -174,21 +173,20 @@ let private addEpisode webLog (podcast : PodcastOptions) (episode : Episode) (po
             | Some mime -> Some mime
             | None when chapters.EndsWith ".json" -> Some "application/json+chapters"
             | None -> None
-        let elt = xmlDoc.CreateElement ("podcast", "chapters", Namespace.podcast)
-        elt.SetAttribute ("url", url)
-        typ |> Option.iter (fun it -> elt.SetAttribute ("type", it))
+        let elt = xmlDoc.CreateElement("podcast", "chapters", Namespace.podcast)
+        elt.SetAttribute("url", url)
+        typ |> Option.iter (fun it -> elt.SetAttribute("type", it))
         item.ElementExtensions.Add elt
     | None -> ()
     
     match episode.TranscriptUrl with
     | Some transcript ->
         let url = toAbsolute webLog transcript
-        let elt = xmlDoc.CreateElement ("podcast", "transcript", Namespace.podcast)
-        elt.SetAttribute ("url", url)
-        elt.SetAttribute ("type", Option.get episode.TranscriptType)
-        episode.TranscriptLang |> Option.iter (fun it -> elt.SetAttribute ("language", it))
-        if defaultArg episode.TranscriptCaptions false then
-            elt.SetAttribute ("rel", "captions")
+        let elt = xmlDoc.CreateElement("podcast", "transcript", Namespace.podcast)
+        elt.SetAttribute("url", url)
+        elt.SetAttribute("type", Option.get episode.TranscriptType)
+        episode.TranscriptLang |> Option.iter (fun it -> elt.SetAttribute("language", it))
+        if defaultArg episode.TranscriptCaptions false then elt.SetAttribute("rel", "captions")
         item.ElementExtensions.Add elt
     | None -> ()
     
@@ -196,38 +194,37 @@ let private addEpisode webLog (podcast : PodcastOptions) (episode : Episode) (po
     | Some season ->
         match episode.SeasonDescription with
         | Some desc ->
-            let elt = xmlDoc.CreateElement ("podcast", "season", Namespace.podcast)
-            elt.SetAttribute ("name", desc)
+            let elt = xmlDoc.CreateElement("podcast", "season", Namespace.podcast)
+            elt.SetAttribute("name", desc)
             elt.InnerText <- string season
             item.ElementExtensions.Add elt
-        | None -> item.ElementExtensions.Add ("season", Namespace.podcast, string season)
+        | None -> item.ElementExtensions.Add("season", Namespace.podcast, string season)
     | None -> ()
     
     match episode.EpisodeNumber with
     | Some epNumber ->
         match episode.EpisodeDescription with
         | Some desc ->
-            let elt = xmlDoc.CreateElement ("podcast", "episode", Namespace.podcast)
-            elt.SetAttribute ("name", desc)
+            let elt = xmlDoc.CreateElement("podcast", "episode", Namespace.podcast)
+            elt.SetAttribute("name", desc)
             elt.InnerText <- string epNumber
             item.ElementExtensions.Add elt
-        | None -> item.ElementExtensions.Add ("episode", Namespace.podcast, string epNumber)
+        | None -> item.ElementExtensions.Add("episode", Namespace.podcast, string epNumber)
     | None -> ()
     
     if post.Metadata |> List.exists (fun it -> it.Name = "chapter") then
         try
-            let chapters = xmlDoc.CreateElement ("psc", "chapters", Namespace.psc)
-            chapters.SetAttribute ("version", "1.2")
+            let chapters = xmlDoc.CreateElement("psc", "chapters", Namespace.psc)
+            chapters.SetAttribute("version", "1.2")
             
             post.Metadata
             |> List.filter (fun it -> it.Name = "chapter")
-            |> List.map (fun it ->
-                TimeSpan.Parse (it.Value.Split(" ")[0]), it.Value.Substring (it.Value.IndexOf(" ") + 1))
+            |> List.map (fun it -> TimeSpan.Parse(it.Value.Split(" ")[0]), it.Value[it.Value.IndexOf(" ") + 1..])
             |> List.sortBy fst
             |> List.iter (fun chap ->
-                let chapter = xmlDoc.CreateElement ("psc", "chapter", Namespace.psc)
-                chapter.SetAttribute ("start", (fst chap).ToString "hh:mm:ss")
-                chapter.SetAttribute ("title", snd chap)
+                let chapter = xmlDoc.CreateElement("psc", "chapter", Namespace.psc)
+                chapter.SetAttribute("start", (fst chap).ToString "hh:mm:ss")
+                chapter.SetAttribute("title", snd chap)
                 chapters.AppendChild chapter |> ignore)
             
             item.ElementExtensions.Add chapters
@@ -300,21 +297,21 @@ let private addPodcast webLog (rssFeed : SyndicationFeed) (feed : CustomFeed) =
     rssFeed.ElementExtensions.Add categorization
     rssFeed.ElementExtensions.Add iTunesImage
     rssFeed.ElementExtensions.Add rawVoice
-    rssFeed.ElementExtensions.Add ("summary",   Namespace.iTunes,   podcast.Summary)
-    rssFeed.ElementExtensions.Add ("author",    Namespace.iTunes,   podcast.DisplayedAuthor)
-    rssFeed.ElementExtensions.Add ("explicit",  Namespace.iTunes,   ExplicitRating.toString podcast.Explicit)
+    rssFeed.ElementExtensions.Add("summary",  Namespace.iTunes, podcast.Summary)
+    rssFeed.ElementExtensions.Add("author",   Namespace.iTunes, podcast.DisplayedAuthor)
+    rssFeed.ElementExtensions.Add("explicit", Namespace.iTunes, podcast.Explicit.Value)
     podcast.Subtitle |> Option.iter (fun sub -> rssFeed.ElementExtensions.Add ("subtitle", Namespace.iTunes, sub))
     podcast.FundingUrl
     |> Option.iter (fun url ->
-        let funding = xmlDoc.CreateElement ("podcast", "funding", Namespace.podcast)
-        funding.SetAttribute ("url", toAbsolute webLog url)
+        let funding = xmlDoc.CreateElement("podcast", "funding", Namespace.podcast)
+        funding.SetAttribute("url", toAbsolute webLog url)
         funding.InnerText <- defaultArg podcast.FundingText "Support This Podcast"
         rssFeed.ElementExtensions.Add funding)
     podcast.PodcastGuid
     |> Option.iter (fun guid ->
-        rssFeed.ElementExtensions.Add ("guid", Namespace.podcast, guid.ToString().ToLowerInvariant ()))
+        rssFeed.ElementExtensions.Add("guid", Namespace.podcast, guid.ToString().ToLowerInvariant()))
     podcast.Medium
-    |> Option.iter (fun med -> rssFeed.ElementExtensions.Add ("medium", Namespace.podcast, PodcastMedium.toString med))
+    |> Option.iter (fun med -> rssFeed.ElementExtensions.Add("medium", Namespace.podcast, PodcastMedium.toString med))
 
 /// Get the feed's self reference and non-feed link
 let private selfAndLink webLog feedType ctx =

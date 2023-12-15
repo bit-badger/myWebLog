@@ -19,7 +19,7 @@ type SQLiteWebLogUserData (conn : SqliteConnection) =
             cmd.Parameters.AddWithValue ("@preferredName", user.PreferredName)
             cmd.Parameters.AddWithValue ("@passwordHash",  user.PasswordHash)
             cmd.Parameters.AddWithValue ("@url",           maybe user.Url)
-            cmd.Parameters.AddWithValue ("@accessLevel",   AccessLevel.toString user.AccessLevel)
+            cmd.Parameters.AddWithValue ("@accessLevel",   user.AccessLevel.Value)
             cmd.Parameters.AddWithValue ("@createdOn",     instantParam user.CreatedOn)
             cmd.Parameters.AddWithValue ("@lastSeenOn",    maybeInstant user.LastSeenOn)
         ] |> ignore

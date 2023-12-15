@@ -9,19 +9,26 @@ module Json =
     
     open Newtonsoft.Json
     
-    type CategoryIdConverter () =
-        inherit JsonConverter<CategoryId> ()
-        override _.WriteJson (writer : JsonWriter, value : CategoryId, _ : JsonSerializer) =
-            writer.WriteValue (CategoryId.toString value)
-        override _.ReadJson (reader : JsonReader, _ : Type, _ : CategoryId, _ : bool, _ : JsonSerializer) =
+    type CategoryIdConverter() =
+        inherit JsonConverter<CategoryId>()
+        override _.WriteJson(writer: JsonWriter, value: CategoryId, _: JsonSerializer) =
+            writer.WriteValue value.Value
+        override _.ReadJson(reader: JsonReader, _: Type, _: CategoryId, _: bool, _: JsonSerializer) =
             (string >> CategoryId) reader.Value
 
-    type CommentIdConverter () =
-        inherit JsonConverter<CommentId> ()
-        override _.WriteJson (writer : JsonWriter, value : CommentId, _ : JsonSerializer) =
-            writer.WriteValue (CommentId.toString value)
-        override _.ReadJson (reader : JsonReader, _ : Type, _ : CommentId, _ : bool, _ : JsonSerializer) =
+    type CommentIdConverter() =
+        inherit JsonConverter<CommentId>()
+        override _.WriteJson(writer: JsonWriter, value: CommentId, _: JsonSerializer) =
+            writer.WriteValue value.Value
+        override _.ReadJson(reader: JsonReader, _: Type, _: CommentId, _: bool, _: JsonSerializer) =
             (string >> CommentId) reader.Value
+
+    type CommentStatusConverter() =
+        inherit JsonConverter<CommentStatus>()
+        override _.WriteJson(writer: JsonWriter, value: CommentStatus, _: JsonSerializer) =
+            writer.WriteValue value.Value
+        override _.ReadJson(reader: JsonReader, _: Type, _: CommentStatus, _: bool, _: JsonSerializer) =
+            (string >> CommentStatus.Parse) reader.Value
 
     type CustomFeedIdConverter () =
         inherit JsonConverter<CustomFeedId> ()
@@ -37,12 +44,12 @@ module Json =
         override _.ReadJson (reader : JsonReader, _ : Type, _ : CustomFeedSource, _ : bool, _ : JsonSerializer) =
             (string >> CustomFeedSource.parse) reader.Value
             
-    type ExplicitRatingConverter () =
-        inherit JsonConverter<ExplicitRating> ()
-        override _.WriteJson (writer : JsonWriter, value : ExplicitRating, _ : JsonSerializer) =
-            writer.WriteValue (ExplicitRating.toString value)
-        override _.ReadJson (reader : JsonReader, _ : Type, _ : ExplicitRating, _ : bool, _ : JsonSerializer) =
-            (string >> ExplicitRating.parse) reader.Value
+    type ExplicitRatingConverter() =
+        inherit JsonConverter<ExplicitRating>()
+        override _.WriteJson(writer: JsonWriter, value: ExplicitRating, _: JsonSerializer) =
+            writer.WriteValue value.Value
+        override _.ReadJson(reader: JsonReader, _: Type, _: ExplicitRating, _: bool, _: JsonSerializer) =
+            (string >> ExplicitRating.Parse) reader.Value
         
     type MarkupTextConverter () =
         inherit JsonConverter<MarkupText> ()
@@ -128,27 +135,28 @@ module Json =
     /// Configure a serializer to use these converters
     let configure (ser : JsonSerializer) =
         // Our converters
-        [   CategoryIdConverter       () :> JsonConverter
-            CommentIdConverter        ()
-            CustomFeedIdConverter     ()
-            CustomFeedSourceConverter ()
-            ExplicitRatingConverter   ()
-            MarkupTextConverter       ()
-            PermalinkConverter        ()
-            PageIdConverter           ()
-            PodcastMediumConverter    ()
-            PostIdConverter           ()
-            TagMapIdConverter         ()
-            ThemeAssetIdConverter     ()
-            ThemeIdConverter          ()
-            UploadIdConverter         ()
-            WebLogIdConverter         ()
-            WebLogUserIdConverter     ()
+        [   CategoryIdConverter() :> JsonConverter
+            CommentIdConverter()
+            CommentStatusConverter()
+            CustomFeedIdConverter()
+            CustomFeedSourceConverter()
+            ExplicitRatingConverter()
+            MarkupTextConverter()
+            PermalinkConverter()
+            PageIdConverter()
+            PodcastMediumConverter()
+            PostIdConverter()
+            TagMapIdConverter()
+            ThemeAssetIdConverter()
+            ThemeIdConverter()
+            UploadIdConverter()
+            WebLogIdConverter()
+            WebLogUserIdConverter()
         ] |> List.iter ser.Converters.Add
         // NodaTime
         let _ = ser.ConfigureForNodaTime DateTimeZoneProviders.Tzdb
         // Handles DUs with no associated data, as well as option fields
-        ser.Converters.Add (CompactUnionJsonConverter ())
+        ser.Converters.Add(CompactUnionJsonConverter())
         ser.NullValueHandling     <- NullValueHandling.Ignore
         ser.MissingMemberHandling <- MissingMemberHandling.Ignore
         ser

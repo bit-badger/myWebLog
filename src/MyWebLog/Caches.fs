@@ -42,7 +42,7 @@ module Extensions =
         member this.UserAccessLevel =
             this.User.Claims
             |> Seq.tryFind (fun claim -> claim.Type = ClaimTypes.Role)
-            |> Option.map (fun claim -> AccessLevel.parse claim.Value)
+            |> Option.map (fun claim -> AccessLevel.Parse claim.Value)
 
         /// The user ID for the current request
         member this.UserId =
@@ -53,7 +53,7 @@ module Extensions =
         
         /// Does the current user have the requested level of access?
         member this.HasAccessLevel level =
-            defaultArg (this.UserAccessLevel |> Option.map (AccessLevel.hasAccess level)) false
+            defaultArg (this.UserAccessLevel |> Option.map (fun it -> it.HasAccess level)) false
 
 
 open System.Collections.Concurrent

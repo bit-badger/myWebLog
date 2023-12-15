@@ -177,7 +177,7 @@ module Category =
         let  data     = ctx.Data
         let! model    = ctx.BindFormAsync<EditCategoryModel> ()
         let  category =
-            if model.IsNew then someTask { Category.empty with Id = CategoryId.create (); WebLogId = ctx.WebLog.Id }
+            if model.IsNew then someTask { Category.empty with Id = CategoryId.Create(); WebLogId = ctx.WebLog.Id }
             else data.Category.FindById (CategoryId model.CategoryId) ctx.WebLog.Id
         match! category with
         | Some cat ->

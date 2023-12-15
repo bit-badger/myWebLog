@@ -334,7 +334,7 @@ module Backup =
             | Some _ ->
                 // Err'body gets new IDs...
                 let newWebLogId = WebLogId.create ()
-                let newCatIds   = archive.Categories  |> List.map (fun cat  -> cat.Id,  CategoryId.create   ()) |> dict
+                let newCatIds   = archive.Categories  |> List.map (fun cat  -> cat.Id,  CategoryId.Create   ()) |> dict
                 let newMapIds   = archive.TagMappings |> List.map (fun tm   -> tm.Id,   TagMapId.create     ()) |> dict
                 let newPageIds  = archive.Pages       |> List.map (fun page -> page.Id, PageId.create       ()) |> dict
                 let newPostIds  = archive.Posts       |> List.map (fun post -> post.Id, PostId.create       ()) |> dict
@@ -481,7 +481,7 @@ let private doUserUpgrade urlBase email (data : IData) = task {
             | WebLogAdmin ->
                 do! data.WebLogUser.Update { user with AccessLevel = Administrator }
                 printfn $"{email} is now an Administrator user"
-            | other -> eprintfn $"ERROR: {email} is an {AccessLevel.toString other}, not a WebLogAdmin"
+            | other -> eprintfn $"ERROR: {email} is an {other.Value}, not a WebLogAdmin"
         | None -> eprintfn $"ERROR: no user {email} found at {urlBase}"
     | None -> eprintfn $"ERROR: no web log found for {urlBase}"
 }

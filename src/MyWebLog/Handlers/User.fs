@@ -58,7 +58,7 @@ let doLogOn : HttpHandler = fun next ctx -> task {
             Claim (ClaimTypes.NameIdentifier, WebLogUserId.toString user.Id)
             Claim (ClaimTypes.Name,           $"{user.FirstName} {user.LastName}")
             Claim (ClaimTypes.GivenName,      user.PreferredName)
-            Claim (ClaimTypes.Role,           AccessLevel.toString user.AccessLevel)
+            Claim (ClaimTypes.Role,           user.AccessLevel.Value)
         }
         let identity = ClaimsIdentity (claims, CookieAuthenticationDefaults.AuthenticationScheme)
 
@@ -110,11 +110,10 @@ let private showEdit (model : EditUserModel) : HttpHandler = fun next ctx ->
     |> withAntiCsrf ctx
     |> addToHash ViewContext.Model model
     |> addToHash "access_levels" [|
-        KeyValuePair.Create (AccessLevel.toString Author, "Author")
-        KeyValuePair.Create (AccessLevel.toString Editor, "Editor")
-        KeyValuePair.Create (AccessLevel.toString WebLogAdmin, "Web Log Admin")
-        if ctx.HasAccessLevel Administrator then
-            KeyValuePair.Create (AccessLevel.toString Administrator, "Administrator")
+        KeyValuePair.Create(Author.Value, "Author")
+        KeyValuePair.Create(Editor.Value, "Editor")
+        KeyValuePair.Create(WebLogAdmin.Value, "Web Log Admin")
+        if ctx.HasAccessLevel Administrator then KeyValuePair.Create(Administrator.Value, "Administrator")
     |]
     |> adminBareView "user-edit" next ctx
     
@@ -160,7 +159,7 @@ let private showMyInfo (model : EditMyInfoModel) (user : WebLogUser) : HttpHandl
     hashForPage "Edit Your Information"
     |> withAntiCsrf ctx
     |> addToHash ViewContext.Model model
-    |> addToHash "access_level"    (AccessLevel.toString user.AccessLevel)
+    |> addToHash "access_level"    (user.AccessLevel.Value)
     |> addToHash "created_on"      (WebLog.localTime ctx.WebLog user.CreatedOn)
     |> addToHash "last_seen_on"    (WebLog.localTime ctx.WebLog
                                          (defaultArg user.LastSeenOn (Instant.FromUnixTimeSeconds 0)))

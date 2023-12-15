@@ -10,20 +10,20 @@ module private Helpers =
     /// Create a new ID (short GUID)
     // https://www.madskristensen.net/blog/A-shorter-and-URL-friendly-GUID
     let newId () =
-        Convert.ToBase64String(Guid.NewGuid().ToByteArray ()).Replace('/', '_').Replace('+', '-')[..22]
+        Convert.ToBase64String(Guid.NewGuid().ToByteArray()).Replace('/', '_').Replace('+', '-')[..22]
 
 
 /// Functions to support NodaTime manipulation
 module Noda =
     
     /// The clock to use when getting "now" (will make mutable for testing)
-    let clock : IClock = SystemClock.Instance
+    let clock: IClock = SystemClock.Instance
     
     /// The Unix epoch
     let epoch = Instant.FromUnixTimeSeconds 0L
         
     /// Truncate an instant to remove fractional seconds
-    let toSecondsPrecision (value : Instant) =
+    let toSecondsPrecision (value: Instant) =
         Instant.FromUnixTimeSeconds(value.ToUnixTimeSeconds())
     
     /// The current Instant, with fractional seconds truncated
@@ -31,11 +31,12 @@ module Noda =
         clock.GetCurrentInstant >> toSecondsPrecision
     
     /// Convert a date/time to an Instant with whole seconds
-    let fromDateTime (dt : DateTime) =
+    let fromDateTime (dt: DateTime) =
         Instant.FromDateTimeUtc(DateTime(dt.Ticks, DateTimeKind.Utc)) |> toSecondsPrecision
 
 
 /// A user's access level
+[<Struct>]
 type AccessLevel =
     /// The user may create and publish posts and edit the ones they have created
     | Author
@@ -45,74 +46,73 @@ type AccessLevel =
     | WebLogAdmin
     /// The user may manage themes (which affects all web logs for an installation)
     | Administrator
-
-/// Functions to support access levels
-module AccessLevel =
-    
-    /// Weightings for access levels
-    let private weights =
-        [   Author,        10
-            Editor,        20
-            WebLogAdmin,   30
-            Administrator, 40
-        ]
-        |> Map.ofList
-    
-    /// Convert an access level to its string representation
-    let toString =
-        function
-        | Author        -> "Author"
-        | Editor        -> "Editor"
-        | WebLogAdmin   -> "WebLogAdmin"
-        | Administrator -> "Administrator"
     
     /// Parse an access level from its string representation
-    let parse it =
-        match it with
-        | "Author"        -> Author
-        | "Editor"        -> Editor
-        | "WebLogAdmin"   -> WebLogAdmin
+    static member Parse =
+        function
+        | "Author" -> Author
+        | "Editor" -> Editor
+        | "WebLogAdmin" -> WebLogAdmin
         | "Administrator" -> Administrator
-        | _               -> invalidOp $"{it} is not a valid access level"
+        | it -> invalidArg "level" $"{it} is not a valid access level"
+
+    /// The string representation of this access level
+    member this.Value =
+        match this with
+        | Author -> "Author"
+        | Editor -> "Editor"
+        | WebLogAdmin -> "WebLogAdmin"
+        | Administrator -> "Administrator"
     
     /// Does a given access level allow an action that requires a certain access level?
-    let hasAccess needed held =
-        weights[needed] <= weights[held]
+    member this.HasAccess(needed: AccessLevel) =
+        // TODO: Move this to user where it seems to belong better...
+        let weights =
+            [   Author, 10
+                Editor, 20
+                WebLogAdmin, 30
+                Administrator, 40
+            ]
+            |> Map.ofList
+        weights[needed] <= weights[this]
 
 
 /// An identifier for a category
-type CategoryId = CategoryId of string
-
-/// Functions to support category IDs
-module CategoryId =
+[<Struct>]
+type CategoryId =
+    | CategoryId of string
     
     /// An empty category ID
-    let empty = CategoryId ""
-
-    /// Convert a category ID to a string
-    let toString = function CategoryId ci -> ci
+    static member Empty = CategoryId ""
     
     /// Create a new category ID
-    let create = newId >> CategoryId
+    static member Create =
+        newId >> CategoryId
+
+    /// The string representation of this category ID
+    member this.Value =
+        match this with CategoryId it -> it
 
 
 /// An identifier for a comment
-type CommentId = CommentId of string
-
-/// Functions to support comment IDs
-module CommentId =
+[<Struct>]
+type CommentId =
+    | CommentId of string
     
     /// An empty comment ID
-    let empty = CommentId ""
-
-    /// Convert a comment ID to a string
-    let toString = function CommentId ci -> ci
+    static member Empty = CommentId ""
     
     /// Create a new comment ID
-    let create = newId >> CommentId
+    static member Create =
+        newId >> CommentId
+
+    /// The string representation of this comment ID
+    member this.Value =
+        match this with CommentId it -> it
 
 
 /// Statuses for post comments
+[<Struct>]
 type CommentStatus =
     /// The comment is approved
     | Approved
@@ -121,77 +121,71 @@ type CommentStatus =
     /// The comment was unsolicited and unwelcome
     | Spam
 
-/// Functions to support post comment statuses
-module CommentStatus =
-    
-    /// Convert a comment status to a string
-    let toString = function Approved -> "Approved" | Pending -> "Pending" | Spam -> "Spam"
-    
     /// Parse a string into a comment status
-    let parse value =
-        match value with
+    static member Parse =
+        function
         | "Approved" -> Approved
-        | "Pending"  -> Pending
-        | "Spam"     -> Spam
-        | it         -> invalidArg "status" $"{it} is not a valid comment status"
+        | "Pending" -> Pending
+        | "Spam" -> Spam
+        | it -> invalidArg "status" $"{it} is not a valid comment status"
+
+    /// Convert a comment status to a string
+    member this.Value =
+        match this with Approved -> "Approved" | Pending -> "Pending" | Spam -> "Spam"
 
 
 /// Valid values for the iTunes explicit rating
+[<Struct>]
 type ExplicitRating =
     | Yes
     | No
     | Clean
-
-/// Functions to support iTunes explicit ratings
-module ExplicitRating =
-    /// Convert an explicit rating to a string
-    let toString : ExplicitRating -> string =
-        function
-        | Yes   -> "yes"
-        | No    -> "no"
-        | Clean -> "clean"
     
     /// Parse a string into an explicit rating
-    let parse : string -> ExplicitRating =
+    static member Parse =
         function
-        | "yes"   -> Yes
-        | "no"    -> No
+        | "yes" -> Yes
+        | "no" -> No
         | "clean" -> Clean
-        | x       -> invalidArg "rating" $"{x} is not a valid explicit rating"
+        | it -> invalidArg "rating" $"{it} is not a valid explicit rating"
+    
+    /// The string value of this rating
+    member this.Value =
+        match this with Yes -> "yes" | No -> "no" | Clean -> "clean"
 
 
 /// A location (specified by Podcast Index)
 type Location = {
     /// The name of the location (free-form text)
-    Name : string
+    Name: string
 
     /// A geographic coordinate string (RFC 5870)
-    Geo : string option
+    Geo: string option
 
     /// An OpenStreetMap query
-    Osm : string option
+    Osm: string option
 }
 
 
 /// A chapter in a podcast episode
 type Chapter = {
     /// The start time for the chapter
-    StartTime : Duration
+    StartTime: Duration
 
     /// The title for this chapter
-    Title : string option
+    Title: string option
 
     /// A URL for an image for this chapter
-    ImageUrl : string option
+    ImageUrl: string option
 
     /// Whether this chapter is hidden
-    IsHidden : bool option
+    IsHidden: bool option
 
     /// The episode end time for the chapter
-    EndTime : Duration option
+    EndTime: Duration option
 
     /// A location that applies to a chapter
-    Location : Location option
+    Location: Location option
 }
 
 
@@ -200,65 +194,62 @@ open NodaTime.Text
 /// A podcast episode
 type Episode = {
     /// The URL to the media file for the episode (may be permalink)
-    Media : string
+    Media: string
     
     /// The length of the media file, in bytes
-    Length : int64
+    Length: int64
     
     /// The duration of the episode
-    Duration : Duration option
+    Duration: Duration option
     
     /// The media type of the file (overrides podcast default if present)
-    MediaType : string option
+    MediaType: string option
     
     /// The URL to the image file for this episode (overrides podcast image if present, may be permalink)
-    ImageUrl : string option
+    ImageUrl: string option
     
     /// A subtitle for this episode
-    Subtitle : string option
+    Subtitle: string option
     
     /// This episode's explicit rating (overrides podcast rating if present)
-    Explicit : ExplicitRating option
+    Explicit: ExplicitRating option
     
     /// Chapters for this episode
-    Chapters : Chapter list option
+    Chapters: Chapter list option
 
     /// A link to a chapter file
-    ChapterFile : string option
+    ChapterFile: string option
     
     /// The MIME type for the chapter file
-    ChapterType : string option
+    ChapterType: string option
     
     /// The URL for the transcript of the episode (may be permalink)
-    TranscriptUrl : string option
+    TranscriptUrl: string option
     
     /// The MIME type of the transcript
-    TranscriptType : string option
+    TranscriptType: string option
     
     /// The language in which the transcript is written
-    TranscriptLang : string option
+    TranscriptLang: string option
     
     /// If true, the transcript will be declared (in the feed) to be a captions file
-    TranscriptCaptions : bool option
+    TranscriptCaptions: bool option
     
     /// The season number (for serialized podcasts)
-    SeasonNumber : int option
+    SeasonNumber: int option
     
     /// A description of the season
-    SeasonDescription : string option
+    SeasonDescription: string option
     
     /// The episode number
-    EpisodeNumber : double option
+    EpisodeNumber: double option
     
     /// A description of the episode
-    EpisodeDescription : string option
-}
-
-/// Functions to support episodes
-module Episode =
+    EpisodeDescription: string option
+} with
     
     /// An empty episode
-    let empty = {
+    static member Empty = {
         Media              = ""
         Length             = 0L
         Duration           = None
@@ -280,8 +271,8 @@ module Episode =
     }
     
     /// Format a duration for an episode
-    let formatDuration ep =
-        ep.Duration |> Option.map (DurationPattern.CreateWithInvariantCulture("H:mm:ss").Format)
+    member this.FormatDuration() =
+        this.Duration |> Option.map (DurationPattern.CreateWithInvariantCulture("H:mm:ss").Format)
 
 
 open Markdig

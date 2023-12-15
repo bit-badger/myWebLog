@@ -348,12 +348,12 @@ let requireUser : HttpHandler = requiresAuthentication Error.notAuthorized
 /// Require a specific level of access for a route
 let requireAccess level : HttpHandler = fun next ctx -> task {
     match ctx.UserAccessLevel with
-    | Some userLevel when AccessLevel.hasAccess level userLevel -> return! next ctx
+    | Some userLevel when userLevel.HasAccess level -> return! next ctx
     | Some userLevel ->
         do! addMessage ctx
                 { UserMessage.warning with
-                    Message = $"The page you tried to access requires {AccessLevel.toString level} privileges"
-                    Detail = Some $"Your account only has {AccessLevel.toString userLevel} privileges"
+                    Message = $"The page you tried to access requires {level.Value} privileges"
+                    Detail = Some $"Your account only has {userLevel.Value} privileges"
                 }
         return! Error.notAuthorized next ctx
     | None ->

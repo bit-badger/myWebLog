@@ -188,7 +188,7 @@ type SQLiteData (conn : SqliteConnection, log : ILogger<SQLiteData>, ser : JsonS
                         ImageUrl          = Map.getString "image_url"          podcastRdr |> Permalink
                         AppleCategory     = Map.getString "apple_category"     podcastRdr
                         AppleSubcategory  = Map.tryString "apple_subcategory"  podcastRdr
-                        Explicit          = Map.getString "explicit"           podcastRdr |> ExplicitRating.parse
+                        Explicit          = Map.getString "explicit"           podcastRdr |> ExplicitRating.Parse
                         DefaultMediaType  = Map.tryString "default_media_type" podcastRdr
                         MediaBaseUrl      = Map.tryString "media_base_url"     podcastRdr
                         PodcastGuid       = Map.tryGuid   "podcast_guid"       podcastRdr
@@ -220,7 +220,7 @@ type SQLiteData (conn : SqliteConnection, log : ILogger<SQLiteData>, ser : JsonS
                         ImageUrl           = Map.tryString   "image_url"           epRdr
                         Subtitle           = Map.tryString   "subtitle"            epRdr
                         Explicit           = Map.tryString   "explicit"            epRdr
-                                             |> Option.map ExplicitRating.parse
+                                             |> Option.map ExplicitRating.Parse
                         Chapters           = Map.tryString   "chapters"            epRdr
                                              |> Option.map (Utils.deserialize<Chapter list> ser)
                         ChapterFile        = Map.tryString   "chapter_file"        epRdr
