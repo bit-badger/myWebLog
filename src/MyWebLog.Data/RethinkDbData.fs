@@ -917,7 +917,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                             delete
                             write; withRetryDefault; ignoreResult conn
                         }
-                        return Ok (Permalink.toString up.Path)
+                        return Ok up.Path.Value
                     | None -> return Result.Error $"Upload ID {UploadId.toString uploadId} not found"
                 }
                 

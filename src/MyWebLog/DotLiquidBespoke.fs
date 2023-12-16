@@ -101,10 +101,10 @@ type ThemeAssetFilter () =
 
 
 /// Create various items in the page header based on the state of the page being generated
-type PageHeadTag () =
-    inherit Tag ()
+type PageHeadTag() =
+    inherit Tag()
     
-    override this.Render (context : Context, result : TextWriter) =
+    override this.Render(context: Context, result: TextWriter) =
         let webLog = context.WebLog
         // spacer
         let s      = "    "
@@ -115,9 +115,9 @@ type PageHeadTag () =
         
         // Theme assets
         if assetExists "style.css" webLog then
-            result.WriteLine $"""{s}<link rel="stylesheet" href="{ThemeAssetFilter.ThemeAsset (context, "style.css")}">"""
+            result.WriteLine $"""{s}<link rel="stylesheet" href="{ThemeAssetFilter.ThemeAsset(context, "style.css")}">"""
         if assetExists "favicon.ico" webLog then
-            result.WriteLine $"""{s}<link rel="icon" href="{ThemeAssetFilter.ThemeAsset (context, "favicon.ico")}">"""
+            result.WriteLine $"""{s}<link rel="icon" href="{ThemeAssetFilter.ThemeAsset(context, "favicon.ico")}">"""
         
         // RSS feeds and canonical URLs
         let feedLink title url =
@@ -126,16 +126,16 @@ type PageHeadTag () =
             $"""{s}<link rel="alternate" type="application/rss+xml" title="{escTitle}" href="{relUrl}">"""
         
         if webLog.Rss.IsFeedEnabled && getBool "is_home" then
-            result.WriteLine (feedLink webLog.Name webLog.Rss.FeedName)
-            result.WriteLine $"""{s}<link rel="canonical" href="{WebLog.absoluteUrl webLog Permalink.empty}">"""
+            result.WriteLine(feedLink webLog.Name webLog.Rss.FeedName)
+            result.WriteLine $"""{s}<link rel="canonical" href="{WebLog.absoluteUrl webLog Permalink.Empty}">"""
         
         if webLog.Rss.IsCategoryEnabled && getBool "is_category_home" then
             let slug = context.Environments[0].["slug"] :?> string
-            result.WriteLine (feedLink webLog.Name $"category/{slug}/{webLog.Rss.FeedName}")
+            result.WriteLine(feedLink webLog.Name $"category/{slug}/{webLog.Rss.FeedName}")
             
         if webLog.Rss.IsTagEnabled && getBool "is_tag_home" then
             let slug = context.Environments[0].["slug"] :?> string
-            result.WriteLine (feedLink webLog.Name $"tag/{slug}/{webLog.Rss.FeedName}")
+            result.WriteLine(feedLink webLog.Name $"tag/{slug}/{webLog.Rss.FeedName}")
             
         if getBool "is_post" then
             let post = context.Environments[0].["model"] :?> PostDisplay

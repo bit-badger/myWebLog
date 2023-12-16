@@ -23,12 +23,12 @@ let private doCreateWebLog (args : string[]) (sp : IServiceProvider) = task {
     // Create the web log
     let webLogId   = WebLogId.create ()
     let userId     = WebLogUserId.create ()
-    let homePageId = PageId.create ()
+    let homePageId = PageId.Create()
     let slug       = Handlers.Upload.makeSlug args[2]
     
     // If this is the first web log being created, the user will be an installation admin; otherwise, they will be an
     // admin just over their web log
-    let! webLogs     = data.WebLog.All ()
+    let! webLogs     = data.WebLog.All()
     let  accessLevel = if List.isEmpty webLogs then Administrator else WebLogAdmin
         
     do! data.WebLog.Add
@@ -37,7 +37,7 @@ let private doCreateWebLog (args : string[]) (sp : IServiceProvider) = task {
                 Name        = args[2]
                 Slug        = slug
                 UrlBase     = args[1]
-                DefaultPage = PageId.toString homePageId
+                DefaultPage = homePageId.Value
                 TimeZone    = timeZone
             }
     
@@ -110,8 +110,8 @@ let private importPriorPermalinks urlBase file (sp : IServiceProvider) = task {
                 let! withLinks = data.Post.FindFullById post.Id post.WebLogId
                 let! _ = data.Post.UpdatePriorPermalinks post.Id post.WebLogId
                              (old :: withLinks.Value.PriorPermalinks)
-                printfn $"{Permalink.toString old} -> {Permalink.toString current}"
-            | None -> eprintfn $"Cannot find current post for {Permalink.toString current}"
+                printfn $"{old.Value} -> {current.Value}"
+            | None -> eprintfn $"Cannot find current post for {current.Value}"
         printfn "Done!"
     | None -> eprintfn $"No web log found at {urlBase}"
 }
@@ -336,8 +336,8 @@ module Backup =
                 let newWebLogId = WebLogId.create ()
                 let newCatIds   = archive.Categories  |> List.map (fun cat  -> cat.Id,  CategoryId.Create   ()) |> dict
                 let newMapIds   = archive.TagMappings |> List.map (fun tm   -> tm.Id,   TagMapId.create     ()) |> dict
-                let newPageIds  = archive.Pages       |> List.map (fun page -> page.Id, PageId.create       ()) |> dict
-                let newPostIds  = archive.Posts       |> List.map (fun post -> post.Id, PostId.create       ()) |> dict
+                let newPageIds  = archive.Pages       |> List.map (fun page -> page.Id, PageId.Create       ()) |> dict
+                let newPostIds  = archive.Posts       |> List.map (fun post -> post.Id, PostId.Create       ()) |> dict
                 let newUserIds  = archive.Users       |> List.map (fun user -> user.Id, WebLogUserId.create ()) |> dict
                 let newUpIds    = archive.Uploads     |> List.map (fun up   -> up.Id,   UploadId.create     ()) |> dict
                 return

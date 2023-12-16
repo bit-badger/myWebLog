@@ -7,7 +7,7 @@ open MyWebLog.Data
 open Npgsql.FSharp
 
 /// PostgreSQL myWebLog category data implementation
-type PostgresCategoryData (log : ILogger) =
+type PostgresCategoryData(log: ILogger) =
     
     /// Count all categories for the given web log
     let countAll webLogId =
@@ -33,7 +33,7 @@ type PostgresCategoryData (log : ILogger) =
                 let catIdSql, catIdParams =
                     ordered
                     |> Seq.filter (fun cat -> cat.ParentNames |> Array.contains it.Name)
-                    |> Seq.map (fun cat -> cat.Id)
+                    |> Seq.map _.Id
                     |> Seq.append (Seq.singleton it.Id)
                     |> List.ofSeq
                     |> arrayContains (nameof Post.empty.CategoryIds) id
@@ -43,10 +43,9 @@ type PostgresCategoryData (log : ILogger) =
                               FROM {Table.Post}
                              WHERE {Query.whereDataContains "@criteria"}
                                AND {catIdSql}"""
-                        [   "@criteria",
-                                Query.jsonbDocParam {| webLogDoc webLogId with Status = PostStatus.toString Published |}
-                            catIdParams
-                        ] Map.toCount
+                        [   "@criteria", Query.jsonbDocParam {| webLogDoc webLogId with Status = Published.Value |}
+                            catIdParams ]
+                        Map.toCount
                     |> Async.AwaitTask
                     |> Async.RunSynchronously
                 it.Id, postCount)
@@ -107,7 +106,7 @@ type PostgresCategoryData (log : ILogger) =
                     |> Sql.executeTransactionAsync [
                         Query.Update.partialById Table.Post,
                         posts |> List.map (fun post -> [
-                            "@id",   Sql.string (PostId.toString post.Id)
+                            "@id",   Sql.string post.Id.Value
                             "@data", Query.jsonbDocParam
                                         {| CategoryIds = post.CategoryIds |> List.filter (fun cat -> cat <> catId) |}
                         ])

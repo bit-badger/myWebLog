@@ -11,20 +11,20 @@ module CatchAll =
     open MyWebLog.ViewModels
     
     /// Sequence where the first returned value is the proper handler for the link
-    let private deriveAction (ctx : HttpContext) : HttpHandler seq =
+    let private deriveAction (ctx: HttpContext): HttpHandler seq =
         let webLog   = ctx.WebLog
         let data     = ctx.Data
         let debug    = debug "Routes.CatchAll" ctx
         let textLink =
             let _, extra = WebLog.hostAndPath webLog
             let url      = string ctx.Request.Path
-            (if extra = "" then url else url.Substring extra.Length).ToLowerInvariant ()
+            (if extra = "" then url else url.Substring extra.Length).ToLowerInvariant()
         let await it = (Async.AwaitTask >> Async.RunSynchronously) it
         seq {
             debug (fun () -> $"Considering URL {textLink}")
             // Home page directory without the directory slash 
-            if textLink = "" then yield redirectTo true (WebLog.relativeUrl webLog Permalink.empty)
-            let permalink = Permalink (textLink.Substring 1)
+            if textLink = "" then yield redirectTo true (WebLog.relativeUrl webLog Permalink.Empty)
+            let permalink = Permalink textLink[1..]
             // Current post
             match data.Post.FindByPermalink permalink webLog.Id |> await with
             | Some post ->
@@ -80,7 +80,7 @@ module CatchAll =
         }
 
     // GET {all-of-the-above}
-    let route : HttpHandler = fun next ctx ->
+    let route: HttpHandler = fun next ctx ->
         match deriveAction ctx |> Seq.tryHead with Some handler -> handler next ctx | None -> Error.notFound next ctx
 
 

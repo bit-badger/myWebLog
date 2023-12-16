@@ -22,7 +22,7 @@ type PostgresUploadData (log : ILogger) =
         webLogIdParam upload.WebLogId
         typedParam "updatedOn" upload.UpdatedOn
         "@id",   Sql.string (UploadId.toString upload.Id)
-        "@path", Sql.string (Permalink.toString upload.Path)
+        "@path", Sql.string upload.Path.Value
         "@data", Sql.bytea  upload.Data
     ]
     

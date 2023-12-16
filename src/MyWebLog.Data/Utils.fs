@@ -34,11 +34,11 @@ let diffMetaItems (oldItems : MetaItem list) newItems =
 
 /// Find the permalinks added and removed
 let diffPermalinks oldLinks newLinks =
-    diffLists oldLinks newLinks Permalink.toString
+    diffLists oldLinks newLinks (fun (it: Permalink) -> it.Value)
 
 /// Find the revisions added and removed
 let diffRevisions oldRevs newRevs =
-    diffLists oldRevs newRevs (fun (rev: Revision) -> $"{rev.AsOf.ToUnixTimeTicks()}|{MarkupText.toString rev.Text}")
+    diffLists oldRevs newRevs (fun (rev: Revision) -> $"{rev.AsOf.ToUnixTimeTicks()}|{rev.Text.Value}")
 
 open MyWebLog.Converters
 open Newtonsoft.Json

@@ -195,7 +195,7 @@ type SQLiteData (conn : SqliteConnection, log : ILogger<SQLiteData>, ser : JsonS
                         FundingUrl        = Map.tryString "funding_url"        podcastRdr
                         FundingText       = Map.tryString "funding_text"       podcastRdr
                         Medium            = Map.tryString "medium"             podcastRdr
-                                            |> Option.map PodcastMedium.parse
+                                            |> Option.map PodcastMedium.Parse
                     }
             } |> List.ofSeq
         podcastRdr.Close ()
@@ -241,7 +241,7 @@ type SQLiteData (conn : SqliteConnection, log : ILogger<SQLiteData>, ser : JsonS
         |> List.iter (fun (postId, episode) ->
             cmd.CommandText <- "UPDATE post SET episode = @episode WHERE id = @id"
             [   cmd.Parameters.AddWithValue ("@episode", Utils.serialize ser episode)
-                cmd.Parameters.AddWithValue ("@id",      PostId.toString postId) ] |> ignore
+                cmd.Parameters.AddWithValue ("@id",      postId.Value) ] |> ignore
             let _ = cmd.ExecuteNonQuery ()
             cmd.Parameters.Clear ())
         

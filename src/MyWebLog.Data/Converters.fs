@@ -51,39 +51,39 @@ module Json =
         override _.ReadJson(reader: JsonReader, _: Type, _: ExplicitRating, _: bool, _: JsonSerializer) =
             (string >> ExplicitRating.Parse) reader.Value
         
-    type MarkupTextConverter () =
-        inherit JsonConverter<MarkupText> ()
-        override _.WriteJson (writer : JsonWriter, value : MarkupText, _ : JsonSerializer) =
-            writer.WriteValue (MarkupText.toString value)
-        override _.ReadJson (reader : JsonReader, _ : Type, _ : MarkupText, _ : bool, _ : JsonSerializer) =
-            (string >> MarkupText.parse) reader.Value
+    type MarkupTextConverter() =
+        inherit JsonConverter<MarkupText>()
+        override _.WriteJson(writer: JsonWriter, value: MarkupText, _: JsonSerializer) =
+            writer.WriteValue value.Value
+        override _.ReadJson(reader: JsonReader, _: Type, _: MarkupText, _: bool, _: JsonSerializer) =
+            (string >> MarkupText.Parse) reader.Value
             
-    type PermalinkConverter () =
-        inherit JsonConverter<Permalink> ()
-        override _.WriteJson (writer : JsonWriter, value : Permalink, _ : JsonSerializer) =
-            writer.WriteValue (Permalink.toString value)
-        override _.ReadJson (reader : JsonReader, _ : Type, _ : Permalink, _ : bool, _ : JsonSerializer) =
+    type PermalinkConverter() =
+        inherit JsonConverter<Permalink>()
+        override _.WriteJson(writer: JsonWriter, value: Permalink, _: JsonSerializer) =
+            writer.WriteValue value.Value
+        override _.ReadJson(reader: JsonReader, _: Type, _: Permalink, _: bool, _: JsonSerializer) =
             (string >> Permalink) reader.Value
 
-    type PageIdConverter () =
-        inherit JsonConverter<PageId> ()
-        override _.WriteJson (writer : JsonWriter, value : PageId, _ : JsonSerializer) =
-            writer.WriteValue (PageId.toString value)
-        override _.ReadJson (reader : JsonReader, _ : Type, _ : PageId, _ : bool, _ : JsonSerializer) =
+    type PageIdConverter() =
+        inherit JsonConverter<PageId>()
+        override _.WriteJson(writer: JsonWriter, value: PageId, _: JsonSerializer) =
+            writer.WriteValue value.Value
+        override _.ReadJson(reader: JsonReader, _: Type, _: PageId, _: bool, _: JsonSerializer) =
             (string >> PageId) reader.Value
 
-    type PodcastMediumConverter () =
-        inherit JsonConverter<PodcastMedium> ()
-        override _.WriteJson (writer : JsonWriter, value : PodcastMedium, _ : JsonSerializer) =
-            writer.WriteValue (PodcastMedium.toString value)
-        override _.ReadJson (reader : JsonReader, _ : Type, _ : PodcastMedium, _ : bool, _ : JsonSerializer) =
-            (string >> PodcastMedium.parse) reader.Value
+    type PodcastMediumConverter() =
+        inherit JsonConverter<PodcastMedium>()
+        override _.WriteJson(writer: JsonWriter, value: PodcastMedium, _: JsonSerializer) =
+            writer.WriteValue value.Value
+        override _.ReadJson(reader: JsonReader, _: Type, _: PodcastMedium, _: bool, _: JsonSerializer) =
+            (string >> PodcastMedium.Parse) reader.Value
 
-    type PostIdConverter () =
-        inherit JsonConverter<PostId> ()
-        override _.WriteJson (writer : JsonWriter, value : PostId, _ : JsonSerializer) =
-            writer.WriteValue (PostId.toString value)
-        override _.ReadJson (reader : JsonReader, _ : Type, _ : PostId, _ : bool, _ : JsonSerializer) =
+    type PostIdConverter() =
+        inherit JsonConverter<PostId>()
+        override _.WriteJson(writer: JsonWriter, value: PostId, _: JsonSerializer) =
+            writer.WriteValue value.Value
+        override _.ReadJson(reader: JsonReader, _: Type, _: PostId, _: bool, _: JsonSerializer) =
             (string >> PostId) reader.Value
 
     type TagMapIdConverter () =

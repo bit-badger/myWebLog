@@ -1,16 +1,22 @@
 ﻿namespace MyWebLog
 
 open System
+open Markdig
 open NodaTime
 
 /// Support functions for domain definition
 [<AutoOpen>]
 module private Helpers =
 
+    open Markdown.ColorCode
+
     /// Create a new ID (short GUID)
     // https://www.madskristensen.net/blog/A-shorter-and-URL-friendly-GUID
     let newId () =
         Convert.ToBase64String(Guid.NewGuid().ToByteArray()).Replace('/', '_').Replace('+', '-')[..22]
+    
+    /// Pipeline with most extensions enabled
+    let markdownPipeline = MarkdownPipelineBuilder().UseSmartyPants().UseAdvancedExtensions().UseColorCode().Build()
 
 
 /// Functions to support NodaTime manipulation
@@ -275,9 +281,6 @@ type Episode = {
         this.Duration |> Option.map (DurationPattern.CreateWithInvariantCulture("H:mm:ss").Format)
 
 
-open Markdig
-open Markdown.ColorCode
-
 /// Types of markup text
 type MarkupText =
     /// Markdown text
@@ -285,30 +288,27 @@ type MarkupText =
     /// HTML text
     | Html of string
 
-/// Functions to support markup text
-module MarkupText =
-    
-    /// Pipeline with most extensions enabled
-    let private _pipeline = MarkdownPipelineBuilder().UseSmartyPants().UseAdvancedExtensions().UseColorCode().Build()
-
-    /// Get the source type for the markup text
-    let sourceType = function Markdown _ -> "Markdown" | Html _ -> "HTML"
-    
-    /// Get the raw text, regardless of type
-    let text = function Markdown text -> text | Html text -> text
-    
-    /// Get the string representation of the markup text
-    let toString it = $"{sourceType it}: {text it}"
-    
-    /// Get the HTML representation of the markup text
-    let toHtml = function Markdown text -> Markdown.ToHtml(text, _pipeline) | Html text -> text
-    
     /// Parse a string into a MarkupText instance
-    let parse (it : string) =
+    static member Parse(it: string) =
         match it with
         | text when text.StartsWith "Markdown: " -> Markdown text[10..]
         | text when text.StartsWith "HTML: " -> Html text[6..]
         | text -> invalidOp $"Cannot derive type of text ({text})"
+    
+    /// The source type for the markup text
+    member this.SourceType =
+        match this with Markdown _ -> "Markdown" | Html _ -> "HTML"
+
+    /// The raw text, regardless of type
+    member this.Text =
+        match this with Markdown text -> text | Html text -> text
+    
+    /// The string representation of the markup text
+    member this.Value = $"{this.SourceType}: {this.Text}"
+    
+    /// The HTML representation of the markup text
+    member this.AsHtml() =
+        match this with Markdown text -> Markdown.ToHtml(text, markdownPipeline) | Html text -> text
 
 
 /// An item of metadata
@@ -319,14 +319,12 @@ type MetaItem = {
     
     /// The metadata value
     Value : string
-}
-
-/// Functions to support metadata items
-module MetaItem =
-
+} with
+    
     /// An empty metadata item
-    let empty =
+    static member Empty =
         { Name = ""; Value = "" }
+
 
 /// A revision of a page or post
 [<CLIMutable; NoComparison; NoEquality>]
@@ -336,46 +334,45 @@ type Revision = {
 
     /// The text of the revision
     Text : MarkupText
-}
-
-/// Functions to support revisions
-module Revision =
+} with
     
     /// An empty revision
-    let empty =
+    static member Empty =
         { AsOf = Noda.epoch; Text = Html "" }
 
 
 /// A permanent link
-type Permalink = Permalink of string
+[<Struct>]
+type Permalink =
+    | Permalink of string
 
-/// Functions to support permalinks
-module Permalink =
-    
     /// An empty permalink
-    let empty = Permalink ""
-
-    /// Convert a permalink to a string
-    let toString = function Permalink p -> p
+    static member Empty = Permalink ""
+    
+    /// The string value of this permalink
+    member this.Value =
+        match this with Permalink it -> it
 
 
 /// An identifier for a page
-type PageId = PageId of string
+[<Struct>]
+type PageId =
+    | PageId of string
 
-/// Functions to support page IDs
-module PageId =
-    
     /// An empty page ID
-    let empty = PageId ""
-
-    /// Convert a page ID to a string
-    let toString = function PageId pi -> pi
+    static member Empty = PageId ""
     
     /// Create a new page ID
-    let create = newId >> PageId
+    static member Create =
+        newId >> PageId
+    
+    /// The string value of this page ID
+    member this.Value =
+        match this with PageId it -> it
 
 
 /// PodcastIndex.org podcast:medium allowed values
+[<Struct>]
 type PodcastMedium =
     | Podcast
     | Music
@@ -385,87 +382,82 @@ type PodcastMedium =
     | Newsletter
     | Blog
 
-/// Functions to support podcast medium
-module PodcastMedium =
-    
-    /// Convert a podcast medium to a string
-    let toString =
-        function
-        | Podcast    -> "podcast"
-        | Music      -> "music"
-        | Video      -> "video"
-        | Film       -> "film"
-        | Audiobook  -> "audiobook"
-        | Newsletter -> "newsletter"
-        | Blog       -> "blog"
-    
     /// Parse a string into a podcast medium
-    let parse value =
-        match value with
-        | "podcast"    -> Podcast
-        | "music"      -> Music
-        | "video"      -> Video
-        | "film"       -> Film
-        | "audiobook"  -> Audiobook
+    static member Parse =
+        function
+        | "podcast" -> Podcast
+        | "music" -> Music
+        | "video" -> Video
+        | "film" -> Film
+        | "audiobook" -> Audiobook
         | "newsletter" -> Newsletter
-        | "blog"       -> Blog
-        | it           -> invalidArg "medium" $"{it} is not a valid podcast medium"
+        | "blog" -> Blog
+        | it -> invalidArg "medium" $"{it} is not a valid podcast medium"
+    
+    /// The string value of this podcast medium
+    member this.Value =
+        match this with
+        | Podcast -> "podcast"
+        | Music -> "music"
+        | Video -> "video"
+        | Film -> "film"
+        | Audiobook -> "audiobook"
+        | Newsletter -> "newsletter"
+        | Blog -> "blog"
 
 
 /// Statuses for posts
+[<Struct>]
 type PostStatus =
     /// The post should not be publicly available
     | Draft
     /// The post is publicly viewable
     | Published
 
-/// Functions to support post statuses
-module PostStatus =
-    
-    /// Convert a post status to a string
-    let toString = function Draft -> "Draft" | Published -> "Published"
-    
     /// Parse a string into a post status
-    let parse value =
-        match value with
+    static member Parse =
+        function
         | "Draft" -> Draft
         | "Published" -> Published
-        | it          -> invalidArg "status" $"{it} is not a valid post status"
+        | it -> invalidArg "status" $"{it} is not a valid post status"
+    
+    /// The string representation of this post status
+    member this.Value =
+        match this with Draft -> "Draft" | Published -> "Published"
 
 
 /// An identifier for a post
-type PostId = PostId of string
+[<Struct>]
+type PostId =
+    | PostId of string
 
-/// Functions to support post IDs
-module PostId =
-    
     /// An empty post ID
-    let empty = PostId ""
-
-    /// Convert a post ID to a string
-    let toString = function PostId pi -> pi
+    static member Empty = PostId ""
     
     /// Create a new post ID
-    let create = newId >> PostId
+    static member Create =
+        newId >> PostId
+    
+    /// Convert a post ID to a string
+    member this.Value =
+        match this with PostId it -> it
 
 
 /// A redirection for a previously valid URL
+[<CLIMutable; NoComparison; NoEquality>]
 type RedirectRule = {
     /// The From string or pattern
-    From : string
+    From: string
     
     /// The To string or pattern
-    To : string
+    To: string
     
     /// Whether to use regular expressions on this rule
-    IsRegex : bool
-}
-
-/// Functions to support redirect rules
-module RedirectRule =
-
+    IsRegex: bool
+} with
+    
     /// An empty redirect rule
-    let empty = {
+    static member Empty = {
         From    = ""
         To      = ""
         IsRegex = false

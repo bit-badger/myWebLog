@@ -233,7 +233,7 @@ module RedirectRules =
         if idx = -1 then
             return!
                 hashForPage "Add Redirect Rule"
-                |> addToHash "model" (EditRedirectRuleModel.fromRule -1 RedirectRule.empty)
+                |> addToHash "model" (EditRedirectRuleModel.fromRule -1 RedirectRule.Empty)
                 |> withAntiCsrf ctx
                 |> adminBareView "redirect-edit" next ctx
         else        
@@ -260,7 +260,7 @@ module RedirectRules =
         let! model    = ctx.BindFormAsync<EditRedirectRuleModel> ()
         let  isNew    = idx = -1
         let  rules    = ctx.WebLog.RedirectRules
-        let  rule     = model.UpdateRule (if isNew then RedirectRule.empty else List.item idx rules)
+        let  rule     = model.UpdateRule (if isNew then RedirectRule.Empty else List.item idx rules)
         let  newRules =
             match isNew with
             | true when model.InsertAtTop -> List.insertAt 0 rule rules
@@ -545,7 +545,7 @@ module WebLog =
             match! TemplateCache.get adminTheme "tag-mapping-list-body" ctx.Data with
             | Ok tagMapTemplate ->
                 let! allPages = data.Page.All ctx.WebLog.Id
-                let! themes   = data.Theme.All ()
+                let! themes   = data.Theme.All()
                 let! users    = data.WebLogUser.FindByWebLog ctx.WebLog.Id
                 let! hash     =
                     hashForPage "Web Log Settings"
@@ -553,10 +553,10 @@ module WebLog =
                     |> addToHash ViewContext.Model (SettingsModel.fromWebLog ctx.WebLog)
                     |> addToHash "pages" (
                         seq {
-                            KeyValuePair.Create ("posts", "- First Page of Posts -")
+                            KeyValuePair.Create("posts", "- First Page of Posts -")
                             yield! allPages
-                                   |> List.sortBy (fun p -> p.Title.ToLower ())
-                                   |> List.map (fun p -> KeyValuePair.Create (PageId.toString p.Id, p.Title))
+                                   |> List.sortBy _.Title.ToLower()
+                                   |> List.map (fun p -> KeyValuePair.Create(p.Id.Value, p.Title))
                         }
                         |> Array.ofSeq)
                     |> addToHash "themes" (

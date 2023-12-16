@@ -46,7 +46,7 @@ type SQLiteWebLogData (conn : SqliteConnection, ser : JsonSerializer) =
         [   cmd.Parameters.AddWithValue ("@id",       CustomFeedId.toString feed.Id)
             cmd.Parameters.AddWithValue ("@webLogId", WebLogId.toString webLogId)
             cmd.Parameters.AddWithValue ("@source",   CustomFeedSource.toString feed.Source)
-            cmd.Parameters.AddWithValue ("@path",     Permalink.toString feed.Path)
+            cmd.Parameters.AddWithValue ("@path",     feed.Path.Value)
             cmd.Parameters.AddWithValue ("@podcast",  maybe (if Option.isSome feed.Podcast then
                                                                  Some (Utils.serialize ser feed.Podcast)
                                                              else None))

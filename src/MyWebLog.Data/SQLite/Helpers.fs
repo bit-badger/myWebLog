@@ -254,7 +254,7 @@ module Map =
             Id          = getString   "id"           rdr |> PostId
             WebLogId    = getString   "web_log_id"   rdr |> WebLogId
             AuthorId    = getString   "author_id"    rdr |> WebLogUserId
-            Status      = getString   "status"       rdr |> PostStatus.parse
+            Status      = getString   "status"       rdr |> PostStatus.Parse
             Title       = getString   "title"        rdr
             Permalink   = toPermalink                rdr
             PublishedOn = tryInstant  "published_on" rdr
@@ -270,7 +270,7 @@ module Map =
     /// Create a revision from the current row in the given data reader
     let toRevision rdr : Revision =
         {   AsOf = getInstant "as_of"         rdr
-            Text = getString  "revision_text" rdr |> MarkupText.parse
+            Text = getString  "revision_text" rdr |> MarkupText.Parse
         }
     
     /// Create a tag mapping from the current row in the given data reader

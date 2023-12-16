@@ -133,7 +133,7 @@ let previewRevision (pgId, revDate) : HttpHandler = requireAccess Author >=> fun
         return! {|
             content =
                 [   """<div class="mwl-revision-preview mb-3">"""
-                    (MarkupText.toHtml >> addBaseToRelativeUrls extra) rev.Text
+                    rev.Text.AsHtml() |> addBaseToRelativeUrls extra
                     "</div>"
                 ]
                 |> String.concat ""
@@ -174,13 +174,13 @@ let deleteRevision (pgId, revDate) : HttpHandler = requireAccess Author >=> fun 
 
 // POST /admin/page/save
 let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
-    let! model   = ctx.BindFormAsync<EditPageModel> ()
+    let! model   = ctx.BindFormAsync<EditPageModel>()
     let  data    = ctx.Data
     let  now     = Noda.now ()
     let  tryPage =
         if model.IsNew then
             { Page.empty with
-                Id          = PageId.create ()
+                Id          = PageId.Create()
                 WebLogId    = ctx.WebLog.Id
                 AuthorId    = ctx.UserId
                 PublishedOn = now
@@ -193,7 +193,7 @@ let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
         do! (if model.IsNew then data.Page.Add else data.Page.Update) updatedPage
         if updateList then do! PageListCache.update ctx
         do! addMessage ctx { UserMessage.success with Message = "Page saved successfully" }
-        return! redirectToGet $"admin/page/{PageId.toString page.Id}/edit" next ctx
+        return! redirectToGet $"admin/page/{page.Id.Value}/edit" next ctx
     | Some _ -> return! Error.notAuthorized next ctx
     | None -> return! Error.notFound next ctx
 }

@@ -37,13 +37,12 @@ let deriveFeedType (ctx : HttpContext) feedPath : (FeedType * int) option =
     | false ->
         // Category and tag feeds are handled by defined routes; check for custom feed
         match webLog.Rss.CustomFeeds
-              |> List.tryFind (fun it -> feedPath.EndsWith (Permalink.toString it.Path)) with
+              |> List.tryFind (fun it -> feedPath.EndsWith it.Path.Value) with
         | Some feed ->
             debug (fun () -> "Found custom feed")
-            Some (Custom (feed, feedPath),
-                  feed.Podcast |> Option.map (fun p -> p.ItemsInFeed) |> Option.defaultValue postCount)
+            Some (Custom (feed, feedPath), feed.Podcast |> Option.map _.ItemsInFeed |> Option.defaultValue postCount)
         | None ->
-            debug (fun () -> $"No matching feed found")
+            debug (fun () -> "No matching feed found")
             None
 
 /// Determine the function to retrieve posts for the given feed
@@ -142,7 +141,7 @@ let private addEpisode webLog (podcast : PodcastOptions) (episode : Episode) (po
         | link when Option.isSome podcast.MediaBaseUrl -> $"{podcast.MediaBaseUrl.Value}{link}"
         | link -> WebLog.absoluteUrl webLog (Permalink link)
     let epMediaType = [ episode.MediaType; podcast.DefaultMediaType ] |> List.tryFind Option.isSome |> Option.flatten
-    let epImageUrl = defaultArg episode.ImageUrl (Permalink.toString podcast.ImageUrl) |> toAbsolute webLog
+    let epImageUrl = defaultArg episode.ImageUrl podcast.ImageUrl.Value |> toAbsolute webLog
     let epExplicit = (defaultArg episode.Explicit podcast.Explicit).Value
     
     let xmlDoc    = XmlDocument()
@@ -310,8 +309,7 @@ let private addPodcast webLog (rssFeed : SyndicationFeed) (feed : CustomFeed) =
     podcast.PodcastGuid
     |> Option.iter (fun guid ->
         rssFeed.ElementExtensions.Add("guid", Namespace.podcast, guid.ToString().ToLowerInvariant()))
-    podcast.Medium
-    |> Option.iter (fun med -> rssFeed.ElementExtensions.Add("medium", Namespace.podcast, PodcastMedium.toString med))
+    podcast.Medium |> Option.iter (fun med -> rssFeed.ElementExtensions.Add("medium", Namespace.podcast, med.Value))
 
 /// Get the feed's self reference and non-feed link
 let private selfAndLink webLog feedType ctx =
@@ -370,7 +368,7 @@ let createFeed (feedType : FeedType) posts : HttpHandler = fun next ctx -> backg
         match podcast, post.Episode with
         | Some feed, Some episode -> addEpisode webLog (Option.get feed.Podcast) episode post item
         | Some _, _ ->
-            warn "Feed" ctx $"[{webLog.Name} {Permalink.toString self}] \"{stripHtml post.Title}\" has no media"
+            warn "Feed" ctx $"[{webLog.Name} {self.Value}] \"{stripHtml post.Title}\" has no media"
             item
         | _ -> item
         
@@ -437,14 +435,14 @@ let editCustomFeed feedId : HttpHandler = requireAccess WebLogAdmin >=> fun next
         |> withAntiCsrf ctx
         |> addToHash ViewContext.Model (EditCustomFeedModel.fromFeed f)
         |> addToHash "medium_values" [|
-            KeyValuePair.Create ("", "&ndash; Unspecified &ndash;")
-            KeyValuePair.Create (PodcastMedium.toString Podcast,    "Podcast")
-            KeyValuePair.Create (PodcastMedium.toString Music,      "Music")
-            KeyValuePair.Create (PodcastMedium.toString Video,      "Video")
-            KeyValuePair.Create (PodcastMedium.toString Film,       "Film")
-            KeyValuePair.Create (PodcastMedium.toString Audiobook,  "Audiobook")
-            KeyValuePair.Create (PodcastMedium.toString Newsletter, "Newsletter")
-            KeyValuePair.Create (PodcastMedium.toString Blog,       "Blog")
+            KeyValuePair.Create("", "&ndash; Unspecified &ndash;")
+            KeyValuePair.Create(Podcast.Value,    "Podcast")
+            KeyValuePair.Create(Music.Value,      "Music")
+            KeyValuePair.Create(Video.Value,      "Video")
+            KeyValuePair.Create(Film.Value,       "Film")
+            KeyValuePair.Create(Audiobook.Value,  "Audiobook")
+            KeyValuePair.Create(Newsletter.Value, "Newsletter")
+            KeyValuePair.Create(Blog.Value,       "Blog")
         |]
         |> adminView "custom-feed-edit" next ctx
     | None -> Error.notFound next ctx

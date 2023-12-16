@@ -77,7 +77,7 @@ module Comment =
     /// An empty comment
     let empty = {
         Id          = CommentId.Empty
-        PostId      = PostId.empty
+        PostId      = PostId.Empty
         InReplyToId = None
         Name        = ""
         Email       = ""
@@ -136,11 +136,11 @@ module Page =
     
     /// An empty page
     let empty = {
-        Id              = PageId.empty
+        Id              = PageId.Empty
         WebLogId        = WebLogId.empty
         AuthorId        = WebLogUserId.empty
         Title           = ""
-        Permalink       = Permalink.empty
+        Permalink       = Permalink.Empty
         PublishedOn     = Noda.epoch
         UpdatedOn       = Noda.epoch
         IsInPageList    = false
@@ -209,12 +209,12 @@ module Post =
     
     /// An empty post
     let empty = {
-        Id              = PostId.empty
+        Id              = PostId.Empty
         WebLogId        = WebLogId.empty
         AuthorId        = WebLogUserId.empty
         Status          = Draft
         Title           = ""
-        Permalink       = Permalink.empty
+        Permalink       = Permalink.Empty
         PublishedOn     = None
         UpdatedOn       = Noda.epoch
         Text            = ""
@@ -330,7 +330,7 @@ module Upload =
     let empty = {
         Id        = UploadId.empty
         WebLogId  = WebLogId.empty
-        Path      = Permalink.empty
+        Path      = Permalink.Empty
         UpdatedOn = Noda.epoch
         Data      = [||]
     }
@@ -406,16 +406,16 @@ module WebLog =
         $"{scheme[0]}://{host[0]}", if host.Length > 1 then $"""/{String.Join("/", host |> Array.skip 1)}""" else ""
     
     /// Generate an absolute URL for the given link
-    let absoluteUrl webLog permalink =
-        $"{webLog.UrlBase}/{Permalink.toString permalink}"
+    let absoluteUrl webLog (permalink: Permalink) =
+        $"{webLog.UrlBase}/{permalink.Value}"
 
     /// Generate a relative URL for the given link
-    let relativeUrl webLog permalink =
+    let relativeUrl webLog (permalink: Permalink) =
         let _, leadPath = hostAndPath webLog
-        $"{leadPath}/{Permalink.toString permalink}"
+        $"{leadPath}/{permalink.Value}"
     
     /// Convert an Instant (UTC reference) to the web log's local date/time
-    let localTime webLog (date : Instant) =
+    let localTime webLog (date: Instant) =
         match DateTimeZoneProviders.Tzdb[webLog.TimeZone] with
         | null -> date.ToDateTimeUtc()
         | tz -> date.InZone(tz).ToDateTimeUnspecified()

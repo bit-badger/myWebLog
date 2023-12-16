@@ -39,7 +39,7 @@ open MyWebLog.Data
 open MyWebLog.ViewModels
 
 /// Convert a list of posts into items ready to be displayed
-let preparePostList webLog posts listType (url : string) pageNbr perPage (data : IData) = task {
+let preparePostList webLog posts listType (url: string) pageNbr perPage (data: IData) = task {
     let! authors     = getAuthors     webLog posts data
     let! tagMappings = getTagMappings webLog posts data
     let  relUrl it   = Some <| WebLog.relativeUrl webLog (Permalink it)
@@ -58,7 +58,7 @@ let preparePostList webLog posts listType (url : string) pageNbr perPage (data :
         | _ -> Task.FromResult (None, None)
     let newerLink =
         match listType, pageNbr with
-        | SinglePost,   _ -> newerPost |> Option.map (fun p -> Permalink.toString p.Permalink)
+        | SinglePost,   _ -> newerPost |> Option.map _.Permalink.Value
         | _,            1 -> None
         | PostList,     2    when webLog.DefaultPage = "posts" -> Some ""
         | PostList,     _ -> relUrl $"page/{pageNbr - 1}"
@@ -70,7 +70,7 @@ let preparePostList webLog posts listType (url : string) pageNbr perPage (data :
         | AdminList,    _ -> relUrl $"admin/posts/page/{pageNbr - 1}"
     let olderLink =
         match listType, List.length posts > perPage with
-        | SinglePost,   _     -> olderPost |> Option.map (fun p -> Permalink.toString p.Permalink)
+        | SinglePost,   _     -> olderPost |> Option.map _.Permalink.Value
         | _,            false -> None
         | PostList,     true  -> relUrl $"page/{pageNbr + 1}"
         | CategoryList, true  -> relUrl $"category/{url}/page/{pageNbr + 1}"
@@ -81,9 +81,9 @@ let preparePostList webLog posts listType (url : string) pageNbr perPage (data :
           Authors    = authors
           Subtitle   = None
           NewerLink  = newerLink
-          NewerName  = newerPost |> Option.map (fun p -> p.Title)
+          NewerName  = newerPost |> Option.map _.Title
           OlderLink  = olderLink
-          OlderName  = olderPost |> Option.map (fun p -> p.Title)
+          OlderName  = olderPost |> Option.map _.Title
         }
     return
         makeHash {||}
@@ -333,7 +333,7 @@ let previewRevision (postId, revDate) : HttpHandler = requireAccess Author >=> f
         return! {|
             content =
                 [   """<div class="mwl-revision-preview mb-3">"""
-                    (MarkupText.toHtml >> addBaseToRelativeUrls extra) rev.Text
+                    rev.Text.AsHtml() |> addBaseToRelativeUrls extra
                     "</div>"
                 ]
                 |> String.concat ""
@@ -374,12 +374,12 @@ let deleteRevision (postId, revDate) : HttpHandler = requireAccess Author >=> fu
 
 // POST /admin/post/save
 let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
-    let! model   = ctx.BindFormAsync<EditPostModel> ()
+    let! model   = ctx.BindFormAsync<EditPostModel>()
     let  data    = ctx.Data
     let  tryPost =
         if model.IsNew then
             { Post.empty with
-                Id        = PostId.create ()
+                Id        = PostId.Create()
                 WebLogId  = ctx.WebLog.Id
                 AuthorId  = ctx.UserId
             } |> someTask
@@ -410,7 +410,7 @@ let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
                    |> List.length = List.length priorCats) then
             do! CategoryCache.update ctx
         do! addMessage ctx { UserMessage.success with Message = "Post saved successfully" }
-        return! redirectToGet $"admin/post/{PostId.toString post.Id}/edit" next ctx
+        return! redirectToGet $"admin/post/{post.Id.Value}/edit" next ctx
     | Some _ -> return! Error.notAuthorized next ctx
     | None -> return! Error.notFound next ctx
 }

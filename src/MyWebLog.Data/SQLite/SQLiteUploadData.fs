@@ -12,7 +12,7 @@ type SQLiteUploadData (conn : SqliteConnection) =
     let addUploadParameters (cmd : SqliteCommand) (upload : Upload) =
         [   cmd.Parameters.AddWithValue ("@id",         UploadId.toString upload.Id)
             cmd.Parameters.AddWithValue ("@webLogId",   WebLogId.toString upload.WebLogId)
-            cmd.Parameters.AddWithValue ("@path",       Permalink.toString upload.Path)
+            cmd.Parameters.AddWithValue ("@path",       upload.Path.Value)
             cmd.Parameters.AddWithValue ("@updatedOn",  instantParam upload.UpdatedOn)
             cmd.Parameters.AddWithValue ("@dataLength", upload.Data.Length)
         ] |> ignore
@@ -53,7 +53,7 @@ type SQLiteUploadData (conn : SqliteConnection) =
             do! rdr.CloseAsync ()
             cmd.CommandText <- "DELETE FROM upload WHERE id = @id AND web_log_id = @webLogId"
             do! write cmd
-            return Ok (Permalink.toString upload.Path)
+            return Ok upload.Path.Value
         else
             return Error $"""Upload ID {cmd.Parameters["@id"]} not found"""
     }

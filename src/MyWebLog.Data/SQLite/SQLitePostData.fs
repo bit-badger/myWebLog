@@ -7,19 +7,19 @@ open MyWebLog.Data
 open Newtonsoft.Json
 open NodaTime
 
-/// SQLite myWebLog post data implementation        
-type SQLitePostData (conn : SqliteConnection, ser : JsonSerializer) =
+/// SQLite myWebLog post data implementation
+type SQLitePostData(conn: SqliteConnection, ser: JsonSerializer) =
 
     // SUPPORT FUNCTIONS
     
     /// Add parameters for post INSERT or UPDATE statements
-    let addPostParameters (cmd : SqliteCommand) (post : Post) =
-        [   cmd.Parameters.AddWithValue ("@id",          PostId.toString post.Id)
+    let addPostParameters (cmd: SqliteCommand) (post: Post) =
+        [   cmd.Parameters.AddWithValue ("@id",          post.Id.Value)
             cmd.Parameters.AddWithValue ("@webLogId",    WebLogId.toString post.WebLogId)
             cmd.Parameters.AddWithValue ("@authorId",    WebLogUserId.toString post.AuthorId)
-            cmd.Parameters.AddWithValue ("@status",      PostStatus.toString post.Status)
+            cmd.Parameters.AddWithValue ("@status",      post.Status.Value)
             cmd.Parameters.AddWithValue ("@title",       post.Title)
-            cmd.Parameters.AddWithValue ("@permalink",   Permalink.toString post.Permalink)
+            cmd.Parameters.AddWithValue ("@permalink",   post.Permalink.Value)
             cmd.Parameters.AddWithValue ("@publishedOn", maybeInstant post.PublishedOn)
             cmd.Parameters.AddWithValue ("@updatedOn",   instantParam post.UpdatedOn)
             cmd.Parameters.AddWithValue ("@template",    maybe post.Template)
@@ -32,9 +32,9 @@ type SQLitePostData (conn : SqliteConnection, ser : JsonSerializer) =
         ] |> ignore
     
     /// Append category IDs and tags to a post
-    let appendPostCategoryAndTag (post : Post) = backgroundTask {
+    let appendPostCategoryAndTag (post: Post) = backgroundTask {
         use cmd = conn.CreateCommand ()
-        cmd.Parameters.AddWithValue ("@id", PostId.toString post.Id) |> ignore
+        cmd.Parameters.AddWithValue ("@id", post.Id.Value) |> ignore
         
         cmd.CommandText <- "SELECT category_id AS id FROM post_category WHERE post_id = @id"
         use! rdr = cmd.ExecuteReaderAsync ()
@@ -47,9 +47,9 @@ type SQLitePostData (conn : SqliteConnection, ser : JsonSerializer) =
     }
     
     /// Append revisions and permalinks to a post
-    let appendPostRevisionsAndPermalinks (post : Post) = backgroundTask {
+    let appendPostRevisionsAndPermalinks (post: Post) = backgroundTask {
         use cmd = conn.CreateCommand ()
-        cmd.Parameters.AddWithValue ("@postId", PostId.toString post.Id) |> ignore
+        cmd.Parameters.AddWithValue ("@postId", post.Id.Value) |> ignore
         
         cmd.CommandText <- "SELECT permalink FROM post_permalink WHERE post_id = @postId"
         use! rdr = cmd.ExecuteReaderAsync ()
@@ -69,12 +69,12 @@ type SQLitePostData (conn : SqliteConnection, ser : JsonSerializer) =
         Map.toPost ser
     
     /// Find just-the-post by its ID for the given web log (excludes category, tag, meta, revisions, and permalinks)
-    let findPostById postId webLogId = backgroundTask {
+    let findPostById (postId: PostId) webLogId = backgroundTask {
         use cmd = conn.CreateCommand ()
         cmd.CommandText <- $"{selectPost} WHERE p.id = @id"
-        cmd.Parameters.AddWithValue ("@id", PostId.toString postId) |> ignore
+        cmd.Parameters.AddWithValue ("@id", postId.Value) |> ignore
         use! rdr = cmd.ExecuteReaderAsync ()
-        return Helpers.verifyWebLog<Post> webLogId (fun p -> p.WebLogId) toPost rdr
+        return verifyWebLog<Post> webLogId (_.WebLogId) toPost rdr
     }
     
     /// Return a post with no revisions, prior permalinks, or text
@@ -82,13 +82,13 @@ type SQLitePostData (conn : SqliteConnection, ser : JsonSerializer) =
         { toPost rdr with Text = "" }
     
     /// Update a post's assigned categories
-    let updatePostCategories postId oldCats newCats = backgroundTask {
+    let updatePostCategories (postId: PostId) oldCats newCats = backgroundTask {
         let toDelete, toAdd = Utils.diffLists<CategoryId, string> oldCats newCats _.Value
         if List.isEmpty toDelete && List.isEmpty toAdd then
             return ()
         else
             use cmd = conn.CreateCommand ()
-            [   cmd.Parameters.AddWithValue ("@postId",     PostId.toString postId)
+            [   cmd.Parameters.AddWithValue ("@postId",     postId.Value)
                 cmd.Parameters.Add          ("@categoryId", SqliteType.Text)
             ] |> ignore
             let runCmd (catId: CategoryId) = backgroundTask {
@@ -108,16 +108,16 @@ type SQLitePostData (conn : SqliteConnection, ser : JsonSerializer) =
     }
     
     /// Update a post's assigned categories
-    let updatePostTags postId (oldTags : string list) newTags = backgroundTask {
+    let updatePostTags (postId: PostId) (oldTags: string list) newTags = backgroundTask {
         let toDelete, toAdd = Utils.diffLists oldTags newTags id
         if List.isEmpty toDelete && List.isEmpty toAdd then
             return ()
         else
             use cmd = conn.CreateCommand ()
-            [   cmd.Parameters.AddWithValue ("@postId", PostId.toString postId)
+            [   cmd.Parameters.AddWithValue ("@postId", postId.Value)
                 cmd.Parameters.Add          ("@tag",    SqliteType.Text)
             ] |> ignore
-            let runCmd (tag : string) = backgroundTask {
+            let runCmd (tag: string) = backgroundTask {
                 cmd.Parameters["@tag"].Value <- tag
                 do! write cmd
             }
@@ -134,17 +134,17 @@ type SQLitePostData (conn : SqliteConnection, ser : JsonSerializer) =
     }
     
     /// Update a post's prior permalinks
-    let updatePostPermalinks postId oldLinks newLinks = backgroundTask {
+    let updatePostPermalinks (postId: PostId) oldLinks newLinks = backgroundTask {
         let toDelete, toAdd = Utils.diffPermalinks oldLinks newLinks
         if List.isEmpty toDelete && List.isEmpty toAdd then
             return ()
         else
             use cmd = conn.CreateCommand ()
-            [   cmd.Parameters.AddWithValue ("@postId", PostId.toString postId)
+            [   cmd.Parameters.AddWithValue ("@postId", postId.Value)
                 cmd.Parameters.Add          ("@link",   SqliteType.Text)
             ] |> ignore
-            let runCmd link = backgroundTask {
-                cmd.Parameters["@link"].Value <- Permalink.toString link
+            let runCmd (link: Permalink) = backgroundTask {
+                cmd.Parameters["@link"].Value <- link.Value
                 do! write cmd
             }
             cmd.CommandText <- "DELETE FROM post_permalink WHERE post_id = @postId AND permalink = @link" 
@@ -160,7 +160,7 @@ type SQLitePostData (conn : SqliteConnection, ser : JsonSerializer) =
     }
     
     /// Update a post's revisions
-    let updatePostRevisions postId oldRevs newRevs = backgroundTask {
+    let updatePostRevisions (postId: PostId) oldRevs newRevs = backgroundTask {
         let toDelete, toAdd = Utils.diffRevisions oldRevs newRevs
         if List.isEmpty toDelete && List.isEmpty toAdd then
             return ()
@@ -168,10 +168,10 @@ type SQLitePostData (conn : SqliteConnection, ser : JsonSerializer) =
             use cmd = conn.CreateCommand ()
             let runCmd withText rev = backgroundTask {
                 cmd.Parameters.Clear ()
-                [   cmd.Parameters.AddWithValue ("@postId", PostId.toString postId)
+                [   cmd.Parameters.AddWithValue ("@postId", postId.Value)
                     cmd.Parameters.AddWithValue ("@asOf",   instantParam rev.AsOf)
                 ] |> ignore
-                if withText then cmd.Parameters.AddWithValue ("@text", MarkupText.toString rev.Text) |> ignore
+                if withText then cmd.Parameters.AddWithValue ("@text", rev.Text.Value) |> ignore
                 do! write cmd
             }
             cmd.CommandText <- "DELETE FROM post_revision WHERE post_id = @postId AND as_of = @asOf" 
@@ -208,11 +208,11 @@ type SQLitePostData (conn : SqliteConnection, ser : JsonSerializer) =
     }
     
     /// Count posts in a status for the given web log
-    let countByStatus status webLogId = backgroundTask {
+    let countByStatus (status: PostStatus) webLogId = backgroundTask {
         use cmd = conn.CreateCommand ()
         cmd.CommandText <- "SELECT COUNT(id) FROM post WHERE web_log_id = @webLogId AND status = @status"
         addWebLogId cmd webLogId
-        cmd.Parameters.AddWithValue ("@status", PostStatus.toString status) |> ignore
+        cmd.Parameters.AddWithValue ("@status", status.Value) |> ignore
         return! count cmd
     }
     
@@ -226,11 +226,11 @@ type SQLitePostData (conn : SqliteConnection, ser : JsonSerializer) =
     }
     
     /// Find a post by its permalink for the given web log (excluding revisions and prior permalinks)
-    let findByPermalink permalink webLogId = backgroundTask {
+    let findByPermalink (permalink: Permalink) webLogId = backgroundTask {
         use cmd = conn.CreateCommand ()
         cmd.CommandText <- $"{selectPost} WHERE p.web_log_id = @webLogId AND p.permalink  = @link"
         addWebLogId cmd webLogId
-        cmd.Parameters.AddWithValue ("@link", Permalink.toString permalink) |> ignore
+        cmd.Parameters.AddWithValue ("@link", permalink.Value) |> ignore
         use! rdr = cmd.ExecuteReaderAsync ()
         if rdr.Read () then
             let! post = appendPostCategoryAndTag (toPost rdr)
@@ -253,7 +253,7 @@ type SQLitePostData (conn : SqliteConnection, ser : JsonSerializer) =
         match! findFullById postId webLogId with
         | Some _ ->
             use cmd = conn.CreateCommand ()
-            cmd.Parameters.AddWithValue ("@id", PostId.toString postId) |> ignore
+            cmd.Parameters.AddWithValue ("@id", postId.Value) |> ignore
             cmd.CommandText <-
                 "DELETE FROM post_revision  WHERE post_id = @id;
                  DELETE FROM post_permalink WHERE post_id = @id;
@@ -269,7 +269,7 @@ type SQLitePostData (conn : SqliteConnection, ser : JsonSerializer) =
     /// Find the current permalink from a list of potential prior permalinks for the given web log
     let findCurrentPermalink permalinks webLogId = backgroundTask {
         use cmd = conn.CreateCommand ()
-        let linkSql, linkParams = inClause "AND pp.permalink" "link" Permalink.toString permalinks
+        let linkSql, linkParams = inClause "AND pp.permalink" "link" (fun (it: Permalink) -> it.Value) permalinks
         cmd.CommandText <- $"
             SELECT p.permalink
                FROM post p
@@ -301,7 +301,7 @@ type SQLitePostData (conn : SqliteConnection, ser : JsonSerializer) =
     /// Get a page of categorized posts for the given web log (excludes revisions and prior permalinks)
     let findPageOfCategorizedPosts webLogId categoryIds pageNbr postsPerPage = backgroundTask {
         use cmd = conn.CreateCommand ()
-        let catSql, catParams = inClause "AND pc.category_id" "catId" (_.Value) categoryIds
+        let catSql, catParams = inClause "AND pc.category_id" "catId" (fun (it: CategoryId) -> it.Value) categoryIds
         cmd.CommandText <- $"
             {selectPost}
                    INNER JOIN post_category pc ON pc.post_id = p.id
@@ -311,7 +311,7 @@ type SQLitePostData (conn : SqliteConnection, ser : JsonSerializer) =
              ORDER BY published_on DESC
              LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"
         addWebLogId cmd webLogId
-        cmd.Parameters.AddWithValue ("@status", PostStatus.toString Published) |> ignore
+        cmd.Parameters.AddWithValue ("@status", Published.Value) |> ignore
         cmd.Parameters.AddRange catParams
         use! rdr = cmd.ExecuteReaderAsync ()
         let! posts =
@@ -348,7 +348,7 @@ type SQLitePostData (conn : SqliteConnection, ser : JsonSerializer) =
              ORDER BY p.published_on DESC
              LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"
         addWebLogId cmd webLogId
-        cmd.Parameters.AddWithValue ("@status", PostStatus.toString Published) |> ignore
+        cmd.Parameters.AddWithValue ("@status", Published.Value) |> ignore
         use! rdr = cmd.ExecuteReaderAsync ()
         let! posts =
             toList toPost rdr
@@ -369,7 +369,7 @@ type SQLitePostData (conn : SqliteConnection, ser : JsonSerializer) =
              ORDER BY p.published_on DESC
              LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"
         addWebLogId cmd webLogId
-        [ cmd.Parameters.AddWithValue ("@status", PostStatus.toString Published)
+        [ cmd.Parameters.AddWithValue ("@status", Published.Value)
           cmd.Parameters.AddWithValue ("@tag", tag)
         ] |> ignore
         use! rdr = cmd.ExecuteReaderAsync ()
@@ -391,7 +391,7 @@ type SQLitePostData (conn : SqliteConnection, ser : JsonSerializer) =
              ORDER BY p.published_on DESC
              LIMIT 1"
         addWebLogId cmd webLogId
-        [   cmd.Parameters.AddWithValue ("@status",      PostStatus.toString Published)
+        [   cmd.Parameters.AddWithValue ("@status",      Published.Value)
             cmd.Parameters.AddWithValue ("@publishedOn", instantParam publishedOn)
         ] |> ignore
         use! rdr = cmd.ExecuteReaderAsync ()

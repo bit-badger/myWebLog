@@ -144,7 +144,7 @@ module Map =
     /// Create a revision from the current row
     let toRevision (row : RowReader) : Revision =
         {   AsOf = row.fieldValue<Instant> "as_of"
-            Text = row.string              "revision_text" |> MarkupText.parse
+            Text = row.string              "revision_text" |> MarkupText.Parse
         }
     
     /// Create a theme asset from the current row
@@ -206,7 +206,7 @@ module Revisions =
     let revParams<'TKey> (key : 'TKey) (keyFunc : 'TKey -> string) rev = [
         typedParam "asOf" rev.AsOf
         "@id",   Sql.string (keyFunc key)
-        "@text", Sql.string (MarkupText.toString rev.Text)
+        "@text", Sql.string rev.Text.Value
     ]
     
     /// The SQL statement to insert a revision
