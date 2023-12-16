@@ -21,8 +21,8 @@ let private doCreateWebLog (args : string[]) (sp : IServiceProvider) = task {
             | false, _ -> raise <| TimeZoneNotFoundException $"Cannot find IANA timezone for {local}"
     
     // Create the web log
-    let webLogId   = WebLogId.create ()
-    let userId     = WebLogUserId.create ()
+    let webLogId   = WebLogId.Create()
+    let userId     = WebLogUserId.Create()
     let homePageId = PageId.Create()
     let slug       = Handlers.Upload.makeSlug args[2]
     
@@ -37,7 +37,7 @@ let private doCreateWebLog (args : string[]) (sp : IServiceProvider) = task {
                 Name        = args[2]
                 Slug        = slug
                 UrlBase     = args[1]
-                DefaultPage = homePageId.Value
+                DefaultPage = string homePageId
                 TimeZone    = timeZone
             }
     
@@ -110,8 +110,8 @@ let private importPriorPermalinks urlBase file (sp : IServiceProvider) = task {
                 let! withLinks = data.Post.FindFullById post.Id post.WebLogId
                 let! _ = data.Post.UpdatePriorPermalinks post.Id post.WebLogId
                              (old :: withLinks.Value.PriorPermalinks)
-                printfn $"{old.Value} -> {current.Value}"
-            | None -> eprintfn $"Cannot find current post for {current.Value}"
+                printfn $"{old} -> {current}"
+            | None -> eprintfn $"Cannot find current post for {current}"
         printfn "Done!"
     | None -> eprintfn $"No web log found at {urlBase}"
 }
@@ -144,7 +144,7 @@ let loadTheme (args : string[]) (sp : IServiceProvider) = task {
             let! theme = Handlers.Admin.Theme.loadFromZip themeId copy data
             let fac = sp.GetRequiredService<ILoggerFactory> ()
             let log = fac.CreateLogger "MyWebLog.Themes"
-            log.LogInformation $"{theme.Name} v{theme.Version} ({ThemeId.toString theme.Id}) loaded"
+            log.LogInformation $"{theme.Name} v{theme.Version} ({theme.Id}) loaded"
         | Error message -> eprintfn $"{message}"
     else
         eprintfn "Usage: myWebLog load-theme [theme-zip-file-name]"
@@ -333,13 +333,13 @@ module Backup =
                 return { archive with WebLog = { archive.WebLog with UrlBase = defaultArg newUrlBase webLog.UrlBase } }
             | Some _ ->
                 // Err'body gets new IDs...
-                let newWebLogId = WebLogId.create ()
-                let newCatIds   = archive.Categories  |> List.map (fun cat  -> cat.Id,  CategoryId.Create   ()) |> dict
-                let newMapIds   = archive.TagMappings |> List.map (fun tm   -> tm.Id,   TagMapId.create     ()) |> dict
-                let newPageIds  = archive.Pages       |> List.map (fun page -> page.Id, PageId.Create       ()) |> dict
-                let newPostIds  = archive.Posts       |> List.map (fun post -> post.Id, PostId.Create       ()) |> dict
-                let newUserIds  = archive.Users       |> List.map (fun user -> user.Id, WebLogUserId.create ()) |> dict
-                let newUpIds    = archive.Uploads     |> List.map (fun up   -> up.Id,   UploadId.create     ()) |> dict
+                let newWebLogId = WebLogId.Create()
+                let newCatIds   = archive.Categories  |> List.map (fun cat  -> cat.Id,  CategoryId.Create()  ) |> dict
+                let newMapIds   = archive.TagMappings |> List.map (fun tm   -> tm.Id,   TagMapId.Create()    ) |> dict
+                let newPageIds  = archive.Pages       |> List.map (fun page -> page.Id, PageId.Create()      ) |> dict
+                let newPostIds  = archive.Posts       |> List.map (fun post -> post.Id, PostId.Create()      ) |> dict
+                let newUserIds  = archive.Users       |> List.map (fun user -> user.Id, WebLogUserId.Create()) |> dict
+                let newUpIds    = archive.Uploads     |> List.map (fun up   -> up.Id,   UploadId.Create()    ) |> dict
                 return
                     { archive with
                         WebLog      = { archive.WebLog with Id = newWebLogId; UrlBase = Option.get newUrlBase }
@@ -481,7 +481,7 @@ let private doUserUpgrade urlBase email (data : IData) = task {
             | WebLogAdmin ->
                 do! data.WebLogUser.Update { user with AccessLevel = Administrator }
                 printfn $"{email} is now an Administrator user"
-            | other -> eprintfn $"ERROR: {email} is an {other.Value}, not a WebLogAdmin"
+            | other -> eprintfn $"ERROR: {email} is an {other}, not a WebLogAdmin"
         | None -> eprintfn $"ERROR: no user {email} found at {urlBase}"
     | None -> eprintfn $"ERROR: no web log found for {urlBase}"
 }

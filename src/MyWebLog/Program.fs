@@ -15,7 +15,7 @@ type WebLogMiddleware (next : RequestDelegate, log : ILogger<WebLogMiddleware>) 
         let path = $"{ctx.Request.Scheme}://{ctx.Request.Host.Value}{ctx.Request.Path.Value}"
         match WebLogCache.tryGet path with
         | Some webLog ->
-            if isDebug then log.LogDebug $"Resolved web log {WebLogId.toString webLog.Id} for {path}"
+            if isDebug then log.LogDebug $"Resolved web log {webLog.Id} for {path}"
             ctx.Items["webLog"] <- webLog
             if PageListCache.exists ctx then () else do! PageListCache.update ctx
             if CategoryCache.exists ctx then () else do! CategoryCache.update ctx

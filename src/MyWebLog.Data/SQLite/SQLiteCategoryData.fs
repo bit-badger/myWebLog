@@ -5,17 +5,17 @@ open Microsoft.Data.Sqlite
 open MyWebLog
 open MyWebLog.Data
 
-/// SQLite myWebLog category data implementation        
-type SQLiteCategoryData (conn : SqliteConnection) =
+/// SQLite myWebLog category data implementation
+type SQLiteCategoryData(conn: SqliteConnection) =
     
     /// Add parameters for category INSERT or UPDATE statements
-    let addCategoryParameters (cmd : SqliteCommand) (cat : Category) =
-        [   cmd.Parameters.AddWithValue ("@id",          cat.Id.Value)
-            cmd.Parameters.AddWithValue ("@webLogId",    WebLogId.toString cat.WebLogId)
+    let addCategoryParameters (cmd: SqliteCommand) (cat: Category) =
+        [   cmd.Parameters.AddWithValue ("@id",          string cat.Id)
+            cmd.Parameters.AddWithValue ("@webLogId",    string cat.WebLogId)
             cmd.Parameters.AddWithValue ("@name",        cat.Name)
             cmd.Parameters.AddWithValue ("@slug",        cat.Slug)
             cmd.Parameters.AddWithValue ("@description", maybe cat.Description)
-            cmd.Parameters.AddWithValue ("@parentId",    maybe (cat.ParentId |> Option.map _.Value))
+            cmd.Parameters.AddWithValue ("@parentId",    maybe (cat.ParentId |> Option.map string))
         ] |> ignore
     
     /// Add a category
@@ -102,18 +102,18 @@ type SQLiteCategoryData (conn : SqliteConnection) =
     }
     /// Find a category by its ID for the given web log
     let findById (catId: CategoryId) webLogId = backgroundTask {
-        use cmd = conn.CreateCommand ()
+        use cmd = conn.CreateCommand()
         cmd.CommandText <- "SELECT * FROM category WHERE id = @id"
-        cmd.Parameters.AddWithValue ("@id", catId.Value) |> ignore
-        use! rdr = cmd.ExecuteReaderAsync ()
-        return Helpers.verifyWebLog<Category> webLogId (fun c -> c.WebLogId) Map.toCategory rdr
+        cmd.Parameters.AddWithValue ("@id", string catId) |> ignore
+        use! rdr = cmd.ExecuteReaderAsync()
+        return verifyWebLog<Category> webLogId (_.WebLogId) Map.toCategory rdr
     }
     
     /// Find all categories for the given web log
-    let findByWebLog webLogId = backgroundTask {
+    let findByWebLog (webLogId: WebLogId) = backgroundTask {
         use cmd = conn.CreateCommand ()
         cmd.CommandText <- "SELECT * FROM category WHERE web_log_id = @webLogId"
-        cmd.Parameters.AddWithValue ("@webLogId", WebLogId.toString webLogId) |> ignore
+        cmd.Parameters.AddWithValue ("@webLogId", string webLogId) |> ignore
         use! rdr = cmd.ExecuteReaderAsync ()
         return toList Map.toCategory rdr
     }
@@ -125,11 +125,11 @@ type SQLiteCategoryData (conn : SqliteConnection) =
             use cmd = conn.CreateCommand ()
             // Reassign any children to the category's parent category
             cmd.CommandText <- "SELECT COUNT(id) FROM category WHERE parent_id = @parentId"
-            cmd.Parameters.AddWithValue ("@parentId", catId.Value) |> ignore
+            cmd.Parameters.AddWithValue ("@parentId", string catId) |> ignore
             let! children = count cmd
             if children > 0 then
                 cmd.CommandText <- "UPDATE category SET parent_id = @newParentId WHERE parent_id = @parentId"
-                cmd.Parameters.AddWithValue ("@newParentId", maybe (cat.ParentId |> Option.map _.Value))
+                cmd.Parameters.AddWithValue ("@newParentId", maybe (cat.ParentId |> Option.map string))
                 |> ignore
                 do! write cmd
             // Delete the category off all posts where it is assigned, and the category itself
@@ -139,7 +139,7 @@ type SQLiteCategoryData (conn : SqliteConnection) =
                     AND post_id IN (SELECT id FROM post WHERE web_log_id = @webLogId);
                  DELETE FROM category WHERE id = @id"
             cmd.Parameters.Clear ()
-            let _ = cmd.Parameters.AddWithValue ("@id", catId.Value)
+            let _ = cmd.Parameters.AddWithValue ("@id", string catId)
             addWebLogId cmd webLogId
             do! write cmd
             return if children = 0 then CategoryDeleted else ReassignedChildCategories

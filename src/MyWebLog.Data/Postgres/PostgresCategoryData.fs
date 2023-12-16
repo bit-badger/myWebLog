@@ -43,7 +43,7 @@ type PostgresCategoryData(log: ILogger) =
                               FROM {Table.Post}
                              WHERE {Query.whereDataContains "@criteria"}
                                AND {catIdSql}"""
-                        [   "@criteria", Query.jsonbDocParam {| webLogDoc webLogId with Status = Published.Value |}
+                        [   "@criteria", Query.jsonbDocParam {| webLogDoc webLogId with Status = Published |}
                             catIdParams ]
                         Map.toCount
                     |> Async.AwaitTask
@@ -64,7 +64,7 @@ type PostgresCategoryData(log: ILogger) =
     /// Find a category by its ID for the given web log
     let findById catId webLogId =
         log.LogTrace "Category.findById"
-        Document.findByIdAndWebLog<CategoryId, Category> Table.Category catId (_.Value) webLogId
+        Document.findByIdAndWebLog<CategoryId, Category> Table.Category catId string webLogId
     
     /// Find all categories for the given web log
     let findByWebLog webLogId =
@@ -73,7 +73,7 @@ type PostgresCategoryData(log: ILogger) =
     
     /// Create parameters for a category insert / update
     let catParameters (cat : Category) =
-        Query.docParameters cat.Id.Value cat
+        Query.docParameters (string cat.Id) cat
     
     /// Delete a category
     let delete catId webLogId = backgroundTask {
@@ -81,7 +81,7 @@ type PostgresCategoryData(log: ILogger) =
         match! findById catId webLogId with
         | Some cat ->
             // Reassign any children to the category's parent category
-            let! children = Find.byContains<Category> Table.Category {| ParentId = catId.Value |}
+            let! children = Find.byContains<Category> Table.Category {| ParentId = string catId |}
             let hasChildren = not (List.isEmpty children)
             if hasChildren then
                 let! _ =
@@ -90,7 +90,7 @@ type PostgresCategoryData(log: ILogger) =
                     |> Sql.executeTransactionAsync [
                         Query.Update.partialById Table.Category,
                         children |> List.map (fun child -> [
-                            "@id",   Sql.string child.Id.Value
+                            "@id",   Sql.string (string child.Id)
                             "@data", Query.jsonbDocParam {| ParentId = cat.ParentId |}
                         ])
                     ]
@@ -98,7 +98,7 @@ type PostgresCategoryData(log: ILogger) =
             // Delete the category off all posts where it is assigned
             let! posts =
                 Custom.list $"SELECT data FROM {Table.Post} WHERE data -> '{nameof Post.empty.CategoryIds}' @> @id"
-                            [ "@id", Query.jsonbDocParam [| catId.Value |] ] fromData<Post>
+                            [ "@id", Query.jsonbDocParam [| string catId |] ] fromData<Post>
             if not (List.isEmpty posts) then
                 let! _ =
                     Configuration.dataSource ()
@@ -106,14 +106,14 @@ type PostgresCategoryData(log: ILogger) =
                     |> Sql.executeTransactionAsync [
                         Query.Update.partialById Table.Post,
                         posts |> List.map (fun post -> [
-                            "@id",   Sql.string post.Id.Value
+                            "@id",   Sql.string (string post.Id)
                             "@data", Query.jsonbDocParam
                                         {| CategoryIds = post.CategoryIds |> List.filter (fun cat -> cat <> catId) |}
                         ])
                     ]
                 ()
             // Delete the category itself
-            do! Delete.byId Table.Category catId.Value
+            do! Delete.byId Table.Category (string catId)
             return if hasChildren then ReassignedChildCategories else CategoryDeleted
         | None -> return CategoryNotFound
     }

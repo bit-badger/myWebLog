@@ -88,13 +88,13 @@ module CatchAll =
 module Asset =
     
     // GET /theme/{theme}/{**path}
-    let serve (urlParts : string seq) : HttpHandler = fun next ctx -> task {
+    let serve (urlParts: string seq) : HttpHandler = fun next ctx -> task {
         let path = urlParts |> Seq.skip 1 |> Seq.head
-        match! ctx.Data.ThemeAsset.FindById (ThemeAssetId.ofString path) with
+        match! ctx.Data.ThemeAsset.FindById(ThemeAssetId.Parse path) with
         | Some asset ->
             match Upload.checkModified asset.UpdatedOn ctx with
             | Some threeOhFour -> return! threeOhFour next ctx
-            | None -> return! Upload.sendFile (asset.UpdatedOn.ToDateTimeUtc ()) path asset.Data next ctx
+            | None -> return! Upload.sendFile (asset.UpdatedOn.ToDateTimeUtc()) path asset.Data next ctx
         | None -> return! Error.notFound next ctx
     }
 

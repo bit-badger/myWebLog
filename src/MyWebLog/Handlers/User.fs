@@ -48,22 +48,22 @@ open Microsoft.AspNetCore.Authentication.Cookies
 
 // POST /user/log-on
 let doLogOn : HttpHandler = fun next ctx -> task {
-    let! model   = ctx.BindFormAsync<LogOnModel> ()
+    let! model   = ctx.BindFormAsync<LogOnModel>()
     let  data    = ctx.Data
     let! tryUser = data.WebLogUser.FindByEmail model.EmailAddress ctx.WebLog.Id
     match! verifyPassword tryUser model.Password ctx with 
     | Ok _ ->
         let user = tryUser.Value
         let claims = seq {
-            Claim (ClaimTypes.NameIdentifier, WebLogUserId.toString user.Id)
-            Claim (ClaimTypes.Name,           $"{user.FirstName} {user.LastName}")
-            Claim (ClaimTypes.GivenName,      user.PreferredName)
-            Claim (ClaimTypes.Role,           user.AccessLevel.Value)
+            Claim(ClaimTypes.NameIdentifier, string user.Id)
+            Claim(ClaimTypes.Name,           $"{user.FirstName} {user.LastName}")
+            Claim(ClaimTypes.GivenName,      user.PreferredName)
+            Claim(ClaimTypes.Role,           string user.AccessLevel)
         }
-        let identity = ClaimsIdentity (claims, CookieAuthenticationDefaults.AuthenticationScheme)
+        let identity = ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme)
 
-        do! ctx.SignInAsync (identity.AuthenticationType, ClaimsPrincipal identity,
-            AuthenticationProperties (IssuedUtc = DateTimeOffset.UtcNow))
+        do! ctx.SignInAsync(identity.AuthenticationType, ClaimsPrincipal identity,
+            AuthenticationProperties(IssuedUtc = DateTimeOffset.UtcNow))
         do! data.WebLogUser.SetLastSeen user.Id user.WebLogId
         do! addMessage ctx
                 { UserMessage.success with
@@ -110,10 +110,10 @@ let private showEdit (model : EditUserModel) : HttpHandler = fun next ctx ->
     |> withAntiCsrf ctx
     |> addToHash ViewContext.Model model
     |> addToHash "access_levels" [|
-        KeyValuePair.Create(Author.Value, "Author")
-        KeyValuePair.Create(Editor.Value, "Editor")
-        KeyValuePair.Create(WebLogAdmin.Value, "Web Log Admin")
-        if ctx.HasAccessLevel Administrator then KeyValuePair.Create(Administrator.Value, "Administrator")
+        KeyValuePair.Create(string Author, "Author")
+        KeyValuePair.Create(string Editor, "Editor")
+        KeyValuePair.Create(string WebLogAdmin, "Web Log Admin")
+        if ctx.HasAccessLevel Administrator then KeyValuePair.Create(string Administrator, "Administrator")
     |]
     |> adminBareView "user-edit" next ctx
     
@@ -159,7 +159,7 @@ let private showMyInfo (model : EditMyInfoModel) (user : WebLogUser) : HttpHandl
     hashForPage "Edit Your Information"
     |> withAntiCsrf ctx
     |> addToHash ViewContext.Model model
-    |> addToHash "access_level"    (user.AccessLevel.Value)
+    |> addToHash "access_level"    (string user.AccessLevel)
     |> addToHash "created_on"      (WebLog.localTime ctx.WebLog user.CreatedOn)
     |> addToHash "last_seen_on"    (WebLog.localTime ctx.WebLog
                                          (defaultArg user.LastSeenOn (Instant.FromUnixTimeSeconds 0)))
@@ -208,7 +208,7 @@ let save : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     let  tryUser =
         if model.IsNew then
             { WebLogUser.empty with
-                Id        = WebLogUserId.create ()
+                Id        = WebLogUserId.Create()
                 WebLogId  = ctx.WebLog.Id
                 CreatedOn = Noda.now ()
             } |> someTask

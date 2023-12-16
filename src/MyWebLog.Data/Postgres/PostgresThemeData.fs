@@ -20,26 +20,26 @@ type PostgresThemeData (log : ILogger) =
         Custom.list $"{Query.selectFromTable Table.Theme} WHERE id <> 'admin' ORDER BY id" []  withoutTemplateText
     
     /// Does a given theme exist?
-    let exists themeId =
+    let exists (themeId: ThemeId) =
         log.LogTrace "Theme.exists"
-        Exists.byId Table.Theme (ThemeId.toString themeId)
+        Exists.byId Table.Theme (string themeId)
     
     /// Find a theme by its ID
-    let findById themeId =
+    let findById (themeId: ThemeId) =
         log.LogTrace "Theme.findById"
-        Find.byId<Theme> Table.Theme (ThemeId.toString themeId)
+        Find.byId<Theme> Table.Theme (string themeId)
     
     /// Find a theme by its ID (excludes the text of templates)
-    let findByIdWithoutText themeId =
+    let findByIdWithoutText (themeId: ThemeId) =
         log.LogTrace "Theme.findByIdWithoutText"
-        Custom.single (Query.Find.byId Table.Theme) [ "@id", Sql.string (ThemeId.toString themeId) ] withoutTemplateText
+        Custom.single (Query.Find.byId Table.Theme) [ "@id", Sql.string (string themeId) ] withoutTemplateText
     
     /// Delete a theme by its ID
     let delete themeId = backgroundTask {
         log.LogTrace "Theme.delete"
         match! exists themeId with
         | true ->
-            do! Delete.byId Table.Theme (ThemeId.toString themeId)
+            do! Delete.byId Table.Theme (string themeId)
             return true
         | false -> return false
     }
@@ -67,10 +67,10 @@ type PostgresThemeAssetData (log : ILogger) =
         Custom.list $"SELECT theme_id, path, updated_on FROM {Table.ThemeAsset}" [] (Map.toThemeAsset false)
     
     /// Delete all assets for the given theme
-    let deleteByTheme themeId =
+    let deleteByTheme (themeId: ThemeId) =
         log.LogTrace "ThemeAsset.deleteByTheme"
         Custom.nonQuery $"DELETE FROM {Table.ThemeAsset} WHERE theme_id = @themeId"
-                        [ "@themeId", Sql.string (ThemeId.toString themeId) ]
+                        [ "@themeId", Sql.string (string themeId) ]
     
     /// Find a theme asset by its ID
     let findById assetId =
@@ -80,16 +80,16 @@ type PostgresThemeAssetData (log : ILogger) =
                       [ "@themeId", Sql.string themeId; "@path", Sql.string path ] (Map.toThemeAsset true)
     
     /// Get theme assets for the given theme (excludes data)
-    let findByTheme themeId =
+    let findByTheme (themeId: ThemeId) =
         log.LogTrace "ThemeAsset.findByTheme"
         Custom.list $"SELECT theme_id, path, updated_on FROM {Table.ThemeAsset} WHERE theme_id = @themeId"
-                    [ "@themeId", Sql.string (ThemeId.toString themeId) ] (Map.toThemeAsset false)
+                    [ "@themeId", Sql.string (string themeId) ] (Map.toThemeAsset false)
     
     /// Get theme assets for the given theme
-    let findByThemeWithData themeId =
+    let findByThemeWithData (themeId: ThemeId) =
         log.LogTrace "ThemeAsset.findByThemeWithData"
         Custom.list $"SELECT * FROM {Table.ThemeAsset} WHERE theme_id = @themeId"
-                    [ "@themeId", Sql.string (ThemeId.toString themeId) ] (Map.toThemeAsset true)
+                    [ "@themeId", Sql.string (string themeId) ] (Map.toThemeAsset true)
     
     /// Save a theme asset
     let save (asset : ThemeAsset) =

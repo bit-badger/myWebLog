@@ -96,12 +96,12 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
     
     /// Match theme asset IDs by their prefix (the theme ID)
     let matchAssetByThemeId themeId =
-        let keyPrefix = $"^{ThemeId.toString themeId}/"
+        let keyPrefix = $"^{themeId}/"
         fun (row : Ast.ReqlExpr) -> row[nameof ThemeAsset.empty.Id].Match keyPrefix :> obj
     
     /// Function to exclude template text from themes
     let withoutTemplateText (row : Ast.ReqlExpr) : obj =
-        {|  Templates = row[nameof Theme.empty.Templates].Without [| nameof ThemeTemplate.empty.Text |] |}
+        {|  Templates = row[nameof Theme.empty.Templates].Without [| nameof ThemeTemplate.Empty.Text |] |}
         
     /// Ensure field indexes exist, as well as special indexes for selected tables
     let ensureIndexes table fields = backgroundTask {
@@ -917,8 +917,8 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                             delete
                             write; withRetryDefault; ignoreResult conn
                         }
-                        return Ok up.Path.Value
-                    | None -> return Result.Error $"Upload ID {UploadId.toString uploadId} not found"
+                        return Ok (string up.Path)
+                    | None -> return Result.Error $"Upload ID {uploadId} not found"
                 }
                 
                 member _.FindByPath path webLogId =
@@ -1133,9 +1133,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                         filter (nameof WebLogUser.empty.WebLogId) webLogId
                         result; withRetryDefault conn
                     }
-                    return
-                        users
-                        |> List.map (fun u -> { Name = WebLogUserId.toString u.Id; Value = WebLogUser.displayName u })
+                    return users |> List.map (fun u -> { Name = string u.Id; Value = WebLogUser.displayName u })
                 }
                 
                 member _.Restore users = backgroundTask {

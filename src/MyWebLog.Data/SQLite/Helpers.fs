@@ -222,7 +222,7 @@ module Map =
     /// Create a custom feed from the current row in the given data reader
     let toCustomFeed ser rdr : CustomFeed =
         {   Id      = getString "id"      rdr |> CustomFeedId
-            Source  = getString "source"  rdr |> CustomFeedSource.parse
+            Source  = getString "source"  rdr |> CustomFeedSource.Parse
             Path    = getString "path"    rdr |> Permalink
             Podcast = tryString "podcast" rdr |> Option.map (Utils.deserialize ser)
         }
@@ -339,7 +339,7 @@ module Map =
             UrlBase       = getString  "url_base"       rdr
             TimeZone      = getString  "time_zone"      rdr
             AutoHtmx      = getBoolean "auto_htmx"      rdr
-            Uploads       = getString  "uploads"        rdr |> UploadDestination.parse
+            Uploads       = getString  "uploads"        rdr |> UploadDestination.Parse
             Rss           = {
                 IsFeedEnabled     = getBoolean "is_feed_enabled"     rdr
                 FeedName          = getString  "feed_name"           rdr
@@ -368,5 +368,5 @@ module Map =
         }
 
 /// Add a web log ID parameter
-let addWebLogId (cmd : SqliteCommand) webLogId =
-    cmd.Parameters.AddWithValue ("@webLogId", WebLogId.toString webLogId) |> ignore
+let addWebLogId (cmd: SqliteCommand) (webLogId: WebLogId) =
+    cmd.Parameters.AddWithValue ("@webLogId", string webLogId) |> ignore

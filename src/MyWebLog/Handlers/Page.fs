@@ -193,7 +193,7 @@ let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
         do! (if model.IsNew then data.Page.Add else data.Page.Update) updatedPage
         if updateList then do! PageListCache.update ctx
         do! addMessage ctx { UserMessage.success with Message = "Page saved successfully" }
-        return! redirectToGet $"admin/page/{page.Id.Value}/edit" next ctx
+        return! redirectToGet $"admin/page/{page.Id}/edit" next ctx
     | Some _ -> return! Error.notAuthorized next ctx
     | None -> return! Error.notFound next ctx
 }

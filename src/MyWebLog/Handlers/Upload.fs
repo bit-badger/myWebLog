@@ -107,7 +107,7 @@ let list : HttpHandler = requireAccess Author >=> fun next ctx -> task {
                     Name             = name
                     Path             = file.Replace($"{path}{slash}", "").Replace(name, "").Replace (slash, '/')
                     UpdatedOn        = create
-                    Source           = UploadDestination.toString Disk
+                    Source           = string Disk
                 })
             |> List.ofSeq
         with
@@ -131,7 +131,7 @@ let list : HttpHandler = requireAccess Author >=> fun next ctx -> task {
 let showNew : HttpHandler = requireAccess Author >=> fun next ctx ->
     hashForPage "Upload a File"
     |> withAntiCsrf ctx
-    |> addToHash "destination" (UploadDestination.toString ctx.WebLog.Uploads)
+    |> addToHash "destination" (string ctx.WebLog.Uploads)
     |> adminView "upload-new" next ctx
 
 
@@ -144,29 +144,29 @@ let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     if ctx.Request.HasFormContentType && ctx.Request.Form.Files.Count > 0 then
         let upload    = Seq.head ctx.Request.Form.Files
         let fileName  = String.Concat (makeSlug (Path.GetFileNameWithoutExtension upload.FileName),
-                                       Path.GetExtension(upload.FileName).ToLowerInvariant ())
+                                       Path.GetExtension(upload.FileName).ToLowerInvariant())
         let  now      = Noda.now ()
         let  localNow = WebLog.localTime ctx.WebLog now
         let  year     = localNow.ToString "yyyy"
         let  month    = localNow.ToString "MM"
-        let! form     = ctx.BindFormAsync<UploadFileModel> ()
+        let! form     = ctx.BindFormAsync<UploadFileModel>()
         
-        match UploadDestination.parse form.Destination with
+        match UploadDestination.Parse form.Destination with
         | Database ->
-            use stream = new MemoryStream ()
+            use stream = new MemoryStream()
             do! upload.CopyToAsync stream
             let file =
-                {   Id        = UploadId.create ()
+                {   Id        = UploadId.Create()
                     WebLogId  = ctx.WebLog.Id
                     Path      = Permalink $"{year}/{month}/{fileName}"
                     UpdatedOn = now
-                    Data      = stream.ToArray ()
+                    Data      = stream.ToArray()
                 }
             do! ctx.Data.Upload.Add file
         | Disk ->
-            let fullPath = Path.Combine (uploadDir, ctx.WebLog.Slug, year, month)
+            let fullPath = Path.Combine(uploadDir, ctx.WebLog.Slug, year, month)
             let _        = Directory.CreateDirectory fullPath
-            use stream   = new FileStream (Path.Combine (fullPath, fileName), FileMode.Create)
+            use stream   = new FileStream(Path.Combine(fullPath, fileName), FileMode.Create)
             do! upload.CopyToAsync stream
         
         do! addMessage ctx { UserMessage.success with Message = $"File uploaded to {form.Destination} successfully" }

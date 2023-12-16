@@ -12,7 +12,7 @@ type PostgresWebLogUserData (log : ILogger) =
     /// Find a user by their ID for the given web log
     let findById userId webLogId =
         log.LogTrace "WebLogUser.findById"
-        Document.findByIdAndWebLog<WebLogUserId, WebLogUser> Table.WebLogUser userId WebLogUserId.toString webLogId
+        Document.findByIdAndWebLog<WebLogUserId, WebLogUser> Table.WebLogUser userId string webLogId
     
     /// Delete a user if they have no posts or pages
     let delete userId webLogId = backgroundTask {
@@ -29,7 +29,7 @@ type PostgresWebLogUserData (log : ILogger) =
             if isAuthor then
                 return Error "User has pages or posts; cannot delete"
             else
-                do! Delete.byId Table.WebLogUser (WebLogUserId.toString userId)
+                do! Delete.byId Table.WebLogUser (string userId)
                 return Ok true
         | None -> return Error "User does not exist"
     }
@@ -49,41 +49,38 @@ type PostgresWebLogUserData (log : ILogger) =
             [ webLogContains webLogId ] fromData<WebLogUser>
     
     /// Find the names of users by their IDs for the given web log
-    let findNames webLogId userIds = backgroundTask {
+    let findNames webLogId (userIds: WebLogUserId list) = backgroundTask {
         log.LogTrace "WebLogUser.findNames"
-        let idSql, idParams = inClause "AND id" "id" WebLogUserId.toString userIds
+        let idSql, idParams = inClause "AND id" "id" string userIds
         let! users =
             Custom.list $"{selectWithCriteria Table.WebLogUser} {idSql}" (webLogContains webLogId :: idParams)
                         fromData<WebLogUser>
-        return
-            users
-            |> List.map (fun u -> { Name = WebLogUserId.toString u.Id; Value = WebLogUser.displayName u })
+        return users |> List.map (fun u -> { Name = string u.Id; Value = WebLogUser.displayName u })
     }
     
     /// Restore users from a backup
-    let restore (users : WebLogUser list) = backgroundTask {
+    let restore (users: WebLogUser list) = backgroundTask {
         log.LogTrace "WebLogUser.restore"
         let! _ =
             Configuration.dataSource ()
             |> Sql.fromDataSource
             |> Sql.executeTransactionAsync [
                 Query.insert Table.WebLogUser,
-                users |> List.map (fun user -> Query.docParameters (WebLogUserId.toString user.Id) user)
+                users |> List.map (fun user -> Query.docParameters (string user.Id) user)
             ]
         ()
     }
     
     /// Set a user's last seen date/time to now
-    let setLastSeen userId webLogId = backgroundTask {
+    let setLastSeen (userId: WebLogUserId) webLogId = backgroundTask {
         log.LogTrace "WebLogUser.setLastSeen"
-        match! Document.existsByWebLog Table.WebLogUser userId WebLogUserId.toString webLogId with
-        | true ->
-            do! Update.partialById Table.WebLogUser (WebLogUserId.toString userId) {| LastSeenOn = Some (Noda.now ()) |}
+        match! Document.existsByWebLog Table.WebLogUser userId string webLogId with
+        | true -> do! Update.partialById Table.WebLogUser (string userId) {| LastSeenOn = Some (Noda.now ()) |}
         | false -> ()
     }
     
     /// Save a user
-    let save (user : WebLogUser) =
+    let save (user: WebLogUser) =
         log.LogTrace "WebLogUser.save"
         save Table.WebLogUser user
     

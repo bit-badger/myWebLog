@@ -9,8 +9,8 @@ open Newtonsoft.Json
 // The web log podcast insert loop is not statically compilable; this is OK
 #nowarn "3511"
 
-/// SQLite myWebLog web log data implementation        
-type SQLiteWebLogData (conn : SqliteConnection, ser : JsonSerializer) =
+/// SQLite myWebLog web log data implementation
+type SQLiteWebLogData(conn: SqliteConnection, ser: JsonSerializer) =
     
     // SUPPORT FUNCTIONS
     
@@ -25,28 +25,28 @@ type SQLiteWebLogData (conn : SqliteConnection, ser : JsonSerializer) =
         ] |> ignore
     
     /// Add parameters for web log INSERT or UPDATE statements
-    let addWebLogParameters (cmd : SqliteCommand) (webLog : WebLog) =
-        [   cmd.Parameters.AddWithValue ("@id",            WebLogId.toString webLog.Id)
+    let addWebLogParameters (cmd: SqliteCommand) (webLog: WebLog) =
+        [   cmd.Parameters.AddWithValue ("@id",            string webLog.Id)
             cmd.Parameters.AddWithValue ("@name",          webLog.Name)
             cmd.Parameters.AddWithValue ("@slug",          webLog.Slug)
             cmd.Parameters.AddWithValue ("@subtitle",      maybe webLog.Subtitle)
             cmd.Parameters.AddWithValue ("@defaultPage",   webLog.DefaultPage)
             cmd.Parameters.AddWithValue ("@postsPerPage",  webLog.PostsPerPage)
-            cmd.Parameters.AddWithValue ("@themeId",       ThemeId.toString webLog.ThemeId)
+            cmd.Parameters.AddWithValue ("@themeId",       string webLog.ThemeId)
             cmd.Parameters.AddWithValue ("@urlBase",       webLog.UrlBase)
             cmd.Parameters.AddWithValue ("@timeZone",      webLog.TimeZone)
             cmd.Parameters.AddWithValue ("@autoHtmx",      webLog.AutoHtmx)
-            cmd.Parameters.AddWithValue ("@uploads",       UploadDestination.toString webLog.Uploads)
+            cmd.Parameters.AddWithValue ("@uploads",       string webLog.Uploads)
             cmd.Parameters.AddWithValue ("@redirectRules", Utils.serialize ser webLog.RedirectRules)
         ] |> ignore
         addWebLogRssParameters cmd webLog
     
     /// Add parameters for custom feed INSERT or UPDATE statements
-    let addCustomFeedParameters (cmd : SqliteCommand) webLogId (feed : CustomFeed) =
-        [   cmd.Parameters.AddWithValue ("@id",       CustomFeedId.toString feed.Id)
-            cmd.Parameters.AddWithValue ("@webLogId", WebLogId.toString webLogId)
-            cmd.Parameters.AddWithValue ("@source",   CustomFeedSource.toString feed.Source)
-            cmd.Parameters.AddWithValue ("@path",     feed.Path.Value)
+    let addCustomFeedParameters (cmd: SqliteCommand) (webLogId: WebLogId) (feed: CustomFeed) =
+        [   cmd.Parameters.AddWithValue ("@id",       string feed.Id)
+            cmd.Parameters.AddWithValue ("@webLogId", string webLogId)
+            cmd.Parameters.AddWithValue ("@source",   string feed.Source)
+            cmd.Parameters.AddWithValue ("@path",     string feed.Path)
             cmd.Parameters.AddWithValue ("@podcast",  maybe (if Option.isSome feed.Podcast then
                                                                  Some (Utils.serialize ser feed.Podcast)
                                                              else None))
@@ -74,7 +74,7 @@ type SQLiteWebLogData (conn : SqliteConnection, ser : JsonSerializer) =
     /// Update the custom feeds for a web log
     let updateCustomFeeds (webLog : WebLog) = backgroundTask {
         let! feeds = getCustomFeeds webLog
-        let toDelete, toAdd = Utils.diffLists feeds webLog.Rss.CustomFeeds (fun it -> $"{CustomFeedId.toString it.Id}")
+        let toDelete, toAdd = Utils.diffLists feeds webLog.Rss.CustomFeeds string
         let toId (feed : CustomFeed) = feed.Id
         let toUpdate =
             webLog.Rss.CustomFeeds
@@ -85,7 +85,7 @@ type SQLiteWebLogData (conn : SqliteConnection, ser : JsonSerializer) =
         toDelete
         |> List.map (fun it -> backgroundTask {
             cmd.CommandText <- "DELETE FROM web_log_feed WHERE id = @id"
-            cmd.Parameters["@id"].Value <- CustomFeedId.toString it.Id
+            cmd.Parameters["@id"].Value <- string it.Id
             do! write cmd
         })
         |> Task.WhenAll
@@ -211,7 +211,7 @@ type SQLiteWebLogData (conn : SqliteConnection, ser : JsonSerializer) =
         use cmd = conn.CreateCommand ()
         cmd.CommandText <- "UPDATE web_log SET redirect_rules = @redirectRules WHERE id = @id"
         cmd.Parameters.AddWithValue ("@redirectRules", Utils.serialize ser webLog.RedirectRules) |> ignore
-        cmd.Parameters.AddWithValue ("@id",            WebLogId.toString webLog.Id)              |> ignore
+        cmd.Parameters.AddWithValue ("@id",            string webLog.Id)                         |> ignore
         do! write cmd
     }
 
@@ -228,7 +228,7 @@ type SQLiteWebLogData (conn : SqliteConnection, ser : JsonSerializer) =
                     copyright           = @copyright
               WHERE id = @id"
         addWebLogRssParameters cmd webLog
-        cmd.Parameters.AddWithValue ("@id", WebLogId.toString webLog.Id) |> ignore
+        cmd.Parameters.AddWithValue ("@id", string webLog.Id) |> ignore
         do! write cmd
         do! updateCustomFeeds webLog
     }

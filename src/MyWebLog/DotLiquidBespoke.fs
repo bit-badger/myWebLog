@@ -95,9 +95,9 @@ type NavLinkFilter () =
 
 
 /// A filter to generate a link for theme asset (image, stylesheet, script, etc.)
-type ThemeAssetFilter () =
-    static member ThemeAsset (ctx : Context, asset : string) =
-        WebLog.relativeUrl ctx.WebLog (Permalink $"themes/{ThemeId.toString ctx.WebLog.ThemeId}/{asset}")
+type ThemeAssetFilter() =
+    static member ThemeAsset(ctx: Context, asset: string) =
+        WebLog.relativeUrl ctx.WebLog (Permalink $"themes/{ctx.WebLog.ThemeId}/{asset}")
 
 
 /// Create various items in the page header based on the state of the page being generated

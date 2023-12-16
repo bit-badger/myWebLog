@@ -12,7 +12,7 @@ let currentDbVersion = "v2.1"
 let rec orderByHierarchy (cats : Category list) parentId slugBase parentNames = seq {
     for cat in cats |> List.filter (fun c -> c.ParentId = parentId) do
         let fullSlug = (match slugBase with Some it -> $"{it}/" | None -> "") + cat.Slug
-        { Id          = cat.Id.Value
+        { Id          = string cat.Id
           Slug        = fullSlug
           Name        = cat.Name
           Description = cat.Description
@@ -29,16 +29,16 @@ let diffLists<'T, 'U when 'U: equality> oldItems newItems (f: 'T -> 'U) =
     List.filter (diff newItems) oldItems, List.filter (diff oldItems) newItems
 
 /// Find meta items added and removed
-let diffMetaItems (oldItems : MetaItem list) newItems =
+let diffMetaItems (oldItems: MetaItem list) newItems =
     diffLists oldItems newItems (fun item -> $"{item.Name}|{item.Value}")
 
 /// Find the permalinks added and removed
-let diffPermalinks oldLinks newLinks =
-    diffLists oldLinks newLinks (fun (it: Permalink) -> it.Value)
+let diffPermalinks (oldLinks: Permalink list) newLinks =
+    diffLists oldLinks newLinks string
 
 /// Find the revisions added and removed
-let diffRevisions oldRevs newRevs =
-    diffLists oldRevs newRevs (fun (rev: Revision) -> $"{rev.AsOf.ToUnixTimeTicks()}|{rev.Text.Value}")
+let diffRevisions (oldRevs: Revision list) newRevs =
+    diffLists oldRevs newRevs (fun rev -> $"{rev.AsOf.ToUnixTimeTicks()}|{rev.Text}")
 
 open MyWebLog.Converters
 open Newtonsoft.Json

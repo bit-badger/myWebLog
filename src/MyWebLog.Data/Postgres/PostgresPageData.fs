@@ -14,7 +14,7 @@ type PostgresPageData (log: ILogger) =
     /// Append revisions to a page
     let appendPageRevisions (page: Page) = backgroundTask {
         log.LogTrace "Page.appendPageRevisions"
-        let! revisions = Revisions.findByEntityId Table.PageRevision Table.Page page.Id _.Value
+        let! revisions = Revisions.findByEntityId Table.PageRevision Table.Page page.Id string
         return { page with Revisions = revisions }
     }
     
@@ -25,12 +25,12 @@ type PostgresPageData (log: ILogger) =
     /// Update a page's revisions
     let updatePageRevisions (pageId: PageId) oldRevs newRevs =
         log.LogTrace "Page.updatePageRevisions"
-        Revisions.update Table.PageRevision Table.Page pageId (_.Value) oldRevs newRevs
+        Revisions.update Table.PageRevision Table.Page pageId string oldRevs newRevs
     
     /// Does the given page exist?
     let pageExists (pageId: PageId) webLogId =
         log.LogTrace "Page.pageExists"
-        Document.existsByWebLog Table.Page pageId (_.Value) webLogId
+        Document.existsByWebLog Table.Page pageId string webLogId
     
     // IMPLEMENTATION FUNCTIONS
     
@@ -51,9 +51,9 @@ type PostgresPageData (log: ILogger) =
         Count.byContains Table.Page {| webLogDoc webLogId with IsInPageList = true |}
     
     /// Find a page by its ID (without revisions)
-    let findById (pageId: PageId) webLogId =
+    let findById pageId webLogId =
         log.LogTrace "Page.findById"
-        Document.findByIdAndWebLog<PageId, Page> Table.Page pageId (_.Value) webLogId
+        Document.findByIdAndWebLog<PageId, Page> Table.Page pageId string webLogId
     
     /// Find a complete page by its ID
     let findFullById pageId webLogId = backgroundTask {
@@ -70,7 +70,7 @@ type PostgresPageData (log: ILogger) =
         log.LogTrace "Page.delete"
         match! pageExists pageId webLogId with
         | true ->
-            do! Delete.byId Table.Page pageId.Value
+            do! Delete.byId Table.Page (string pageId)
             return true
         | false -> return false
     }
@@ -78,16 +78,15 @@ type PostgresPageData (log: ILogger) =
     /// Find a page by its permalink for the given web log
     let findByPermalink (permalink: Permalink) webLogId =
         log.LogTrace "Page.findByPermalink"
-        Find.byContains<Page> Table.Page {| webLogDoc webLogId with Permalink = permalink.Value |}
+        Find.byContains<Page> Table.Page {| webLogDoc webLogId with Permalink = string permalink |}
         |> tryHead
     
     /// Find the current permalink within a set of potential prior permalinks for the given web log
-    let findCurrentPermalink permalinks webLogId = backgroundTask {
+    let findCurrentPermalink (permalinks: Permalink list) webLogId = backgroundTask {
         log.LogTrace "Page.findCurrentPermalink"
         if List.isEmpty permalinks then return None
         else
-            let linkSql, linkParam =
-                arrayContains (nameof Page.empty.PriorPermalinks) (fun (it: Permalink) -> it.Value) permalinks
+            let linkSql, linkParam = arrayContains (nameof Page.empty.PriorPermalinks) string permalinks
             return!
                 Custom.single
                     $"""SELECT data ->> '{nameof Page.empty.Permalink}' AS permalink
@@ -134,9 +133,9 @@ type PostgresPageData (log: ILogger) =
             |> Sql.executeTransactionAsync [
                 Query.insert Table.Page,
                 pages
-                |> List.map (fun page -> Query.docParameters page.Id.Value { page with Revisions = [] })
+                |> List.map (fun page -> Query.docParameters (string page.Id) { page with Revisions = [] })
                 Revisions.insertSql Table.PageRevision,
-                    revisions |> List.map (fun (pageId, rev) -> Revisions.revParams pageId (_.Value) rev)
+                    revisions |> List.map (fun (pageId, rev) -> Revisions.revParams pageId string rev)
             ]
         ()
     }
@@ -155,7 +154,7 @@ type PostgresPageData (log: ILogger) =
         log.LogTrace "Page.updatePriorPermalinks"
         match! pageExists pageId webLogId with
         | true ->
-            do! Update.partialById Table.Page pageId.Value {| PriorPermalinks = permalinks |}
+            do! Update.partialById Table.Page (string pageId) {| PriorPermalinks = permalinks |}
             return true
         | false -> return false
     }

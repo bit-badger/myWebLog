@@ -37,7 +37,7 @@ let deriveFeedType (ctx : HttpContext) feedPath : (FeedType * int) option =
     | false ->
         // Category and tag feeds are handled by defined routes; check for custom feed
         match webLog.Rss.CustomFeeds
-              |> List.tryFind (fun it -> feedPath.EndsWith it.Path.Value) with
+              |> List.tryFind (fun it -> feedPath.EndsWith(string it.Path)) with
         | Some feed ->
             debug (fun () -> "Found custom feed")
             Some (Custom (feed, feedPath), feed.Podcast |> Option.map _.ItemsInFeed |> Option.defaultValue postCount)
@@ -48,7 +48,7 @@ let deriveFeedType (ctx : HttpContext) feedPath : (FeedType * int) option =
 /// Determine the function to retrieve posts for the given feed
 let private getFeedPosts ctx feedType =
     let childIds (catId: CategoryId) =
-        let cat = CategoryCache.get ctx |> Array.find (fun c -> c.Id = catId.Value)
+        let cat = CategoryCache.get ctx |> Array.find (fun c -> c.Id = string catId)
         getCategoryIds cat.Slug ctx
     let data = ctx.Data
     match feedType with
@@ -86,51 +86,50 @@ module private Namespace =
     let rawVoice = "http://www.rawvoice.com/rawvoiceRssModule/"
 
 /// Create a feed item from the given post    
-let private toFeedItem webLog (authors : MetaItem list) (cats : DisplayCategory[]) (tagMaps : TagMap list)
-            (post : Post) =
+let private toFeedItem webLog (authors: MetaItem list) (cats: DisplayCategory array) (tagMaps: TagMap list)
+        (post: Post) =
     let plainText =
         let endingP = post.Text.IndexOf "</p>"
         stripHtml <| if endingP >= 0 then post.Text[..(endingP - 1)] else post.Text
-    let item = SyndicationItem (
+    let item = SyndicationItem(
         Id              = WebLog.absoluteUrl webLog post.Permalink,
         Title           = TextSyndicationContent.CreateHtmlContent post.Title,
-        PublishDate     = post.PublishedOn.Value.ToDateTimeOffset (),
-        LastUpdatedTime = post.UpdatedOn.ToDateTimeOffset (),
+        PublishDate     = post.PublishedOn.Value.ToDateTimeOffset(),
+        LastUpdatedTime = post.UpdatedOn.ToDateTimeOffset(),
         Content         = TextSyndicationContent.CreatePlaintextContent plainText)
     item.AddPermalink (Uri item.Id)
     
-    let xmlDoc = XmlDocument ()
+    let xmlDoc = XmlDocument()
     
     let encoded =
         let txt =
             post.Text
                 .Replace("src=\"/", $"src=\"{webLog.UrlBase}/")
-                .Replace ("href=\"/", $"href=\"{webLog.UrlBase}/")
-        let it  = xmlDoc.CreateElement ("content", "encoded", Namespace.content)
-        let _   = it.AppendChild (xmlDoc.CreateCDataSection txt)
+                .Replace("href=\"/", $"href=\"{webLog.UrlBase}/")
+        let it  = xmlDoc.CreateElement("content", "encoded", Namespace.content)
+        let _   = it.AppendChild(xmlDoc.CreateCDataSection txt)
         it
     item.ElementExtensions.Add encoded
         
-    item.Authors.Add (SyndicationPerson (
-        Name = (authors |> List.find (fun a -> a.Name = WebLogUserId.toString post.AuthorId)).Value))
+    item.Authors.Add(SyndicationPerson(Name = (authors |> List.find (fun a -> a.Name = string post.AuthorId)).Value))
     [ post.CategoryIds
       |> List.map (fun catId ->
-          let cat = cats |> Array.find (fun c -> c.Id = catId.Value)
-          SyndicationCategory (cat.Name, WebLog.absoluteUrl webLog (Permalink $"category/{cat.Slug}/"), cat.Name))
+          let cat = cats |> Array.find (fun c -> c.Id = string catId)
+          SyndicationCategory(cat.Name, WebLog.absoluteUrl webLog (Permalink $"category/{cat.Slug}/"), cat.Name))
       post.Tags
       |> List.map (fun tag ->
           let urlTag =
               match tagMaps |> List.tryFind (fun tm -> tm.Tag = tag) with
               | Some tm -> tm.UrlValue
               | None -> tag.Replace (" ", "+")
-          SyndicationCategory (tag, WebLog.absoluteUrl webLog (Permalink $"tag/{urlTag}/"), $"{tag} (tag)"))
+          SyndicationCategory(tag, WebLog.absoluteUrl webLog (Permalink $"tag/{urlTag}/"), $"{tag} (tag)"))
     ]
     |> List.concat
     |> List.iter item.Categories.Add
     item
 
 /// Convert non-absolute URLs to an absolute URL for this web log
-let toAbsolute webLog (link : string) =
+let toAbsolute webLog (link: string) =
     if link.StartsWith "http" then link else WebLog.absoluteUrl webLog (Permalink link)
 
 /// Add episode information to a podcast feed item
@@ -141,8 +140,8 @@ let private addEpisode webLog (podcast : PodcastOptions) (episode : Episode) (po
         | link when Option.isSome podcast.MediaBaseUrl -> $"{podcast.MediaBaseUrl.Value}{link}"
         | link -> WebLog.absoluteUrl webLog (Permalink link)
     let epMediaType = [ episode.MediaType; podcast.DefaultMediaType ] |> List.tryFind Option.isSome |> Option.flatten
-    let epImageUrl = defaultArg episode.ImageUrl podcast.ImageUrl.Value |> toAbsolute webLog
-    let epExplicit = (defaultArg episode.Explicit podcast.Explicit).Value
+    let epImageUrl = defaultArg episode.ImageUrl (string podcast.ImageUrl) |> toAbsolute webLog
+    let epExplicit = string (defaultArg episode.Explicit podcast.Explicit)
     
     let xmlDoc    = XmlDocument()
     let enclosure =
@@ -298,7 +297,7 @@ let private addPodcast webLog (rssFeed : SyndicationFeed) (feed : CustomFeed) =
     rssFeed.ElementExtensions.Add rawVoice
     rssFeed.ElementExtensions.Add("summary",  Namespace.iTunes, podcast.Summary)
     rssFeed.ElementExtensions.Add("author",   Namespace.iTunes, podcast.DisplayedAuthor)
-    rssFeed.ElementExtensions.Add("explicit", Namespace.iTunes, podcast.Explicit.Value)
+    rssFeed.ElementExtensions.Add("explicit", Namespace.iTunes, string podcast.Explicit)
     podcast.Subtitle |> Option.iter (fun sub -> rssFeed.ElementExtensions.Add ("subtitle", Namespace.iTunes, sub))
     podcast.FundingUrl
     |> Option.iter (fun url ->
@@ -309,7 +308,7 @@ let private addPodcast webLog (rssFeed : SyndicationFeed) (feed : CustomFeed) =
     podcast.PodcastGuid
     |> Option.iter (fun guid ->
         rssFeed.ElementExtensions.Add("guid", Namespace.podcast, guid.ToString().ToLowerInvariant()))
-    podcast.Medium |> Option.iter (fun med -> rssFeed.ElementExtensions.Add("medium", Namespace.podcast, med.Value))
+    podcast.Medium |> Option.iter (fun med -> rssFeed.ElementExtensions.Add("medium", Namespace.podcast, string med))
 
 /// Get the feed's self reference and non-feed link
 let private selfAndLink webLog feedType ctx =
@@ -368,7 +367,7 @@ let createFeed (feedType : FeedType) posts : HttpHandler = fun next ctx -> backg
         match podcast, post.Episode with
         | Some feed, Some episode -> addEpisode webLog (Option.get feed.Podcast) episode post item
         | Some _, _ ->
-            warn "Feed" ctx $"[{webLog.Name} {self.Value}] \"{stripHtml post.Title}\" has no media"
+            warn "Feed" ctx $"[{webLog.Name} {self}] \"{stripHtml post.Title}\" has no media"
             item
         | _ -> item
         
@@ -427,7 +426,7 @@ let saveSettings : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> t
 let editCustomFeed feedId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx ->
     let customFeed =
         match feedId with
-        | "new" -> Some { CustomFeed.empty with Id = CustomFeedId "new" }
+        | "new" -> Some { CustomFeed.Empty with Id = CustomFeedId "new" }
         | _     -> ctx.WebLog.Rss.CustomFeeds |> List.tryFind (fun f -> f.Id = CustomFeedId feedId)
     match customFeed with
     | Some f ->
@@ -436,13 +435,13 @@ let editCustomFeed feedId : HttpHandler = requireAccess WebLogAdmin >=> fun next
         |> addToHash ViewContext.Model (EditCustomFeedModel.fromFeed f)
         |> addToHash "medium_values" [|
             KeyValuePair.Create("", "&ndash; Unspecified &ndash;")
-            KeyValuePair.Create(Podcast.Value,    "Podcast")
-            KeyValuePair.Create(Music.Value,      "Music")
-            KeyValuePair.Create(Video.Value,      "Video")
-            KeyValuePair.Create(Film.Value,       "Film")
-            KeyValuePair.Create(Audiobook.Value,  "Audiobook")
-            KeyValuePair.Create(Newsletter.Value, "Newsletter")
-            KeyValuePair.Create(Blog.Value,       "Blog")
+            KeyValuePair.Create(string Podcast,    "Podcast")
+            KeyValuePair.Create(string Music,      "Music")
+            KeyValuePair.Create(string Video,      "Video")
+            KeyValuePair.Create(string Film,       "Film")
+            KeyValuePair.Create(string Audiobook,  "Audiobook")
+            KeyValuePair.Create(string Newsletter, "Newsletter")
+            KeyValuePair.Create(string Blog,       "Blog")
         |]
         |> adminView "custom-feed-edit" next ctx
     | None -> Error.notFound next ctx
@@ -455,8 +454,8 @@ let saveCustomFeed : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx ->
         let! model = ctx.BindFormAsync<EditCustomFeedModel> ()
         let theFeed =
             match model.Id with
-            | "new" -> Some { CustomFeed.empty with Id = CustomFeedId.create () }
-            | _ -> webLog.Rss.CustomFeeds |> List.tryFind (fun it -> CustomFeedId.toString it.Id = model.Id)
+            | "new" -> Some { CustomFeed.Empty with Id = CustomFeedId.Create() }
+            | _ -> webLog.Rss.CustomFeeds |> List.tryFind (fun it -> string it.Id = model.Id)
         match theFeed with
         | Some feed ->
             let feeds = model.UpdateFeed feed :: (webLog.Rss.CustomFeeds |> List.filter (fun it -> it.Id <> feed.Id))
@@ -467,7 +466,7 @@ let saveCustomFeed : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx ->
                 UserMessage.success with
                   Message = $"""Successfully {if model.Id = "new" then "add" else "sav"}ed custom feed"""
             }
-            return! redirectToGet $"admin/settings/rss/{CustomFeedId.toString feed.Id}/edit" next ctx
+            return! redirectToGet $"admin/settings/rss/{feed.Id}/edit" next ctx
         | None -> return! Error.notFound next ctx
     | None -> return! Error.notFound next ctx
 }

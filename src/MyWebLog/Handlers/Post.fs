@@ -58,7 +58,7 @@ let preparePostList webLog posts listType (url: string) pageNbr perPage (data: I
         | _ -> Task.FromResult (None, None)
     let newerLink =
         match listType, pageNbr with
-        | SinglePost,   _ -> newerPost |> Option.map _.Permalink.Value
+        | SinglePost,   _ -> newerPost |> Option.map (fun it -> string it.Permalink)
         | _,            1 -> None
         | PostList,     2    when webLog.DefaultPage = "posts" -> Some ""
         | PostList,     _ -> relUrl $"page/{pageNbr - 1}"
@@ -70,7 +70,7 @@ let preparePostList webLog posts listType (url: string) pageNbr perPage (data: I
         | AdminList,    _ -> relUrl $"admin/posts/page/{pageNbr - 1}"
     let olderLink =
         match listType, List.length posts > perPage with
-        | SinglePost,   _     -> olderPost |> Option.map _.Permalink.Value
+        | SinglePost,   _     -> olderPost |> Option.map (fun it -> string it.Permalink)
         | _,            false -> None
         | PostList,     true  -> relUrl $"page/{pageNbr + 1}"
         | CategoryList, true  -> relUrl $"category/{url}/page/{pageNbr + 1}"
@@ -243,9 +243,9 @@ let edit postId : HttpHandler = requireAccess Author >=> fun next ctx -> task {
             |> addToHash "templates" templates
             |> addToHash "explicit_values" [|
                 KeyValuePair.Create("", "&ndash; Default &ndash;")
-                KeyValuePair.Create(Yes.Value,   "Yes")
-                KeyValuePair.Create(No.Value,    "No")
-                KeyValuePair.Create(Clean.Value, "Clean")
+                KeyValuePair.Create(string Yes,   "Yes")
+                KeyValuePair.Create(string No,    "No")
+                KeyValuePair.Create(string Clean, "Clean")
             |]
             |> adminView "post-edit" next ctx
     | Some _ -> return! Error.notAuthorized next ctx
@@ -410,7 +410,7 @@ let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
                    |> List.length = List.length priorCats) then
             do! CategoryCache.update ctx
         do! addMessage ctx { UserMessage.success with Message = "Post saved successfully" }
-        return! redirectToGet $"admin/post/{post.Id.Value}/edit" next ctx
+        return! redirectToGet $"admin/post/{post.Id}/edit" next ctx
     | Some _ -> return! Error.notAuthorized next ctx
     | None -> return! Error.notFound next ctx
 }

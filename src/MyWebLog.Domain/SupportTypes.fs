@@ -54,16 +54,16 @@ type AccessLevel =
     | Administrator
     
     /// Parse an access level from its string representation
-    static member Parse =
-        function
+    static member Parse level =
+        match level with
         | "Author" -> Author
         | "Editor" -> Editor
         | "WebLogAdmin" -> WebLogAdmin
         | "Administrator" -> Administrator
-        | it -> invalidArg "level" $"{it} is not a valid access level"
+        | _ -> invalidArg (nameof level) $"{level} is not a valid access level"
 
     /// The string representation of this access level
-    member this.Value =
+    override this.ToString() =
         match this with
         | Author -> "Author"
         | Editor -> "Editor"
@@ -96,7 +96,7 @@ type CategoryId =
         newId >> CategoryId
 
     /// The string representation of this category ID
-    member this.Value =
+    override this.ToString() =
         match this with CategoryId it -> it
 
 
@@ -113,7 +113,7 @@ type CommentId =
         newId >> CommentId
 
     /// The string representation of this comment ID
-    member this.Value =
+    override this.ToString() =
         match this with CommentId it -> it
 
 
@@ -128,15 +128,15 @@ type CommentStatus =
     | Spam
 
     /// Parse a string into a comment status
-    static member Parse =
-        function
+    static member Parse status =
+        match status with
         | "Approved" -> Approved
         | "Pending" -> Pending
         | "Spam" -> Spam
-        | it -> invalidArg "status" $"{it} is not a valid comment status"
+        | _ -> invalidArg (nameof status) $"{status} is not a valid comment status"
 
     /// Convert a comment status to a string
-    member this.Value =
+    override this.ToString() =
         match this with Approved -> "Approved" | Pending -> "Pending" | Spam -> "Spam"
 
 
@@ -148,15 +148,15 @@ type ExplicitRating =
     | Clean
     
     /// Parse a string into an explicit rating
-    static member Parse =
-        function
+    static member Parse rating =
+        match rating with
         | "yes" -> Yes
         | "no" -> No
         | "clean" -> Clean
-        | it -> invalidArg "rating" $"{it} is not a valid explicit rating"
+        | _ -> invalidArg (nameof rating) $"{rating} is not a valid explicit rating"
     
     /// The string value of this rating
-    member this.Value =
+    override this.ToString() =
         match this with Yes -> "yes" | No -> "no" | Clean -> "clean"
 
 
@@ -289,11 +289,11 @@ type MarkupText =
     | Html of string
 
     /// Parse a string into a MarkupText instance
-    static member Parse(it: string) =
-        match it with
-        | text when text.StartsWith "Markdown: " -> Markdown text[10..]
-        | text when text.StartsWith "HTML: " -> Html text[6..]
-        | text -> invalidOp $"Cannot derive type of text ({text})"
+    static member Parse(text: string) =
+        match text with
+        | _ when text.StartsWith "Markdown: " -> Markdown text[10..]
+        | _ when text.StartsWith "HTML: " -> Html text[6..]
+        | _ -> invalidArg (nameof text) $"Cannot derive type of text ({text})"
     
     /// The source type for the markup text
     member this.SourceType =
@@ -304,7 +304,8 @@ type MarkupText =
         match this with Markdown text -> text | Html text -> text
     
     /// The string representation of the markup text
-    member this.Value = $"{this.SourceType}: {this.Text}"
+    override this.ToString() =
+        $"{this.SourceType}: {this.Text}"
     
     /// The HTML representation of the markup text
     member this.AsHtml() =
@@ -315,10 +316,10 @@ type MarkupText =
 [<CLIMutable; NoComparison; NoEquality>]
 type MetaItem = {
     /// The name of the metadata value
-    Name : string
+    Name: string
     
     /// The metadata value
-    Value : string
+    Value: string
 } with
     
     /// An empty metadata item
@@ -330,10 +331,10 @@ type MetaItem = {
 [<CLIMutable; NoComparison; NoEquality>]
 type Revision = {
     /// When this revision was saved
-    AsOf : Instant
+    AsOf: Instant
 
     /// The text of the revision
-    Text : MarkupText
+    Text: MarkupText
 } with
     
     /// An empty revision
@@ -350,7 +351,7 @@ type Permalink =
     static member Empty = Permalink ""
     
     /// The string value of this permalink
-    member this.Value =
+    override this.ToString() =
         match this with Permalink it -> it
 
 
@@ -367,7 +368,7 @@ type PageId =
         newId >> PageId
     
     /// The string value of this page ID
-    member this.Value =
+    override this.ToString() =
         match this with PageId it -> it
 
 
@@ -383,8 +384,8 @@ type PodcastMedium =
     | Blog
 
     /// Parse a string into a podcast medium
-    static member Parse =
-        function
+    static member Parse medium =
+        match medium with
         | "podcast" -> Podcast
         | "music" -> Music
         | "video" -> Video
@@ -392,10 +393,10 @@ type PodcastMedium =
         | "audiobook" -> Audiobook
         | "newsletter" -> Newsletter
         | "blog" -> Blog
-        | it -> invalidArg "medium" $"{it} is not a valid podcast medium"
+        | _ -> invalidArg (nameof medium) $"{medium} is not a valid podcast medium"
     
     /// The string value of this podcast medium
-    member this.Value =
+    override this.ToString() =
         match this with
         | Podcast -> "podcast"
         | Music -> "music"
@@ -415,14 +416,14 @@ type PostStatus =
     | Published
 
     /// Parse a string into a post status
-    static member Parse =
-        function
+    static member Parse status =
+        match status with
         | "Draft" -> Draft
         | "Published" -> Published
-        | it -> invalidArg "status" $"{it} is not a valid post status"
+        | _ -> invalidArg (nameof status) $"{status} is not a valid post status"
     
     /// The string representation of this post status
-    member this.Value =
+    override this.ToString() =
         match this with Draft -> "Draft" | Published -> "Published"
 
 
@@ -439,7 +440,7 @@ type PostId =
         newId >> PostId
     
     /// Convert a post ID to a string
-    member this.Value =
+    override this.ToString() =
         match this with PostId it -> it
 
 
@@ -465,19 +466,20 @@ type RedirectRule = {
 
 
 /// An identifier for a custom feed
-type CustomFeedId = CustomFeedId of string
+[<Struct>]
+type CustomFeedId =
+    | CustomFeedId of string
 
-/// Functions to support custom feed IDs
-module CustomFeedId =
-    
     /// An empty custom feed ID
-    let empty = CustomFeedId ""
-
-    /// Convert a custom feed ID to a string
-    let toString = function CustomFeedId pi -> pi
+    static member Empty = CustomFeedId ""
     
     /// Create a new custom feed ID
-    let create = newId >> CustomFeedId
+    static member Create =
+        newId >> CustomFeedId
+    
+    /// Convert a custom feed ID to a string
+    override this.ToString() =
+        match this with CustomFeedId it -> it
 
 
 /// The source for a custom feed
@@ -486,99 +488,94 @@ type CustomFeedSource =
     | Category of CategoryId
     /// A feed based on a particular tag
     | Tag of string
-
-/// Functions to support feed sources
-module CustomFeedSource =
-    /// Create a string version of a feed source
-    let toString : CustomFeedSource -> string =
-        function
-        | Category (CategoryId catId) -> $"category:{catId}"
-        | Tag tag -> $"tag:{tag}"
     
     /// Parse a feed source from its string version
-    let parse : string -> CustomFeedSource =
+    static member Parse(source: string) =
         let value (it : string) = it.Split(":").[1]
-        function
-        | source when source.StartsWith "category:" -> (value >> CategoryId >> Category) source
-        | source when source.StartsWith "tag:"      -> (value >> Tag) source
-        | source -> invalidArg "feedSource" $"{source} is not a valid feed source"
+        match source with
+        | _ when source.StartsWith "category:" -> (value >> CategoryId >> Category) source
+        | _ when source.StartsWith "tag:"      -> (value >> Tag) source
+        | _ -> invalidArg (nameof source) $"{source} is not a valid feed source"
+    
+    /// Create a string version of a feed source
+    override this.ToString() =
+        match this with | Category (CategoryId catId) -> $"category:{catId}" | Tag tag -> $"tag:{tag}"
 
 
 /// Options for a feed that describes a podcast
+[<CLIMutable; NoComparison; NoEquality>]
 type PodcastOptions = {
     /// The title of the podcast
-    Title : string
+    Title: string
     
     /// A subtitle for the podcast
-    Subtitle : string option
+    Subtitle: string option
     
     /// The number of items in the podcast feed
-    ItemsInFeed : int
+    ItemsInFeed: int
     
     /// A summary of the podcast (iTunes field)
-    Summary : string
+    Summary: string
     
     /// The display name of the podcast author (iTunes field)
-    DisplayedAuthor : string
+    DisplayedAuthor: string
     
     /// The e-mail address of the user who registered the podcast at iTunes
-    Email : string
+    Email: string
     
     /// The link to the image for the podcast
-    ImageUrl : Permalink
+    ImageUrl: Permalink
     
     /// The category from Apple Podcasts (iTunes) under which this podcast is categorized
-    AppleCategory : string
+    AppleCategory: string
     
     /// A further refinement of the categorization of this podcast (Apple Podcasts/iTunes field / values)
-    AppleSubcategory : string option
+    AppleSubcategory: string option
     
     /// The explictness rating (iTunes field)
-    Explicit : ExplicitRating
+    Explicit: ExplicitRating
     
     /// The default media type for files in this podcast
-    DefaultMediaType : string option
+    DefaultMediaType: string option
     
     /// The base URL for relative URL media files for this podcast (optional; defaults to web log base)
-    MediaBaseUrl : string option
+    MediaBaseUrl: string option
     
     /// A GUID for this podcast
-    PodcastGuid : Guid option
+    PodcastGuid: Guid option
     
     /// A URL at which information on supporting the podcast may be found (supports permalinks)
-    FundingUrl : string option
+    FundingUrl: string option
     
     /// The text to be displayed in the funding item within the feed
-    FundingText : string option
+    FundingText: string option
     
     /// The medium (what the podcast IS, not what it is ABOUT)
-    Medium : PodcastMedium option
+    Medium: PodcastMedium option
 }
 
 
 /// A custom feed
+[<CLIMutable; NoComparison; NoEquality>]
 type CustomFeed = {
     /// The ID of the custom feed
-    Id : CustomFeedId
+    Id: CustomFeedId
     
     /// The source for the custom feed
-    Source : CustomFeedSource
+    Source: CustomFeedSource
     
     /// The path for the custom feed
-    Path : Permalink
+    Path: Permalink
     
     /// Podcast options, if the feed defines a podcast
-    Podcast : PodcastOptions option
-}
-
-/// Functions to support custom feeds
-module CustomFeed =
+    Podcast: PodcastOptions option
+} with
     
     /// An empty custom feed
-    let empty = {
-        Id      = CustomFeedId ""
-        Source  = Category (CategoryId "")
-        Path    = Permalink ""
+    static member Empty = {
+        Id      = CustomFeedId.Empty
+        Source  = Category CategoryId.Empty
+        Path    = Permalink.Empty
         Podcast = None
     }
 
@@ -587,32 +584,29 @@ module CustomFeed =
 [<CLIMutable; NoComparison; NoEquality>]
 type RssOptions = {
     /// Whether the site feed of posts is enabled
-    IsFeedEnabled : bool
+    IsFeedEnabled: bool
     
     /// The name of the file generated for the site feed
-    FeedName : string
+    FeedName: string
     
     /// Override the "posts per page" setting for the site feed
-    ItemsInFeed : int option
+    ItemsInFeed: int option
     
     /// Whether feeds are enabled for all categories
-    IsCategoryEnabled : bool
+    IsCategoryEnabled: bool
     
     /// Whether feeds are enabled for all tags
-    IsTagEnabled : bool
+    IsTagEnabled: bool
     
     /// A copyright string to be placed in all feeds
-    Copyright : string option
+    Copyright: string option
     
     /// Custom feeds for this web log
     CustomFeeds: CustomFeed list
-}
-
-/// Functions to support RSS options
-module RssOptions =
+} with
     
     /// An empty set of RSS options
-    let empty = {
+    static member Empty = {
         IsFeedEnabled     = true
         FeedName          = "feed.xml"
         ItemsInFeed       = None
@@ -624,126 +618,126 @@ module RssOptions =
 
 
 /// An identifier for a tag mapping
-type TagMapId = TagMapId of string
+[<Struct>]
+type TagMapId =
+    | TagMapId of string
 
-/// Functions to support tag mapping IDs
-module TagMapId =
-    
     /// An empty tag mapping ID
-    let empty = TagMapId ""
-    
-    /// Convert a tag mapping ID to a string
-    let toString = function TagMapId tmi -> tmi
+    static member Empty = TagMapId ""
     
     /// Create a new tag mapping ID
-    let create = newId >> TagMapId
+    static member Create =
+        newId >> TagMapId
+    
+    /// Convert a tag mapping ID to a string
+    override this.ToString() =
+        match this with TagMapId it -> it
 
 
 /// An identifier for a theme (represents its path)
-type ThemeId = ThemeId of string
-
-/// Functions to support theme IDs
-module ThemeId =
-    let toString = function ThemeId ti -> ti
+[<Struct>]
+type ThemeId =
+    | ThemeId of string
+    
+    /// The string representation of a theme ID
+    override this.ToString() =
+        match this with ThemeId it -> it
 
 
 /// An identifier for a theme asset
-type ThemeAssetId = ThemeAssetId of ThemeId * string
+[<Struct>]
+type ThemeAssetId =
+    | ThemeAssetId of ThemeId * string
 
-/// Functions to support theme asset IDs
-module ThemeAssetId =
+    /// Convert a string into a theme asset ID
+    static member Parse(it : string) =
+        let themeIdx = it.IndexOf "/"
+        ThemeAssetId(ThemeId it[..(themeIdx - 1)], it[(themeIdx + 1)..])
     
     /// Convert a theme asset ID into a path string
-    let toString =  function ThemeAssetId (ThemeId theme, asset) -> $"{theme}/{asset}"
-    
-    /// Convert a string into a theme asset ID
-    let ofString (it : string) =
-        let themeIdx = it.IndexOf "/"
-        ThemeAssetId (ThemeId it[..(themeIdx - 1)], it[(themeIdx + 1)..])
+    override this.ToString() =
+        match this with ThemeAssetId (ThemeId theme, asset) -> $"{theme}/{asset}"
 
 
 /// A template for a theme
+[<CLIMutable; NoComparison; NoEquality>]
 type ThemeTemplate = {
     /// The name of the template
-    Name : string
+    Name: string
     
     /// The text of the template
-    Text : string
-}
-
-/// Functions to support theme templates
-module ThemeTemplate =
+    Text: string
+} with
     
     /// An empty theme template
-    let empty =
+    static member Empty =
         { Name = ""; Text = "" }
 
 
 /// Where uploads should be placed
+[<Struct>]
 type UploadDestination =
     | Database
     | Disk
 
-/// Functions to support upload destinations
-module UploadDestination =
-    
-    /// Convert an upload destination to its string representation
-    let toString = function Database -> "Database" | Disk -> "Disk"
-    
     /// Parse an upload destination from its string representation
-    let parse value =
-        match value with
+    static member Parse destination =
+        match destination with
         | "Database" -> Database
-        | "Disk"     -> Disk
-        | it         -> invalidArg "destination" $"{it} is not a valid upload destination"
+        | "Disk" -> Disk
+        | _ -> invalidArg (nameof destination) $"{destination} is not a valid upload destination"
+    
+    /// The string representation of an upload destination
+    override this.ToString() =
+        match this with Database -> "Database" | Disk -> "Disk"
 
 
 /// An identifier for an upload
-type UploadId = UploadId of string
+[<Struct>]
+type UploadId =
+    | UploadId of string
 
-/// Functions to support upload IDs
-module UploadId =
-    
     /// An empty upload ID
-    let empty = UploadId ""
-    
-    /// Convert an upload ID to a string
-    let toString = function UploadId ui -> ui
+    static member Empty = UploadId ""
     
     /// Create a new upload ID
-    let create = newId >> UploadId
+    static member Create =
+        newId >> UploadId
+    
+    /// The string representation of an upload ID
+    override this.ToString() =
+        match this with UploadId it -> it
 
 
 /// An identifier for a web log
-type WebLogId = WebLogId of string
+[<Struct>]
+type WebLogId =
+    | WebLogId of string
 
-/// Functions to support web log IDs
-module WebLogId =
-    
     /// An empty web log ID
-    let empty = WebLogId ""
-
-    /// Convert a web log ID to a string
-    let toString = function WebLogId wli -> wli
+    static member Empty = WebLogId ""
     
     /// Create a new web log ID
-    let create = newId >> WebLogId
-
+    static member Create =
+        newId >> WebLogId
+    
+    /// Convert a web log ID to a string
+    override this.ToString() =
+        match this with WebLogId it -> it
 
 
 /// An identifier for a web log user
-type WebLogUserId = WebLogUserId of string
-
-/// Functions to support web log user IDs
-module WebLogUserId =
+[<Struct>]
+type WebLogUserId =
+    | WebLogUserId of string
     
     /// An empty web log user ID
-    let empty = WebLogUserId ""
-
-    /// Convert a web log user ID to a string
-    let toString = function WebLogUserId wli -> wli
+    static member Empty = WebLogUserId ""
     
     /// Create a new web log user ID
-    let create = newId >> WebLogUserId
-
-
+    static member Create =
+        newId >> WebLogUserId
+    
+    /// The string representation of a web log user ID
+    override this.ToString() =
+        match this with WebLogUserId it -> it

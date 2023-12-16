@@ -13,11 +13,11 @@ type SQLitePageData(conn: SqliteConnection, ser: JsonSerializer) =
     
     /// Add parameters for page INSERT or UPDATE statements
     let addPageParameters (cmd: SqliteCommand) (page: Page) =
-        [   cmd.Parameters.AddWithValue ("@id",           page.Id.Value)
-            cmd.Parameters.AddWithValue ("@webLogId",     WebLogId.toString page.WebLogId)
-            cmd.Parameters.AddWithValue ("@authorId",     WebLogUserId.toString page.AuthorId)
+        [   cmd.Parameters.AddWithValue ("@id",           string page.Id)
+            cmd.Parameters.AddWithValue ("@webLogId",     string page.WebLogId)
+            cmd.Parameters.AddWithValue ("@authorId",     string page.AuthorId)
             cmd.Parameters.AddWithValue ("@title",        page.Title)
-            cmd.Parameters.AddWithValue ("@permalink",    page.Permalink.Value)
+            cmd.Parameters.AddWithValue ("@permalink",    string page.Permalink)
             cmd.Parameters.AddWithValue ("@publishedOn",  instantParam page.PublishedOn)
             cmd.Parameters.AddWithValue ("@updatedOn",    instantParam page.UpdatedOn)
             cmd.Parameters.AddWithValue ("@isInPageList", page.IsInPageList)
@@ -30,7 +30,7 @@ type SQLitePageData(conn: SqliteConnection, ser: JsonSerializer) =
     /// Append revisions and permalinks to a page
     let appendPageRevisionsAndPermalinks (page : Page) = backgroundTask {
         use cmd = conn.CreateCommand ()
-        cmd.Parameters.AddWithValue ("@pageId", page.Id.Value) |> ignore
+        cmd.Parameters.AddWithValue ("@pageId", string page.Id) |> ignore
         
         cmd.CommandText <- "SELECT permalink FROM page_permalink WHERE page_id = @pageId"
         use! rdr = cmd.ExecuteReaderAsync ()
@@ -57,11 +57,11 @@ type SQLitePageData(conn: SqliteConnection, ser: JsonSerializer) =
             return ()
         else
             use cmd = conn.CreateCommand ()
-            [ cmd.Parameters.AddWithValue ("@pageId", pageId.Value)
+            [ cmd.Parameters.AddWithValue ("@pageId", string pageId)
               cmd.Parameters.Add          ("@link",   SqliteType.Text)
             ] |> ignore
             let runCmd (link: Permalink) = backgroundTask {
-                cmd.Parameters["@link"].Value <- link.Value
+                cmd.Parameters["@link"].Value <- string link
                 do! write cmd
             }
             cmd.CommandText <- "DELETE FROM page_permalink WHERE page_id = @pageId AND permalink = @link" 
@@ -85,10 +85,10 @@ type SQLitePageData(conn: SqliteConnection, ser: JsonSerializer) =
             use cmd = conn.CreateCommand ()
             let runCmd withText rev = backgroundTask {
                 cmd.Parameters.Clear ()
-                [   cmd.Parameters.AddWithValue ("@pageId", pageId.Value)
+                [   cmd.Parameters.AddWithValue ("@pageId", string pageId)
                     cmd.Parameters.AddWithValue ("@asOf",   instantParam rev.AsOf)
                 ] |> ignore
-                if withText then cmd.Parameters.AddWithValue ("@text", rev.Text.Value) |> ignore
+                if withText then cmd.Parameters.AddWithValue ("@text", string rev.Text) |> ignore
                 do! write cmd
             }
             cmd.CommandText <- "DELETE FROM page_revision WHERE page_id = @pageId AND as_of = @asOf" 
@@ -157,7 +157,7 @@ type SQLitePageData(conn: SqliteConnection, ser: JsonSerializer) =
     let findById (pageId: PageId) webLogId = backgroundTask {
         use cmd = conn.CreateCommand ()
         cmd.CommandText <- "SELECT * FROM page WHERE id = @id"
-        cmd.Parameters.AddWithValue ("@id", pageId.Value) |> ignore
+        cmd.Parameters.AddWithValue ("@id", string pageId) |> ignore
         use! rdr = cmd.ExecuteReaderAsync ()
         return verifyWebLog<Page> webLogId (_.WebLogId) (Map.toPage ser) rdr
     }
@@ -175,7 +175,7 @@ type SQLitePageData(conn: SqliteConnection, ser: JsonSerializer) =
         match! findById pageId webLogId with
         | Some _ ->
             use cmd = conn.CreateCommand ()
-            cmd.Parameters.AddWithValue ("@id", pageId.Value) |> ignore
+            cmd.Parameters.AddWithValue ("@id", string pageId) |> ignore
             cmd.CommandText <-
                 "DELETE FROM page_revision  WHERE page_id = @id;
                  DELETE FROM page_permalink WHERE page_id = @id;
@@ -190,15 +190,15 @@ type SQLitePageData(conn: SqliteConnection, ser: JsonSerializer) =
         use cmd = conn.CreateCommand ()
         cmd.CommandText <- "SELECT * FROM page WHERE web_log_id = @webLogId AND permalink = @link"
         addWebLogId cmd webLogId
-        cmd.Parameters.AddWithValue ("@link", permalink.Value) |> ignore
+        cmd.Parameters.AddWithValue ("@link", string permalink) |> ignore
         use! rdr = cmd.ExecuteReaderAsync ()
         return if rdr.Read () then Some (toPage rdr) else None
     }
     
     /// Find the current permalink within a set of potential prior permalinks for the given web log
-    let findCurrentPermalink permalinks webLogId = backgroundTask {
+    let findCurrentPermalink (permalinks: Permalink list) webLogId = backgroundTask {
         use cmd = conn.CreateCommand ()
-        let linkSql, linkParams = inClause "AND pp.permalink" "link" (fun (it: Permalink) -> it.Value) permalinks
+        let linkSql, linkParams = inClause "AND pp.permalink" "link" string permalinks
         cmd.CommandText <- $"
             SELECT p.permalink
                FROM page p

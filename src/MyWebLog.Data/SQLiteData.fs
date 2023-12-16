@@ -203,7 +203,7 @@ type SQLiteData (conn : SqliteConnection, log : ILogger<SQLiteData>, ser : JsonS
         |> List.iter (fun (feedId, podcast) ->
             cmd.CommandText <- "UPDATE web_log_feed SET podcast = @podcast WHERE id = @id"
             [   cmd.Parameters.AddWithValue ("@podcast", Utils.serialize ser podcast)
-                cmd.Parameters.AddWithValue ("@id", CustomFeedId.toString feedId) ] |> ignore
+                cmd.Parameters.AddWithValue ("@id",      string feedId) ] |> ignore
             let _ = cmd.ExecuteNonQuery ()
             cmd.Parameters.Clear ())
         cmd.CommandText <- "SELECT * FROM post_episode"
@@ -241,7 +241,7 @@ type SQLiteData (conn : SqliteConnection, log : ILogger<SQLiteData>, ser : JsonS
         |> List.iter (fun (postId, episode) ->
             cmd.CommandText <- "UPDATE post SET episode = @episode WHERE id = @id"
             [   cmd.Parameters.AddWithValue ("@episode", Utils.serialize ser episode)
-                cmd.Parameters.AddWithValue ("@id",      postId.Value) ] |> ignore
+                cmd.Parameters.AddWithValue ("@id",      string postId) ] |> ignore
             let _ = cmd.ExecuteNonQuery ()
             cmd.Parameters.Clear ())
         

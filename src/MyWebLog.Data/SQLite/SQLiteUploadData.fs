@@ -5,14 +5,14 @@ open Microsoft.Data.Sqlite
 open MyWebLog
 open MyWebLog.Data
 
-/// SQLite myWebLog web log data implementation        
-type SQLiteUploadData (conn : SqliteConnection) =
+/// SQLite myWebLog web log data implementation
+type SQLiteUploadData(conn: SqliteConnection) =
 
     /// Add parameters for uploaded file INSERT and UPDATE statements
-    let addUploadParameters (cmd : SqliteCommand) (upload : Upload) =
-        [   cmd.Parameters.AddWithValue ("@id",         UploadId.toString upload.Id)
-            cmd.Parameters.AddWithValue ("@webLogId",   WebLogId.toString upload.WebLogId)
-            cmd.Parameters.AddWithValue ("@path",       upload.Path.Value)
+    let addUploadParameters (cmd: SqliteCommand) (upload: Upload) =
+        [   cmd.Parameters.AddWithValue ("@id",         string upload.Id)
+            cmd.Parameters.AddWithValue ("@webLogId",   string upload.WebLogId)
+            cmd.Parameters.AddWithValue ("@path",       string upload.Path)
             cmd.Parameters.AddWithValue ("@updatedOn",  instantParam upload.UpdatedOn)
             cmd.Parameters.AddWithValue ("@dataLength", upload.Data.Length)
         ] |> ignore
@@ -46,14 +46,14 @@ type SQLiteUploadData (conn : SqliteConnection) =
               WHERE id         = @id
                 AND web_log_id = @webLogId"
         addWebLogId cmd webLogId
-        cmd.Parameters.AddWithValue ("@id", UploadId.toString uploadId) |> ignore
+        cmd.Parameters.AddWithValue ("@id", string uploadId) |> ignore
         let! rdr = cmd.ExecuteReaderAsync ()
         if (rdr.Read ()) then
             let upload = Map.toUpload false rdr
             do! rdr.CloseAsync ()
             cmd.CommandText <- "DELETE FROM upload WHERE id = @id AND web_log_id = @webLogId"
             do! write cmd
-            return Ok upload.Path.Value
+            return Ok (string upload.Path)
         else
             return Error $"""Upload ID {cmd.Parameters["@id"]} not found"""
     }

@@ -4,22 +4,22 @@ open Microsoft.Data.Sqlite
 open MyWebLog
 open MyWebLog.Data
 
-/// SQLite myWebLog user data implementation        
-type SQLiteWebLogUserData (conn : SqliteConnection) =
+/// SQLite myWebLog user data implementation
+type SQLiteWebLogUserData(conn: SqliteConnection) =
     
     // SUPPORT FUNCTIONS
 
     /// Add parameters for web log user INSERT or UPDATE statements
-    let addWebLogUserParameters (cmd : SqliteCommand) (user : WebLogUser) =
-        [   cmd.Parameters.AddWithValue ("@id",            WebLogUserId.toString user.Id)
-            cmd.Parameters.AddWithValue ("@webLogId",      WebLogId.toString user.WebLogId)
+    let addWebLogUserParameters (cmd: SqliteCommand) (user: WebLogUser) =
+        [   cmd.Parameters.AddWithValue ("@id",            string user.Id)
+            cmd.Parameters.AddWithValue ("@webLogId",      string user.WebLogId)
             cmd.Parameters.AddWithValue ("@email",         user.Email)
             cmd.Parameters.AddWithValue ("@firstName",     user.FirstName)
             cmd.Parameters.AddWithValue ("@lastName",      user.LastName)
             cmd.Parameters.AddWithValue ("@preferredName", user.PreferredName)
             cmd.Parameters.AddWithValue ("@passwordHash",  user.PasswordHash)
             cmd.Parameters.AddWithValue ("@url",           maybe user.Url)
-            cmd.Parameters.AddWithValue ("@accessLevel",   user.AccessLevel.Value)
+            cmd.Parameters.AddWithValue ("@accessLevel",   string user.AccessLevel)
             cmd.Parameters.AddWithValue ("@createdOn",     instantParam user.CreatedOn)
             cmd.Parameters.AddWithValue ("@lastSeenOn",    maybeInstant user.LastSeenOn)
         ] |> ignore
@@ -42,12 +42,12 @@ type SQLiteWebLogUserData (conn : SqliteConnection) =
     }
     
     /// Find a user by their ID for the given web log
-    let findById userId webLogId = backgroundTask {
+    let findById (userId: WebLogUserId) webLogId = backgroundTask {
         use cmd = conn.CreateCommand ()
         cmd.CommandText <- "SELECT * FROM web_log_user WHERE id = @id"
-        cmd.Parameters.AddWithValue ("@id", WebLogUserId.toString userId) |> ignore
+        cmd.Parameters.AddWithValue ("@id", string userId) |> ignore
         use! rdr = cmd.ExecuteReaderAsync ()
-        return Helpers.verifyWebLog<WebLogUser> webLogId (fun u -> u.WebLogId) Map.toWebLogUser rdr 
+        return verifyWebLog<WebLogUser> webLogId (_.WebLogId) Map.toWebLogUser rdr 
     }
     
     /// Delete a user if they have no posts or pages
@@ -56,7 +56,7 @@ type SQLiteWebLogUserData (conn : SqliteConnection) =
         | Some _ ->
             use cmd = conn.CreateCommand ()
             cmd.CommandText <- "SELECT COUNT(id) FROM page WHERE author_id = @userId"
-            cmd.Parameters.AddWithValue ("@userId", WebLogUserId.toString userId) |> ignore
+            cmd.Parameters.AddWithValue ("@userId", string userId) |> ignore
             let! pageCount = count cmd
             cmd.CommandText <- "SELECT COUNT(id) FROM post WHERE author_id = @userId"
             let! postCount = count cmd
@@ -89,16 +89,15 @@ type SQLiteWebLogUserData (conn : SqliteConnection) =
     }
     
     /// Find the names of users by their IDs for the given web log
-    let findNames webLogId userIds = backgroundTask {
+    let findNames webLogId (userIds: WebLogUserId list) = backgroundTask {
         use cmd = conn.CreateCommand ()
-        let nameSql, nameParams = inClause "AND id" "id" WebLogUserId.toString userIds 
+        let nameSql, nameParams = inClause "AND id" "id" string userIds 
         cmd.CommandText <- $"SELECT * FROM web_log_user WHERE web_log_id = @webLogId {nameSql}"
         addWebLogId cmd webLogId
         cmd.Parameters.AddRange nameParams
         use! rdr = cmd.ExecuteReaderAsync ()
         return
-            toList Map.toWebLogUser rdr
-            |> List.map (fun u -> { Name = WebLogUserId.toString u.Id; Value = WebLogUser.displayName u })
+            toList Map.toWebLogUser rdr |> List.map (fun u -> { Name = string u.Id; Value = WebLogUser.displayName u })
     }
     
     /// Restore users from a backup
@@ -108,7 +107,7 @@ type SQLiteWebLogUserData (conn : SqliteConnection) =
     }
     
     /// Set a user's last seen date/time to now
-    let setLastSeen userId webLogId = backgroundTask {
+    let setLastSeen (userId: WebLogUserId) webLogId = backgroundTask {
         use cmd = conn.CreateCommand ()
         cmd.CommandText <-
             "UPDATE web_log_user
@@ -116,7 +115,7 @@ type SQLiteWebLogUserData (conn : SqliteConnection) =
               WHERE id         = @id
                 AND web_log_id = @webLogId"
         addWebLogId cmd webLogId
-        [   cmd.Parameters.AddWithValue ("@id",         WebLogUserId.toString userId)
+        [   cmd.Parameters.AddWithValue ("@id",         string userId)
             cmd.Parameters.AddWithValue ("@lastSeenOn", instantParam (Noda.now ()))
         ] |> ignore
         let! _ = cmd.ExecuteNonQueryAsync ()

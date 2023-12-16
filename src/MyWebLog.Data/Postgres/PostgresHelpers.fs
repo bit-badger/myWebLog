@@ -70,7 +70,7 @@ open Npgsql.FSharp
 
 /// Create a SQL parameter for the web log ID
 let webLogIdParam webLogId =
-    "@webLogId", Sql.string (WebLogId.toString webLogId)
+    "@webLogId", Sql.string (string webLogId)
 
 /// Create an anonymous record with the given web log ID
 let webLogDoc (webLogId : WebLogId) =
@@ -206,7 +206,7 @@ module Revisions =
     let revParams<'TKey> (key : 'TKey) (keyFunc : 'TKey -> string) rev = [
         typedParam "asOf" rev.AsOf
         "@id",   Sql.string (keyFunc key)
-        "@text", Sql.string rev.Text.Value
+        "@text", Sql.string (string rev.Text)
     ]
     
     /// The SQL statement to insert a revision

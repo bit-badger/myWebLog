@@ -73,30 +73,30 @@ type DisplayCategory = {
 /// A display version of a custom feed definition
 type DisplayCustomFeed = {
     /// The ID of the custom feed
-    Id : string
+    Id: string
     
     /// The source of the custom feed
-    Source : string
+    Source: string
     
     /// The relative path at which the custom feed is served
-    Path : string
+    Path: string
     
     /// Whether this custom feed is for a podcast
-    IsPodcast : bool
+    IsPodcast: bool
 }
 
 /// Support functions for custom feed displays
 module DisplayCustomFeed =
     
     /// Create a display version from a custom feed
-    let fromFeed (cats: DisplayCategory[]) (feed: CustomFeed) : DisplayCustomFeed =
+    let fromFeed (cats: DisplayCategory array) (feed: CustomFeed) : DisplayCustomFeed =
         let source =
             match feed.Source with
             | Category (CategoryId catId) -> $"Category: {(cats |> Array.find (fun cat -> cat.Id = catId)).Name}"
             | Tag tag -> $"Tag: {tag}"
-        {   Id        = CustomFeedId.toString feed.Id
+        {   Id        = string feed.Id
             Source    = source
-            Path      = feed.Path.Value
+            Path      = string feed.Path
             IsPodcast = Option.isSome feed.Podcast
         }
 
@@ -137,14 +137,14 @@ type DisplayPage =
     
     /// Create a minimal display page (no text or metadata) from a database page
     static member FromPageMinimal webLog (page: Page) = {
-        Id           = page.Id.Value
-        AuthorId     = WebLogUserId.toString page.AuthorId
+        Id           = string page.Id
+        AuthorId     = string page.AuthorId
         Title        = page.Title
-        Permalink    = page.Permalink.Value
+        Permalink    = string page.Permalink
         PublishedOn  = WebLog.localTime webLog page.PublishedOn
         UpdatedOn    = WebLog.localTime webLog page.UpdatedOn
         IsInPageList = page.IsInPageList
-        IsDefault    = page.Id.Value = webLog.DefaultPage
+        IsDefault    = string page.Id = webLog.DefaultPage
         Text         = ""
         Metadata     = []
     }
@@ -152,14 +152,14 @@ type DisplayPage =
     /// Create a display page from a database page
     static member FromPage webLog (page : Page) =
         let _, extra = WebLog.hostAndPath webLog
-        {   Id           = page.Id.Value
-            AuthorId     = WebLogUserId.toString page.AuthorId
+        {   Id           = string page.Id
+            AuthorId     = string page.AuthorId
             Title        = page.Title
-            Permalink    = page.Permalink.Value
+            Permalink    = string page.Permalink
             PublishedOn  = WebLog.localTime webLog page.PublishedOn
             UpdatedOn    = WebLog.localTime webLog page.UpdatedOn
             IsInPageList = page.IsInPageList
-            IsDefault    = page.Id.Value = webLog.DefaultPage
+            IsDefault    = string page.Id = webLog.DefaultPage
             Text         = addBaseToRelativeUrls extra page.Text
             Metadata     = page.Metadata
         }
@@ -195,35 +195,35 @@ open System.IO
 [<NoComparison; NoEquality>]
 type DisplayTheme = {
     /// The ID / path slug of the theme
-    Id : string
+    Id: string
     
     /// The name of the theme
-    Name : string
+    Name: string
     
     /// The version of the theme
-    Version : string
+    Version: string
     
     /// How many templates are contained in the theme
-    TemplateCount : int
+    TemplateCount: int
     
     /// Whether the theme is in use by any web logs
-    IsInUse : bool
+    IsInUse: bool
     
     /// Whether the theme .zip file exists on the filesystem
-    IsOnDisk : bool
+    IsOnDisk: bool
 }
 
 /// Functions to support displaying themes
 module DisplayTheme =
     
     /// Create a display theme from a theme
-    let fromTheme inUseFunc (theme : Theme) =
-        {   Id            = ThemeId.toString theme.Id
+    let fromTheme inUseFunc (theme: Theme) =
+        {   Id            = string theme.Id
             Name          = theme.Name
             Version       = theme.Version
             TemplateCount = List.length theme.Templates
             IsInUse       = inUseFunc theme.Id
-            IsOnDisk      = File.Exists $"{ThemeId.toString theme.Id}-theme.zip"
+            IsOnDisk      = File.Exists $"{theme.Id}-theme.zip"
         }
 
 
@@ -231,33 +231,33 @@ module DisplayTheme =
 [<NoComparison; NoEquality>]
 type DisplayUpload = {
     /// The ID of the uploaded file
-    Id : string
+    Id: string
     
     /// The name of the uploaded file
-    Name : string
+    Name: string
     
     /// The path at which the file is served
-    Path : string
+    Path: string
     
     /// The date/time the file was updated
-    UpdatedOn : DateTime option
+    UpdatedOn: DateTime option
     
     /// The source for this file (created from UploadDestination DU)
-    Source : string
+    Source: string
 }
 
 /// Functions to support displaying uploads
 module DisplayUpload =
     
     /// Create a display uploaded file
-    let fromUpload webLog source (upload : Upload) =
-        let path = upload.Path.Value
+    let fromUpload webLog (source: UploadDestination) (upload: Upload) =
+        let path = string upload.Path
         let name = Path.GetFileName path
-        {   Id        = UploadId.toString upload.Id
+        {   Id        = string upload.Id
             Name      = name
-            Path      = path.Replace (name, "")
+            Path      = path.Replace(name, "")
             UpdatedOn = Some (WebLog.localTime webLog upload.UpdatedOn)
-            Source    = UploadDestination.toString source
+            Source    = string source
         }
 
 
@@ -265,45 +265,45 @@ module DisplayUpload =
 [<NoComparison; NoEquality>]
 type DisplayUser = {
     /// The ID of the user
-    Id : string
+    Id: string
 
     /// The user name (e-mail address)
-    Email : string
+    Email: string
 
     /// The user's first name
-    FirstName : string
+    FirstName: string
 
     /// The user's last name
-    LastName : string
+    LastName: string
 
     /// The user's preferred name
-    PreferredName : string
+    PreferredName: string
 
     /// The URL of the user's personal site
-    Url : string
+    Url: string
 
     /// The user's access level
-    AccessLevel : string
+    AccessLevel: string
     
     /// When the user was created
-    CreatedOn : DateTime
+    CreatedOn: DateTime
     
     /// When the user last logged on
-    LastSeenOn : Nullable<DateTime>
+    LastSeenOn: Nullable<DateTime>
 }
 
 /// Functions to support displaying a user's information
 module DisplayUser =
     
     /// Construct a displayed user from a web log user
-    let fromUser webLog (user : WebLogUser) =
-        {   Id            = WebLogUserId.toString user.Id
+    let fromUser webLog (user: WebLogUser) =
+        {   Id            = string user.Id
             Email         = user.Email
             FirstName     = user.FirstName
             LastName      = user.LastName
             PreferredName = user.PreferredName
             Url           = defaultArg user.Url ""
-            AccessLevel   = user.AccessLevel.Value
+            AccessLevel   = string user.AccessLevel
             CreatedOn     = WebLog.localTime webLog user.CreatedOn
             LastSeenOn    = user.LastSeenOn |> Option.map (WebLog.localTime webLog) |> Option.toNullable
         }
@@ -311,30 +311,30 @@ module DisplayUser =
 
 /// View model for editing categories
 [<CLIMutable; NoComparison; NoEquality>]
-type EditCategoryModel =
-    {   /// The ID of the category being edited
-        CategoryId : string
-        
-        /// The name of the category
-        Name : string
-        
-        /// The category's URL slug
-        Slug : string
-        
-        /// A description of the category (optional)
-        Description : string
-        
-        /// The ID of the category for which this is a subcategory (optional)
-        ParentId : string
-    }
+type EditCategoryModel = {
+    /// The ID of the category being edited
+    CategoryId: string
+    
+    /// The name of the category
+    Name: string
+    
+    /// The category's URL slug
+    Slug: string
+    
+    /// A description of the category (optional)
+    Description: string
+    
+    /// The ID of the category for which this is a subcategory (optional)
+    ParentId: string
+} with
     
     /// Create an edit model from an existing category 
-    static member fromCategory (cat : Category) =
-        {   CategoryId  = cat.Id.Value
+    static member fromCategory (cat: Category) =
+        {   CategoryId  = string cat.Id
             Name        = cat.Name
             Slug        = cat.Slug
             Description = defaultArg cat.Description ""
-            ParentId    = cat.ParentId |> Option.map _.Value |> Option.defaultValue ""
+            ParentId    = cat.ParentId |> Option.map string |> Option.defaultValue ""
         }
     
     /// Is this a new category?
@@ -437,10 +437,10 @@ type EditCustomFeedModel =
     static member fromFeed (feed: CustomFeed) =
         let rss =
             { EditCustomFeedModel.empty with
-                Id          = CustomFeedId.toString feed.Id
+                Id          = string feed.Id
                 SourceType  = match feed.Source with Category _ -> "category" | Tag _ -> "tag"
                 SourceValue = match feed.Source with Category (CategoryId catId) -> catId | Tag tag -> tag
-                Path        = feed.Path.Value
+                Path        = string feed.Path
             }
         match feed.Podcast with
         | Some p ->
@@ -452,16 +452,16 @@ type EditCustomFeedModel =
                 Summary          = p.Summary
                 DisplayedAuthor  = p.DisplayedAuthor
                 Email            = p.Email
-                ImageUrl         = p.ImageUrl.Value
+                ImageUrl         = string p.ImageUrl
                 AppleCategory    = p.AppleCategory
                 AppleSubcategory = defaultArg p.AppleSubcategory ""
-                Explicit         = p.Explicit.Value
+                Explicit         = string p.Explicit
                 DefaultMediaType = defaultArg p.DefaultMediaType ""
                 MediaBaseUrl     = defaultArg p.MediaBaseUrl ""
                 FundingUrl       = defaultArg p.FundingUrl ""
                 FundingText      = defaultArg p.FundingText ""
                 PodcastGuid      = p.PodcastGuid |> Option.map _.ToString().ToLowerInvariant() |> Option.defaultValue ""
-                Medium           = p.Medium |> Option.map _.Value |> Option.defaultValue ""
+                Medium           = p.Medium |> Option.map string |> Option.defaultValue ""
             }
         | None -> rss
     
@@ -562,9 +562,9 @@ type EditPageModel = {
             | Some rev -> rev
             | None -> Revision.Empty
         let page = if page.Metadata |> List.isEmpty then { page with Metadata = [ MetaItem.Empty ] } else page
-        {   PageId            = page.Id.Value
+        {   PageId            = string page.Id
             Title             = page.Title
-            Permalink         = page.Permalink.Value
+            Permalink         = string page.Permalink
             Template          = defaultArg page.Template ""
             IsShownInPageList = page.IsInPageList
             Source            = latest.Text.SourceType
@@ -580,7 +580,7 @@ type EditPageModel = {
     member this.UpdatePage (page: Page) now =
         let revision = { AsOf = now; Text = MarkupText.Parse $"{this.Source}: {this.Text}" }
         // Detect a permalink change, and add the prior one to the prior list
-        match page.Permalink.Value with
+        match string page.Permalink with
         | "" -> page
         | link when link = this.Permalink -> page
         | _ -> { page with PriorPermalinks = page.Permalink :: page.PriorPermalinks }
@@ -715,15 +715,15 @@ type EditPostModel = {
             | None -> Revision.Empty
         let post    = if post.Metadata |> List.isEmpty then { post with Metadata = [ MetaItem.Empty ] } else post
         let episode = defaultArg post.Episode Episode.Empty
-        {   PostId             = post.Id.Value
+        {   PostId             = string post.Id
             Title              = post.Title
-            Permalink          = post.Permalink.Value
+            Permalink          = string post.Permalink
             Source             = latest.Text.SourceType
             Text               = latest.Text.Text
             Tags               = String.Join (", ", post.Tags)
             Template           = defaultArg post.Template ""
-            CategoryIds        = post.CategoryIds |> List.map _.Value |> Array.ofList
-            Status             = post.Status.Value
+            CategoryIds        = post.CategoryIds |> List.map string |> Array.ofList
+            Status             = string post.Status
             DoPublish          = false
             MetaNames          = post.Metadata |> List.map _.Name  |> Array.ofList
             MetaValues         = post.Metadata |> List.map _.Value |> Array.ofList
@@ -737,7 +737,7 @@ type EditPostModel = {
             MediaType          = defaultArg episode.MediaType ""
             ImageUrl           = defaultArg episode.ImageUrl ""
             Subtitle           = defaultArg episode.Subtitle ""
-            Explicit           = defaultArg (episode.Explicit |> Option.map _.Value) ""
+            Explicit           = defaultArg (episode.Explicit |> Option.map string) ""
             ChapterFile        = defaultArg episode.ChapterFile ""
             ChapterType        = defaultArg episode.ChapterType ""
             TranscriptUrl      = defaultArg episode.TranscriptUrl ""
@@ -757,7 +757,7 @@ type EditPostModel = {
     member this.UpdatePost (post: Post) now =
         let revision  = { AsOf = now; Text = MarkupText.Parse $"{this.Source}: {this.Text}" }
         // Detect a permalink change, and add the prior one to the prior list
-        match post.Permalink.Value with
+        match string post.Permalink with
         | "" -> post
         | link when link = this.Permalink -> post
         | _ -> { post with PriorPermalinks = post.Permalink :: post.PriorPermalinks }
@@ -916,7 +916,7 @@ type EditTagMapModel =
     
     /// Create an edit model from the tag mapping
     static member fromMapping (tagMap : TagMap) : EditTagMapModel =
-        {   Id       = TagMapId.toString tagMap.Id
+        {   Id       = string tagMap.Id
             Tag      = tagMap.Tag
             UrlValue = tagMap.UrlValue
         }
@@ -924,39 +924,39 @@ type EditTagMapModel =
 
 /// View model to display a user's information
 [<CLIMutable; NoComparison; NoEquality>]
-type EditUserModel =
-    {   /// The ID of the user
-        Id : string
+type EditUserModel = {
+    /// The ID of the user
+    Id: string
 
-        /// The user's access level
-        AccessLevel : string
-        
-        /// The user name (e-mail address)
-        Email : string
+    /// The user's access level
+    AccessLevel: string
+    
+    /// The user name (e-mail address)
+    Email: string
 
-        /// The URL of the user's personal site
-        Url : string
+    /// The URL of the user's personal site
+    Url: string
 
-        /// The user's first name
-        FirstName : string
+    /// The user's first name
+    FirstName: string
 
-        /// The user's last name
-        LastName : string
+    /// The user's last name
+    LastName: string
 
-        /// The user's preferred name
-        PreferredName : string
-        
-        /// The user's password
-        Password : string
-        
-        /// Confirmation of the user's password
-        PasswordConfirm : string
-    }
+    /// The user's preferred name
+    PreferredName: string
+    
+    /// The user's password
+    Password: string
+    
+    /// Confirmation of the user's password
+    PasswordConfirm: string
+} with
     
     /// Construct a displayed user from a web log user
-    static member fromUser (user : WebLogUser) =
-        {   Id              = WebLogUserId.toString user.Id
-            AccessLevel     = user.AccessLevel.Value
+    static member fromUser (user: WebLogUser) =
+        {   Id              = string user.Id
+            AccessLevel     = string user.AccessLevel
             Url             = defaultArg user.Url ""
             Email           = user.Email
             FirstName       = user.FirstName
@@ -1020,20 +1020,20 @@ type ManagePermalinksModel = {
     
     /// Create a permalink model from a page
     static member fromPage (pg: Page) =
-        {   Id               = pg.Id.Value
+        {   Id               = string pg.Id
             Entity           = "page"
             CurrentTitle     = pg.Title
-            CurrentPermalink = pg.Permalink.Value
-            Prior            = pg.PriorPermalinks |> List.map _.Value |> Array.ofList
+            CurrentPermalink = string pg.Permalink
+            Prior            = pg.PriorPermalinks |> List.map string |> Array.ofList
         }
 
     /// Create a permalink model from a post
     static member fromPost (post: Post) =
-        {   Id               = post.Id.Value
+        {   Id               = string post.Id
             Entity           = "post"
             CurrentTitle     = post.Title
-            CurrentPermalink = post.Permalink.Value
-            Prior            = post.PriorPermalinks |> List.map _.Value |> Array.ofList
+            CurrentPermalink = string post.Permalink
+            Prior            = post.PriorPermalinks |> List.map string |> Array.ofList
         }
 
 
@@ -1055,7 +1055,7 @@ type ManageRevisionsModel =
     
     /// Create a revision model from a page
     static member fromPage webLog (pg: Page) =
-        {   Id           = pg.Id.Value
+        {   Id           = string pg.Id
             Entity       = "page"
             CurrentTitle = pg.Title
             Revisions    = pg.Revisions |> List.map (DisplayRevision.fromRevision webLog) |> Array.ofList
@@ -1063,7 +1063,7 @@ type ManageRevisionsModel =
 
     /// Create a revision model from a post
     static member fromPost webLog (post: Post) =
-        {   Id           = post.Id.Value
+        {   Id           = string post.Id
             Entity       = "post"
             CurrentTitle = post.Title
             Revisions    = post.Revisions |> List.map (DisplayRevision.fromRevision webLog) |> Array.ofList
@@ -1114,15 +1114,15 @@ type PostListItem = {
     static member fromPost (webLog: WebLog) (post: Post) =
         let _, extra = WebLog.hostAndPath webLog
         let inTZ     = WebLog.localTime   webLog
-        {   Id          = post.Id.Value
-            AuthorId    = WebLogUserId.toString post.AuthorId
-            Status      = post.Status.Value
+        {   Id          = string post.Id
+            AuthorId    = string post.AuthorId
+            Status      = string post.Status
             Title       = post.Title
-            Permalink   = post.Permalink.Value
+            Permalink   = string post.Permalink
             PublishedOn = post.PublishedOn |> Option.map inTZ |> Option.toNullable
             UpdatedOn   = inTZ post.UpdatedOn
             Text        = addBaseToRelativeUrls extra post.Text
-            CategoryIds = post.CategoryIds |> List.map _.Value
+            CategoryIds = post.CategoryIds |> List.map string
             Tags        = post.Tags
             Episode     = post.Episode
             Metadata    = post.Metadata
@@ -1156,46 +1156,46 @@ type PostDisplay =
 
 /// View model for editing web log settings
 [<CLIMutable; NoComparison; NoEquality>]
-type SettingsModel =
-    {   /// The name of the web log
-        Name : string
+type SettingsModel = {
+    /// The name of the web log
+    Name: string
 
-        /// The slug of the web log
-        Slug : string
-        
-        /// The subtitle of the web log
-        Subtitle : string
+    /// The slug of the web log
+    Slug: string
+    
+    /// The subtitle of the web log
+    Subtitle: string
 
-        /// The default page
-        DefaultPage : string
+    /// The default page
+    DefaultPage: string
 
-        /// How many posts should appear on index pages
-        PostsPerPage : int
+    /// How many posts should appear on index pages
+    PostsPerPage: int
 
-        /// The time zone in which dates/times should be displayed
-        TimeZone : string
-        
-        /// The theme to use to display the web log
-        ThemeId : string
-        
-        /// Whether to automatically load htmx
-        AutoHtmx : bool
-        
-        /// The default location for uploads
-        Uploads : string
-    }
+    /// The time zone in which dates/times should be displayed
+    TimeZone: string
+    
+    /// The theme to use to display the web log
+    ThemeId: string
+    
+    /// Whether to automatically load htmx
+    AutoHtmx: bool
+    
+    /// The default location for uploads
+    Uploads: string
+} with
     
     /// Create a settings model from a web log
-    static member fromWebLog (webLog : WebLog) =
+    static member fromWebLog (webLog: WebLog) =
         {   Name         = webLog.Name
             Slug         = webLog.Slug
             Subtitle     = defaultArg webLog.Subtitle ""
             DefaultPage  = webLog.DefaultPage
             PostsPerPage = webLog.PostsPerPage
             TimeZone     = webLog.TimeZone
-            ThemeId      = ThemeId.toString webLog.ThemeId
+            ThemeId      = string webLog.ThemeId
             AutoHtmx     = webLog.AutoHtmx
-            Uploads      = UploadDestination.toString webLog.Uploads
+            Uploads      = string webLog.Uploads
         }
     
     /// Update a web log with settings from the form
@@ -1209,7 +1209,7 @@ type SettingsModel =
             TimeZone     = this.TimeZone
             ThemeId      = ThemeId this.ThemeId
             AutoHtmx     = this.AutoHtmx
-            Uploads      = UploadDestination.parse this.Uploads
+            Uploads      = UploadDestination.Parse this.Uploads
         }
 
 

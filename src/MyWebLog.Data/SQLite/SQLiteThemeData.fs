@@ -27,19 +27,19 @@ type SQLiteThemeData (conn : SqliteConnection) =
     }
     
     /// Does a given theme exist?
-    let exists themeId = backgroundTask {
+    let exists (themeId: ThemeId) = backgroundTask {
         use cmd = conn.CreateCommand ()
         cmd.CommandText <- "SELECT COUNT(id) FROM theme WHERE id = @id"
-        cmd.Parameters.AddWithValue ("@id", ThemeId.toString themeId) |> ignore
+        cmd.Parameters.AddWithValue ("@id", string themeId) |> ignore
         let! count = count cmd
         return count > 0
     }
     
     /// Find a theme by its ID
-    let findById themeId = backgroundTask {
+    let findById (themeId: ThemeId) = backgroundTask {
         use cmd = conn.CreateCommand ()
         cmd.CommandText <- "SELECT * FROM theme WHERE id = @id"
-        cmd.Parameters.AddWithValue ("@id", ThemeId.toString themeId) |> ignore
+        cmd.Parameters.AddWithValue ("@id", string themeId) |> ignore
         use! rdr = cmd.ExecuteReaderAsync ()
         if rdr.Read () then
             let theme = Map.toTheme rdr
@@ -71,29 +71,28 @@ type SQLiteThemeData (conn : SqliteConnection) =
                 "DELETE FROM theme_asset    WHERE theme_id = @id;
                  DELETE FROM theme_template WHERE theme_id = @id;
                  DELETE FROM theme          WHERE id       = @id"
-            cmd.Parameters.AddWithValue ("@id", ThemeId.toString themeId) |> ignore
+            cmd.Parameters.AddWithValue ("@id", string themeId) |> ignore
             do! write cmd
             return true
         | None -> return false
     }
     
     /// Save a theme
-    let save (theme : Theme) = backgroundTask {
-        use cmd = conn.CreateCommand ()
+    let save (theme: Theme) = backgroundTask {
+        use cmd = conn.CreateCommand()
         let! oldTheme = findById theme.Id
         cmd.CommandText <-
             match oldTheme with
             | Some _ -> "UPDATE theme SET name = @name, version = @version WHERE id = @id"
             | None -> "INSERT INTO theme VALUES (@id, @name, @version)"
-        [   cmd.Parameters.AddWithValue ("@id",      ThemeId.toString theme.Id)
+        [   cmd.Parameters.AddWithValue ("@id",      string theme.Id)
             cmd.Parameters.AddWithValue ("@name",    theme.Name)
             cmd.Parameters.AddWithValue ("@version", theme.Version)
         ] |> ignore
         do! write cmd
         
         let toDelete, toAdd =
-            Utils.diffLists (oldTheme |> Option.map (fun t -> t.Templates) |> Option.defaultValue [])
-                            theme.Templates (fun t -> t.Name)
+            Utils.diffLists (oldTheme |> Option.map _.Templates |> Option.defaultValue []) theme.Templates _.Name
         let toUpdate =
             theme.Templates
             |> List.filter (fun t ->
@@ -102,7 +101,7 @@ type SQLiteThemeData (conn : SqliteConnection) =
         cmd.CommandText <-
             "UPDATE theme_template SET template = @template WHERE theme_id = @themeId AND name = @name"
         cmd.Parameters.Clear ()
-        [   cmd.Parameters.AddWithValue ("@themeId",  ThemeId.toString theme.Id)
+        [   cmd.Parameters.AddWithValue ("@themeId",  string theme.Id)
             cmd.Parameters.Add          ("@name",     SqliteType.Text)
             cmd.Parameters.Add          ("@template", SqliteType.Text)
         ] |> ignore
@@ -157,10 +156,10 @@ type SQLiteThemeAssetData (conn : SqliteConnection) =
     }
     
     /// Delete all assets for the given theme
-    let deleteByTheme themeId = backgroundTask {
+    let deleteByTheme (themeId: ThemeId) = backgroundTask {
         use cmd = conn.CreateCommand ()
         cmd.CommandText <- "DELETE FROM theme_asset WHERE theme_id = @themeId"
-        cmd.Parameters.AddWithValue ("@themeId", ThemeId.toString themeId) |> ignore
+        cmd.Parameters.AddWithValue ("@themeId", string themeId) |> ignore
         do! write cmd
     }
     
@@ -177,19 +176,19 @@ type SQLiteThemeAssetData (conn : SqliteConnection) =
     }
     
     /// Get theme assets for the given theme (excludes data)
-    let findByTheme themeId = backgroundTask {
+    let findByTheme (themeId: ThemeId) = backgroundTask {
         use cmd = conn.CreateCommand ()
         cmd.CommandText <- "SELECT theme_id, path, updated_on FROM theme_asset WHERE theme_id = @themeId"
-        cmd.Parameters.AddWithValue ("@themeId", ThemeId.toString themeId) |> ignore
+        cmd.Parameters.AddWithValue ("@themeId", string themeId) |> ignore
         use! rdr = cmd.ExecuteReaderAsync ()
         return toList (Map.toThemeAsset false) rdr
     }
     
     /// Get theme assets for the given theme
-    let findByThemeWithData themeId = backgroundTask {
+    let findByThemeWithData (themeId: ThemeId) = backgroundTask {
         use cmd = conn.CreateCommand ()
         cmd.CommandText <- "SELECT *, ROWID FROM theme_asset WHERE theme_id = @themeId"
-        cmd.Parameters.AddWithValue ("@themeId", ThemeId.toString themeId) |> ignore
+        cmd.Parameters.AddWithValue ("@themeId", string themeId) |> ignore
         use! rdr = cmd.ExecuteReaderAsync ()
         return toList (Map.toThemeAsset true) rdr
     }

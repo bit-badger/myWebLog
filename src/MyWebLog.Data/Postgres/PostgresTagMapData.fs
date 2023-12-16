@@ -12,14 +12,14 @@ type PostgresTagMapData (log : ILogger) =
     /// Find a tag mapping by its ID for the given web log
     let findById tagMapId webLogId =
         log.LogTrace "TagMap.findById"
-        Document.findByIdAndWebLog<TagMapId, TagMap> Table.TagMap tagMapId TagMapId.toString webLogId
+        Document.findByIdAndWebLog<TagMapId, TagMap> Table.TagMap tagMapId string webLogId
     
     /// Delete a tag mapping for the given web log
-    let delete tagMapId webLogId = backgroundTask {
+    let delete (tagMapId: TagMapId) webLogId = backgroundTask {
         log.LogTrace "TagMap.delete"
-        let! exists = Document.existsByWebLog Table.TagMap tagMapId TagMapId.toString webLogId
+        let! exists = Document.existsByWebLog Table.TagMap tagMapId string webLogId
         if exists then
-            do! Delete.byId Table.TagMap (TagMapId.toString tagMapId)
+            do! Delete.byId Table.TagMap (string tagMapId)
             return true
         else return false
     }
@@ -55,7 +55,7 @@ type PostgresTagMapData (log : ILogger) =
             |> Sql.fromDataSource
             |> Sql.executeTransactionAsync [
                 Query.insert Table.TagMap,
-                tagMaps |> List.map (fun tagMap -> Query.docParameters (TagMapId.toString tagMap.Id) tagMap)
+                tagMaps |> List.map (fun tagMap -> Query.docParameters (string tagMap.Id) tagMap)
             ]
         ()
     }

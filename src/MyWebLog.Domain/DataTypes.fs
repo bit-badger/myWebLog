@@ -32,7 +32,7 @@ module Category =
     /// An empty category
     let empty = {
         Id          = CategoryId.Empty
-        WebLogId    = WebLogId.empty
+        WebLogId    = WebLogId.Empty
         Name        = ""
         Slug        = ""
         Description = None
@@ -137,8 +137,8 @@ module Page =
     /// An empty page
     let empty = {
         Id              = PageId.Empty
-        WebLogId        = WebLogId.empty
-        AuthorId        = WebLogUserId.empty
+        WebLogId        = WebLogId.Empty
+        AuthorId        = WebLogUserId.Empty
         Title           = ""
         Permalink       = Permalink.Empty
         PublishedOn     = Noda.epoch
@@ -210,8 +210,8 @@ module Post =
     /// An empty post
     let empty = {
         Id              = PostId.Empty
-        WebLogId        = WebLogId.empty
-        AuthorId        = WebLogUserId.empty
+        WebLogId        = WebLogId.Empty
+        AuthorId        = WebLogUserId.Empty
         Status          = Draft
         Title           = ""
         Permalink       = Permalink.Empty
@@ -248,8 +248,8 @@ module TagMap =
     
     /// An empty tag mapping
     let empty = {
-        Id       = TagMapId.empty
-        WebLogId = WebLogId.empty
+        Id       = TagMapId.Empty
+        WebLogId = WebLogId.Empty
         Tag      = ""
         UrlValue = ""
     }
@@ -328,8 +328,8 @@ module Upload =
     
     /// An empty upload
     let empty = {
-        Id        = UploadId.empty
-        WebLogId  = WebLogId.empty
+        Id        = UploadId.Empty
+        WebLogId  = WebLogId.Empty
         Path      = Permalink.Empty
         UpdatedOn = Noda.epoch
         Data      = [||]
@@ -384,7 +384,7 @@ module WebLog =
     
     /// An empty web log
     let empty = {
-        Id            = WebLogId.empty
+        Id            = WebLogId.Empty
         Name          = ""
         Slug          = ""
         Subtitle      = None
@@ -393,7 +393,7 @@ module WebLog =
         ThemeId       = ThemeId "default"
         UrlBase       = ""
         TimeZone      = ""
-        Rss           = RssOptions.empty
+        Rss           = RssOptions.Empty
         AutoHtmx      = false
         Uploads       = Database
         RedirectRules = []
@@ -407,12 +407,12 @@ module WebLog =
     
     /// Generate an absolute URL for the given link
     let absoluteUrl webLog (permalink: Permalink) =
-        $"{webLog.UrlBase}/{permalink.Value}"
+        $"{webLog.UrlBase}/{permalink}"
 
     /// Generate a relative URL for the given link
     let relativeUrl webLog (permalink: Permalink) =
         let _, leadPath = hostAndPath webLog
-        $"{leadPath}/{permalink.Value}"
+        $"{leadPath}/{permalink}"
     
     /// Convert an Instant (UTC reference) to the web log's local date/time
     let localTime webLog (date: Instant) =
@@ -463,8 +463,8 @@ module WebLogUser =
     
     /// An empty web log user
     let empty = {
-        Id            = WebLogUserId.empty
-        WebLogId      = WebLogId.empty
+        Id            = WebLogUserId.Empty
+        WebLogId      = WebLogId.Empty
         Email         = ""
         FirstName     = ""
         LastName      = ""

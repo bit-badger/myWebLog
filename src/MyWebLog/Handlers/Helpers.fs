@@ -352,8 +352,8 @@ let requireAccess level : HttpHandler = fun next ctx -> task {
     | Some userLevel ->
         do! addMessage ctx
                 { UserMessage.warning with
-                    Message = $"The page you tried to access requires {level.Value} privileges"
-                    Detail = Some $"Your account only has {userLevel.Value} privileges"
+                    Message = $"The page you tried to access requires {level} privileges"
+                    Detail = Some $"Your account only has {userLevel} privileges"
                 }
         return! Error.notAuthorized next ctx
     | None ->

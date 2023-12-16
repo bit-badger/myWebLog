@@ -37,7 +37,7 @@ module Dashboard =
     let admin : HttpHandler = requireAccess Administrator >=> fun next ctx -> task {
         match! TemplateCache.get adminTheme "theme-list-body" ctx.Data with
         | Ok bodyTemplate ->
-            let! themes          = ctx.Data.Theme.All ()
+            let! themes          = ctx.Data.Theme.All()
             let  cachedTemplates = TemplateCache.allNames ()
             let! hash =
                 hashForPage "myWebLog Administration"
@@ -50,10 +50,10 @@ module Dashboard =
                     themes
                     |> Seq.ofList
                     |> Seq.map (fun it -> [|
-                        ThemeId.toString it.Id
+                        string it.Id
                         it.Name
                         cachedTemplates
-                        |> List.filter (fun n -> n.StartsWith (ThemeId.toString it.Id))
+                        |> List.filter _.StartsWith(string it.Id)
                         |> List.length
                         |> string
                     |])
@@ -61,8 +61,8 @@ module Dashboard =
                 |> addToHash "web_logs" (
                     WebLogCache.all ()
                     |> Seq.ofList
-                    |> Seq.sortBy (fun it -> it.Name)
-                    |> Seq.map (fun it -> [| WebLogId.toString it.Id; it.Name; it.UrlBase |])
+                    |> Seq.sortBy _.Name
+                    |> Seq.map (fun it -> [| string it.Id; it.Name; it.UrlBase |])
                     |> Array.ofSeq)
                 |> addViewContext ctx
             return!
@@ -317,7 +317,7 @@ module TagMapping =
                addToHash "mappings"    mappings hash
             |> addToHash "mapping_ids" (
                 mappings
-                |> List.map (fun it -> { Name = it.Tag; Value = TagMapId.toString it.Id }))
+                |> List.map (fun it -> { Name = it.Tag; Value = string it.Id }))
     }
 
     // GET /admin/settings/tag-mappings
@@ -348,13 +348,13 @@ module TagMapping =
     // POST /admin/settings/tag-mapping/save
     let save : HttpHandler = fun next ctx -> task {
         let  data   = ctx.Data
-        let! model  = ctx.BindFormAsync<EditTagMapModel> ()
+        let! model  = ctx.BindFormAsync<EditTagMapModel>()
         let  tagMap =
-            if model.IsNew then someTask { TagMap.empty with Id = TagMapId.create (); WebLogId = ctx.WebLog.Id }
+            if model.IsNew then someTask { TagMap.empty with Id = TagMapId.Create(); WebLogId = ctx.WebLog.Id }
             else data.TagMap.FindById (TagMapId model.Id) ctx.WebLog.Id
         match! tagMap with
         | Some tm ->
-            do! data.TagMap.Save { tm with Tag = model.Tag.ToLower (); UrlValue = model.UrlValue.ToLower () }
+            do! data.TagMap.Save { tm with Tag = model.Tag.ToLower(); UrlValue = model.UrlValue.ToLower() }
             do! addMessage ctx { UserMessage.success with Message = "Tag mapping saved successfully" }
             return! all next ctx
         | None -> return! Error.notFound next ctx
@@ -395,17 +395,17 @@ module Theme =
         |> adminBareView "theme-upload" next ctx
 
     /// Update the name and version for a theme based on the version.txt file, if present
-    let private updateNameAndVersion (theme : Theme) (zip : ZipArchive) = backgroundTask {
+    let private updateNameAndVersion (theme: Theme) (zip: ZipArchive) = backgroundTask {
         let now () = DateTime.UtcNow.ToString "yyyyMMdd.HHmm"
         match zip.Entries |> Seq.filter (fun it -> it.FullName = "version.txt") |> Seq.tryHead with
         | Some versionItem ->
-            use  versionFile = new StreamReader(versionItem.Open ())
-            let! versionText = versionFile.ReadToEndAsync ()
+            use  versionFile = new StreamReader(versionItem.Open())
+            let! versionText = versionFile.ReadToEndAsync()
             let  parts       = versionText.Trim().Replace("\r", "").Split "\n"
-            let  displayName = if parts[0] > "" then parts[0] else ThemeId.toString theme.Id
+            let  displayName = if parts[0] > "" then parts[0] else string theme.Id
             let  version     = if parts.Length > 1 && parts[1] > "" then parts[1] else now ()
             return { theme with Name = displayName; Version = version }
-        | None -> return { theme with Name = ThemeId.toString theme.Id; Version = now () }
+        | None -> return { theme with Name = string theme.Id; Version = now () }
     }
 
     /// Update the theme with all templates from the ZIP archive
@@ -476,16 +476,16 @@ module Theme =
                 let  data   = ctx.Data
                 let! exists = data.Theme.Exists themeId
                 let  isNew  = not exists
-                let! model  = ctx.BindFormAsync<UploadThemeModel> ()
+                let! model  = ctx.BindFormAsync<UploadThemeModel>()
                 if isNew || model.DoOverwrite then 
                     // Load the theme to the database
-                    use stream = new MemoryStream ()
+                    use stream = new MemoryStream()
                     do! themeFile.CopyToAsync stream
                     let! _ = loadFromZip themeId stream data
                     do! ThemeAssetCache.refreshTheme themeId data
                     TemplateCache.invalidateTheme themeId
                     // Save the .zip file
-                    use file = new FileStream ($"{ThemeId.toString themeId}-theme.zip", FileMode.Create)
+                    use file = new FileStream($"{themeId}-theme.zip", FileMode.Create)
                     do! themeFile.CopyToAsync file
                     do! addMessage ctx
                             { UserMessage.success with
@@ -556,18 +556,18 @@ module WebLog =
                             KeyValuePair.Create("posts", "- First Page of Posts -")
                             yield! allPages
                                    |> List.sortBy _.Title.ToLower()
-                                   |> List.map (fun p -> KeyValuePair.Create(p.Id.Value, p.Title))
+                                   |> List.map (fun p -> KeyValuePair.Create(string p.Id, p.Title))
                         }
                         |> Array.ofSeq)
                     |> addToHash "themes" (
                         themes
                         |> Seq.ofList
                         |> Seq.map (fun it ->
-                            KeyValuePair.Create (ThemeId.toString it.Id, $"{it.Name} (v{it.Version})"))
+                            KeyValuePair.Create(string it.Id, $"{it.Name} (v{it.Version})"))
                         |> Array.ofSeq)
                     |> addToHash "upload_values" [|
-                        KeyValuePair.Create (UploadDestination.toString Database, "Database")
-                        KeyValuePair.Create (UploadDestination.toString Disk,     "Disk")
+                        KeyValuePair.Create(string Database, "Database")
+                        KeyValuePair.Create(string Disk,     "Disk")
                     |]
                     |> addToHash "users" (users |> List.map (DisplayUser.fromUser ctx.WebLog) |> Array.ofList)
                     |> addToHash "rss_model" (EditRssModel.fromRssOptions ctx.WebLog.Rss)

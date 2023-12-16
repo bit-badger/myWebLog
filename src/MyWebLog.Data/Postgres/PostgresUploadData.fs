@@ -21,8 +21,8 @@ type PostgresUploadData (log : ILogger) =
     let upParams (upload : Upload) = [
         webLogIdParam upload.WebLogId
         typedParam "updatedOn" upload.UpdatedOn
-        "@id",   Sql.string (UploadId.toString upload.Id)
-        "@path", Sql.string upload.Path.Value
+        "@id",   Sql.string (string upload.Id)
+        "@path", Sql.string (string upload.Path)
         "@data", Sql.bytea  upload.Data
     ]
     
@@ -34,14 +34,14 @@ type PostgresUploadData (log : ILogger) =
     /// Delete an uploaded file by its ID
     let delete uploadId webLogId = backgroundTask {
         log.LogTrace "Upload.delete"
-        let idParam = [ "@id", Sql.string (UploadId.toString uploadId) ]
+        let idParam = [ "@id", Sql.string (string uploadId) ]
         let! path =
             Custom.single $"SELECT path FROM {Table.Upload} WHERE id = @id AND web_log_id = @webLogId"
                           (webLogIdParam webLogId :: idParam) (fun row -> row.string "path")
         if Option.isSome path then
             do! Custom.nonQuery (Query.Delete.byId Table.Upload) idParam
             return Ok path.Value
-        else return Error $"""Upload ID {UploadId.toString uploadId} not found"""
+        else return Error $"""Upload ID {uploadId} not found"""
     }
     
     /// Find an uploaded file by its path for the given web log

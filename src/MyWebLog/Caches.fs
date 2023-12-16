@@ -194,8 +194,8 @@ module TemplateCache =
     let private hasInclude = Regex ("""{% include_template \"(.*)\" %}""", RegexOptions.None, TimeSpan.FromSeconds 2)
     
     /// Get a template for the given theme and template name
-    let get (themeId : ThemeId) (templateName : string) (data : IData) = backgroundTask {
-        let templatePath = $"{ThemeId.toString themeId}/{templateName}"
+    let get (themeId: ThemeId) (templateName: string) (data: IData) = backgroundTask {
+        let templatePath = $"{themeId}/{templateName}"
         match _cache.ContainsKey templatePath with
         | true -> return Ok _cache[templatePath]
         | false ->
@@ -215,7 +215,7 @@ module TemplateCache =
                                     if childNotFound = "" then child.Groups[1].Value
                                     else $"{childNotFound}; {child.Groups[1].Value}"
                                 ""
-                        text <- text.Replace (child.Value, childText)
+                        text <- text.Replace(child.Value, childText)
                     if childNotFound <> "" then
                         let s = if childNotFound.IndexOf ";" >= 0 then "s" else ""
                         return Error $"Could not find the child template{s} {childNotFound} required by {templateName}"
@@ -223,8 +223,8 @@ module TemplateCache =
                         _cache[templatePath] <- Template.Parse (text, SyntaxCompatibility.DotLiquid22)
                         return Ok _cache[templatePath]
                 | None ->
-                    return Error $"Theme ID {ThemeId.toString themeId} does not have a template named {templateName}"
-            | None -> return Result.Error $"Theme ID {ThemeId.toString themeId} does not exist"
+                    return Error $"Theme ID {themeId} does not have a template named {templateName}"
+            | None -> return Error $"Theme ID {themeId} does not exist"
     }
     
     /// Get all theme/template names currently cached
@@ -232,16 +232,16 @@ module TemplateCache =
         _cache.Keys |> Seq.sort |> Seq.toList
     
     /// Invalidate all template cache entries for the given theme ID
-    let invalidateTheme (themeId : ThemeId) =
-        let keyPrefix = ThemeId.toString themeId
+    let invalidateTheme (themeId: ThemeId) =
+        let keyPrefix = string themeId
         _cache.Keys
-        |> Seq.filter (fun key -> key.StartsWith keyPrefix)
+        |> Seq.filter _.StartsWith(keyPrefix)
         |> List.ofSeq
         |> List.iter (fun key -> match _cache.TryRemove key with _, _ -> ())
     
     /// Remove all entries from the template cache
     let empty () =
-        _cache.Clear ()
+        _cache.Clear()
 
 
 /// A cache of asset names by themes

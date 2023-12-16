@@ -8,12 +8,12 @@ open MyWebLog.Data
 type SQLiteTagMapData (conn : SqliteConnection) =
 
     /// Find a tag mapping by its ID for the given web log
-    let findById tagMapId webLogId = backgroundTask {
-        use cmd = conn.CreateCommand ()
+    let findById (tagMapId: TagMapId) webLogId = backgroundTask {
+        use cmd = conn.CreateCommand()
         cmd.CommandText <- "SELECT * FROM tag_map WHERE id = @id"
-        cmd.Parameters.AddWithValue ("@id", TagMapId.toString tagMapId) |> ignore
-        use! rdr = cmd.ExecuteReaderAsync ()
-        return Helpers.verifyWebLog<TagMap> webLogId (fun tm -> tm.WebLogId) Map.toTagMap rdr
+        cmd.Parameters.AddWithValue ("@id", string tagMapId) |> ignore
+        use! rdr = cmd.ExecuteReaderAsync()
+        return verifyWebLog<TagMap> webLogId (_.WebLogId) Map.toTagMap rdr
     }
     
     /// Delete a tag mapping for the given web log
@@ -22,7 +22,7 @@ type SQLiteTagMapData (conn : SqliteConnection) =
         | Some _ ->
             use cmd = conn.CreateCommand ()
             cmd.CommandText <- "DELETE FROM tag_map WHERE id = @id"
-            cmd.Parameters.AddWithValue ("@id", TagMapId.toString tagMapId) |> ignore
+            cmd.Parameters.AddWithValue ("@id", string tagMapId) |> ignore
             do! write cmd
             return true
         | None -> return false
@@ -81,7 +81,7 @@ type SQLiteTagMapData (conn : SqliteConnection) =
                     @id, @webLogId, @tag, @urlValue
                 )"
         addWebLogId cmd tagMap.WebLogId
-        [   cmd.Parameters.AddWithValue ("@id",       TagMapId.toString tagMap.Id)
+        [   cmd.Parameters.AddWithValue ("@id",       string tagMap.Id)
             cmd.Parameters.AddWithValue ("@tag",      tagMap.Tag)
             cmd.Parameters.AddWithValue ("@urlValue", tagMap.UrlValue)
         ] |> ignore
