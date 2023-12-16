@@ -86,13 +86,13 @@ module private Namespace =
     let rawVoice = "http://www.rawvoice.com/rawvoiceRssModule/"
 
 /// Create a feed item from the given post    
-let private toFeedItem webLog (authors: MetaItem list) (cats: DisplayCategory array) (tagMaps: TagMap list)
+let private toFeedItem (webLog: WebLog) (authors: MetaItem list) (cats: DisplayCategory array) (tagMaps: TagMap list)
         (post: Post) =
     let plainText =
         let endingP = post.Text.IndexOf "</p>"
         stripHtml <| if endingP >= 0 then post.Text[..(endingP - 1)] else post.Text
     let item = SyndicationItem(
-        Id              = WebLog.absoluteUrl webLog post.Permalink,
+        Id              = webLog.AbsoluteUrl post.Permalink,
         Title           = TextSyndicationContent.CreateHtmlContent post.Title,
         PublishDate     = post.PublishedOn.Value.ToDateTimeOffset(),
         LastUpdatedTime = post.UpdatedOn.ToDateTimeOffset(),
@@ -115,30 +115,31 @@ let private toFeedItem webLog (authors: MetaItem list) (cats: DisplayCategory ar
     [ post.CategoryIds
       |> List.map (fun catId ->
           let cat = cats |> Array.find (fun c -> c.Id = string catId)
-          SyndicationCategory(cat.Name, WebLog.absoluteUrl webLog (Permalink $"category/{cat.Slug}/"), cat.Name))
+          SyndicationCategory(cat.Name, webLog.AbsoluteUrl(Permalink $"category/{cat.Slug}/"), cat.Name))
       post.Tags
       |> List.map (fun tag ->
           let urlTag =
               match tagMaps |> List.tryFind (fun tm -> tm.Tag = tag) with
               | Some tm -> tm.UrlValue
               | None -> tag.Replace (" ", "+")
-          SyndicationCategory(tag, WebLog.absoluteUrl webLog (Permalink $"tag/{urlTag}/"), $"{tag} (tag)"))
+          SyndicationCategory(tag, webLog.AbsoluteUrl(Permalink $"tag/{urlTag}/"), $"{tag} (tag)"))
     ]
     |> List.concat
     |> List.iter item.Categories.Add
     item
 
 /// Convert non-absolute URLs to an absolute URL for this web log
-let toAbsolute webLog (link: string) =
-    if link.StartsWith "http" then link else WebLog.absoluteUrl webLog (Permalink link)
+let toAbsolute (webLog: WebLog) (link: string) =
+    if link.StartsWith "http" then link else webLog.AbsoluteUrl(Permalink link)
 
 /// Add episode information to a podcast feed item
-let private addEpisode webLog (podcast : PodcastOptions) (episode : Episode) (post : Post) (item : SyndicationItem) =
+let private addEpisode (webLog: WebLog) (podcast: PodcastOptions) (episode: Episode) (post: Post)
+        (item: SyndicationItem) =
     let epMediaUrl =
         match episode.Media with
         | link when link.StartsWith "http" -> link
         | link when Option.isSome podcast.MediaBaseUrl -> $"{podcast.MediaBaseUrl.Value}{link}"
-        | link -> WebLog.absoluteUrl webLog (Permalink link)
+        | link -> webLog.AbsoluteUrl(Permalink link)
     let epMediaType = [ episode.MediaType; podcast.DefaultMediaType ] |> List.tryFind Option.isSome |> Option.flatten
     let epImageUrl = defaultArg episode.ImageUrl (string podcast.ImageUrl) |> toAbsolute webLog
     let epExplicit = string (defaultArg episode.Explicit podcast.Explicit)
@@ -234,22 +235,22 @@ let private addNamespace (feed : SyndicationFeed) alias nsUrl =
     feed.AttributeExtensions.Add (XmlQualifiedName (alias, "http://www.w3.org/2000/xmlns/"), nsUrl)
 
 /// Add items to the top of the feed required for podcasts
-let private addPodcast webLog (rssFeed : SyndicationFeed) (feed : CustomFeed) =
-    let addChild (doc : XmlDocument) ns prefix name value (elt : XmlElement) =
+let private addPodcast (webLog: WebLog) (rssFeed: SyndicationFeed) (feed: CustomFeed) =
+    let addChild (doc: XmlDocument) ns prefix name value (elt: XmlElement) =
         let child =
-            if ns = "" then doc.CreateElement name else doc.CreateElement (prefix, name, ns)
+            if ns = "" then doc.CreateElement name else doc.CreateElement(prefix, name, ns)
             |> elt.AppendChild
         child.InnerText <- value
         elt
     
     let podcast  = Option.get feed.Podcast
-    let feedUrl  = WebLog.absoluteUrl webLog feed.Path
+    let feedUrl  = webLog.AbsoluteUrl feed.Path
     let imageUrl =
         match podcast.ImageUrl with
         | Permalink link when link.StartsWith "http" -> link
-        | Permalink _ -> WebLog.absoluteUrl webLog podcast.ImageUrl
+        | Permalink _ -> webLog.AbsoluteUrl podcast.ImageUrl
     
-    let xmlDoc = XmlDocument ()
+    let xmlDoc = XmlDocument()
     
     [ "dc",       Namespace.dc
       "itunes",   Namespace.iTunes
@@ -260,12 +261,12 @@ let private addPodcast webLog (rssFeed : SyndicationFeed) (feed : CustomFeed) =
     |> List.iter (fun (alias, nsUrl) -> addNamespace rssFeed alias nsUrl)
     
     let categorization =
-        let it = xmlDoc.CreateElement ("itunes", "category", Namespace.iTunes)
-        it.SetAttribute ("text", podcast.AppleCategory)
+        let it = xmlDoc.CreateElement("itunes", "category", Namespace.iTunes)
+        it.SetAttribute("text", podcast.AppleCategory)
         podcast.AppleSubcategory
         |> Option.iter (fun subCat ->
-            let subCatElt = xmlDoc.CreateElement ("itunes", "category", Namespace.iTunes)
-            subCatElt.SetAttribute ("text", subCat)
+            let subCatElt = xmlDoc.CreateElement("itunes", "category", Namespace.iTunes)
+            subCatElt.SetAttribute("text", subCat)
             it.AppendChild subCatElt |> ignore)
         it
     let image = 
@@ -275,19 +276,19 @@ let private addPodcast webLog (rssFeed : SyndicationFeed) (feed : CustomFeed) =
         ]
         |> List.fold (fun elt (name, value) -> addChild xmlDoc "" "" name value elt) (xmlDoc.CreateElement "image")
     let iTunesImage =
-        let it = xmlDoc.CreateElement ("itunes", "image", Namespace.iTunes)
-        it.SetAttribute ("href", imageUrl)
+        let it = xmlDoc.CreateElement("itunes", "image", Namespace.iTunes)
+        it.SetAttribute("href", imageUrl)
         it
     let owner =
         [ "name", podcast.DisplayedAuthor
           "email", podcast.Email
         ]
         |> List.fold (fun elt (name, value) -> addChild xmlDoc Namespace.iTunes "itunes" name value elt)
-                     (xmlDoc.CreateElement ("itunes", "owner", Namespace.iTunes))
+                     (xmlDoc.CreateElement("itunes", "owner", Namespace.iTunes))
     let rawVoice =
-        let it = xmlDoc.CreateElement ("rawvoice", "subscribe", Namespace.rawVoice)
-        it.SetAttribute ("feed", feedUrl)
-        it.SetAttribute ("itunes", "")
+        let it = xmlDoc.CreateElement("rawvoice", "subscribe", Namespace.rawVoice)
+        it.SetAttribute("feed", feedUrl)
+        it.SetAttribute("itunes", "")
         it
     
     rssFeed.ElementExtensions.Add image
@@ -298,7 +299,7 @@ let private addPodcast webLog (rssFeed : SyndicationFeed) (feed : CustomFeed) =
     rssFeed.ElementExtensions.Add("summary",  Namespace.iTunes, podcast.Summary)
     rssFeed.ElementExtensions.Add("author",   Namespace.iTunes, podcast.DisplayedAuthor)
     rssFeed.ElementExtensions.Add("explicit", Namespace.iTunes, string podcast.Explicit)
-    podcast.Subtitle |> Option.iter (fun sub -> rssFeed.ElementExtensions.Add ("subtitle", Namespace.iTunes, sub))
+    podcast.Subtitle |> Option.iter (fun sub -> rssFeed.ElementExtensions.Add("subtitle", Namespace.iTunes, sub))
     podcast.FundingUrl
     |> Option.iter (fun url ->
         let funding = xmlDoc.CreateElement("podcast", "funding", Namespace.podcast)
@@ -353,7 +354,7 @@ let private setTitleAndDescription feedType (webLog : WebLog) (cats : DisplayCat
                 feed.Description <- cleanText None $"""Posts with the "{tag}" tag"""
     
 /// Create a feed with a known non-zero-length list of posts    
-let createFeed (feedType : FeedType) posts : HttpHandler = fun next ctx -> backgroundTask {
+let createFeed (feedType: FeedType) posts : HttpHandler = fun next ctx -> backgroundTask {
     let  webLog     = ctx.WebLog
     let  data       = ctx.Data
     let! authors    = getAuthors     webLog posts data
@@ -371,36 +372,36 @@ let createFeed (feedType : FeedType) posts : HttpHandler = fun next ctx -> backg
             item
         | _ -> item
         
-    let feed = SyndicationFeed ()
+    let feed = SyndicationFeed()
     addNamespace feed "content" Namespace.content
     setTitleAndDescription feedType webLog cats feed
     
-    feed.LastUpdatedTime <- (List.head posts).UpdatedOn.ToDateTimeOffset ()
+    feed.LastUpdatedTime <- (List.head posts).UpdatedOn.ToDateTimeOffset()
     feed.Generator       <- ctx.Generator
     feed.Items           <- posts |> Seq.ofList |> Seq.map toItem
     feed.Language        <- "en"
-    feed.Id              <- WebLog.absoluteUrl webLog link
+    feed.Id              <- webLog.AbsoluteUrl link
     webLog.Rss.Copyright |> Option.iter (fun copy -> feed.Copyright <- TextSyndicationContent copy)
     
-    feed.Links.Add (SyndicationLink (Uri (WebLog.absoluteUrl webLog self), "self", "", "application/rss+xml", 0L))
-    feed.ElementExtensions.Add ("link", "", WebLog.absoluteUrl webLog link)
+    feed.Links.Add(SyndicationLink(Uri(webLog.AbsoluteUrl self), "self", "", "application/rss+xml", 0L))
+    feed.ElementExtensions.Add("link", "", webLog.AbsoluteUrl link)
     
     podcast |> Option.iter (addPodcast webLog feed)
     
-    use mem = new MemoryStream ()
+    use mem = new MemoryStream()
     use xml = XmlWriter.Create mem
     feed.SaveAsRss20 xml
-    xml.Close ()
+    xml.Close()
     
-    let _ = mem.Seek (0L, SeekOrigin.Begin)
+    let _ = mem.Seek(0L, SeekOrigin.Begin)
     let rdr = new StreamReader(mem)
-    let! output = rdr.ReadToEndAsync ()
+    let! output = rdr.ReadToEndAsync()
     
     return! (setHttpHeader "Content-Type" "text/xml" >=> setStatusCode 200 >=> setBodyFromString output) next ctx
 }
 
 // GET {any-prescribed-feed}
-let generate (feedType : FeedType) postCount : HttpHandler = fun next ctx -> backgroundTask {
+let generate (feedType: FeedType) postCount : HttpHandler = fun next ctx -> backgroundTask {
     match! getFeedPosts ctx feedType postCount with
     | posts when List.length posts > 0 -> return! createFeed feedType posts next ctx
     | _ -> return! Error.notFound next ctx

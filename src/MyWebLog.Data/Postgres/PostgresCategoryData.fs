@@ -23,7 +23,7 @@ type PostgresCategoryData(log: ILogger) =
     let findAllForView webLogId = backgroundTask {
         log.LogTrace "Category.findAllForView"
         let! cats =
-            Custom.list $"{selectWithCriteria Table.Category} ORDER BY LOWER(data ->> '{nameof Category.empty.Name}')"
+            Custom.list $"{selectWithCriteria Table.Category} ORDER BY LOWER(data ->> '{nameof Category.Empty.Name}')"
                         [ webLogContains webLogId ] fromData<Category>
         let ordered = Utils.orderByHierarchy cats None None []
         let counts  =
@@ -36,7 +36,7 @@ type PostgresCategoryData(log: ILogger) =
                     |> Seq.map _.Id
                     |> Seq.append (Seq.singleton it.Id)
                     |> List.ofSeq
-                    |> arrayContains (nameof Post.empty.CategoryIds) id
+                    |> arrayContains (nameof Post.Empty.CategoryIds) id
                 let postCount =
                     Custom.scalar
                         $"""SELECT COUNT(DISTINCT id) AS {countName}
@@ -97,7 +97,7 @@ type PostgresCategoryData(log: ILogger) =
                 ()
             // Delete the category off all posts where it is assigned
             let! posts =
-                Custom.list $"SELECT data FROM {Table.Post} WHERE data -> '{nameof Post.empty.CategoryIds}' @> @id"
+                Custom.list $"SELECT data FROM {Table.Post} WHERE data -> '{nameof Post.Empty.CategoryIds}' @> @id"
                             [ "@id", Query.jsonbDocParam [| string catId |] ] fromData<Post>
             if not (List.isEmpty posts) then
                 let! _ =

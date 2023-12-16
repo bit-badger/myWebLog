@@ -40,7 +40,7 @@ type PostgresTagMapData (log : ILogger) =
     /// Find any tag mappings in a list of tags for the given web log
     let findMappingForTags tags webLogId =
         log.LogTrace "TagMap.findMappingForTags"
-        let tagSql, tagParam = arrayContains (nameof TagMap.empty.Tag) id tags
+        let tagSql, tagParam = arrayContains (nameof TagMap.Empty.Tag) id tags
         Custom.list $"{selectWithCriteria Table.TagMap} AND {tagSql}" [ webLogContains webLogId; tagParam ]
                     fromData<TagMap>
     

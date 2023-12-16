@@ -37,7 +37,7 @@ type PostgresPageData (log: ILogger) =
     /// Get all pages for a web log (without text or revisions)
     let all webLogId =
         log.LogTrace "Page.all"
-        Custom.list $"{selectWithCriteria Table.Page} ORDER BY LOWER(data ->> '{nameof Page.empty.Title}')"
+        Custom.list $"{selectWithCriteria Table.Page} ORDER BY LOWER(data ->> '{nameof Page.Empty.Title}')"
                     [ webLogContains webLogId ] fromData<Page>
     
     /// Count all pages for the given web log
@@ -86,10 +86,10 @@ type PostgresPageData (log: ILogger) =
         log.LogTrace "Page.findCurrentPermalink"
         if List.isEmpty permalinks then return None
         else
-            let linkSql, linkParam = arrayContains (nameof Page.empty.PriorPermalinks) string permalinks
+            let linkSql, linkParam = arrayContains (nameof Page.Empty.PriorPermalinks) string permalinks
             return!
                 Custom.single
-                    $"""SELECT data ->> '{nameof Page.empty.Permalink}' AS permalink
+                    $"""SELECT data ->> '{nameof Page.Empty.Permalink}' AS permalink
                           FROM page
                          WHERE {Query.whereDataContains "@criteria"}
                            AND {linkSql}""" [ webLogContains webLogId; linkParam ] Map.toPermalink
@@ -109,7 +109,7 @@ type PostgresPageData (log: ILogger) =
     /// Get all listed pages for the given web log (without revisions or text)
     let findListed webLogId =
         log.LogTrace "Page.findListed"
-        Custom.list $"{selectWithCriteria Table.Page} ORDER BY LOWER(data ->> '{nameof Page.empty.Title}')"
+        Custom.list $"{selectWithCriteria Table.Page} ORDER BY LOWER(data ->> '{nameof Page.Empty.Title}')"
                     [ "@criteria", Query.jsonbDocParam {| webLogDoc webLogId with IsInPageList = true |} ]
                     pageWithoutText
     
@@ -118,7 +118,7 @@ type PostgresPageData (log: ILogger) =
         log.LogTrace "Page.findPageOfPages"
         Custom.list
             $"{selectWithCriteria Table.Page}
-               ORDER BY LOWER(data->>'{nameof Page.empty.Title}')
+               ORDER BY LOWER(data->>'{nameof Page.Empty.Title}')
                LIMIT @pageSize OFFSET @toSkip"
             [ webLogContains webLogId; "@pageSize", Sql.int 26; "@toSkip", Sql.int ((pageNbr - 1) * 25) ]
             fromData<Page>

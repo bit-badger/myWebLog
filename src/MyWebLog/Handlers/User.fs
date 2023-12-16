@@ -122,7 +122,7 @@ let edit usrId : HttpHandler = fun next ctx -> task {
     let isNew   = usrId = "new"
     let userId  = WebLogUserId usrId
     let tryUser =
-        if isNew then someTask { WebLogUser.empty with Id = userId }
+        if isNew then someTask { WebLogUser.Empty with Id = userId }
         else ctx.Data.WebLogUser.FindById userId ctx.WebLog.Id
     match! tryUser with
     | Some user -> return! showEdit (EditUserModel.fromUser user) next ctx
@@ -141,13 +141,13 @@ let delete userId : HttpHandler = fun next ctx -> task {
             | Ok _ ->
                 do! addMessage ctx
                         { UserMessage.success with
-                            Message = $"User {WebLogUser.displayName user} deleted successfully"
+                            Message = $"User {user.DisplayName} deleted successfully"
                         }
                 return! all next ctx
             | Error msg ->
                 do! addMessage ctx
                         { UserMessage.error with
-                            Message = $"User {WebLogUser.displayName user} was not deleted"
+                            Message = $"User {user.DisplayName} was not deleted"
                             Detail  = Some msg
                         }
                 return! all next ctx
@@ -155,15 +155,13 @@ let delete userId : HttpHandler = fun next ctx -> task {
 }
 
 /// Display the user "my info" page, with information possibly filled in
-let private showMyInfo (model : EditMyInfoModel) (user : WebLogUser) : HttpHandler = fun next ctx ->
+let private showMyInfo (model: EditMyInfoModel) (user: WebLogUser) : HttpHandler = fun next ctx ->
     hashForPage "Edit Your Information"
     |> withAntiCsrf ctx
     |> addToHash ViewContext.Model model
     |> addToHash "access_level"    (string user.AccessLevel)
-    |> addToHash "created_on"      (WebLog.localTime ctx.WebLog user.CreatedOn)
-    |> addToHash "last_seen_on"    (WebLog.localTime ctx.WebLog
-                                         (defaultArg user.LastSeenOn (Instant.FromUnixTimeSeconds 0)))
-                                         
+    |> addToHash "created_on"      (ctx.WebLog.LocalTime user.CreatedOn)
+    |> addToHash "last_seen_on"    (ctx.WebLog.LocalTime (defaultArg user.LastSeenOn (Instant.FromUnixTimeSeconds 0)))
     |> adminView "my-info" next ctx
 
 
@@ -207,7 +205,7 @@ let save : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     let  data    = ctx.Data
     let  tryUser =
         if model.IsNew then
-            { WebLogUser.empty with
+            { WebLogUser.Empty with
                 Id        = WebLogUserId.Create()
                 WebLogId  = ctx.WebLog.Id
                 CreatedOn = Noda.now ()

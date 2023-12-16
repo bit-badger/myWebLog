@@ -156,7 +156,7 @@ module Category =
     let edit catId : HttpHandler = fun next ctx -> task {
         let! result = task {
             match catId with
-            | "new" -> return Some ("Add a New Category", { Category.empty with Id = CategoryId "new" })
+            | "new" -> return Some ("Add a New Category", { Category.Empty with Id = CategoryId "new" })
             | _ ->
                 match! ctx.Data.Category.FindById (CategoryId catId) ctx.WebLog.Id with
                 | Some cat -> return Some ("Edit Category", cat)
@@ -177,7 +177,7 @@ module Category =
         let  data     = ctx.Data
         let! model    = ctx.BindFormAsync<EditCategoryModel> ()
         let  category =
-            if model.IsNew then someTask { Category.empty with Id = CategoryId.Create(); WebLogId = ctx.WebLog.Id }
+            if model.IsNew then someTask { Category.Empty with Id = CategoryId.Create(); WebLogId = ctx.WebLog.Id }
             else data.Category.FindById (CategoryId model.CategoryId) ctx.WebLog.Id
         match! category with
         | Some cat ->
@@ -333,7 +333,7 @@ module TagMapping =
     let edit tagMapId : HttpHandler = fun next ctx -> task {
         let isNew  = tagMapId = "new"
         let tagMap =
-            if isNew then someTask { TagMap.empty with Id = TagMapId "new" }
+            if isNew then someTask { TagMap.Empty with Id = TagMapId "new" }
             else ctx.Data.TagMap.FindById (TagMapId tagMapId) ctx.WebLog.Id
         match! tagMap with
         | Some tm ->
@@ -350,7 +350,7 @@ module TagMapping =
         let  data   = ctx.Data
         let! model  = ctx.BindFormAsync<EditTagMapModel>()
         let  tagMap =
-            if model.IsNew then someTask { TagMap.empty with Id = TagMapId.Create(); WebLogId = ctx.WebLog.Id }
+            if model.IsNew then someTask { TagMap.Empty with Id = TagMapId.Create(); WebLogId = ctx.WebLog.Id }
             else data.TagMap.FindById (TagMapId model.Id) ctx.WebLog.Id
         match! tagMap with
         | Some tm ->
@@ -455,7 +455,7 @@ module Theme =
         let! isNew, theme = backgroundTask {
             match! data.Theme.FindById themeId with
             | Some t -> return false, t
-            | None   -> return true, { Theme.empty with Id = themeId }
+            | None   -> return true, { Theme.Empty with Id = themeId }
         }
         use  zip   = new ZipArchive (file, ZipArchiveMode.Read)
         let! theme = updateNameAndVersion theme zip

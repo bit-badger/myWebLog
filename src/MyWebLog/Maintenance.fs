@@ -32,7 +32,7 @@ let private doCreateWebLog (args : string[]) (sp : IServiceProvider) = task {
     let  accessLevel = if List.isEmpty webLogs then Administrator else WebLogAdmin
         
     do! data.WebLog.Add
-            { WebLog.empty with
+            { WebLog.Empty with
                 Id          = webLogId
                 Name        = args[2]
                 Slug        = slug
@@ -44,7 +44,7 @@ let private doCreateWebLog (args : string[]) (sp : IServiceProvider) = task {
     // Create the admin user
     let now  = Noda.now ()
     let user =
-        { WebLogUser.empty with
+        { WebLogUser.Empty with
             Id            = userId
             WebLogId      = webLogId
             Email         = args[3]
@@ -58,7 +58,7 @@ let private doCreateWebLog (args : string[]) (sp : IServiceProvider) = task {
 
     // Create the default home page
     do! data.Page.Add
-            { Page.empty with
+            { Page.Empty with
                 Id          = homePageId
                 WebLogId    = webLogId
                 AuthorId    = userId

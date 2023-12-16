@@ -28,7 +28,7 @@ let all pageNbr : HttpHandler = requireAccess Author >=> fun next ctx -> task {
 let edit pgId : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     let! result = task {
         match pgId with
-        | "new" -> return Some ("Add a New Page", { Page.empty with Id = PageId "new"; AuthorId = ctx.UserId })
+        | "new" -> return Some ("Add a New Page", { Page.Empty with Id = PageId "new"; AuthorId = ctx.UserId })
         | _ ->
             match! ctx.Data.Page.FindFullById (PageId pgId) ctx.WebLog.Id with
             | Some page -> return Some ("Edit Page", page)
@@ -129,11 +129,10 @@ let private findPageRevision pgId revDate (ctx : HttpContext) = task {
 let previewRevision (pgId, revDate) : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     match! findPageRevision pgId revDate ctx with
     | Some pg, Some rev when canEdit pg.AuthorId ctx ->
-        let _, extra = WebLog.hostAndPath ctx.WebLog
         return! {|
             content =
                 [   """<div class="mwl-revision-preview mb-3">"""
-                    rev.Text.AsHtml() |> addBaseToRelativeUrls extra
+                    rev.Text.AsHtml() |> addBaseToRelativeUrls ctx.WebLog.ExtraPath
                     "</div>"
                 ]
                 |> String.concat ""
@@ -179,7 +178,7 @@ let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     let  now     = Noda.now ()
     let  tryPage =
         if model.IsNew then
-            { Page.empty with
+            { Page.Empty with
                 Id          = PageId.Create()
                 WebLogId    = ctx.WebLog.Id
                 AuthorId    = ctx.UserId

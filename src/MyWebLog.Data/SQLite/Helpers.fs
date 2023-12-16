@@ -232,7 +232,7 @@ module Map =
     
     /// Create a page from the current row in the given data reader
     let toPage ser rdr : Page =
-        { Page.empty with
+        { Page.Empty with
             Id           = getString   "id"              rdr |> PageId
             WebLogId     = getString   "web_log_id"      rdr |> WebLogId
             AuthorId     = getString   "author_id"       rdr |> WebLogUserId
@@ -250,7 +250,7 @@ module Map =
     
     /// Create a post from the current row in the given data reader
     let toPost ser rdr : Post =
-        { Post.empty with
+        { Post.Empty with
             Id          = getString   "id"           rdr |> PostId
             WebLogId    = getString   "web_log_id"   rdr |> WebLogId
             AuthorId    = getString   "author_id"    rdr |> WebLogUserId
@@ -283,7 +283,7 @@ module Map =
     
     /// Create a theme from the current row in the given data reader (excludes templates)
     let toTheme rdr : Theme =
-        { Theme.empty with
+        { Theme.Empty with
             Id      = getString "id"      rdr |> ThemeId
             Name    = getString "name"    rdr
             Version = getString "version" rdr

@@ -234,7 +234,7 @@ let messagesToHeaders (messages : UserMessage array) : HttpHandler =
 /// Redirect after doing some action; commits session and issues a temporary redirect
 let redirectToGet url : HttpHandler = fun _ ctx -> task {
     do! commitSession ctx
-    return! redirectTo false (WebLog.relativeUrl ctx.WebLog (Permalink url)) earlyReturn ctx
+    return! redirectTo false (ctx.WebLog.RelativeUrl(Permalink url)) earlyReturn ctx
 }
 
 

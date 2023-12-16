@@ -146,7 +146,7 @@ let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
         let fileName  = String.Concat (makeSlug (Path.GetFileNameWithoutExtension upload.FileName),
                                        Path.GetExtension(upload.FileName).ToLowerInvariant())
         let  now      = Noda.now ()
-        let  localNow = WebLog.localTime ctx.WebLog now
+        let  localNow = ctx.WebLog.LocalTime now
         let  year     = localNow.ToString "yyyy"
         let  month    = localNow.ToString "MM"
         let! form     = ctx.BindFormAsync<UploadFileModel>()

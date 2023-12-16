@@ -72,13 +72,11 @@ type AccessLevel =
     
     /// Does a given access level allow an action that requires a certain access level?
     member this.HasAccess(needed: AccessLevel) =
-        // TODO: Move this to user where it seems to belong better...
         let weights =
             [   Author, 10
                 Editor, 20
                 WebLogAdmin, 30
-                Administrator, 40
-            ]
+                Administrator, 40 ]
             |> Map.ofList
         weights[needed] <= weights[this]
 
@@ -639,6 +637,9 @@ type TagMapId =
 type ThemeId =
     | ThemeId of string
     
+    /// An empty theme ID
+    static member Empty = ThemeId ""
+    
     /// The string representation of a theme ID
     override this.ToString() =
         match this with ThemeId it -> it
@@ -649,6 +650,9 @@ type ThemeId =
 type ThemeAssetId =
     | ThemeAssetId of ThemeId * string
 
+    /// An empty theme asset ID
+    static member Empty = ThemeAssetId(ThemeId.Empty, "")
+    
     /// Convert a string into a theme asset ID
     static member Parse(it : string) =
         let themeIdx = it.IndexOf "/"

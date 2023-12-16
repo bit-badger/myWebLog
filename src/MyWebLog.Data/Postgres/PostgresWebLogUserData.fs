@@ -45,7 +45,7 @@ type PostgresWebLogUserData (log : ILogger) =
     let findByWebLog webLogId =
         log.LogTrace "WebLogUser.findByWebLog"
         Custom.list
-            $"{selectWithCriteria Table.WebLogUser} ORDER BY LOWER(data->>'{nameof WebLogUser.empty.PreferredName}')"
+            $"{selectWithCriteria Table.WebLogUser} ORDER BY LOWER(data->>'{nameof WebLogUser.Empty.PreferredName}')"
             [ webLogContains webLogId ] fromData<WebLogUser>
     
     /// Find the names of users by their IDs for the given web log
@@ -55,7 +55,7 @@ type PostgresWebLogUserData (log : ILogger) =
         let! users =
             Custom.list $"{selectWithCriteria Table.WebLogUser} {idSql}" (webLogContains webLogId :: idParams)
                         fromData<WebLogUser>
-        return users |> List.map (fun u -> { Name = string u.Id; Value = WebLogUser.displayName u })
+        return users |> List.map (fun u -> { Name = string u.Id; Value = u.DisplayName })
     }
     
     /// Restore users from a backup

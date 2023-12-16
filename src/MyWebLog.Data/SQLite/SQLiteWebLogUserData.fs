@@ -96,8 +96,7 @@ type SQLiteWebLogUserData(conn: SqliteConnection) =
         addWebLogId cmd webLogId
         cmd.Parameters.AddRange nameParams
         use! rdr = cmd.ExecuteReaderAsync ()
-        return
-            toList Map.toWebLogUser rdr |> List.map (fun u -> { Name = string u.Id; Value = WebLogUser.displayName u })
+        return toList Map.toWebLogUser rdr |> List.map (fun u -> { Name = string u.Id; Value = u.DisplayName })
     }
     
     /// Restore users from a backup

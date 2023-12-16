@@ -42,7 +42,7 @@ open MyWebLog.ViewModels
 let preparePostList webLog posts listType (url: string) pageNbr perPage (data: IData) = task {
     let! authors     = getAuthors     webLog posts data
     let! tagMappings = getTagMappings webLog posts data
-    let  relUrl it   = Some <| WebLog.relativeUrl webLog (Permalink it)
+    let  relUrl it   = Some <| webLog.RelativeUrl(Permalink it)
     let  postItems   =
         posts
         |> Seq.ofList
@@ -115,7 +115,7 @@ let pageOfPosts pageNbr : HttpHandler = fun next ctx -> task {
 
 // GET /page/{pageNbr}/
 let redirectToPageOfPosts (pageNbr : int) : HttpHandler = fun next ctx ->
-    redirectTo true (WebLog.relativeUrl ctx.WebLog (Permalink $"page/{pageNbr}")) next ctx
+    redirectTo true (ctx.WebLog.RelativeUrl(Permalink $"page/{pageNbr}")) next ctx
 
 // GET /category/{slug}/
 // GET /category/{slug}/page/{pageNbr}
@@ -184,7 +184,7 @@ let pageOfTaggedPosts slugAndPage : HttpHandler = fun next ctx -> task {
                     let endUrl = if pageNbr = 1 then "" else $"page/{pageNbr}"
                     return!
                         redirectTo true
-                            (WebLog.relativeUrl webLog (Permalink $"""tag/{spacedTag.Replace (" ", "+")}/{endUrl}"""))
+                            (webLog.RelativeUrl(Permalink $"""tag/{spacedTag.Replace (" ", "+")}/{endUrl}"""))
                             next ctx
                 | _ -> return! Error.notFound next ctx
     | None, _, _ -> return! Error.notFound next ctx
@@ -223,7 +223,7 @@ let edit postId : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     let  data   = ctx.Data
     let! result = task {
         match postId with
-        | "new" -> return Some ("Write a New Post", { Post.empty with Id = PostId "new" })
+        | "new" -> return Some ("Write a New Post", { Post.Empty with Id = PostId "new" })
         | _ ->
             match! data.Post.FindFullById (PostId postId) ctx.WebLog.Id with
             | Some post -> return Some ("Edit Post", post)
@@ -329,11 +329,10 @@ let private findPostRevision postId revDate (ctx : HttpContext) = task {
 let previewRevision (postId, revDate) : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     match! findPostRevision postId revDate ctx with
     | Some post, Some rev when canEdit post.AuthorId ctx ->
-        let _, extra = WebLog.hostAndPath ctx.WebLog
         return! {|
             content =
                 [   """<div class="mwl-revision-preview mb-3">"""
-                    rev.Text.AsHtml() |> addBaseToRelativeUrls extra
+                    rev.Text.AsHtml() |> addBaseToRelativeUrls ctx.WebLog.ExtraPath
                     "</div>"
                 ]
                 |> String.concat ""
@@ -378,7 +377,7 @@ let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     let  data    = ctx.Data
     let  tryPost =
         if model.IsNew then
-            { Post.empty with
+            { Post.Empty with
                 Id        = PostId.Create()
                 WebLogId  = ctx.WebLog.Id
                 AuthorId  = ctx.UserId

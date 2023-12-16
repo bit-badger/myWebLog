@@ -21,7 +21,7 @@ let assetExists fileName (webLog : WebLog) =
     ThemeAssetCache.get webLog.ThemeId |> List.exists (fun it -> it = fileName)
 
 /// Obtain the link from known types
-let permalink (ctx : Context) (item : obj) (linkFunc : WebLog -> Permalink -> string) =
+let permalink (item: obj) (linkFunc: Permalink -> string) =
     match item with
     | :? String       as link  -> Some link
     | :? DisplayPage  as page  -> Some page.Permalink
@@ -29,64 +29,64 @@ let permalink (ctx : Context) (item : obj) (linkFunc : WebLog -> Permalink -> st
     | :? DropProxy    as proxy -> Option.ofObj proxy["Permalink"] |> Option.map string
     | _ -> None
     |> function
-    | Some link -> linkFunc ctx.WebLog (Permalink link)
+    | Some link -> linkFunc (Permalink link)
     | None      -> $"alert('unknown item type {item.GetType().Name}')"
 
 
 /// A filter to generate an absolute link
-type AbsoluteLinkFilter () =
-    static member AbsoluteLink (ctx : Context, item : obj) =
-        permalink ctx item WebLog.absoluteUrl
+type AbsoluteLinkFilter() =
+    static member AbsoluteLink(ctx: Context, item: obj) =
+        permalink item ctx.WebLog.AbsoluteUrl
 
 
 /// A filter to generate a link with posts categorized under the given category
-type CategoryLinkFilter () =
-    static member CategoryLink (ctx : Context, catObj : obj) =
+type CategoryLinkFilter() =
+    static member CategoryLink(ctx: Context, catObj: obj) =
         match catObj with
         | :? DisplayCategory as cat   -> Some cat.Slug
         | :? DropProxy       as proxy -> Option.ofObj proxy["Slug"] |> Option.map string
         | _ -> None
         |> function
-        | Some slug -> WebLog.relativeUrl ctx.WebLog (Permalink $"category/{slug}/")
+        | Some slug -> ctx.WebLog.RelativeUrl(Permalink $"category/{slug}/")
         | None      -> $"alert('unknown category object type {catObj.GetType().Name}')"
-        
+
 
 /// A filter to generate a link that will edit a page
-type EditPageLinkFilter () =
-    static member EditPageLink (ctx : Context, pageObj : obj) =
+type EditPageLinkFilter() =
+    static member EditPageLink(ctx: Context, pageObj: obj) =
         match pageObj with
         | :? DisplayPage as page  -> Some page.Id
         | :? DropProxy   as proxy -> Option.ofObj proxy["Id"] |> Option.map string
         | :? String      as theId -> Some theId
         | _ -> None
         |> function
-        | Some pageId -> WebLog.relativeUrl ctx.WebLog (Permalink $"admin/page/{pageId}/edit")
+        | Some pageId -> ctx.WebLog.RelativeUrl(Permalink $"admin/page/{pageId}/edit")
         | None        -> $"alert('unknown page object type {pageObj.GetType().Name}')"
- 
-    
+
+
 /// A filter to generate a link that will edit a post
-type EditPostLinkFilter () =
-    static member EditPostLink (ctx : Context, postObj : obj) =
+type EditPostLinkFilter() =
+    static member EditPostLink(ctx: Context, postObj: obj) =
         match postObj with
         | :? PostListItem as post  -> Some post.Id
         | :? DropProxy    as proxy -> Option.ofObj proxy["Id"] |> Option.map string
         | :? String       as theId -> Some theId
         | _ -> None
         |> function
-        | Some postId -> WebLog.relativeUrl ctx.WebLog (Permalink $"admin/post/{postId}/edit")
+        | Some postId -> ctx.WebLog.RelativeUrl(Permalink $"admin/post/{postId}/edit")
         | None        -> $"alert('unknown post object type {postObj.GetType().Name}')"
  
     
 /// A filter to generate nav links, highlighting the active link (exact match)
-type NavLinkFilter () =
-    static member NavLink (ctx : Context, url : string, text : string) =
-        let _, path = WebLog.hostAndPath ctx.WebLog
-        let path = if path = "" then path else $"{path.Substring 1}/"
+type NavLinkFilter() =
+    static member NavLink(ctx: Context, url: string, text: string) =
+        let extraPath = ctx.WebLog.ExtraPath
+        let path = if extraPath = "" then "" else $"{extraPath[1..]}/"
         seq {
             "<li class=\"nav-item\"><a class=\"nav-link"
             if (string ctx.Environments[0].["current_page"]).StartsWith $"{path}{url}" then " active"
             "\" href=\""
-            WebLog.relativeUrl ctx.WebLog (Permalink url)
+            ctx.WebLog.RelativeUrl(Permalink url)
             "\">"
             text
             "</a></li>"
@@ -97,7 +97,7 @@ type NavLinkFilter () =
 /// A filter to generate a link for theme asset (image, stylesheet, script, etc.)
 type ThemeAssetFilter() =
     static member ThemeAsset(ctx: Context, asset: string) =
-        WebLog.relativeUrl ctx.WebLog (Permalink $"themes/{ctx.WebLog.ThemeId}/{asset}")
+        ctx.WebLog.RelativeUrl(Permalink $"themes/{ctx.WebLog.ThemeId}/{asset}")
 
 
 /// Create various items in the page header based on the state of the page being generated
@@ -122,12 +122,12 @@ type PageHeadTag() =
         // RSS feeds and canonical URLs
         let feedLink title url =
             let escTitle = HttpUtility.HtmlAttributeEncode title
-            let relUrl   = WebLog.relativeUrl webLog (Permalink url)
+            let relUrl   = webLog.RelativeUrl(Permalink url)
             $"""{s}<link rel="alternate" type="application/rss+xml" title="{escTitle}" href="{relUrl}">"""
         
         if webLog.Rss.IsFeedEnabled && getBool "is_home" then
             result.WriteLine(feedLink webLog.Name webLog.Rss.FeedName)
-            result.WriteLine $"""{s}<link rel="canonical" href="{WebLog.absoluteUrl webLog Permalink.Empty}">"""
+            result.WriteLine $"""{s}<link rel="canonical" href="{webLog.AbsoluteUrl Permalink.Empty}">"""
         
         if webLog.Rss.IsCategoryEnabled && getBool "is_category_home" then
             let slug = context.Environments[0].["slug"] :?> string
@@ -139,12 +139,12 @@ type PageHeadTag() =
             
         if getBool "is_post" then
             let post = context.Environments[0].["model"] :?> PostDisplay
-            let url  = WebLog.absoluteUrl webLog (Permalink post.Posts[0].Permalink)
+            let url  = webLog.AbsoluteUrl (Permalink post.Posts[0].Permalink)
             result.WriteLine $"""{s}<link rel="canonical" href="{url}">"""
         
         if getBool "is_page" then
             let page = context.Environments[0].["page"] :?> DisplayPage
-            let url  = WebLog.absoluteUrl webLog (Permalink page.Permalink)
+            let url  = webLog.AbsoluteUrl (Permalink page.Permalink)
             result.WriteLine $"""{s}<link rel="canonical" href="{url}">"""
 
 
@@ -167,26 +167,26 @@ type PageFootTag () =
 /// A filter to generate a relative link
 type RelativeLinkFilter () =
     static member RelativeLink (ctx : Context, item : obj) =
-        permalink ctx item WebLog.relativeUrl
+        permalink item ctx.WebLog.RelativeUrl
 
 
 /// A filter to generate a link with posts tagged with the given tag
-type TagLinkFilter () =
-    static member TagLink (ctx : Context, tag : string) =
+type TagLinkFilter() =
+    static member TagLink(ctx: Context, tag: string) =
         ctx.Environments[0].["tag_mappings"] :?> TagMap list
         |> List.tryFind (fun it -> it.Tag = tag)
         |> function
         | Some tagMap -> tagMap.UrlValue
-        | None        -> tag.Replace (" ", "+")
-        |> function tagUrl -> WebLog.relativeUrl ctx.WebLog (Permalink $"tag/{tagUrl}/")
+        | None        -> tag.Replace(" ", "+")
+        |> function tagUrl -> ctx.WebLog.RelativeUrl(Permalink $"tag/{tagUrl}/")
 
 
 /// Create links for a user to log on or off, and a dashboard link if they are logged off
-type UserLinksTag () =
-    inherit Tag ()
+type UserLinksTag() =
+    inherit Tag()
     
-    override this.Render (context : Context, result : TextWriter) =
-        let link it = WebLog.relativeUrl context.WebLog (Permalink it)
+    override this.Render(context: Context, result: TextWriter) =
+        let link it = context.WebLog.RelativeUrl(Permalink it)
         seq {
             """<ul class="navbar-nav flex-grow-1 justify-content-end">"""
             match Convert.ToBoolean context.Environments[0].["is_logged_on"] with
@@ -201,8 +201,8 @@ type UserLinksTag () =
 
 /// A filter to retrieve the value of a meta item from a list
 //    (shorter than `{% assign item = list | where: "Name", [name] | first %}{{ item.value }}`)
-type ValueFilter () =
-    static member Value (_ : Context, items : MetaItem list, name : string) =
+type ValueFilter() =
+    static member Value(_: Context, items: MetaItem list, name: string) =
         match items |> List.tryFind (fun it -> it.Name = name) with
         | Some item -> item.Value
         | None -> $"-- {name} not found --"

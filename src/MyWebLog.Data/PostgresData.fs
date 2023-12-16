@@ -58,10 +58,10 @@ type PostgresData (log : ILogger<PostgresData>, ser : JsonSerializer) =
             // Page tables
             if needsTable Table.Page then
                 Definition.createTable Table.Page
-                $"CREATE INDEX page_web_log_idx   ON {Table.Page} ((data ->> '{nameof Page.empty.WebLogId}'))"
-                $"CREATE INDEX page_author_idx    ON {Table.Page} ((data ->> '{nameof Page.empty.AuthorId}'))"
+                $"CREATE INDEX page_web_log_idx   ON {Table.Page} ((data ->> '{nameof Page.Empty.WebLogId}'))"
+                $"CREATE INDEX page_author_idx    ON {Table.Page} ((data ->> '{nameof Page.Empty.AuthorId}'))"
                 $"CREATE INDEX page_permalink_idx ON {Table.Page}
-                    ((data ->> '{nameof Page.empty.WebLogId}'), (data ->> '{nameof Page.empty.Permalink}'))"
+                    ((data ->> '{nameof Page.Empty.WebLogId}'), (data ->> '{nameof Page.Empty.Permalink}'))"
             if needsTable Table.PageRevision then
                 $"CREATE TABLE {Table.PageRevision} (
                     page_id        TEXT        NOT NULL REFERENCES {Table.Page} (id) ON DELETE CASCADE,
@@ -72,15 +72,15 @@ type PostgresData (log : ILogger<PostgresData>, ser : JsonSerializer) =
             // Post tables
             if needsTable Table.Post then
                 Definition.createTable Table.Post
-                $"CREATE INDEX post_web_log_idx   ON {Table.Post} ((data ->> '{nameof Post.empty.WebLogId}'))"
-                $"CREATE INDEX post_author_idx    ON {Table.Post} ((data ->> '{nameof Post.empty.AuthorId}'))"
+                $"CREATE INDEX post_web_log_idx   ON {Table.Post} ((data ->> '{nameof Post.Empty.WebLogId}'))"
+                $"CREATE INDEX post_author_idx    ON {Table.Post} ((data ->> '{nameof Post.Empty.AuthorId}'))"
                 $"CREATE INDEX post_status_idx    ON {Table.Post}
-                    ((data ->> '{nameof Post.empty.WebLogId}'), (data ->> '{nameof Post.empty.Status}'),
-                     (data ->> '{nameof Post.empty.UpdatedOn}'))"
+                    ((data ->> '{nameof Post.Empty.WebLogId}'), (data ->> '{nameof Post.Empty.Status}'),
+                     (data ->> '{nameof Post.Empty.UpdatedOn}'))"
                 $"CREATE INDEX post_permalink_idx ON {Table.Post}
-                    ((data ->> '{nameof Post.empty.WebLogId}'), (data ->> '{nameof Post.empty.Permalink}'))"
-                $"CREATE INDEX post_category_idx  ON {Table.Post} USING GIN ((data['{nameof Post.empty.CategoryIds}']))"
-                $"CREATE INDEX post_tag_idx       ON {Table.Post} USING GIN ((data['{nameof Post.empty.Tags}']))"
+                    ((data ->> '{nameof Post.Empty.WebLogId}'), (data ->> '{nameof Post.Empty.Permalink}'))"
+                $"CREATE INDEX post_category_idx  ON {Table.Post} USING GIN ((data['{nameof Post.Empty.CategoryIds}']))"
+                $"CREATE INDEX post_tag_idx       ON {Table.Post} USING GIN ((data['{nameof Post.Empty.Tags}']))"
             if needsTable Table.PostRevision then
                 $"CREATE TABLE {Table.PostRevision} (
                     post_id        TEXT        NOT NULL REFERENCES {Table.Post} (id) ON DELETE CASCADE,
@@ -90,7 +90,7 @@ type PostgresData (log : ILogger<PostgresData>, ser : JsonSerializer) =
             if needsTable Table.PostComment then
                 Definition.createTable Table.PostComment
                 $"CREATE INDEX post_comment_post_idx ON {Table.PostComment}
-                    ((data ->> '{nameof Comment.empty.PostId}'))"
+                    ((data ->> '{nameof Comment.Empty.PostId}'))"
             
             // Tag map table
             if needsTable Table.TagMap then

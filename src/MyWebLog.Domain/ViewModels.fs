@@ -103,46 +103,46 @@ module DisplayCustomFeed =
 
 /// Details about a page used to display page lists
 [<NoComparison; NoEquality>]
-type DisplayPage =
-    {   /// The ID of this page
-        Id : string
+type DisplayPage = {
+    /// The ID of this page
+    Id: string
 
-        /// The ID of the author of this page
-        AuthorId : string
-        
-        /// The title of the page
-        Title : string
+    /// The ID of the author of this page
+    AuthorId: string
+    
+    /// The title of the page
+    Title: string
 
-        /// The link at which this page is displayed
-        Permalink : string
+    /// The link at which this page is displayed
+    Permalink: string
 
-        /// When this page was published
-        PublishedOn : DateTime
+    /// When this page was published
+    PublishedOn: DateTime
 
-        /// When this page was last updated
-        UpdatedOn : DateTime
+    /// When this page was last updated
+    UpdatedOn: DateTime
 
-        /// Whether this page shows as part of the web log's navigation
-        IsInPageList : bool
-        
-        /// Is this the default page?
-        IsDefault : bool
-        
-        /// The text of the page
-        Text : string
-        
-        /// The metadata for the page
-        Metadata : MetaItem list
-    }
+    /// Whether this page shows as part of the web log's navigation
+    IsInPageList: bool
+    
+    /// Is this the default page?
+    IsDefault: bool
+    
+    /// The text of the page
+    Text: string
+    
+    /// The metadata for the page
+    Metadata: MetaItem list
+} with
     
     /// Create a minimal display page (no text or metadata) from a database page
-    static member FromPageMinimal webLog (page: Page) = {
+    static member FromPageMinimal (webLog: WebLog) (page: Page) = {
         Id           = string page.Id
         AuthorId     = string page.AuthorId
         Title        = page.Title
         Permalink    = string page.Permalink
-        PublishedOn  = WebLog.localTime webLog page.PublishedOn
-        UpdatedOn    = WebLog.localTime webLog page.UpdatedOn
+        PublishedOn  = webLog.LocalTime page.PublishedOn
+        UpdatedOn    = webLog.LocalTime page.UpdatedOn
         IsInPageList = page.IsInPageList
         IsDefault    = string page.Id = webLog.DefaultPage
         Text         = ""
@@ -150,18 +150,10 @@ type DisplayPage =
     }
     
     /// Create a display page from a database page
-    static member FromPage webLog (page : Page) =
-        let _, extra = WebLog.hostAndPath webLog
-        {   Id           = string page.Id
-            AuthorId     = string page.AuthorId
-            Title        = page.Title
-            Permalink    = string page.Permalink
-            PublishedOn  = WebLog.localTime webLog page.PublishedOn
-            UpdatedOn    = WebLog.localTime webLog page.UpdatedOn
-            IsInPageList = page.IsInPageList
-            IsDefault    = string page.Id = webLog.DefaultPage
-            Text         = addBaseToRelativeUrls extra page.Text
-            Metadata     = page.Metadata
+    static member FromPage webLog page =
+        { DisplayPage.FromPageMinimal webLog page with
+            Text     = addBaseToRelativeUrls webLog.ExtraPath page.Text
+            Metadata = page.Metadata
         }
 
 
@@ -169,22 +161,22 @@ type DisplayPage =
 [<NoComparison; NoEquality>]
 type DisplayRevision = {
     /// The as-of date/time for the revision
-    AsOf : DateTime
+    AsOf: DateTime
     
     /// The as-of date/time for the revision in the web log's local time zone
-    AsOfLocal : DateTime
+    AsOfLocal: DateTime
     
     /// The format of the text of the revision
-    Format : string
+    Format: string
 }
 
 /// Functions to support displaying revisions
 module DisplayRevision =
     
     /// Create a display revision from an actual revision
-    let fromRevision webLog (rev : Revision) =
+    let fromRevision (webLog: WebLog) (rev : Revision) =
         {   AsOf      = rev.AsOf.ToDateTimeUtc ()
-            AsOfLocal = WebLog.localTime webLog rev.AsOf
+            AsOfLocal = webLog.LocalTime rev.AsOf
             Format    = rev.Text.SourceType
         }
 
@@ -250,13 +242,13 @@ type DisplayUpload = {
 module DisplayUpload =
     
     /// Create a display uploaded file
-    let fromUpload webLog (source: UploadDestination) (upload: Upload) =
+    let fromUpload (webLog: WebLog) (source: UploadDestination) (upload: Upload) =
         let path = string upload.Path
         let name = Path.GetFileName path
         {   Id        = string upload.Id
             Name      = name
             Path      = path.Replace(name, "")
-            UpdatedOn = Some (WebLog.localTime webLog upload.UpdatedOn)
+            UpdatedOn = Some (webLog.LocalTime upload.UpdatedOn)
             Source    = string source
         }
 
@@ -296,17 +288,17 @@ type DisplayUser = {
 module DisplayUser =
     
     /// Construct a displayed user from a web log user
-    let fromUser webLog (user: WebLogUser) =
-        {   Id            = string user.Id
-            Email         = user.Email
-            FirstName     = user.FirstName
-            LastName      = user.LastName
-            PreferredName = user.PreferredName
-            Url           = defaultArg user.Url ""
-            AccessLevel   = string user.AccessLevel
-            CreatedOn     = WebLog.localTime webLog user.CreatedOn
-            LastSeenOn    = user.LastSeenOn |> Option.map (WebLog.localTime webLog) |> Option.toNullable
-        }
+    let fromUser (webLog: WebLog) (user: WebLogUser) = {
+        Id            = string user.Id
+        Email         = user.Email
+        FirstName     = user.FirstName
+        LastName      = user.LastName
+        PreferredName = user.PreferredName
+        Url           = defaultArg user.Url ""
+        AccessLevel   = string user.AccessLevel
+        CreatedOn     = webLog.LocalTime user.CreatedOn
+        LastSeenOn    = user.LastSeenOn |> Option.map webLog.LocalTime |> Option.toNullable
+    }
 
 
 /// View model for editing categories
@@ -708,7 +700,7 @@ type EditPostModel = {
 } with
     
     /// Create an edit model from an existing past
-    static member fromPost webLog (post: Post) =
+    static member fromPost (webLog: WebLog) (post: Post) =
         let latest =
             match post.Revisions |> List.sortByDescending _.AsOf |> List.tryHead with
             | Some rev -> rev
@@ -728,7 +720,7 @@ type EditPostModel = {
             MetaNames          = post.Metadata |> List.map _.Name  |> Array.ofList
             MetaValues         = post.Metadata |> List.map _.Value |> Array.ofList
             SetPublished       = false
-            PubOverride        = post.PublishedOn |> Option.map (WebLog.localTime webLog) |> Option.toNullable
+            PubOverride        = post.PublishedOn |> Option.map webLog.LocalTime |> Option.toNullable
             SetUpdated         = false
             IsEpisode          = Option.isSome post.Episode
             Media              = episode.Media
@@ -1111,22 +1103,20 @@ type PostListItem = {
 } with
 
     /// Create a post list item from a post
-    static member fromPost (webLog: WebLog) (post: Post) =
-        let _, extra = WebLog.hostAndPath webLog
-        let inTZ     = WebLog.localTime   webLog
-        {   Id          = string post.Id
-            AuthorId    = string post.AuthorId
-            Status      = string post.Status
-            Title       = post.Title
-            Permalink   = string post.Permalink
-            PublishedOn = post.PublishedOn |> Option.map inTZ |> Option.toNullable
-            UpdatedOn   = inTZ post.UpdatedOn
-            Text        = addBaseToRelativeUrls extra post.Text
-            CategoryIds = post.CategoryIds |> List.map string
-            Tags        = post.Tags
-            Episode     = post.Episode
-            Metadata    = post.Metadata
-        }
+    static member fromPost (webLog: WebLog) (post: Post) = {
+        Id          = string post.Id
+        AuthorId    = string post.AuthorId
+        Status      = string post.Status
+        Title       = post.Title
+        Permalink   = string post.Permalink
+        PublishedOn = post.PublishedOn |> Option.map webLog.LocalTime |> Option.toNullable
+        UpdatedOn   = webLog.LocalTime post.UpdatedOn
+        Text        = addBaseToRelativeUrls webLog.ExtraPath post.Text
+        CategoryIds = post.CategoryIds |> List.map string
+        Tags        = post.Tags
+        Episode     = post.Episode
+        Metadata    = post.Metadata
+    }
 
 
 /// View model for displaying posts

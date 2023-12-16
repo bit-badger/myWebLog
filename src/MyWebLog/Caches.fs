@@ -53,7 +53,7 @@ module Extensions =
         
         /// Does the current user have the requested level of access?
         member this.HasAccessLevel level =
-            defaultArg (this.UserAccessLevel |> Option.map (fun it -> it.HasAccess level)) false
+            defaultArg (this.UserAccessLevel |> Option.map _.HasAccess(level)) false
 
 
 open System.Collections.Concurrent
@@ -93,13 +93,13 @@ module WebLogCache =
         _redirectCache[webLog.Id] <-
             webLog.RedirectRules
             |> List.map (fun it ->
-                let relUrl = Permalink >> WebLog.relativeUrl webLog
+                let relUrl = Permalink >> webLog.RelativeUrl
                 let urlTo = if it.To.Contains "://" then it.To else relUrl it.To
                 if it.IsRegex then
-                    let pattern = if it.From.StartsWith "^" then $"^{relUrl (it.From.Substring 1)}" else it.From
-                    RegEx (new Regex (pattern, RegexOptions.Compiled ||| RegexOptions.IgnoreCase), urlTo)
+                    let pattern = if it.From.StartsWith "^" then $"^{relUrl it.From[1..]}" else it.From
+                    RegEx(Regex(pattern, RegexOptions.Compiled ||| RegexOptions.IgnoreCase), urlTo)
                 else
-                    Text (relUrl it.From, urlTo))
+                    Text(relUrl it.From, urlTo))
     
     /// Get all cached web logs
     let all () =

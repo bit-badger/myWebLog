@@ -16,14 +16,14 @@ module CatchAll =
         let data     = ctx.Data
         let debug    = debug "Routes.CatchAll" ctx
         let textLink =
-            let _, extra = WebLog.hostAndPath webLog
-            let url      = string ctx.Request.Path
-            (if extra = "" then url else url.Substring extra.Length).ToLowerInvariant()
+            let extra = webLog.ExtraPath
+            let url   = string ctx.Request.Path
+            (if extra = "" then url else url[..extra.Length]).ToLowerInvariant()
         let await it = (Async.AwaitTask >> Async.RunSynchronously) it
         seq {
             debug (fun () -> $"Considering URL {textLink}")
             // Home page directory without the directory slash 
-            if textLink = "" then yield redirectTo true (WebLog.relativeUrl webLog Permalink.Empty)
+            if textLink = "" then yield redirectTo true (webLog.RelativeUrl Permalink.Empty)
             let permalink = Permalink textLink[1..]
             // Current post
             match data.Post.FindByPermalink permalink webLog.Id |> await with
@@ -56,25 +56,25 @@ module CatchAll =
             match data.Post.FindByPermalink altLink webLog.Id |> await with
             | Some post ->
                 debug (fun () -> "Found post by trailing-slash-agnostic permalink")
-                yield redirectTo true (WebLog.relativeUrl webLog post.Permalink)
+                yield redirectTo true (webLog.RelativeUrl post.Permalink)
             | None -> ()
             // Page differing only by trailing slash
             match data.Page.FindByPermalink altLink webLog.Id |> await with
             | Some page ->
                 debug (fun () -> "Found page by trailing-slash-agnostic permalink")
-                yield redirectTo true (WebLog.relativeUrl webLog page.Permalink)
+                yield redirectTo true (webLog.RelativeUrl page.Permalink)
             | None -> ()
             // Prior post
             match data.Post.FindCurrentPermalink [ permalink; altLink ] webLog.Id |> await with
             | Some link ->
                 debug (fun () -> "Found post by prior permalink")
-                yield redirectTo true (WebLog.relativeUrl webLog link)
+                yield redirectTo true (webLog.RelativeUrl link)
             | None -> ()
             // Prior page
             match data.Page.FindCurrentPermalink [ permalink; altLink ] webLog.Id |> await with
             | Some link ->
                 debug (fun () -> "Found page by prior permalink")
-                yield redirectTo true (WebLog.relativeUrl webLog link)
+                yield redirectTo true (webLog.RelativeUrl link)
             | None -> ()
             debug (fun () -> "No content found")
         }
@@ -239,7 +239,7 @@ let routerWithPath extraPath : HttpHandler =
 
 /// Handler to apply Giraffe routing with a possible sub-route
 let handleRoute : HttpHandler = fun next ctx ->
-    let _, extraPath = WebLog.hostAndPath ctx.WebLog
+    let extraPath = ctx.WebLog.ExtraPath
     (if extraPath = "" then router else routerWithPath extraPath) next ctx
 
 

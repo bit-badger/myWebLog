@@ -80,10 +80,10 @@ type PostgresPostData(log: ILogger) =
         log.LogTrace "Post.findCurrentPermalink"
         if List.isEmpty permalinks then return None
         else
-            let linkSql, linkParam = arrayContains (nameof Post.empty.PriorPermalinks) string permalinks
+            let linkSql, linkParam = arrayContains (nameof Post.Empty.PriorPermalinks) string permalinks
             return!
                 Custom.single
-                    $"""SELECT data ->> '{nameof Post.empty.Permalink}' AS permalink
+                    $"""SELECT data ->> '{nameof Post.Empty.Permalink}' AS permalink
                           FROM {Table.Post}
                          WHERE {Query.whereDataContains "@criteria"}
                            AND {linkSql}""" [ webLogContains webLogId; linkParam ] Map.toPermalink
@@ -103,11 +103,11 @@ type PostgresPostData(log: ILogger) =
     /// Get a page of categorized posts for the given web log (excludes revisions)
     let findPageOfCategorizedPosts webLogId (categoryIds: CategoryId list) pageNbr postsPerPage =
         log.LogTrace "Post.findPageOfCategorizedPosts"
-        let catSql, catParam = arrayContains (nameof Post.empty.CategoryIds) string categoryIds
+        let catSql, catParam = arrayContains (nameof Post.Empty.CategoryIds) string categoryIds
         Custom.list
             $"{selectWithCriteria Table.Post}
                  AND {catSql}
-               ORDER BY data ->> '{nameof Post.empty.PublishedOn}' DESC
+               ORDER BY data ->> '{nameof Post.Empty.PublishedOn}' DESC
                LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"
             [   "@criteria", Query.jsonbDocParam {| webLogDoc webLogId with Status = Published |}
                 catParam
@@ -118,8 +118,8 @@ type PostgresPostData(log: ILogger) =
         log.LogTrace "Post.findPageOfPosts"
         Custom.list
             $"{selectWithCriteria Table.Post}
-               ORDER BY data ->> '{nameof Post.empty.PublishedOn}' DESC NULLS FIRST,
-                        data ->> '{nameof Post.empty.UpdatedOn}'
+               ORDER BY data ->> '{nameof Post.Empty.PublishedOn}' DESC NULLS FIRST,
+                        data ->> '{nameof Post.Empty.UpdatedOn}'
                LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"
             [ webLogContains webLogId ] postWithoutText
     
@@ -128,7 +128,7 @@ type PostgresPostData(log: ILogger) =
         log.LogTrace "Post.findPageOfPublishedPosts"
         Custom.list
             $"{selectWithCriteria Table.Post}
-               ORDER BY data ->> '{nameof Post.empty.PublishedOn}' DESC
+               ORDER BY data ->> '{nameof Post.Empty.PublishedOn}' DESC
                LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"
             [ "@criteria", Query.jsonbDocParam {| webLogDoc webLogId with Status = Published |} ]
             fromData<Post>
@@ -138,8 +138,8 @@ type PostgresPostData(log: ILogger) =
         log.LogTrace "Post.findPageOfTaggedPosts"
         Custom.list
             $"{selectWithCriteria Table.Post}
-                 AND data['{nameof Post.empty.Tags}'] @> @tag
-               ORDER BY data ->> '{nameof Post.empty.PublishedOn}' DESC
+                 AND data['{nameof Post.Empty.Tags}'] @> @tag
+               ORDER BY data ->> '{nameof Post.Empty.PublishedOn}' DESC
                LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"
             [   "@criteria", Query.jsonbDocParam {| webLogDoc webLogId with Status = Published |}
                 "@tag",      Query.jsonbDocParam [| tag |]
@@ -152,7 +152,7 @@ type PostgresPostData(log: ILogger) =
             "@criteria",    Query.jsonbDocParam {| webLogDoc webLogId with Status = Published |}
             "@publishedOn", Sql.string ((InstantPattern.General.Format publishedOn)[..19])
         ]
-        let pubField  = nameof Post.empty.PublishedOn
+        let pubField  = nameof Post.Empty.PublishedOn
         let! older =
             Custom.list
                 $"{selectWithCriteria Table.Post}
