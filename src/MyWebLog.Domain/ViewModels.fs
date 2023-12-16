@@ -9,7 +9,7 @@ open NodaTime
 module private Helpers =
     
     /// Create a string option if a string is blank
-    let noneIfBlank (it : string) =
+    let noneIfBlank it =
         match (defaultArg (Option.ofObj it) "").Trim() with "" -> None | trimmed -> Some trimmed
 
 
@@ -19,31 +19,31 @@ module PublicHelpers =
     
     /// If the web log is not being served from the domain root, add the path information to relative URLs in page and
     /// post text
-    let addBaseToRelativeUrls extra (text : string) =
+    let addBaseToRelativeUrls extra (text: string) =
         if extra = "" then text
-        else text.Replace("href=\"/", $"href=\"{extra}/").Replace ("src=\"/", $"src=\"{extra}/")
+        else text.Replace("href=\"/", $"href=\"{extra}/").Replace("src=\"/", $"src=\"{extra}/")
 
 
 /// The model used to display the admin dashboard
 [<NoComparison; NoEquality>]
 type DashboardModel = {
     /// The number of published posts
-    Posts : int
+    Posts: int
 
     /// The number of post drafts
-    Drafts : int
+    Drafts: int
 
     /// The number of pages
-    Pages : int
+    Pages: int
 
     /// The number of pages in the page list
-    ListedPages : int
+    ListedPages: int
 
     /// The number of categories
-    Categories : int
+    Categories: int
 
     /// The top-level categories
-    TopLevelCategories : int
+    TopLevelCategories: int
 }
 
 
@@ -51,22 +51,22 @@ type DashboardModel = {
 [<NoComparison; NoEquality>]
 type DisplayCategory = {
     /// The ID of the category
-    Id : string
+    Id: string
     
     /// The slug for the category
-    Slug : string
+    Slug: string
     
     /// The name of the category
-    Name : string
+    Name: string
     
     /// A description of the category
-    Description : string option
+    Description: string option
     
     /// The parent category names for this (sub)category
-    ParentNames : string[]
+    ParentNames: string array
     
     /// The number of posts in this category
-    PostCount : int
+    PostCount: int
 }
 
 
@@ -83,13 +83,10 @@ type DisplayCustomFeed = {
     
     /// Whether this custom feed is for a podcast
     IsPodcast: bool
-}
-
-/// Support functions for custom feed displays
-module DisplayCustomFeed =
+} with
     
     /// Create a display version from a custom feed
-    let fromFeed (cats: DisplayCategory array) (feed: CustomFeed) : DisplayCustomFeed =
+    static member FromFeed (cats: DisplayCategory array) (feed: CustomFeed) =
         let source =
             match feed.Source with
             | Category (CategoryId catId) -> $"Category: {(cats |> Array.find (fun cat -> cat.Id = catId)).Name}"
@@ -168,17 +165,14 @@ type DisplayRevision = {
     
     /// The format of the text of the revision
     Format: string
-}
-
-/// Functions to support displaying revisions
-module DisplayRevision =
+} with
     
     /// Create a display revision from an actual revision
-    let fromRevision (webLog: WebLog) (rev : Revision) =
-        {   AsOf      = rev.AsOf.ToDateTimeUtc ()
-            AsOfLocal = webLog.LocalTime rev.AsOf
-            Format    = rev.Text.SourceType
-        }
+    static member FromRevision (webLog: WebLog) (rev : Revision) = {
+        AsOf      = rev.AsOf.ToDateTimeUtc()
+        AsOfLocal = webLog.LocalTime rev.AsOf
+        Format    = rev.Text.SourceType
+    }
 
 
 open System.IO
@@ -203,20 +197,17 @@ type DisplayTheme = {
     
     /// Whether the theme .zip file exists on the filesystem
     IsOnDisk: bool
-}
-
-/// Functions to support displaying themes
-module DisplayTheme =
+} with
     
     /// Create a display theme from a theme
-    let fromTheme inUseFunc (theme: Theme) =
-        {   Id            = string theme.Id
-            Name          = theme.Name
-            Version       = theme.Version
-            TemplateCount = List.length theme.Templates
-            IsInUse       = inUseFunc theme.Id
-            IsOnDisk      = File.Exists $"{theme.Id}-theme.zip"
-        }
+    static member FromTheme inUseFunc (theme: Theme) = {
+        Id            = string theme.Id
+        Name          = theme.Name
+        Version       = theme.Version
+        TemplateCount = List.length theme.Templates
+        IsInUse       = inUseFunc theme.Id
+        IsOnDisk      = File.Exists $"{theme.Id}-theme.zip"
+    }
 
 
 /// Information about an uploaded file used for display
@@ -236,13 +227,10 @@ type DisplayUpload = {
     
     /// The source for this file (created from UploadDestination DU)
     Source: string
-}
-
-/// Functions to support displaying uploads
-module DisplayUpload =
+} with
     
     /// Create a display uploaded file
-    let fromUpload (webLog: WebLog) (source: UploadDestination) (upload: Upload) =
+    static member FromUpload (webLog: WebLog) (source: UploadDestination) (upload: Upload) =
         let path = string upload.Path
         let name = Path.GetFileName path
         {   Id        = string upload.Id
@@ -282,13 +270,10 @@ type DisplayUser = {
     
     /// When the user last logged on
     LastSeenOn: Nullable<DateTime>
-}
-
-/// Functions to support displaying a user's information
-module DisplayUser =
+} with
     
     /// Construct a displayed user from a web log user
-    let fromUser (webLog: WebLog) (user: WebLogUser) = {
+    static member FromUser (webLog: WebLog) (user: WebLogUser) = {
         Id            = string user.Id
         Email         = user.Email
         FirstName     = user.FirstName
@@ -321,119 +306,119 @@ type EditCategoryModel = {
 } with
     
     /// Create an edit model from an existing category 
-    static member fromCategory (cat: Category) =
-        {   CategoryId  = string cat.Id
-            Name        = cat.Name
-            Slug        = cat.Slug
-            Description = defaultArg cat.Description ""
-            ParentId    = cat.ParentId |> Option.map string |> Option.defaultValue ""
-        }
+    static member FromCategory (cat: Category) = {
+        CategoryId  = string cat.Id
+        Name        = cat.Name
+        Slug        = cat.Slug
+        Description = defaultArg cat.Description ""
+        ParentId    = cat.ParentId |> Option.map string |> Option.defaultValue ""
+    }
     
     /// Is this a new category?
-    member this.IsNew = this.CategoryId = "new"
+    member this.IsNew =
+        this.CategoryId = "new"
 
 
 /// View model to edit a custom RSS feed
 [<CLIMutable; NoComparison; NoEquality>]
-type EditCustomFeedModel =
-    {   /// The ID of the feed being editing
-        Id : string
-        
-        /// The type of source for this feed ("category" or "tag")
-        SourceType : string
-        
-        /// The category ID or tag on which this feed is based
-        SourceValue : string
-        
-        /// The relative path at which this feed is served
-        Path : string
-        
-        /// Whether this feed defines a podcast
-        IsPodcast : bool
-        
-        /// The title of the podcast
-        Title : string
-        
-        /// A subtitle for the podcast
-        Subtitle : string
-        
-        /// The number of items in the podcast feed
-        ItemsInFeed : int
-        
-        /// A summary of the podcast (iTunes field)
-        Summary : string
-        
-        /// The display name of the podcast author (iTunes field)
-        DisplayedAuthor : string
-        
-        /// The e-mail address of the user who registered the podcast at iTunes
-        Email : string
-        
-        /// The link to the image for the podcast
-        ImageUrl : string
-        
-        /// The category from Apple Podcasts (iTunes) under which this podcast is categorized
-        AppleCategory : string
-        
-        /// A further refinement of the categorization of this podcast (Apple Podcasts/iTunes field / values)
-        AppleSubcategory : string
-        
-        /// The explictness rating (iTunes field)
-        Explicit : string
-        
-        /// The default media type for files in this podcast
-        DefaultMediaType : string
-        
-        /// The base URL for relative URL media files for this podcast (optional; defaults to web log base)
-        MediaBaseUrl : string
-        
-        /// The URL for funding information for the podcast
-        FundingUrl : string
-        
-        /// The text for the funding link
-        FundingText : string
-        
-        /// A unique identifier to follow this podcast
-        PodcastGuid : string
-        
-        /// The medium for the content of this podcast
-        Medium : string
-    }
+type EditCustomFeedModel = {
+    /// The ID of the feed being editing
+    Id: string
+    
+    /// The type of source for this feed ("category" or "tag")
+    SourceType: string
+    
+    /// The category ID or tag on which this feed is based
+    SourceValue: string
+    
+    /// The relative path at which this feed is served
+    Path: string
+    
+    /// Whether this feed defines a podcast
+    IsPodcast: bool
+    
+    /// The title of the podcast
+    Title: string
+    
+    /// A subtitle for the podcast
+    Subtitle: string
+    
+    /// The number of items in the podcast feed
+    ItemsInFeed: int
+    
+    /// A summary of the podcast (iTunes field)
+    Summary: string
+    
+    /// The display name of the podcast author (iTunes field)
+    DisplayedAuthor: string
+    
+    /// The e-mail address of the user who registered the podcast at iTunes
+    Email: string
+    
+    /// The link to the image for the podcast
+    ImageUrl: string
+    
+    /// The category from Apple Podcasts (iTunes) under which this podcast is categorized
+    AppleCategory: string
+    
+    /// A further refinement of the categorization of this podcast (Apple Podcasts/iTunes field / values)
+    AppleSubcategory: string
+    
+    /// The explictness rating (iTunes field)
+    Explicit: string
+    
+    /// The default media type for files in this podcast
+    DefaultMediaType: string
+    
+    /// The base URL for relative URL media files for this podcast (optional; defaults to web log base)
+    MediaBaseUrl: string
+    
+    /// The URL for funding information for the podcast
+    FundingUrl: string
+    
+    /// The text for the funding link
+    FundingText: string
+    
+    /// A unique identifier to follow this podcast
+    PodcastGuid: string
+    
+    /// The medium for the content of this podcast
+    Medium: string
+} with
     
     /// An empty custom feed model
-    static member empty =
-        {   Id               = ""
-            SourceType       = "category"
-            SourceValue      = ""
-            Path             = ""
-            IsPodcast        = false
-            Title            = ""
-            Subtitle         = ""
-            ItemsInFeed      = 25
-            Summary          = ""
-            DisplayedAuthor  = ""
-            Email            = ""
-            ImageUrl         = ""
-            AppleCategory    = ""
-            AppleSubcategory = ""
-            Explicit         = "no"
-            DefaultMediaType = "audio/mpeg"
-            MediaBaseUrl     = ""
-            FundingUrl       = ""
-            FundingText      = ""
-            PodcastGuid      = ""
-            Medium           = ""
-        }
+    static member Empty = {
+        Id               = ""
+        SourceType       = "category"
+        SourceValue      = ""
+        Path             = ""
+        IsPodcast        = false
+        Title            = ""
+        Subtitle         = ""
+        ItemsInFeed      = 25
+        Summary          = ""
+        DisplayedAuthor  = ""
+        Email            = ""
+        ImageUrl         = ""
+        AppleCategory    = ""
+        AppleSubcategory = ""
+        Explicit         = "no"
+        DefaultMediaType = "audio/mpeg"
+        MediaBaseUrl     = ""
+        FundingUrl       = ""
+        FundingText      = ""
+        PodcastGuid      = ""
+        Medium           = ""
+    }
     
     /// Create a model from a custom feed
-    static member fromFeed (feed: CustomFeed) =
+    static member FromFeed (feed: CustomFeed) =
         let rss =
-            { EditCustomFeedModel.empty with
+            { EditCustomFeedModel.Empty with
                 Id          = string feed.Id
                 SourceType  = match feed.Source with Category _ -> "category" | Tag _ -> "tag"
                 SourceValue = match feed.Source with Category (CategoryId catId) -> catId | Tag tag -> tag
-                Path        = string feed.Path
-            }
+                Path        = string feed.Path }
         match feed.Podcast with
         | Some p ->
             { rss with
@@ -453,12 +438,11 @@ type EditCustomFeedModel =
                 FundingUrl       = defaultArg p.FundingUrl ""
                 FundingText      = defaultArg p.FundingText ""
                 PodcastGuid      = p.PodcastGuid |> Option.map _.ToString().ToLowerInvariant() |> Option.defaultValue ""
-                Medium           = p.Medium |> Option.map string |> Option.defaultValue ""
-            }
+                Medium           = p.Medium |> Option.map string |> Option.defaultValue "" }
         | None -> rss
     
     /// Update a feed with values from this model
-    member this.UpdateFeed (feed : CustomFeed) =
+    member this.UpdateFeed (feed: CustomFeed) =
         { feed with
             Source  = if this.SourceType = "tag" then Tag this.SourceValue else Category (CategoryId this.SourceValue)
             Path    = Permalink this.Path
@@ -480,40 +464,38 @@ type EditCustomFeedModel =
                         PodcastGuid      = noneIfBlank this.PodcastGuid |> Option.map Guid.Parse
                         FundingUrl       = noneIfBlank this.FundingUrl
                         FundingText      = noneIfBlank this.FundingText
-                        Medium           = noneIfBlank this.Medium |> Option.map PodcastMedium.Parse
-                    }
+                        Medium           = noneIfBlank this.Medium |> Option.map PodcastMedium.Parse }
                 else
-                    None
-        }
+                    None }
 
 
 /// View model for a user to edit their own information
 [<CLIMutable; NoComparison; NoEquality>]
-type EditMyInfoModel =
-    {   /// The user's first name
-        FirstName : string
-        
-        /// The user's last name
-        LastName : string
-        
-        /// The user's preferred name
-        PreferredName : string
-        
-        /// A new password for the user
-        NewPassword : string
-        
-        /// A new password for the user, confirmed
-        NewPasswordConfirm : string
-    }
+type EditMyInfoModel = {
+    /// The user's first name
+    FirstName: string
+    
+    /// The user's last name
+    LastName: string
+    
+    /// The user's preferred name
+    PreferredName: string
+    
+    /// A new password for the user
+    NewPassword: string
+    
+    /// A new password for the user, confirmed
+    NewPasswordConfirm: string
+} with
     
     /// Create an edit model from a user
-    static member fromUser (user : WebLogUser) =
-        {   FirstName          = user.FirstName
-            LastName           = user.LastName
-            PreferredName      = user.PreferredName
-            NewPassword        = ""
-            NewPasswordConfirm = ""
-        }
+    static member FromUser (user: WebLogUser) = {
+        FirstName          = user.FirstName
+        LastName           = user.LastName
+        PreferredName      = user.PreferredName
+        NewPassword        = ""
+        NewPasswordConfirm = ""
+    }
 
 
 /// View model to edit a page
@@ -548,7 +530,7 @@ type EditPageModel = {
 } with
     
     /// Create an edit model from an existing page
-    static member fromPage (page: Page) =
+    static member FromPage (page: Page) =
         let latest =
             match page.Revisions |> List.sortByDescending _.AsOf |> List.tryHead with
             | Some rev -> rev
@@ -566,7 +548,8 @@ type EditPageModel = {
         }
     
     /// Whether this is a new page
-    member this.IsNew = this.PageId = "new"
+    member this.IsNew =
+        this.PageId = "new"
     
     /// Update a page with values from this model
     member this.UpdatePage (page: Page) now =
@@ -588,12 +571,11 @@ type EditPageModel = {
                 Metadata     = Seq.zip this.MetaNames this.MetaValues
                                |> Seq.filter (fun it -> fst it > "")
                                |> Seq.map (fun it -> { Name = fst it; Value = snd it })
-                               |> Seq.sortBy (fun it -> $"{it.Name.ToLower ()} {it.Value.ToLower ()}")
+                               |> Seq.sortBy (fun it -> $"{it.Name.ToLower()} {it.Value.ToLower()}")
                                |> List.ofSeq
                 Revisions    = match page.Revisions |> List.tryHead with
                                | Some r when r.Text = revision.Text -> page.Revisions
-                               | _ -> revision :: page.Revisions
-            }
+                               | _ -> revision :: page.Revisions }
 
 
 /// View model to edit a post
@@ -700,7 +682,7 @@ type EditPostModel = {
 } with
     
     /// Create an edit model from an existing past
-    static member fromPost (webLog: WebLog) (post: Post) =
+    static member FromPost (webLog: WebLog) (post: Post) =
         let latest =
             match post.Revisions |> List.sortByDescending _.AsOf |> List.tryHead with
             | Some rev -> rev
@@ -712,7 +694,7 @@ type EditPostModel = {
             Permalink          = string post.Permalink
             Source             = latest.Text.SourceType
             Text               = latest.Text.Text
-            Tags               = String.Join (", ", post.Tags)
+            Tags               = String.Join(", ", post.Tags)
             Template           = defaultArg post.Template ""
             CategoryIds        = post.CategoryIds |> List.map string |> Array.ofList
             Status             = string post.Status
@@ -743,7 +725,8 @@ type EditPostModel = {
         }
     
     /// Whether this is a new post
-    member this.IsNew = this.PostId = "new"
+    member this.IsNew =
+        this.PostId = "new"
     
     /// Update a post with values from the submitted form
     member this.UpdatePost (post: Post) now =
@@ -763,17 +746,17 @@ type EditPostModel = {
                 Text        = revision.Text.AsHtml()
                 Tags        = this.Tags.Split ","
                               |> Seq.ofArray
-                              |> Seq.map (fun it -> it.Trim().ToLower ())
+                              |> Seq.map _.Trim().ToLower()
                               |> Seq.filter (fun it -> it <> "")
                               |> Seq.sort
                               |> List.ofSeq
-                Template    = match this.Template.Trim () with "" -> None | tmpl -> Some tmpl
+                Template    = match this.Template.Trim() with "" -> None | tmpl -> Some tmpl
                 CategoryIds = this.CategoryIds |> Array.map CategoryId |> List.ofArray
                 Status      = if this.DoPublish then Published else post.Status
                 Metadata    = Seq.zip this.MetaNames this.MetaValues
                               |> Seq.filter (fun it -> fst it > "")
                               |> Seq.map (fun it -> { Name = fst it; Value = snd it })
-                              |> Seq.sortBy (fun it -> $"{it.Name.ToLower ()} {it.Value.ToLower ()}")
+                              |> Seq.sortBy (fun it -> $"{it.Name.ToLower()} {it.Value.ToLower()}")
                               |> List.ofSeq
                 Revisions   = match post.Revisions |> List.tryHead with
                               | Some r when r.Text = revision.Text -> post.Revisions
@@ -805,113 +788,111 @@ type EditPostModel = {
                             EpisodeDescription = noneIfBlank this.EpisodeDescription
                         }
                     else
-                        None
-            }
+                        None }
 
 
 /// View model to add/edit a redirect rule
 [<CLIMutable; NoComparison; NoEquality>]
-type EditRedirectRuleModel =
-    {   /// The ID (index) of the rule being edited
-        RuleId : int
+type EditRedirectRuleModel = {
+    /// The ID (index) of the rule being edited
+    RuleId: int
 
-        /// The "from" side of the rule
-        From : string
+    /// The "from" side of the rule
+    From: string
 
-        /// The "to" side of the rule
-        To : string
+    /// The "to" side of the rule
+    To: string
 
-        /// Whether this rule uses a regular expression
-        IsRegex : bool
+    /// Whether this rule uses a regular expression
+    IsRegex: bool
 
-        /// Whether a new rule should be inserted at the top or appended to the end (ignored for edits)
-        InsertAtTop : bool
-    }
+    /// Whether a new rule should be inserted at the top or appended to the end (ignored for edits)
+    InsertAtTop: bool
+} with
 
     /// Create a model from an existing rule
-    static member fromRule idx (rule : RedirectRule) =
-        {   RuleId      = idx
-            From        = rule.From
-            To          = rule.To
-            IsRegex     = rule.IsRegex
-            InsertAtTop = false
-        }
+    static member FromRule idx (rule: RedirectRule) = {
+        RuleId      = idx
+        From        = rule.From
+        To          = rule.To
+        IsRegex     = rule.IsRegex
+        InsertAtTop = false
+    }
     
     /// Update a rule with the values from this model
-    member this.UpdateRule (rule : RedirectRule) =
-        { rule with
-            From    = this.From
-            To      = this.To
-            IsRegex = this.IsRegex
-        }
+    member this.ToRule() = {
+        From    = this.From
+        To      = this.To
+        IsRegex = this.IsRegex
+    }
 
 
 /// View model to edit RSS settings
 [<CLIMutable; NoComparison; NoEquality>]
-type EditRssModel =
-    {   /// Whether the site feed of posts is enabled
-        IsFeedEnabled : bool
-        
-        /// The name of the file generated for the site feed
-        FeedName : string
-        
-        /// Override the "posts per page" setting for the site feed
-        ItemsInFeed : int
-        
-        /// Whether feeds are enabled for all categories
-        IsCategoryEnabled : bool
-        
-        /// Whether feeds are enabled for all tags
-        IsTagEnabled : bool
-        
-        /// A copyright string to be placed in all feeds
-        Copyright : string
-    }
+type EditRssModel = {
+    /// Whether the site feed of posts is enabled
+    IsFeedEnabled: bool
+    
+    /// The name of the file generated for the site feed
+    FeedName: string
+    
+    /// Override the "posts per page" setting for the site feed
+    ItemsInFeed: int
+    
+    /// Whether feeds are enabled for all categories
+    IsCategoryEnabled: bool
+    
+    /// Whether feeds are enabled for all tags
+    IsTagEnabled: bool
+    
+    /// A copyright string to be placed in all feeds
+    Copyright: string
+} with
     
     /// Create an edit model from a set of RSS options
-    static member fromRssOptions (rss : RssOptions) =
-        {   IsFeedEnabled     = rss.IsFeedEnabled
-            FeedName          = rss.FeedName
-            ItemsInFeed       = defaultArg rss.ItemsInFeed 0
-            IsCategoryEnabled = rss.IsCategoryEnabled
-            IsTagEnabled      = rss.IsTagEnabled
-            Copyright         = defaultArg rss.Copyright ""
-        }
+    static member FromRssOptions (rss: RssOptions) = {
+        IsFeedEnabled     = rss.IsFeedEnabled
+        FeedName          = rss.FeedName
+        ItemsInFeed       = defaultArg rss.ItemsInFeed 0
+        IsCategoryEnabled = rss.IsCategoryEnabled
+        IsTagEnabled      = rss.IsTagEnabled
+        Copyright         = defaultArg rss.Copyright ""
+    }
     
     /// Update RSS options from values in this model
-    member this.UpdateOptions (rss : RssOptions) =
+    member this.UpdateOptions (rss: RssOptions) =
         { rss with
             IsFeedEnabled     = this.IsFeedEnabled
             FeedName          = this.FeedName
             ItemsInFeed       = if this.ItemsInFeed = 0 then None else Some this.ItemsInFeed
             IsCategoryEnabled = this.IsCategoryEnabled
             IsTagEnabled      = this.IsTagEnabled
-            Copyright         = noneIfBlank this.Copyright
-        }
+            Copyright         = noneIfBlank this.Copyright }
 
 
 /// View model to edit a tag mapping
 [<CLIMutable; NoComparison; NoEquality>]
-type EditTagMapModel =
-    {   /// The ID of the tag mapping being edited
-        Id : string
-        
-        /// The tag being mapped to a different link value
-        Tag : string
-        
-        /// The link value for the tag
-        UrlValue : string
+type EditTagMapModel = {
+    /// The ID of the tag mapping being edited
+    Id: string
+    
+    /// The tag being mapped to a different link value
+    Tag: string
+    
+    /// The link value for the tag
+    UrlValue: string
+} with
+    
+    /// Create an edit model from the tag mapping
+    static member FromMapping (tagMap: TagMap) : EditTagMapModel = {
+        Id       = string tagMap.Id
+        Tag      = tagMap.Tag
+        UrlValue = tagMap.UrlValue
     }
     
     /// Whether this is a new tag mapping
-    member this.IsNew = this.Id = "new"
-    
-    /// Create an edit model from the tag mapping
-    static member fromMapping (tagMap : TagMap) : EditTagMapModel =
-        {   Id       = string tagMap.Id
-            Tag      = tagMap.Tag
-            UrlValue = tagMap.UrlValue
-        }
+    member this.IsNew =
+        this.Id = "new"
 
 
 /// View model to display a user's information
@@ -945,21 +926,22 @@ type EditUserModel = {
     PasswordConfirm: string
 } with
     
-    /// Construct a displayed user from a web log user
-    static member fromUser (user: WebLogUser) =
-        {   Id              = string user.Id
-            AccessLevel     = string user.AccessLevel
-            Url             = defaultArg user.Url ""
-            Email           = user.Email
-            FirstName       = user.FirstName
-            LastName        = user.LastName
-            PreferredName   = user.PreferredName
-            Password        = ""
-            PasswordConfirm = ""
-        }
+    /// Construct a user edit form from a web log user
+    static member FromUser (user: WebLogUser) = {
+        Id              = string user.Id
+        AccessLevel     = string user.AccessLevel
+        Url             = defaultArg user.Url ""
+        Email           = user.Email
+        FirstName       = user.FirstName
+        LastName        = user.LastName
+        PreferredName   = user.PreferredName
+        Password        = ""
+        PasswordConfirm = ""
+    }
     
     /// Is this a new user?
-    member this.IsNew = this.Id = "new"
+    member this.IsNew =
+        this.Id = "new"
     
     /// Update a user with values from this model (excludes password)
     member this.UpdateUser (user: WebLogUser) =
@@ -969,25 +951,24 @@ type EditUserModel = {
             Url           = noneIfBlank this.Url
             FirstName     = this.FirstName
             LastName      = this.LastName
-            PreferredName = this.PreferredName
-        }
+            PreferredName = this.PreferredName }
 
 
 /// The model to use to allow a user to log on
 [<CLIMutable; NoComparison; NoEquality>]
-type LogOnModel =
-    {   /// The user's e-mail address
-        EmailAddress : string
+type LogOnModel = {
+    /// The user's e-mail address
+    EmailAddress : string
+
+    /// The user's password
+    Password : string
     
-        /// The user's password
-        Password : string
-        
-        /// Where the user should be redirected once they have logged on
-        ReturnTo : string option
-    }
+    /// Where the user should be redirected once they have logged on
+    ReturnTo : string option
+} with
     
     /// An empty log on model
-    static member empty =
+    static member Empty =
         { EmailAddress = ""; Password = ""; ReturnTo = None }
 
 
@@ -1011,55 +992,55 @@ type ManagePermalinksModel = {
 } with
     
     /// Create a permalink model from a page
-    static member fromPage (pg: Page) =
-        {   Id               = string pg.Id
-            Entity           = "page"
-            CurrentTitle     = pg.Title
-            CurrentPermalink = string pg.Permalink
-            Prior            = pg.PriorPermalinks |> List.map string |> Array.ofList
-        }
+    static member FromPage (page: Page) = {
+        Id               = string page.Id
+        Entity           = "page"
+        CurrentTitle     = page.Title
+        CurrentPermalink = string page.Permalink
+        Prior            = page.PriorPermalinks |> List.map string |> Array.ofList
+    }
 
     /// Create a permalink model from a post
-    static member fromPost (post: Post) =
-        {   Id               = string post.Id
-            Entity           = "post"
-            CurrentTitle     = post.Title
-            CurrentPermalink = string post.Permalink
-            Prior            = post.PriorPermalinks |> List.map string |> Array.ofList
-        }
+    static member FromPost (post: Post) = {
+        Id               = string post.Id
+        Entity           = "post"
+        CurrentTitle     = post.Title
+        CurrentPermalink = string post.Permalink
+        Prior            = post.PriorPermalinks |> List.map string |> Array.ofList
+    }
 
 
 /// View model to manage revisions
 [<NoComparison; NoEquality>]
-type ManageRevisionsModel =
-    {   /// The ID for the entity being edited
-        Id : string
-        
-        /// The type of entity being edited ("page" or "post")
-        Entity : string
-        
-        /// The current title of the page or post
-        CurrentTitle : string
-        
-        /// The revisions for the page or post
-        Revisions : DisplayRevision array
-    }
+type ManageRevisionsModel = {
+    /// The ID for the entity being edited
+    Id: string
+    
+    /// The type of entity being edited ("page" or "post")
+    Entity: string
+    
+    /// The current title of the page or post
+    CurrentTitle: string
+    
+    /// The revisions for the page or post
+    Revisions: DisplayRevision array
+} with
     
     /// Create a revision model from a page
-    static member fromPage webLog (pg: Page) =
-        {   Id           = string pg.Id
-            Entity       = "page"
-            CurrentTitle = pg.Title
-            Revisions    = pg.Revisions |> List.map (DisplayRevision.fromRevision webLog) |> Array.ofList
-        }
+    static member FromPage webLog (page: Page) = {
+        Id           = string page.Id
+        Entity       = "page"
+        CurrentTitle = page.Title
+        Revisions    = page.Revisions |> List.map (DisplayRevision.FromRevision webLog) |> Array.ofList
+    }
 
     /// Create a revision model from a post
-    static member fromPost webLog (post: Post) =
-        {   Id           = string post.Id
-            Entity       = "post"
-            CurrentTitle = post.Title
-            Revisions    = post.Revisions |> List.map (DisplayRevision.fromRevision webLog) |> Array.ofList
-        }
+    static member FromPost webLog (post: Post) = {
+        Id           = string post.Id
+        Entity       = "post"
+        CurrentTitle = post.Title
+        Revisions    = post.Revisions |> List.map (DisplayRevision.FromRevision webLog) |> Array.ofList
+    }
 
 
 /// View model for posts in a list
@@ -1103,7 +1084,7 @@ type PostListItem = {
 } with
 
     /// Create a post list item from a post
-    static member fromPost (webLog: WebLog) (post: Post) = {
+    static member FromPost (webLog: WebLog) (post: Post) = {
         Id          = string post.Id
         AuthorId    = string post.AuthorId
         Status      = string post.Status
@@ -1120,28 +1101,28 @@ type PostListItem = {
 
 
 /// View model for displaying posts
-type PostDisplay =
-    {   /// The posts to be displayed
-        Posts : PostListItem[]
-        
-        /// Author ID -> name lookup
-        Authors : MetaItem list
-        
-        /// A subtitle for the page
-        Subtitle : string option
-        
-        /// The link to view newer (more recent) posts
-        NewerLink : string option
-        
-        /// The name of the next newer post (single-post only)
-        NewerName : string option
-        
-        /// The link to view older (less recent) posts
-        OlderLink : string option
-        
-        /// The name of the next older post (single-post only)
-        OlderName : string option
-    }
+type PostDisplay = {
+    /// The posts to be displayed
+    Posts: PostListItem array
+    
+    /// Author ID -> name lookup
+    Authors: MetaItem list
+    
+    /// A subtitle for the page
+    Subtitle: string option
+    
+    /// The link to view newer (more recent) posts
+    NewerLink: string option
+    
+    /// The name of the next newer post (single-post only)
+    NewerName: string option
+    
+    /// The link to view older (less recent) posts
+    OlderLink: string option
+    
+    /// The name of the next older post (single-post only)
+    OlderName: string option
+}
 
 
 /// View model for editing web log settings
@@ -1176,20 +1157,20 @@ type SettingsModel = {
 } with
     
     /// Create a settings model from a web log
-    static member fromWebLog (webLog: WebLog) =
-        {   Name         = webLog.Name
-            Slug         = webLog.Slug
-            Subtitle     = defaultArg webLog.Subtitle ""
-            DefaultPage  = webLog.DefaultPage
-            PostsPerPage = webLog.PostsPerPage
-            TimeZone     = webLog.TimeZone
-            ThemeId      = string webLog.ThemeId
-            AutoHtmx     = webLog.AutoHtmx
-            Uploads      = string webLog.Uploads
-        }
+    static member FromWebLog(webLog: WebLog) = {
+        Name         = webLog.Name
+        Slug         = webLog.Slug
+        Subtitle     = defaultArg webLog.Subtitle ""
+        DefaultPage  = webLog.DefaultPage
+        PostsPerPage = webLog.PostsPerPage
+        TimeZone     = webLog.TimeZone
+        ThemeId      = string webLog.ThemeId
+        AutoHtmx     = webLog.AutoHtmx
+        Uploads      = string webLog.Uploads
+    }
     
     /// Update a web log with settings from the form
-    member this.update (webLog : WebLog) =
+    member this.Update(webLog: WebLog) =
         { webLog with
             Name         = this.Name
             Slug         = this.Slug
@@ -1199,53 +1180,49 @@ type SettingsModel = {
             TimeZone     = this.TimeZone
             ThemeId      = ThemeId this.ThemeId
             AutoHtmx     = this.AutoHtmx
-            Uploads      = UploadDestination.Parse this.Uploads
-        }
+            Uploads      = UploadDestination.Parse this.Uploads }
 
 
 /// View model for uploading a file
 [<CLIMutable; NoComparison; NoEquality>]
-type UploadFileModel =
-    {   /// The upload destination
-        Destination : string
-    }
+type UploadFileModel = {
+    /// The upload destination
+    Destination : string
+}
 
 
 /// View model for uploading a theme
 [<CLIMutable; NoComparison; NoEquality>]
-type UploadThemeModel =
-    {   /// Whether the uploaded theme should overwrite an existing theme
-        DoOverwrite : bool
-    }
+type UploadThemeModel = {
+    /// Whether the uploaded theme should overwrite an existing theme
+    DoOverwrite : bool
+}
 
 
 /// A message displayed to the user
 [<CLIMutable; NoComparison; NoEquality>]
-type UserMessage =
-    {   /// The level of the message
-        Level : string
-        
-        /// The message
-        Message : string
-        
-        /// Further details about the message
-        Detail : string option
-    }
-
-/// Functions to support user messages
-module UserMessage =
+type UserMessage = {
+    /// The level of the message
+    Level: string
+    
+    /// The message
+    Message: string
+    
+    /// Further details about the message
+    Detail: string option
+} with
     
     /// An empty user message (use one of the others for pre-filled level)
-    let empty = { Level = ""; Message = ""; Detail = None }
+    static member Empty = { Level = ""; Message = ""; Detail = None }
     
     /// A blank success message
-    let success = { empty with Level = "success" }
+    static member Success = { UserMessage.Empty with Level = "success" }
     
     /// A blank informational message
-    let info = { empty with Level = "primary" }
+    static member Info = { UserMessage.Empty with Level = "primary" }
     
     /// A blank warning message
-    let warning = { empty with Level = "warning" }
+    static member Warning = { UserMessage.Empty with Level = "warning" }
     
     /// A blank error message
-    let error = { empty with Level = "danger" }
+    static member Error = { UserMessage.Empty with Level = "danger" }

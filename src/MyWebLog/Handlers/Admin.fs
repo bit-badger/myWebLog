@@ -44,7 +44,7 @@ module Dashboard =
                 |> withAntiCsrf ctx
                 |> addToHash "themes" (
                     themes
-                    |> List.map (DisplayTheme.fromTheme WebLogCache.isThemeInUse)
+                    |> List.map (DisplayTheme.FromTheme WebLogCache.isThemeInUse)
                     |> Array.ofList)
                 |> addToHash "cached_themes" (
                     themes
@@ -87,7 +87,7 @@ module Cache =
                 do! PageListCache.refresh webLog    data
                 do! CategoryCache.refresh webLog.Id data
             do! addMessage ctx
-                    { UserMessage.success with Message = "Successfully refresh web log cache for all web logs" }
+                    { UserMessage.Success with Message = "Successfully refresh web log cache for all web logs" }
         else
             match! data.WebLog.FindById (WebLogId webLogId) with
             | Some webLog ->
@@ -95,9 +95,9 @@ module Cache =
                 do! PageListCache.refresh webLog    data
                 do! CategoryCache.refresh webLog.Id data
                 do! addMessage ctx
-                        { UserMessage.success with Message = $"Successfully refreshed web log cache for {webLog.Name}" }
+                        { UserMessage.Success with Message = $"Successfully refreshed web log cache for {webLog.Name}" }
             | None ->
-                do! addMessage ctx { UserMessage.error with Message = $"No web log exists with ID {webLogId}" }
+                do! addMessage ctx { UserMessage.Error with Message = $"No web log exists with ID {webLogId}" }
         return! toAdminDashboard next ctx
     }
 
@@ -108,7 +108,7 @@ module Cache =
             TemplateCache.empty ()
             do! ThemeAssetCache.fill data
             do! addMessage ctx
-                    { UserMessage.success with
+                    { UserMessage.Success with
                         Message = "Successfully cleared template cache and refreshed theme asset cache"
                     }
         else
@@ -117,11 +117,11 @@ module Cache =
                 TemplateCache.invalidateTheme    theme.Id
                 do! ThemeAssetCache.refreshTheme theme.Id data
                 do! addMessage ctx
-                        { UserMessage.success with
+                        { UserMessage.Success with
                             Message = $"Successfully cleared template cache and refreshed theme asset cache for {theme.Name}"
                         }
             | None ->
-                do! addMessage ctx { UserMessage.error with Message = $"No theme exists with ID {themeId}" }
+                do! addMessage ctx { UserMessage.Error with Message = $"No theme exists with ID {themeId}" }
         return! toAdminDashboard next ctx
     }
 
@@ -167,7 +167,7 @@ module Category =
             return!
                 hashForPage title
                 |> withAntiCsrf ctx
-                |> addToHash ViewContext.Model (EditCategoryModel.fromCategory cat)
+                |> addToHash ViewContext.Model (EditCategoryModel.FromCategory cat)
                 |> adminBareView "category-edit" next ctx
         | None -> return! Error.notFound next ctx
     }
@@ -190,7 +190,7 @@ module Category =
                 }
             do! (if model.IsNew then data.Category.Add else data.Category.Update) updatedCat
             do! CategoryCache.update ctx
-            do! addMessage ctx { UserMessage.success with Message = "Category saved successfully" }
+            do! addMessage ctx { UserMessage.Success with Message = "Category saved successfully" }
             return! bare next ctx
         | None -> return! Error.notFound next ctx
     }
@@ -207,9 +207,9 @@ module Category =
                 | ReassignedChildCategories ->
                     Some "<em>(Its child categories were reassigned to its parent category)</em>"
                 | _ -> None
-            do! addMessage ctx { UserMessage.success with Message = "Category deleted successfully"; Detail = detail }
+            do! addMessage ctx { UserMessage.Success with Message = "Category deleted successfully"; Detail = detail }
         | CategoryNotFound ->
-            do! addMessage ctx { UserMessage.error with Message = "Category not found; cannot delete" }
+            do! addMessage ctx { UserMessage.Error with Message = "Category not found; cannot delete" }
         return! bare next ctx
     }
 
@@ -233,7 +233,7 @@ module RedirectRules =
         if idx = -1 then
             return!
                 hashForPage "Add Redirect Rule"
-                |> addToHash "model" (EditRedirectRuleModel.fromRule -1 RedirectRule.Empty)
+                |> addToHash "model" (EditRedirectRuleModel.FromRule -1 RedirectRule.Empty)
                 |> withAntiCsrf ctx
                 |> adminBareView "redirect-edit" next ctx
         else        
@@ -243,7 +243,7 @@ module RedirectRules =
             else
                 return!
                     hashForPage "Edit Redirect Rule"
-                    |> addToHash "model" (EditRedirectRuleModel.fromRule idx (List.item idx rules))
+                    |> addToHash "model" (EditRedirectRuleModel.FromRule idx (List.item idx rules))
                     |> withAntiCsrf ctx
                     |> adminBareView "redirect-edit" next ctx
     }
@@ -257,17 +257,17 @@ module RedirectRules =
 
     // POST /admin/settings/redirect-rules/[index]
     let save idx : HttpHandler = fun next ctx -> task {
-        let! model    = ctx.BindFormAsync<EditRedirectRuleModel> ()
+        let! model    = ctx.BindFormAsync<EditRedirectRuleModel>()
         let  isNew    = idx = -1
         let  rules    = ctx.WebLog.RedirectRules
-        let  rule     = model.UpdateRule (if isNew then RedirectRule.Empty else List.item idx rules)
+        let  rule     = model.ToRule()
         let  newRules =
             match isNew with
             | true when model.InsertAtTop -> List.insertAt 0 rule rules
-            | true -> List.insertAt (rules.Length) rule rules
+            | true -> List.insertAt rules.Length rule rules
             | false -> rules |> List.removeAt idx |> List.insertAt idx rule
         do! updateRedirectRules ctx { ctx.WebLog with RedirectRules = newRules }
-        do! addMessage ctx { UserMessage.success with Message = "Redirect rule saved successfully" }
+        do! addMessage ctx { UserMessage.Success with Message = "Redirect rule saved successfully" }
         return! all next ctx
     }
 
@@ -300,7 +300,7 @@ module RedirectRules =
         else
             let rules = ctx.WebLog.RedirectRules |> List.removeAt idx
             do! updateRedirectRules ctx { ctx.WebLog with RedirectRules = rules }
-            do! addMessage ctx { UserMessage.success with Message = "Redirect rule deleted successfully" }
+            do! addMessage ctx { UserMessage.Success with Message = "Redirect rule deleted successfully" }
             return! all next ctx
     }
 
@@ -340,7 +340,7 @@ module TagMapping =
             return!
                 hashForPage (if isNew then "Add Tag Mapping" else $"Mapping for {tm.Tag} Tag") 
                 |> withAntiCsrf ctx
-                |> addToHash ViewContext.Model (EditTagMapModel.fromMapping tm)
+                |> addToHash ViewContext.Model (EditTagMapModel.FromMapping tm)
                 |> adminBareView "tag-mapping-edit" next ctx
         | None -> return! Error.notFound next ctx
     }
@@ -355,7 +355,7 @@ module TagMapping =
         match! tagMap with
         | Some tm ->
             do! data.TagMap.Save { tm with Tag = model.Tag.ToLower(); UrlValue = model.UrlValue.ToLower() }
-            do! addMessage ctx { UserMessage.success with Message = "Tag mapping saved successfully" }
+            do! addMessage ctx { UserMessage.Success with Message = "Tag mapping saved successfully" }
             return! all next ctx
         | None -> return! Error.notFound next ctx
     }
@@ -363,8 +363,8 @@ module TagMapping =
     // POST /admin/settings/tag-mapping/{id}/delete
     let delete tagMapId : HttpHandler = fun next ctx -> task {
         match! ctx.Data.TagMap.Delete (TagMapId tagMapId) ctx.WebLog.Id with
-        | true  -> do! addMessage ctx { UserMessage.success with Message = "Tag mapping deleted successfully" }
-        | false -> do! addMessage ctx { UserMessage.error with Message = "Tag mapping not found; nothing deleted" }
+        | true  -> do! addMessage ctx { UserMessage.Success with Message = "Tag mapping deleted successfully" }
+        | false -> do! addMessage ctx { UserMessage.Error with Message = "Tag mapping not found; nothing deleted" }
         return! all next ctx
     }
 
@@ -384,7 +384,7 @@ module Theme =
         return!
             hashForPage "Themes"
             |> withAntiCsrf ctx
-            |> addToHash "themes" (themes |> List.map (DisplayTheme.fromTheme WebLogCache.isThemeInUse) |> Array.ofList)
+            |> addToHash "themes" (themes |> List.map (DisplayTheme.FromTheme WebLogCache.isThemeInUse) |> Array.ofList)
             |> adminBareView "theme-list-body" next ctx
     }
 
@@ -488,21 +488,21 @@ module Theme =
                     use file = new FileStream($"{themeId}-theme.zip", FileMode.Create)
                     do! themeFile.CopyToAsync file
                     do! addMessage ctx
-                            { UserMessage.success with
+                            { UserMessage.Success with
                                 Message = $"""Theme {if isNew then "add" else "updat"}ed successfully"""
                             }
                     return! toAdminDashboard next ctx
                 else
                     do! addMessage ctx
-                            { UserMessage.error with
+                            { UserMessage.Error with
                                 Message = "Theme exists and overwriting was not requested; nothing saved"
                             }
                     return! toAdminDashboard next ctx
             | Ok _ ->
-                do! addMessage ctx { UserMessage.error with Message = "You may not replace the admin theme" }
+                do! addMessage ctx { UserMessage.Error with Message = "You may not replace the admin theme" }
                 return! toAdminDashboard next ctx
             | Error message ->
-                do! addMessage ctx { UserMessage.error with Message = message }
+                do! addMessage ctx { UserMessage.Error with Message = message }
                 return! toAdminDashboard next ctx
         else return! RequestErrors.BAD_REQUEST "Bad request" next ctx
     }
@@ -512,11 +512,11 @@ module Theme =
         let data = ctx.Data
         match themeId with
         | "admin" | "default" ->
-            do! addMessage ctx { UserMessage.error with Message = $"You may not delete the {themeId} theme" }
+            do! addMessage ctx { UserMessage.Error with Message = $"You may not delete the {themeId} theme" }
             return! all next ctx
         | it when WebLogCache.isThemeInUse (ThemeId it) ->
             do! addMessage ctx
-                    { UserMessage.error with
+                    { UserMessage.Error with
                         Message = $"You may not delete the {themeId} theme, as it is currently in use"
                     }
             return! all next ctx
@@ -525,7 +525,7 @@ module Theme =
             | true ->
                 let zippedTheme = $"{themeId}-theme.zip"
                 if File.Exists zippedTheme then File.Delete zippedTheme
-                do! addMessage ctx { UserMessage.success with Message = $"Theme ID {themeId} deleted successfully" }
+                do! addMessage ctx { UserMessage.Success with Message = $"Theme ID {themeId} deleted successfully" }
                 return! all next ctx
             | false -> return! Error.notFound next ctx
     }
@@ -550,7 +550,7 @@ module WebLog =
                 let! hash     =
                     hashForPage "Web Log Settings"
                     |> withAntiCsrf ctx
-                    |> addToHash ViewContext.Model (SettingsModel.fromWebLog ctx.WebLog)
+                    |> addToHash ViewContext.Model (SettingsModel.FromWebLog ctx.WebLog)
                     |> addToHash "pages" (
                         seq {
                             KeyValuePair.Create("posts", "- First Page of Posts -")
@@ -569,11 +569,11 @@ module WebLog =
                         KeyValuePair.Create(string Database, "Database")
                         KeyValuePair.Create(string Disk,     "Disk")
                     |]
-                    |> addToHash "users" (users |> List.map (DisplayUser.fromUser ctx.WebLog) |> Array.ofList)
-                    |> addToHash "rss_model" (EditRssModel.fromRssOptions ctx.WebLog.Rss)
+                    |> addToHash "users" (users |> List.map (DisplayUser.FromUser ctx.WebLog) |> Array.ofList)
+                    |> addToHash "rss_model" (EditRssModel.FromRssOptions ctx.WebLog.Rss)
                     |> addToHash "custom_feeds" (
                         ctx.WebLog.Rss.CustomFeeds
-                        |> List.map (DisplayCustomFeed.fromFeed (CategoryCache.get ctx))
+                        |> List.map (DisplayCustomFeed.FromFeed (CategoryCache.get ctx))
                         |> Array.ofList)
                     |> addViewContext ctx
                 let! hash' = TagMapping.withTagMappings ctx hash
@@ -592,7 +592,7 @@ module WebLog =
         match! data.WebLog.FindById ctx.WebLog.Id with
         | Some webLog ->
             let oldSlug = webLog.Slug
-            let webLog  = model.update webLog
+            let webLog  = model.Update webLog
             do! data.WebLog.UpdateSettings webLog
 
             // Update cache
@@ -604,7 +604,7 @@ module WebLog =
                 let oldDir     = Path.Combine (uploadRoot, oldSlug)
                 if Directory.Exists oldDir then Directory.Move (oldDir, Path.Combine (uploadRoot, webLog.Slug))
         
-            do! addMessage ctx { UserMessage.success with Message = "Web log settings saved successfully" }
+            do! addMessage ctx { UserMessage.Success with Message = "Web log settings saved successfully" }
             return! redirectToGet "admin/settings" next ctx
         | None -> return! Error.notFound next ctx
     }

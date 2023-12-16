@@ -38,7 +38,7 @@ let logOn returnUrl : HttpHandler = fun next ctx ->
         | None -> if ctx.Request.Query.ContainsKey "returnUrl" then Some ctx.Request.Query["returnUrl"].[0] else None
     hashForPage "Log On"
     |> withAntiCsrf ctx
-    |> addToHash ViewContext.Model { LogOnModel.empty with ReturnTo = returnTo }
+    |> addToHash ViewContext.Model { LogOnModel.Empty with ReturnTo = returnTo }
     |> adminView "log-on" next ctx
 
 
@@ -66,7 +66,7 @@ let doLogOn : HttpHandler = fun next ctx -> task {
             AuthenticationProperties(IssuedUtc = DateTimeOffset.UtcNow))
         do! data.WebLogUser.SetLastSeen user.Id user.WebLogId
         do! addMessage ctx
-                { UserMessage.success with
+                { UserMessage.Success with
                     Message = "Log on successful"
                     Detail  = Some $"Welcome to {ctx.WebLog.Name}!"
                 }
@@ -75,14 +75,14 @@ let doLogOn : HttpHandler = fun next ctx -> task {
             | Some url -> redirectTo false url next ctx
             | None -> redirectToGet "admin/dashboard" next ctx
     | Error msg ->
-        do! addMessage ctx { UserMessage.error with Message = msg }
+        do! addMessage ctx { UserMessage.Error with Message = msg }
         return! logOn model.ReturnTo next ctx
 }
 
 // GET /user/log-off
 let logOff : HttpHandler = fun next ctx -> task {
     do! ctx.SignOutAsync CookieAuthenticationDefaults.AuthenticationScheme
-    do! addMessage ctx { UserMessage.info with Message = "Log off successful" }
+    do! addMessage ctx { UserMessage.Info with Message = "Log off successful" }
     return! redirectToGet "" next ctx
 }
 
@@ -100,7 +100,7 @@ let all : HttpHandler = fun next ctx -> task {
     return!
         hashForPage "User Administration"
         |> withAntiCsrf ctx
-        |> addToHash "users" (users |> List.map (DisplayUser.fromUser ctx.WebLog) |> Array.ofList)
+        |> addToHash "users" (users |> List.map (DisplayUser.FromUser ctx.WebLog) |> Array.ofList)
         |> adminBareView "user-list-body" next ctx
 }
 
@@ -125,7 +125,7 @@ let edit usrId : HttpHandler = fun next ctx -> task {
         if isNew then someTask { WebLogUser.Empty with Id = userId }
         else ctx.Data.WebLogUser.FindById userId ctx.WebLog.Id
     match! tryUser with
-    | Some user -> return! showEdit (EditUserModel.fromUser user) next ctx
+    | Some user -> return! showEdit (EditUserModel.FromUser user) next ctx
     | None -> return! Error.notFound next ctx
 }
 
@@ -140,13 +140,13 @@ let delete userId : HttpHandler = fun next ctx -> task {
             match! data.WebLogUser.Delete user.Id user.WebLogId with
             | Ok _ ->
                 do! addMessage ctx
-                        { UserMessage.success with
+                        { UserMessage.Success with
                             Message = $"User {user.DisplayName} deleted successfully"
                         }
                 return! all next ctx
             | Error msg ->
                 do! addMessage ctx
-                        { UserMessage.error with
+                        { UserMessage.Error with
                             Message = $"User {user.DisplayName} was not deleted"
                             Detail  = Some msg
                         }
@@ -168,7 +168,7 @@ let private showMyInfo (model: EditMyInfoModel) (user: WebLogUser) : HttpHandler
 // GET /admin/my-info
 let myInfo : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     match! ctx.Data.WebLogUser.FindById ctx.UserId ctx.WebLog.Id with
-    | Some user -> return! showMyInfo (EditMyInfoModel.fromUser user) user next ctx
+    | Some user -> return! showMyInfo (EditMyInfoModel.FromUser user) user next ctx
     | None -> return! Error.notFound next ctx
 }
 
@@ -188,10 +188,10 @@ let saveMyInfo : HttpHandler = requireAccess Author >=> fun next ctx -> task {
             }
         do! data.WebLogUser.Update user
         let pwMsg = if model.NewPassword = "" then "" else " and updated your password"
-        do! addMessage ctx { UserMessage.success with Message = $"Saved your information{pwMsg} successfully" }
+        do! addMessage ctx { UserMessage.Success with Message = $"Saved your information{pwMsg} successfully" }
         return! redirectToGet "admin/my-info" next ctx
     | Some user ->
-        do! addMessage ctx { UserMessage.error with Message = "Passwords did not match; no updates made" }
+        do! addMessage ctx { UserMessage.Error with Message = "Passwords did not match; no updates made" }
         return! showMyInfo { model with NewPassword = ""; NewPasswordConfirm = "" } user next ctx
     | None -> return! Error.notFound next ctx
 }
@@ -222,12 +222,12 @@ let save : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
                 else { updatedUser with PasswordHash = createPasswordHash updatedUser model.Password }
             do! (if model.IsNew then data.WebLogUser.Add else data.WebLogUser.Update) toUpdate
             do! addMessage ctx
-                    { UserMessage.success with
+                    { UserMessage.Success with
                         Message = $"""{if model.IsNew then "Add" else "Updat"}ed user successfully"""
                     }
             return! all next ctx
     | Some _ ->
-        do! addMessage ctx { UserMessage.error with Message = "The passwords did not match; nothing saved" }
+        do! addMessage ctx { UserMessage.Error with Message = "The passwords did not match; nothing saved" }
         return!
             (withHxRetarget $"#user_{model.Id}" >=> showEdit { model with Password = ""; PasswordConfirm = "" })
                 next ctx

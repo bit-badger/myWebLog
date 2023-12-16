@@ -418,7 +418,7 @@ let saveSettings : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> t
         let webLog = { webLog with Rss = model.UpdateOptions webLog.Rss }
         do! data.WebLog.UpdateRssOptions webLog
         WebLogCache.set webLog
-        do! addMessage ctx { UserMessage.success with Message = "RSS settings updated successfully" }
+        do! addMessage ctx { UserMessage.Success with Message = "RSS settings updated successfully" }
         return! redirectToGet "admin/settings#rss-settings" next ctx
     | None -> return! Error.notFound next ctx
 }
@@ -433,7 +433,7 @@ let editCustomFeed feedId : HttpHandler = requireAccess WebLogAdmin >=> fun next
     | Some f ->
         hashForPage $"""{if feedId = "new" then "Add" else "Edit"} Custom RSS Feed"""
         |> withAntiCsrf ctx
-        |> addToHash ViewContext.Model (EditCustomFeedModel.fromFeed f)
+        |> addToHash ViewContext.Model (EditCustomFeedModel.FromFeed f)
         |> addToHash "medium_values" [|
             KeyValuePair.Create("", "&ndash; Unspecified &ndash;")
             KeyValuePair.Create(string Podcast,    "Podcast")
@@ -464,7 +464,7 @@ let saveCustomFeed : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx ->
             do! data.WebLog.UpdateRssOptions webLog
             WebLogCache.set webLog
             do! addMessage ctx {
-                UserMessage.success with
+                UserMessage.Success with
                   Message = $"""Successfully {if model.Id = "new" then "add" else "sav"}ed custom feed"""
             }
             return! redirectToGet $"admin/settings/rss/{feed.Id}/edit" next ctx
@@ -488,9 +488,9 @@ let deleteCustomFeed feedId : HttpHandler = requireAccess WebLogAdmin >=> fun ne
             }
             do! data.WebLog.UpdateRssOptions webLog
             WebLogCache.set webLog
-            do! addMessage ctx { UserMessage.success with Message = "Custom feed deleted successfully" }
+            do! addMessage ctx { UserMessage.Success with Message = "Custom feed deleted successfully" }
         else
-            do! addMessage ctx { UserMessage.warning with Message = "Custom feed not found; no action taken" }
+            do! addMessage ctx { UserMessage.Warning with Message = "Custom feed not found; no action taken" }
         return! redirectToGet "admin/settings#rss-settings" next ctx
     | None -> return! Error.notFound next ctx
 }

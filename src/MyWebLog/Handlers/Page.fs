@@ -36,7 +36,7 @@ let edit pgId : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     }
     match result with
     | Some (title, page) when canEdit page.AuthorId ctx ->
-        let  model     = EditPageModel.fromPage page
+        let  model     = EditPageModel.FromPage page
         let! templates = templatesForTheme ctx "page"
         return!
             hashForPage title
@@ -56,8 +56,8 @@ let delete pgId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> ta
     match! ctx.Data.Page.Delete (PageId pgId) ctx.WebLog.Id with
     | true ->
         do! PageListCache.update ctx
-        do! addMessage ctx { UserMessage.success with Message = "Page deleted successfully" }
-    | false -> do! addMessage ctx { UserMessage.error with Message = "Page not found; nothing deleted" }
+        do! addMessage ctx { UserMessage.Success with Message = "Page deleted successfully" }
+    | false -> do! addMessage ctx { UserMessage.Error with Message = "Page not found; nothing deleted" }
     return! redirectToGet "admin/pages" next ctx
 }
 
@@ -68,7 +68,7 @@ let editPermalinks pgId : HttpHandler = requireAccess Author >=> fun next ctx ->
         return!
             hashForPage "Manage Prior Permalinks"
             |> withAntiCsrf ctx
-            |> addToHash ViewContext.Model (ManagePermalinksModel.fromPage pg)
+            |> addToHash ViewContext.Model (ManagePermalinksModel.FromPage pg)
             |> adminView "permalinks" next ctx
     | Some _ -> return! Error.notAuthorized next ctx
     | None -> return! Error.notFound next ctx
@@ -83,7 +83,7 @@ let savePermalinks : HttpHandler = requireAccess Author >=> fun next ctx -> task
         let  links = model.Prior |> Array.map Permalink |> List.ofArray
         match! ctx.Data.Page.UpdatePriorPermalinks pageId ctx.WebLog.Id links with
         | true ->
-            do! addMessage ctx { UserMessage.success with Message = "Page permalinks saved successfully" }
+            do! addMessage ctx { UserMessage.Success with Message = "Page permalinks saved successfully" }
             return! redirectToGet $"admin/page/{model.Id}/permalinks" next ctx
         | false -> return! Error.notFound next ctx
     | Some _ -> return! Error.notAuthorized next ctx
@@ -97,7 +97,7 @@ let editRevisions pgId : HttpHandler = requireAccess Author >=> fun next ctx -> 
         return!
             hashForPage "Manage Page Revisions"
             |> withAntiCsrf ctx
-            |> addToHash ViewContext.Model (ManageRevisionsModel.fromPage ctx.WebLog pg)
+            |> addToHash ViewContext.Model (ManageRevisionsModel.FromPage ctx.WebLog pg)
             |> adminView "revisions" next ctx
     | Some _ -> return! Error.notAuthorized next ctx
     | None -> return! Error.notFound next ctx
@@ -109,7 +109,7 @@ let purgeRevisions pgId : HttpHandler = requireAccess Author >=> fun next ctx ->
     match! data.Page.FindFullById (PageId pgId) ctx.WebLog.Id with
     | Some pg ->
         do! data.Page.Update { pg with Revisions = [ List.head pg.Revisions ] }
-        do! addMessage ctx { UserMessage.success with Message = "Prior revisions purged successfully" }
+        do! addMessage ctx { UserMessage.Success with Message = "Prior revisions purged successfully" }
         return! redirectToGet $"admin/page/{pgId}/revisions" next ctx
     | None -> return! Error.notFound next ctx
 }
@@ -152,7 +152,7 @@ let restoreRevision (pgId, revDate) : HttpHandler = requireAccess Author >=> fun
                     Revisions = { rev with AsOf = Noda.now () }
                                   :: (pg.Revisions |> List.filter (fun r -> r.AsOf <> rev.AsOf))
                 }
-        do! addMessage ctx { UserMessage.success with Message = "Revision restored successfully" }
+        do! addMessage ctx { UserMessage.Success with Message = "Revision restored successfully" }
         return! redirectToGet $"admin/page/{pgId}/revisions" next ctx
     | Some _, Some _ -> return! Error.notAuthorized next ctx
     | None, _
@@ -164,7 +164,7 @@ let deleteRevision (pgId, revDate) : HttpHandler = requireAccess Author >=> fun 
     match! findPageRevision pgId revDate ctx with
     | Some pg, Some rev when canEdit pg.AuthorId ctx ->
         do! ctx.Data.Page.Update { pg with Revisions = pg.Revisions |> List.filter (fun r -> r.AsOf <> rev.AsOf) }
-        do! addMessage ctx { UserMessage.success with Message = "Revision deleted successfully" }
+        do! addMessage ctx { UserMessage.Success with Message = "Revision deleted successfully" }
         return! adminBareView "" next ctx (makeHash {| content = "" |})
     | Some _, Some _ -> return! Error.notAuthorized next ctx
     | None, _
@@ -191,7 +191,7 @@ let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
         let updatedPage = model.UpdatePage page now
         do! (if model.IsNew then data.Page.Add else data.Page.Update) updatedPage
         if updateList then do! PageListCache.update ctx
-        do! addMessage ctx { UserMessage.success with Message = "Page saved successfully" }
+        do! addMessage ctx { UserMessage.Success with Message = "Page saved successfully" }
         return! redirectToGet $"admin/page/{page.Id}/edit" next ctx
     | Some _ -> return! Error.notAuthorized next ctx
     | None -> return! Error.notFound next ctx

@@ -252,7 +252,7 @@ module Error =
         else
             if isHtmx ctx then
                 let messages = [|
-                    { UserMessage.error with
+                    { UserMessage.Error with
                         Message = $"You are not authorized to access the URL {ctx.Request.Path.Value}"
                     }
                 |]
@@ -264,7 +264,7 @@ module Error =
         handleContext (fun ctx ->
             if isHtmx ctx then
                 let messages = [|
-                    { UserMessage.error with Message = $"The URL {ctx.Request.Path.Value} was not found" }
+                    { UserMessage.Error with Message = $"The URL {ctx.Request.Path.Value} was not found" }
                 |]
                 RequestErrors.notFound (messagesToHeaders messages) earlyReturn ctx
             else RequestErrors.NOT_FOUND "Not found" earlyReturn ctx)
@@ -272,7 +272,7 @@ module Error =
     let server message : HttpHandler =
         handleContext (fun ctx ->
             if isHtmx ctx then
-                let messages = [| { UserMessage.error with Message = message } |]
+                let messages = [| { UserMessage.Error with Message = message } |]
                 ServerErrors.internalError (messagesToHeaders messages) earlyReturn ctx
             else ServerErrors.INTERNAL_ERROR message earlyReturn ctx)
 
@@ -351,14 +351,14 @@ let requireAccess level : HttpHandler = fun next ctx -> task {
     | Some userLevel when userLevel.HasAccess level -> return! next ctx
     | Some userLevel ->
         do! addMessage ctx
-                { UserMessage.warning with
+                { UserMessage.Warning with
                     Message = $"The page you tried to access requires {level} privileges"
                     Detail = Some $"Your account only has {userLevel} privileges"
                 }
         return! Error.notAuthorized next ctx
     | None ->
         do! addMessage ctx
-                { UserMessage.warning with Message = "The page you tried to access required you to be logged on" }
+                { UserMessage.Warning with Message = "The page you tried to access required you to be logged on" }
         return! Error.notAuthorized next ctx
 }
 

@@ -117,7 +117,7 @@ let list : HttpHandler = requireAccess Author >=> fun next ctx -> task {
             []
     let allFiles =
         dbUploads
-        |> List.map (DisplayUpload.fromUpload webLog Database)
+        |> List.map (DisplayUpload.FromUpload webLog Database)
         |> List.append diskUploads
         |> List.sortByDescending (fun file -> file.UpdatedOn, file.Path)
     return!
@@ -169,7 +169,7 @@ let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
             use stream   = new FileStream(Path.Combine(fullPath, fileName), FileMode.Create)
             do! upload.CopyToAsync stream
         
-        do! addMessage ctx { UserMessage.success with Message = $"File uploaded to {form.Destination} successfully" }
+        do! addMessage ctx { UserMessage.Success with Message = $"File uploaded to {form.Destination} successfully" }
         return! showUploads next ctx
     else
         return! RequestErrors.BAD_REQUEST "Bad request; no file present" next ctx
@@ -179,7 +179,7 @@ let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
 let deleteFromDb upId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     match! ctx.Data.Upload.Delete (UploadId upId) ctx.WebLog.Id with
     | Ok fileName ->
-        do! addMessage ctx { UserMessage.success with Message = $"{fileName} deleted successfully" }
+        do! addMessage ctx { UserMessage.Success with Message = $"{fileName} deleted successfully" }
         return! showUploads next ctx
     | Error _ -> return! Error.notFound next ctx
 }
@@ -202,7 +202,7 @@ let deleteFromDisk urlParts : HttpHandler = requireAccess WebLogAdmin >=> fun ne
     if File.Exists path then
         File.Delete path
         removeEmptyDirectories ctx.WebLog filePath
-        do! addMessage ctx { UserMessage.success with Message = $"{filePath} deleted successfully" }
+        do! addMessage ctx { UserMessage.Success with Message = $"{filePath} deleted successfully" }
         return! showUploads next ctx
     else return! Error.notFound next ctx
 }
