@@ -8,8 +8,8 @@ open Microsoft.AspNetCore.Http
 type ISession with
     
     /// Set an item in the session
-    member this.Set<'T> (key, item : 'T) =
-        this.SetString (key, JsonSerializer.Serialize item)
+    member this.Set<'T>(key, item: 'T) =
+        this.SetString(key, JsonSerializer.Serialize item)
     
     /// Get an item from the session
     member this.TryGet<'T> key =
@@ -126,28 +126,28 @@ module ViewContext =
 let private sessionLoadedKey = "session-loaded"
 
 /// Load the session if it has not been loaded already; ensures async access but not excessive loading
-let private loadSession (ctx : HttpContext) = task {
+let private loadSession (ctx: HttpContext) = task {
     if not (ctx.Items.ContainsKey sessionLoadedKey) then
-        do! ctx.Session.LoadAsync ()
-        ctx.Items.Add (sessionLoadedKey, "yes")
+        do! ctx.Session.LoadAsync()
+        ctx.Items.Add(sessionLoadedKey, "yes")
 }
 
 /// Ensure that the session is committed
-let private commitSession (ctx : HttpContext) = task {
-    if ctx.Items.ContainsKey sessionLoadedKey then do! ctx.Session.CommitAsync ()
+let private commitSession (ctx: HttpContext) = task {
+    if ctx.Items.ContainsKey sessionLoadedKey then do! ctx.Session.CommitAsync()
 }
 
 open MyWebLog.ViewModels
 
 /// Add a message to the user's session
-let addMessage (ctx : HttpContext) message = task {
+let addMessage (ctx: HttpContext) message = task {
     do! loadSession ctx
     let msg = match ctx.Session.TryGet<UserMessage list> ViewContext.Messages with Some it -> it | None -> []
-    ctx.Session.Set (ViewContext.Messages, message :: msg)
+    ctx.Session.Set(ViewContext.Messages, message :: msg)
 }
 
 /// Get any messages from the user's session, removing them in the process
-let messages (ctx : HttpContext) = task {
+let messages (ctx: HttpContext) = task {
     do! loadSession ctx
     match ctx.Session.TryGet<UserMessage list> ViewContext.Messages with
     | Some msg ->
@@ -160,21 +160,21 @@ open MyWebLog
 open DotLiquid
 
 /// Shorthand for creating a DotLiquid hash from an anonymous object
-let makeHash (values : obj) =
+let makeHash (values: obj) =
     Hash.FromAnonymousObject values
 
 /// Create a hash with the page title filled
-let hashForPage (title : string) =
+let hashForPage (title: string) =
     makeHash {| page_title = title |}
 
 /// Add a key to the hash, returning the modified hash
 //    (note that the hash itself is mutated; this is only used to make it pipeable)
-let addToHash key (value : obj) (hash : Hash) =
-    if hash.ContainsKey key then hash[key] <- value else hash.Add (key, value)
+let addToHash key (value: obj) (hash: Hash) =
+    if hash.ContainsKey key then hash[key] <- value else hash.Add(key, value)
     hash
 
 /// Add anti-CSRF tokens to the given hash
-let withAntiCsrf (ctx : HttpContext) =
+let withAntiCsrf (ctx: HttpContext) =
     addToHash ViewContext.AntiCsrfTokens ctx.CsrfTokenSet 
 
 open System.Security.Claims
@@ -186,13 +186,13 @@ open Giraffe.ViewEngine
 let private htmxScript = RenderView.AsString.htmlNode Htmx.Script.minified
 
 /// Populate the DotLiquid hash with standard information
-let addViewContext ctx (hash : Hash) = task {
+let addViewContext ctx (hash: Hash) = task {
     let! messages = messages ctx
     do! commitSession ctx
     return
         if hash.ContainsKey ViewContext.HtmxScript && hash.ContainsKey ViewContext.Messages then
             // We have already populated everything; just update messages
-            hash[ViewContext.Messages] <- Array.concat [ hash[ViewContext.Messages] :?> UserMessage[]; messages ]
+            hash[ViewContext.Messages] <- Array.concat [ hash[ViewContext.Messages] :?> UserMessage array; messages ]
             hash
         else
             ctx.User.Claims
@@ -214,11 +214,11 @@ let addViewContext ctx (hash : Hash) = task {
 }
 
 /// Is the request from htmx?
-let isHtmx (ctx : HttpContext) =
+let isHtmx (ctx: HttpContext) =
     ctx.Request.IsHtmx && not ctx.Request.IsHtmxRefresh
 
 /// Convert messages to headers (used for htmx responses)
-let messagesToHeaders (messages : UserMessage array) : HttpHandler =
+let messagesToHeaders (messages: UserMessage array) : HttpHandler =
     seq {
         yield!
             messages
@@ -253,8 +253,7 @@ module Error =
             if isHtmx ctx then
                 let messages = [|
                     { UserMessage.Error with
-                        Message = $"You are not authorized to access the URL {ctx.Request.Path.Value}"
-                    }
+                        Message = $"You are not authorized to access the URL {ctx.Request.Path.Value}" }
                 |]
                 (messagesToHeaders messages >=> setStatusCode 401) earlyReturn ctx
             else setStatusCode 401 earlyReturn ctx
@@ -278,7 +277,7 @@ module Error =
 
 
 /// Render a view for the specified theme, using the specified template, layout, and hash
-let viewForTheme themeId template next ctx (hash : Hash) = task {
+let viewForTheme themeId template next ctx (hash: Hash) = task {
     let! hash = addViewContext ctx hash
     
     // NOTE: DotLiquid does not support {% render %} or {% include %} in its templates, so we will do a 2-pass render;
@@ -296,13 +295,13 @@ let viewForTheme themeId template next ctx (hash : Hash) = task {
 }
 
 /// Render a bare view for the specified theme, using the specified template and hash
-let bareForTheme themeId template next ctx (hash : Hash) = task {
+let bareForTheme themeId template next ctx (hash: Hash) = task {
     let! hash        = addViewContext ctx hash
     let  withContent = task {
         if hash.ContainsKey ViewContext.Content then return Ok hash
         else
             match! TemplateCache.get themeId template ctx.Data with
-            | Ok contentTemplate -> return Ok (addToHash ViewContext.Content (contentTemplate.Render hash) hash)
+            | Ok contentTemplate -> return Ok(addToHash ViewContext.Content (contentTemplate.Render hash) hash)
             | Error message -> return Error message 
     }
     match! withContent with
@@ -311,7 +310,7 @@ let bareForTheme themeId template next ctx (hash : Hash) = task {
         match! TemplateCache.get themeId "layout-bare" ctx.Data with
         | Ok layoutTemplate ->
             return!
-                (messagesToHeaders (hash[ViewContext.Messages] :?> UserMessage[])
+                (messagesToHeaders (hash[ViewContext.Messages] :?> UserMessage array)
                  >=> htmlString (layoutTemplate.Render completeHash))
                     next ctx
         | Error message -> return! Error.server message next ctx
@@ -353,8 +352,7 @@ let requireAccess level : HttpHandler = fun next ctx -> task {
         do! addMessage ctx
                 { UserMessage.Warning with
                     Message = $"The page you tried to access requires {level} privileges"
-                    Detail = Some $"Your account only has {userLevel} privileges"
-                }
+                    Detail = Some $"Your account only has {userLevel} privileges" }
         return! Error.notAuthorized next ctx
     | None ->
         do! addMessage ctx
@@ -363,44 +361,44 @@ let requireAccess level : HttpHandler = fun next ctx -> task {
 }
 
 /// Determine if a user is authorized to edit a page or post, given the author        
-let canEdit authorId (ctx : HttpContext) =
+let canEdit authorId (ctx: HttpContext) =
     ctx.UserId = authorId || ctx.HasAccessLevel Editor
 
 open System.Threading.Tasks
 
 /// Create a Task with a Some result for the given object
-let someTask<'T> (it : 'T) = Task.FromResult (Some it)
+let someTask<'T> (it: 'T) = Task.FromResult(Some it)
 
 open System.Collections.Generic
 open MyWebLog.Data
 
 /// Get the templates available for the current web log's theme (in a key/value pair list)
-let templatesForTheme (ctx : HttpContext) (typ : string) = backgroundTask {
+let templatesForTheme (ctx: HttpContext) (typ: string) = backgroundTask {
     match! ctx.Data.Theme.FindByIdWithoutText ctx.WebLog.ThemeId with
     | Some theme ->
         return seq {
-            KeyValuePair.Create ("", $"- Default (single-{typ}) -")
+            KeyValuePair.Create("", $"- Default (single-{typ}) -")
             yield!
                 theme.Templates
                 |> Seq.ofList
                 |> Seq.filter (fun it -> it.Name.EndsWith $"-{typ}" && it.Name <> $"single-{typ}")
-                |> Seq.map (fun it -> KeyValuePair.Create (it.Name, it.Name))
+                |> Seq.map (fun it -> KeyValuePair.Create(it.Name, it.Name))
         }
         |> Array.ofSeq
-    | None -> return [| KeyValuePair.Create ("", $"- Default (single-{typ}) -") |]
+    | None -> return [| KeyValuePair.Create("", $"- Default (single-{typ}) -") |]
 }
 
 /// Get all authors for a list of posts as metadata items
-let getAuthors (webLog : WebLog) (posts : Post list) (data : IData) =
+let getAuthors (webLog: WebLog) (posts: Post list) (data: IData) =
     posts
-    |> List.map (fun p -> p.AuthorId)
+    |> List.map _.AuthorId
     |> List.distinct
     |> data.WebLogUser.FindNames webLog.Id
 
 /// Get all tag mappings for a list of posts as metadata items
-let getTagMappings (webLog : WebLog) (posts : Post list) (data : IData) =
+let getTagMappings (webLog: WebLog) (posts: Post list) (data: IData) =
     posts
-    |> List.map (fun p -> p.Tags)
+    |> List.map _.Tags
     |> List.concat
     |> List.distinct
     |> fun tags -> data.TagMap.FindMappingForTags tags webLog.Id
@@ -421,8 +419,8 @@ open System.Globalization
 open NodaTime
 
 /// Parse a date/time to UTC 
-let parseToUtc (date : string) =
-    Instant.FromDateTimeUtc (DateTime.Parse (date, null, DateTimeStyles.AdjustToUniversal))
+let parseToUtc (date: string) =
+    Instant.FromDateTimeUtc(DateTime.Parse(date, null, DateTimeStyles.AdjustToUniversal))
 
 open Microsoft.Extensions.DependencyInjection
 open Microsoft.Extensions.Logging
@@ -431,25 +429,24 @@ open Microsoft.Extensions.Logging
 let mutable private debugEnabled : bool option = None
 
 /// Is debug enabled for handlers?
-let private isDebugEnabled (ctx : HttpContext) =
+let private isDebugEnabled (ctx: HttpContext) =
     match debugEnabled with
     | Some flag -> flag
     | None ->
-        let fac = ctx.RequestServices.GetRequiredService<ILoggerFactory> ()
+        let fac = ctx.RequestServices.GetRequiredService<ILoggerFactory>()
         let log = fac.CreateLogger "MyWebLog.Handlers"
-        debugEnabled <- Some (log.IsEnabled LogLevel.Debug)
+        debugEnabled <- Some(log.IsEnabled LogLevel.Debug)
         debugEnabled.Value
 
 /// Log a debug message
-let debug (name : string) ctx msg =
+let debug (name: string) ctx msg =
     if isDebugEnabled ctx then
-        let fac = ctx.RequestServices.GetRequiredService<ILoggerFactory> ()
+        let fac = ctx.RequestServices.GetRequiredService<ILoggerFactory>()
         let log = fac.CreateLogger $"MyWebLog.Handlers.{name}"
-        log.LogDebug (msg ())
+        log.LogDebug(msg ())
 
 /// Log a warning message
-let warn (name : string) (ctx : HttpContext) msg =
-    let fac = ctx.RequestServices.GetRequiredService<ILoggerFactory> ()
+let warn (name: string) (ctx: HttpContext) msg =
+    let fac = ctx.RequestServices.GetRequiredService<ILoggerFactory>()
     let log = fac.CreateLogger $"MyWebLog.Handlers.{name}"
     log.LogWarning msg
-    

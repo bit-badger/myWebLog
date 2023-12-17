@@ -5,12 +5,12 @@ open Microsoft.Extensions.Logging
 open MyWebLog
 
 /// Middleware to derive the current web log
-type WebLogMiddleware (next : RequestDelegate, log : ILogger<WebLogMiddleware>) =
+type WebLogMiddleware(next: RequestDelegate, log: ILogger<WebLogMiddleware>) =
     
     /// Is the debug level enabled on the logger?
     let isDebug = log.IsEnabled LogLevel.Debug
         
-    member _.InvokeAsync (ctx : HttpContext) = task {
+    member _.InvokeAsync(ctx: HttpContext) = task {
         /// Create the full path of the request
         let path = $"{ctx.Request.Scheme}://{ctx.Request.Host.Value}{ctx.Request.Path.Value}"
         match WebLogCache.tryGet path with
@@ -27,14 +27,14 @@ type WebLogMiddleware (next : RequestDelegate, log : ILogger<WebLogMiddleware>) 
 
 
 /// Middleware to check redirects for the current web log
-type RedirectRuleMiddleware (next : RequestDelegate, log : ILogger<RedirectRuleMiddleware>) =
+type RedirectRuleMiddleware(next: RequestDelegate, log: ILogger<RedirectRuleMiddleware>) =
 
     /// Shorthand for case-insensitive string equality
     let ciEquals str1 str2 =
-        System.String.Equals (str1, str2, System.StringComparison.InvariantCultureIgnoreCase)
+        System.String.Equals(str1, str2, System.StringComparison.InvariantCultureIgnoreCase)
     
-    member _.InvokeAsync (ctx : HttpContext) = task {
-        let path    = ctx.Request.Path.Value.ToLower ()
+    member _.InvokeAsync(ctx: HttpContext) = task {
+        let path    = ctx.Request.Path.Value.ToLower()
         let matched =
             WebLogCache.redirectRules ctx.WebLog.Id
             |> List.tryPick (fun rule ->
@@ -42,9 +42,9 @@ type RedirectRuleMiddleware (next : RequestDelegate, log : ILogger<RedirectRuleM
                 | WebLogCache.CachedRedirectRule.Text (urlFrom, urlTo) ->
                     if ciEquals path urlFrom then Some urlTo else None
                 | WebLogCache.CachedRedirectRule.RegEx (regExFrom, patternTo) ->
-                    if regExFrom.IsMatch path then Some (regExFrom.Replace (path, patternTo)) else None)
+                    if regExFrom.IsMatch path then Some (regExFrom.Replace(path, patternTo)) else None)
         match matched with
-        | Some url -> ctx.Response.Redirect (url, permanent = true)
+        | Some url -> ctx.Response.Redirect(url, permanent = true)
         | None -> return! next.Invoke ctx
     }
 
@@ -64,39 +64,39 @@ module DataImplementation =
     open RethinkDb.Driver.Net
 
     /// Create an NpgsqlDataSource from the connection string, configuring appropriately
-    let createNpgsqlDataSource (cfg : IConfiguration) =
-        let builder = NpgsqlDataSourceBuilder (cfg.GetConnectionString "PostgreSQL")
-        let _ = builder.UseNodaTime ()
+    let createNpgsqlDataSource (cfg: IConfiguration) =
+        let builder = NpgsqlDataSourceBuilder(cfg.GetConnectionString "PostgreSQL")
+        let _ = builder.UseNodaTime()
         // let _ = builder.UseLoggerFactory(LoggerFactory.Create(fun it -> it.AddConsole () |> ignore))
         (builder.Build >> Configuration.useDataSource) ()
 
     /// Get the configured data implementation
-    let get (sp : IServiceProvider) : IData =
-        let config   = sp.GetRequiredService<IConfiguration> ()
+    let get (sp: IServiceProvider) : IData =
+        let config   = sp.GetRequiredService<IConfiguration>()
         let await it = (Async.AwaitTask >> Async.RunSynchronously) it
         let connStr    name = config.GetConnectionString name
         let hasConnStr name = (connStr >> isNull >> not) name
         let createSQLite connStr : IData =
-            let log  = sp.GetRequiredService<ILogger<SQLiteData>> ()
-            let conn = new SqliteConnection (connStr)
+            let log  = sp.GetRequiredService<ILogger<SQLiteData>>()
+            let conn = new SqliteConnection(connStr)
             log.LogInformation $"Using SQLite database {conn.DataSource}"
             await (SQLiteData.setUpConnection conn)
-            SQLiteData (conn, log, Json.configure (JsonSerializer.CreateDefault ()))
+            SQLiteData(conn, log, Json.configure (JsonSerializer.CreateDefault()))
         
         if hasConnStr "SQLite" then
             createSQLite (connStr "SQLite")
         elif hasConnStr "RethinkDB" then
-            let log        = sp.GetRequiredService<ILogger<RethinkDbData>> ()
+            let log        = sp.GetRequiredService<ILogger<RethinkDbData>>()
             let _          = Json.configure Converter.Serializer 
             let rethinkCfg = DataConfig.FromUri (connStr "RethinkDB")
             let conn       = await (rethinkCfg.CreateConnectionAsync log)
-            RethinkDbData (conn, rethinkCfg, log)
+            RethinkDbData(conn, rethinkCfg, log)
         elif hasConnStr "PostgreSQL" then
             createNpgsqlDataSource config
-            use conn = Configuration.dataSource().CreateConnection ()
-            let log  = sp.GetRequiredService<ILogger<PostgresData>> ()
+            use conn = Configuration.dataSource().CreateConnection()
+            let log  = sp.GetRequiredService<ILogger<PostgresData>>()
             log.LogInformation $"Using PostgreSQL database {conn.Database}"
-            PostgresData (log, Json.configure (JsonSerializer.CreateDefault ()))
+            PostgresData(log, Json.configure (JsonSerializer.CreateDefault()))
         else
             createSQLite "Data Source=./myweblog.db;Cache=Shared"
 
@@ -119,7 +119,7 @@ let showHelp () =
     printfn "upgrade-user  Upgrade a WebLogAdmin user to a full Administrator"
     printfn " "
     printfn "For more information on a particular command, run it with no options."
-    Task.FromResult ()
+    Task.FromResult()
 
 
 open System.IO
@@ -146,16 +146,16 @@ let main args =
                 opts.ExpireTimeSpan    <- TimeSpan.FromMinutes 60.
                 opts.SlidingExpiration <- true
                 opts.AccessDeniedPath  <- "/forbidden")
-    let _ = builder.Services.AddLogging ()
-    let _ = builder.Services.AddAuthorization ()
-    let _ = builder.Services.AddAntiforgery ()
+    let _ = builder.Services.AddLogging()
+    let _ = builder.Services.AddAuthorization()
+    let _ = builder.Services.AddAntiforgery()
     
-    let sp = builder.Services.BuildServiceProvider ()
+    let sp   = builder.Services.BuildServiceProvider()
     let data = DataImplementation.get sp
     let _ = builder.Services.AddSingleton<JsonSerializer> data.Serializer
     
     task {
-        do! data.StartUp ()
+        do! data.StartUp()
         do! WebLogCache.fill data
         do! ThemeAssetCache.fill data
     } |> Async.AwaitTask |> Async.RunSynchronously
@@ -166,30 +166,30 @@ let main args =
         // A RethinkDB connection is designed to work as a singleton
         let _ = builder.Services.AddSingleton<IData> data
         let _ =
-            builder.Services.AddDistributedRethinkDBCache (fun opts ->
+            builder.Services.AddDistributedRethinkDBCache(fun opts ->
                 opts.TableName  <- "Session"
                 opts.Connection <- rethink.Conn)
         ()
     | :? SQLiteData as sql ->
         // ADO.NET connections are designed to work as per-request instantiation
-        let cfg  = sp.GetRequiredService<IConfiguration> ()
+        let cfg  = sp.GetRequiredService<IConfiguration>()
         let _ =
-            builder.Services.AddScoped<SqliteConnection> (fun sp ->
-                let conn = new SqliteConnection (sql.Conn.ConnectionString)
+            builder.Services.AddScoped<SqliteConnection>(fun sp ->
+                let conn = new SqliteConnection(sql.Conn.ConnectionString)
                 SQLiteData.setUpConnection conn |> Async.AwaitTask |> Async.RunSynchronously
                 conn)
-        let _ = builder.Services.AddScoped<IData, SQLiteData> () |> ignore
+        let _ = builder.Services.AddScoped<IData, SQLiteData>()
         // Use SQLite for caching as well
         let cachePath = defaultArg (Option.ofObj (cfg.GetConnectionString "SQLiteCachePath")) "./session.db"
-        let _ = builder.Services.AddSqliteCache (fun o -> o.CachePath <- cachePath)
+        let _ = builder.Services.AddSqliteCache(fun o -> o.CachePath <- cachePath)
         ()
     | :? PostgresData as postgres ->
         // ADO.NET Data Sources are designed to work as singletons
-        let _ = builder.Services.AddSingleton<NpgsqlDataSource> (Configuration.dataSource ())
+        let _ = builder.Services.AddSingleton<NpgsqlDataSource>(Configuration.dataSource ())
         let _ = builder.Services.AddSingleton<IData> postgres
         let _ =
-            builder.Services.AddSingleton<IDistributedCache> (fun _ ->
-                Postgres.DistributedCache () :> IDistributedCache)
+            builder.Services.AddSingleton<IDistributedCache>(fun _ ->
+                Postgres.DistributedCache() :> IDistributedCache)
         ()
     | _ -> ()
     
@@ -197,12 +197,12 @@ let main args =
         opts.IdleTimeout        <- TimeSpan.FromMinutes 60
         opts.Cookie.HttpOnly    <- true
         opts.Cookie.IsEssential <- true)
-    let _ = builder.Services.AddGiraffe ()
+    let _ = builder.Services.AddGiraffe()
     
     // Set up DotLiquid
     DotLiquidBespoke.register ()
 
-    let app = builder.Build ()
+    let app = builder.Build()
     
     match args |> Array.tryHead with
     | Some it when it = "init"         -> Maintenance.createWebLog             args app.Services
@@ -219,25 +219,25 @@ let main args =
         showHelp ()
     | None -> task {
         // Load all themes in the application directory
-        for themeFile in Directory.EnumerateFiles (".", "*-theme.zip") do
+        for themeFile in Directory.EnumerateFiles(".", "*-theme.zip") do
             do! Maintenance.loadTheme [| ""; themeFile |] app.Services
             
-        let _ = app.UseForwardedHeaders ()
+        let _ = app.UseForwardedHeaders()
         
         (app.Services.GetRequiredService<IConfiguration>().GetSection "CanonicalDomains").Value
         |> (isNull >> not)
-        |> function true -> app.UseCanonicalDomains () |> ignore | false -> ()
+        |> function true -> app.UseCanonicalDomains() |> ignore | false -> ()
         
-        let _ = app.UseCookiePolicy (CookiePolicyOptions (MinimumSameSitePolicy = SameSiteMode.Strict))
-        let _ = app.UseMiddleware<WebLogMiddleware> ()
-        let _ = app.UseMiddleware<RedirectRuleMiddleware> ()
-        let _ = app.UseAuthentication ()
-        let _ = app.UseStaticFiles ()
-        let _ = app.UseRouting ()
-        let _ = app.UseSession ()
+        let _ = app.UseCookiePolicy(CookiePolicyOptions (MinimumSameSitePolicy = SameSiteMode.Strict))
+        let _ = app.UseMiddleware<WebLogMiddleware>()
+        let _ = app.UseMiddleware<RedirectRuleMiddleware>()
+        let _ = app.UseAuthentication()
+        let _ = app.UseStaticFiles()
+        let _ = app.UseRouting()
+        let _ = app.UseSession()
         let _ = app.UseGiraffe Handlers.Routes.endpoint
 
-        app.Run ()
+        app.Run()
     }
     |> Async.AwaitTask |> Async.RunSynchronously
     

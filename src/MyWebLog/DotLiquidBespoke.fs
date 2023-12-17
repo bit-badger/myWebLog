@@ -17,7 +17,7 @@ type Context with
 
 
 /// Does an asset exist for the current theme?
-let assetExists fileName (webLog : WebLog) =
+let assetExists fileName (webLog: WebLog) =
     ThemeAssetCache.get webLog.ThemeId |> List.exists (fun it -> it = fileName)
 
 /// Obtain the link from known types
@@ -149,10 +149,10 @@ type PageHeadTag() =
 
 
 /// Create various items in the page header based on the state of the page being generated
-type PageFootTag () =
-    inherit Tag ()
+type PageFootTag() =
+    inherit Tag()
     
-    override this.Render (context : Context, result : TextWriter) =
+    override this.Render(context: Context, result: TextWriter) =
         let webLog = context.WebLog
         // spacer
         let s = "    "
@@ -161,12 +161,12 @@ type PageFootTag () =
             result.WriteLine $"{s}{RenderView.AsString.htmlNode Htmx.Script.minified}"
         
         if assetExists "script.js" webLog then
-            result.WriteLine $"""{s}<script src="{ThemeAssetFilter.ThemeAsset (context, "script.js")}"></script>"""
+            result.WriteLine $"""{s}<script src="{ThemeAssetFilter.ThemeAsset(context, "script.js")}"></script>"""
 
-        
+
 /// A filter to generate a relative link
-type RelativeLinkFilter () =
-    static member RelativeLink (ctx : Context, item : obj) =
+type RelativeLinkFilter() =
+    static member RelativeLink(ctx: Context, item: obj) =
         permalink item ctx.WebLog.RelativeUrl
 
 

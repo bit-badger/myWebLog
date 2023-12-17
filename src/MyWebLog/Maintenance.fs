@@ -7,9 +7,9 @@ open MyWebLog.Data
 open NodaTime
 
 /// Create the web log information
-let private doCreateWebLog (args : string[]) (sp : IServiceProvider) = task {
+let private doCreateWebLog (args: string[]) (sp: IServiceProvider) = task {
     
-    let data = sp.GetRequiredService<IData> ()
+    let data = sp.GetRequiredService<IData>()
     
     let timeZone =
         let local = TimeZoneInfo.Local.Id
@@ -38,8 +38,7 @@ let private doCreateWebLog (args : string[]) (sp : IServiceProvider) = task {
                 Slug        = slug
                 UrlBase     = args[1]
                 DefaultPage = string homePageId
-                TimeZone    = timeZone
-            }
+                TimeZone    = timeZone }
     
     // Create the admin user
     let now  = Noda.now ()
@@ -52,8 +51,7 @@ let private doCreateWebLog (args : string[]) (sp : IServiceProvider) = task {
             LastName      = "User"
             PreferredName = "Admin"
             AccessLevel   = accessLevel
-            CreatedOn     = now
-        }
+            CreatedOn     = now }
     do! data.WebLogUser.Add { user with PasswordHash = Handlers.User.createPasswordHash user args[4] }
 
     // Create the default home page
@@ -69,16 +67,14 @@ let private doCreateWebLog (args : string[]) (sp : IServiceProvider) = task {
                 Text        = "<p>This is your default home page.</p>"
                 Revisions   = [
                     {   AsOf = now
-                        Text = Html "<p>This is your default home page.</p>"
-                    }
-                ]
-            }
+                        Text = Html "<p>This is your default home page.</p>" }
+                ] }
 
     printfn $"Successfully initialized database for {args[2]} with URL base {args[1]}"
     match accessLevel with
     | Administrator -> printfn $"  ({args[3]} is an installation administrator)"
     | WebLogAdmin ->
-        printfn  $"  ({args[3]} is a web log administrator;"
+        printfn $"  ({args[3]} is a web log administrator;"
         printfn """   use "upgrade-user" to promote to installation administrator)"""
     | _ -> ()
 }
@@ -91,8 +87,8 @@ let createWebLog args sp = task {
 }
 
 /// Import prior permalinks from a text files with lines in the format "[old] [new]"
-let private importPriorPermalinks urlBase file (sp : IServiceProvider) = task {
-    let data = sp.GetRequiredService<IData> ()
+let private importPriorPermalinks urlBase file (sp: IServiceProvider) = task {
+    let data = sp.GetRequiredService<IData>()
 
     match! data.WebLog.FindByHost urlBase with
     | Some webLog ->
@@ -129,7 +125,7 @@ let importLinks args sp = task {
 open Microsoft.Extensions.Logging
 
 /// Load a theme from the given ZIP file
-let loadTheme (args : string[]) (sp : IServiceProvider) = task {
+let loadTheme (args: string[]) (sp: IServiceProvider) = task {
     if args.Length = 2 then
         let fileName =
             match args[1].LastIndexOf Path.DirectorySeparatorChar with
@@ -137,12 +133,12 @@ let loadTheme (args : string[]) (sp : IServiceProvider) = task {
             | it -> args[1][(it + 1)..]
         match Handlers.Admin.Theme.deriveIdFromFileName fileName with
         | Ok themeId ->
-            let data   = sp.GetRequiredService<IData> ()
-            use stream = File.Open (args[1], FileMode.Open)
-            use copy   = new MemoryStream ()
+            let data   = sp.GetRequiredService<IData>()
+            use stream = File.Open(args[1], FileMode.Open)
+            use copy   = new MemoryStream()
             do! stream.CopyToAsync copy
             let! theme = Handlers.Admin.Theme.loadFromZip themeId copy data
-            let fac = sp.GetRequiredService<ILoggerFactory> ()
+            let fac = sp.GetRequiredService<ILoggerFactory>()
             let log = fac.CreateLogger "MyWebLog.Themes"
             log.LogInformation $"{theme.Name} v{theme.Version} ({theme.Id}) loaded"
         | Error message -> eprintfn $"{message}"
@@ -159,103 +155,96 @@ module Backup =
     /// A theme asset, with the data base-64 encoded
     type EncodedAsset =
         {   /// The ID of the theme asset
-            Id : ThemeAssetId
+            Id: ThemeAssetId
             
             /// The updated date for this asset
-            UpdatedOn : Instant
+            UpdatedOn: Instant
             
             /// The data for this asset, base-64 encoded
-            Data : string
-        }
+            Data: string }
         
         /// Create an encoded theme asset from the original theme asset
-        static member fromAsset (asset : ThemeAsset) =
+        static member fromAsset (asset: ThemeAsset) =
             {   Id        = asset.Id
                 UpdatedOn = asset.UpdatedOn
-                Data      = Convert.ToBase64String asset.Data
-            }
+                Data      = Convert.ToBase64String asset.Data }
     
         /// Create a theme asset from an encoded theme asset
-        static member toAsset (encoded : EncodedAsset) : ThemeAsset =
+        static member toAsset (encoded: EncodedAsset) : ThemeAsset =
             {   Id        = encoded.Id
                 UpdatedOn = encoded.UpdatedOn
-                Data      = Convert.FromBase64String encoded.Data
-            }
+                Data      = Convert.FromBase64String encoded.Data }
     
     /// An uploaded file, with the data base-64 encoded
     type EncodedUpload =
         {   /// The ID of the upload
-            Id : UploadId
+            Id: UploadId
             
             /// The ID of the web log to which the upload belongs
-            WebLogId : WebLogId
+            WebLogId: WebLogId
             
             /// The path at which this upload is served
-            Path : Permalink
+            Path: Permalink
             
             /// The date/time this upload was last updated (file time)
-            UpdatedOn : Instant
+            UpdatedOn: Instant
             
             /// The data for the upload, base-64 encoded
-            Data : string
-        }
+            Data: string }
         
         /// Create an encoded uploaded file from the original uploaded file
-        static member fromUpload (upload : Upload) : EncodedUpload =
+        static member fromUpload (upload: Upload) : EncodedUpload =
             {   Id        = upload.Id
                 WebLogId  = upload.WebLogId
                 Path      = upload.Path
                 UpdatedOn = upload.UpdatedOn
-                Data      = Convert.ToBase64String upload.Data
-            }
+                Data      = Convert.ToBase64String upload.Data }
         
         /// Create an uploaded file from an encoded uploaded file
-        static member toUpload (encoded : EncodedUpload) : Upload =
+        static member toUpload (encoded: EncodedUpload) : Upload =
             {   Id        = encoded.Id
                 WebLogId  = encoded.WebLogId
                 Path      = encoded.Path
                 UpdatedOn = encoded.UpdatedOn
-                Data      = Convert.FromBase64String encoded.Data
-            }
+                Data      = Convert.FromBase64String encoded.Data }
     
     /// A unified archive for a web log
     type Archive =
         {   /// The web log to which this archive belongs
-            WebLog : WebLog
+            WebLog: WebLog
             
             /// The users for this web log
-            Users : WebLogUser list
+            Users: WebLogUser list
             
             /// The theme used by this web log at the time the archive was made
-            Theme : Theme
+            Theme: Theme
             
             /// Assets for the theme used by this web log at the time the archive was made
-            Assets : EncodedAsset list
+            Assets: EncodedAsset list
             
             /// The categories for this web log
-            Categories : Category list
+            Categories: Category list
             
             /// The tag mappings for this web log
-            TagMappings : TagMap list
+            TagMappings: TagMap list
             
             /// The pages for this web log (containing only the most recent revision)
-            Pages : Page list
+            Pages: Page list
             
             /// The posts for this web log (containing only the most recent revision)
-            Posts : Post list
+            Posts: Post list
             
             /// The uploaded files for this web log
-            Uploads : EncodedUpload list
-        }
+            Uploads: EncodedUpload list }
     
     /// Create a JSON serializer
     let private getSerializer prettyOutput =
-        let serializer = Json.configure (JsonSerializer.CreateDefault ())
+        let serializer = Json.configure (JsonSerializer.CreateDefault())
         if prettyOutput then serializer.Formatting <- Formatting.Indented
         serializer
     
     /// Display statistics for a backup archive
-    let private displayStats (msg : string) (webLog : WebLog) archive =
+    let private displayStats (msg: string) (webLog: WebLog) archive =
 
         let userCount     = List.length archive.Users
         let assetCount    = List.length archive.Assets
@@ -280,7 +269,7 @@ module Backup =
         printfn $""" - {uploadCount} uploaded file{plural uploadCount "" "s"}"""
 
     /// Create a backup archive
-    let private createBackup webLog (fileName : string) prettyOutput (data : IData) = task {
+    let private createBackup webLog (fileName: string) prettyOutput (data: IData) = task {
         // Create the data structure
         printfn "- Exporting theme..."
         let! theme  = data.Theme.FindById webLog.ThemeId
@@ -312,25 +301,24 @@ module Backup =
                 TagMappings = tagMaps
                 Pages       = pages   |> List.map (fun p -> { p with Revisions = List.truncate 1 p.Revisions })
                 Posts       = posts   |> List.map (fun p -> { p with Revisions = List.truncate 1 p.Revisions })
-                Uploads     = uploads |> List.map EncodedUpload.fromUpload
-            }
+                Uploads     = uploads |> List.map EncodedUpload.fromUpload }
         
         // Write the structure to the backup file
         if File.Exists fileName then File.Delete fileName
         let serializer = getSerializer prettyOutput
-        use writer = new StreamWriter (fileName)
-        serializer.Serialize (writer, archive)
-        writer.Close ()
+        use writer = new StreamWriter(fileName)
+        serializer.Serialize(writer, archive)
+        writer.Close()
         
         displayStats $"{fileName} (for <>NAME<>) contains:" webLog archive
     }
     
-    let private doRestore archive newUrlBase (data : IData) = task {
+    let private doRestore archive newUrlBase (data: IData) = task {
         let! restore = task {
             match! data.WebLog.FindById archive.WebLog.Id with
             | Some webLog when defaultArg newUrlBase webLog.UrlBase = webLog.UrlBase ->
                 do! data.WebLog.Delete webLog.Id
-                return { archive with WebLog = { archive.WebLog with UrlBase = defaultArg newUrlBase webLog.UrlBase } }
+                return { archive with Archive.WebLog.UrlBase = defaultArg newUrlBase webLog.UrlBase }
             | Some _ ->
                 // Err'body gets new IDs...
                 let newWebLogId = WebLogId.Create()
@@ -354,24 +342,18 @@ module Backup =
                                           { page with
                                               Id       = newPageIds[page.Id]
                                               WebLogId = newWebLogId
-                                              AuthorId = newUserIds[page.AuthorId]
-                                          })
+                                              AuthorId = newUserIds[page.AuthorId] })
                         Posts       = archive.Posts
                                       |> List.map (fun post ->
                                           { post with
                                               Id          = newPostIds[post.Id]
                                               WebLogId    = newWebLogId
                                               AuthorId    = newUserIds[post.AuthorId]
-                                              CategoryIds = post.CategoryIds |> List.map (fun c -> newCatIds[c])
-                                          })
+                                              CategoryIds = post.CategoryIds |> List.map (fun c -> newCatIds[c]) })
                         Uploads     = archive.Uploads
-                                      |> List.map (fun u -> { u with Id = newUpIds[u.Id]; WebLogId = newWebLogId })
-                    }
+                                      |> List.map (fun u -> { u with Id = newUpIds[u.Id]; WebLogId = newWebLogId }) }
             | None ->
-                return
-                    { archive with
-                        WebLog = { archive.WebLog with UrlBase = defaultArg newUrlBase archive.WebLog.UrlBase }
-                    }
+                return { archive with Archive.WebLog.UrlBase = defaultArg newUrlBase archive.WebLog.UrlBase }
         }
         
         // Restore theme and assets (one at a time, as assets can be large)
@@ -413,12 +395,12 @@ module Backup =
     }
     
     /// Decide whether to restore a backup
-    let private restoreBackup (fileName : string) newUrlBase promptForOverwrite data = task {
+    let private restoreBackup fileName newUrlBase promptForOverwrite data = task {
         
         let serializer = getSerializer false
-        use stream     = new FileStream (fileName, FileMode.Open)
-        use reader     = new StreamReader (stream)
-        use jsonReader = new JsonTextReader (reader)
+        use stream     = new FileStream(fileName, FileMode.Open)
+        use reader     = new StreamReader(stream)
+        use jsonReader = new JsonTextReader(reader)
         let archive    = serializer.Deserialize<Archive> jsonReader
         
         let mutable doOverwrite = not promptForOverwrite
@@ -428,7 +410,7 @@ module Backup =
             printfn "            theme in either case."
             printfn ""
             printf  "Continue? [Y/n] "
-            doOverwrite <- not ((Console.ReadKey ()).Key = ConsoleKey.N)
+            doOverwrite <- not (Console.ReadKey().Key = ConsoleKey.N)
         
         if doOverwrite then
             do! doRestore archive newUrlBase data
@@ -437,9 +419,9 @@ module Backup =
     }
         
     /// Generate a backup archive
-    let generateBackup (args : string[]) (sp : IServiceProvider) = task {
+    let generateBackup (args: string[]) (sp: IServiceProvider) = task {
         if args.Length > 1 && args.Length < 5 then
-            let data = sp.GetRequiredService<IData> ()
+            let data = sp.GetRequiredService<IData>()
             match! data.WebLog.FindByHost args[1] with
             | Some webLog ->
                 let fileName =
@@ -459,9 +441,9 @@ module Backup =
     }
     
     /// Restore a backup archive
-    let restoreFromBackup (args : string[]) (sp : IServiceProvider) = task {
+    let restoreFromBackup (args: string[]) (sp: IServiceProvider) = task {
         if args.Length = 2 || args.Length = 3 then
-            let data       = sp.GetRequiredService<IData> ()
+            let data       = sp.GetRequiredService<IData>()
             let newUrlBase = if args.Length = 3 then Some args[2] else None
             do! restoreBackup args[1] newUrlBase (args[0] <> "do-restore") data
         else
@@ -472,7 +454,7 @@ module Backup =
 
 
 /// Upgrade a WebLogAdmin user to an Administrator user
-let private doUserUpgrade urlBase email (data : IData) = task {
+let private doUserUpgrade urlBase email (data: IData) = task {
     match! data.WebLog.FindByHost urlBase with
     | Some webLog ->
         match! data.WebLogUser.FindByEmail email webLog.Id with
@@ -487,14 +469,14 @@ let private doUserUpgrade urlBase email (data : IData) = task {
 }
 
 /// Upgrade a WebLogAdmin user to an Administrator user if the command-line arguments are good
-let upgradeUser (args : string[]) (sp : IServiceProvider) = task {
+let upgradeUser (args: string[]) (sp: IServiceProvider) = task {
     match args.Length with
-    | 3 -> do! doUserUpgrade args[1] args[2] (sp.GetRequiredService<IData> ())
+    | 3 -> do! doUserUpgrade args[1] args[2] (sp.GetRequiredService<IData>())
     | _ -> eprintfn "Usage: myWebLog upgrade-user [web-log-url-base] [email-address]"
 }
 
 /// Set a user's password
-let doSetPassword urlBase email password (data : IData) = task {
+let doSetPassword urlBase email password (data: IData) = task {
     match! data.WebLog.FindByHost urlBase with
     | Some webLog ->
         match! data.WebLogUser.FindByEmail email webLog.Id with
@@ -506,8 +488,8 @@ let doSetPassword urlBase email password (data : IData) = task {
 }
 
 /// Set a user's password if the command-line arguments are good
-let setPassword (args : string[]) (sp : IServiceProvider) = task {
+let setPassword (args: string[]) (sp: IServiceProvider) = task {
     match args.Length with
-    | 4 -> do! doSetPassword args[1] args[2] args[3] (sp.GetRequiredService<IData> ())
+    | 4 -> do! doSetPassword args[1] args[2] args[3] (sp.GetRequiredService<IData>())
     | _ -> eprintfn "Usage: myWebLog set-password [web-log-url-base] [email-address] [password]"
 }

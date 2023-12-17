@@ -12,7 +12,7 @@ module Dashboard =
     
     // GET /admin/dashboard
     let user : HttpHandler = requireAccess Author >=> fun next ctx -> task {
-        let getCount (f : WebLogId -> Task<int>) = f ctx.WebLog.Id
+        let getCount (f: WebLogId -> Task<int>) = f ctx.WebLog.Id
         let  data    = ctx.Data
         let! posts   = getCount (data.Post.CountByStatus Published)
         let! drafts  = getCount (data.Post.CountByStatus Draft)
@@ -89,7 +89,7 @@ module Cache =
             do! addMessage ctx
                     { UserMessage.Success with Message = "Successfully refresh web log cache for all web logs" }
         else
-            match! data.WebLog.FindById (WebLogId webLogId) with
+            match! data.WebLog.FindById(WebLogId webLogId) with
             | Some webLog ->
                 WebLogCache.set webLog
                 do! PageListCache.refresh webLog    data
@@ -109,17 +109,15 @@ module Cache =
             do! ThemeAssetCache.fill data
             do! addMessage ctx
                     { UserMessage.Success with
-                        Message = "Successfully cleared template cache and refreshed theme asset cache"
-                    }
+                        Message = "Successfully cleared template cache and refreshed theme asset cache" }
         else
-            match! data.Theme.FindById (ThemeId themeId) with
+            match! data.Theme.FindById(ThemeId themeId) with
             | Some theme ->
                 TemplateCache.invalidateTheme    theme.Id
                 do! ThemeAssetCache.refreshTheme theme.Id data
                 do! addMessage ctx
                         { UserMessage.Success with
-                            Message = $"Successfully cleared template cache and refreshed theme asset cache for {theme.Name}"
-                        }
+                            Message = $"Successfully cleared template cache and refreshed theme asset cache for {theme.Name}" }
             | None ->
                 do! addMessage ctx { UserMessage.Error with Message = $"No theme exists with ID {themeId}" }
         return! toAdminDashboard next ctx
@@ -156,10 +154,10 @@ module Category =
     let edit catId : HttpHandler = fun next ctx -> task {
         let! result = task {
             match catId with
-            | "new" -> return Some ("Add a New Category", { Category.Empty with Id = CategoryId "new" })
+            | "new" -> return Some("Add a New Category", { Category.Empty with Id = CategoryId "new" })
             | _ ->
                 match! ctx.Data.Category.FindById (CategoryId catId) ctx.WebLog.Id with
-                | Some cat -> return Some ("Edit Category", cat)
+                | Some cat -> return Some("Edit Category", cat)
                 | None -> return None
         }
         match result with
@@ -175,7 +173,7 @@ module Category =
     // POST /admin/category/save
     let save : HttpHandler = fun next ctx -> task {
         let  data     = ctx.Data
-        let! model    = ctx.BindFormAsync<EditCategoryModel> ()
+        let! model    = ctx.BindFormAsync<EditCategoryModel>()
         let  category =
             if model.IsNew then someTask { Category.Empty with Id = CategoryId.Create(); WebLogId = ctx.WebLog.Id }
             else data.Category.FindById (CategoryId model.CategoryId) ctx.WebLog.Id
@@ -186,8 +184,7 @@ module Category =
                     Name        = model.Name
                     Slug        = model.Slug
                     Description = if model.Description = "" then None else Some model.Description
-                    ParentId    = if model.ParentId    = "" then None else Some (CategoryId model.ParentId)
-                }
+                    ParentId    = if model.ParentId    = "" then None else Some(CategoryId model.ParentId) }
             do! (if model.IsNew then data.Category.Add else data.Category.Update) updatedCat
             do! CategoryCache.update ctx
             do! addMessage ctx { UserMessage.Success with Message = "Category saved successfully" }
@@ -249,7 +246,7 @@ module RedirectRules =
     }
 
     /// Update the web log's redirect rules in the database, the request web log, and the web log cache
-    let private updateRedirectRules (ctx : HttpContext) webLog = backgroundTask {
+    let private updateRedirectRules (ctx: HttpContext) webLog = backgroundTask {
         do! ctx.Data.WebLog.UpdateRedirectRules webLog
         ctx.Items["webLog"] <- webLog
         WebLogCache.set webLog
@@ -311,7 +308,7 @@ module TagMapping =
     open Microsoft.AspNetCore.Http
 
     /// Add tag mappings to the given hash
-    let withTagMappings (ctx : HttpContext) hash = task {
+    let withTagMappings (ctx: HttpContext) hash = task {
         let! mappings = ctx.Data.TagMap.FindByWebLog ctx.WebLog.Id
         return
                addToHash "mappings"    mappings hash
@@ -414,9 +411,9 @@ module Theme =
             zip.Entries
             |> Seq.filter (fun it -> it.Name.EndsWith ".liquid")
             |> Seq.map (fun templateItem -> backgroundTask {
-                use templateFile = new StreamReader (templateItem.Open ())
-                let! template = templateFile.ReadToEndAsync ()
-                return { Name = templateItem.Name.Replace (".liquid", ""); Text = template }
+                use templateFile = new StreamReader(templateItem.Open())
+                let! template = templateFile.ReadToEndAsync()
+                return { Name = templateItem.Name.Replace(".liquid", ""); Text = template }
             })
         let! templates = Task.WhenAll tasks
         return
@@ -427,37 +424,37 @@ module Theme =
     }
 
     /// Update theme assets from the ZIP archive
-    let private updateAssets themeId (zip : ZipArchive) (data : IData) = backgroundTask {
-        for asset in zip.Entries |> Seq.filter (fun it -> it.FullName.StartsWith "wwwroot") do
-            let assetName = asset.FullName.Replace ("wwwroot/", "")
+    let private updateAssets themeId (zip: ZipArchive) (data: IData) = backgroundTask {
+        for asset in zip.Entries |> Seq.filter _.FullName.StartsWith("wwwroot") do
+            let assetName = asset.FullName.Replace("wwwroot/", "")
             if assetName <> "" && not (assetName.EndsWith "/") then
-                use stream = new MemoryStream ()
+                use stream = new MemoryStream()
                 do! asset.Open().CopyToAsync stream
                 do! data.ThemeAsset.Save
-                        {   Id        = ThemeAssetId (themeId, assetName)
+                        {   Id        = ThemeAssetId(themeId, assetName)
                             UpdatedOn = LocalDateTime.FromDateTime(asset.LastWriteTime.DateTime)
-                                            .InZoneLeniently(DateTimeZone.Utc).ToInstant ()
-                            Data      = stream.ToArray ()
+                                            .InZoneLeniently(DateTimeZone.Utc).ToInstant()
+                            Data      = stream.ToArray()
                         }
     }
 
     /// Derive the theme ID from the file name given
-    let deriveIdFromFileName (fileName : string) =
-        let themeName = fileName.Split(".").[0].ToLowerInvariant().Replace (" ", "-")
+    let deriveIdFromFileName (fileName: string) =
+        let themeName = fileName.Split(".").[0].ToLowerInvariant().Replace(" ", "-")
         if themeName.EndsWith "-theme" then
-            if Regex.IsMatch (themeName, """^[a-z0-9\-]+$""") then
-                Ok (ThemeId (themeName.Substring (0, themeName.Length - 6)))
+            if Regex.IsMatch(themeName, """^[a-z0-9\-]+$""") then
+                Ok(ThemeId(themeName[..themeName.Length - 6]))
             else Error $"Theme ID {fileName} is invalid"
         else Error "Theme .zip file name must end in \"-theme.zip\""
 
     /// Load a theme from the given stream, which should contain a ZIP archive
-    let loadFromZip themeId file (data : IData) = backgroundTask {
+    let loadFromZip themeId file (data: IData) = backgroundTask {
         let! isNew, theme = backgroundTask {
             match! data.Theme.FindById themeId with
             | Some t -> return false, t
             | None   -> return true, { Theme.Empty with Id = themeId }
         }
-        use  zip   = new ZipArchive (file, ZipArchiveMode.Read)
+        use  zip   = new ZipArchive(file, ZipArchiveMode.Read)
         let! theme = updateNameAndVersion theme zip
         if not isNew then do! data.ThemeAsset.DeleteByTheme theme.Id
         let! theme = updateTemplates { theme with Templates = [] } zip
@@ -489,14 +486,12 @@ module Theme =
                     do! themeFile.CopyToAsync file
                     do! addMessage ctx
                             { UserMessage.Success with
-                                Message = $"""Theme {if isNew then "add" else "updat"}ed successfully"""
-                            }
+                                Message = $"""Theme {if isNew then "add" else "updat"}ed successfully""" }
                     return! toAdminDashboard next ctx
                 else
                     do! addMessage ctx
                             { UserMessage.Error with
-                                Message = "Theme exists and overwriting was not requested; nothing saved"
-                            }
+                                Message = "Theme exists and overwriting was not requested; nothing saved" }
                     return! toAdminDashboard next ctx
             | Ok _ ->
                 do! addMessage ctx { UserMessage.Error with Message = "You may not replace the admin theme" }
@@ -517,8 +512,7 @@ module Theme =
         | it when WebLogCache.isThemeInUse (ThemeId it) ->
             do! addMessage ctx
                     { UserMessage.Error with
-                        Message = $"You may not delete the {themeId} theme, as it is currently in use"
-                    }
+                        Message = $"You may not delete the {themeId} theme, as it is currently in use" }
             return! all next ctx
         | _ ->
             match! data.Theme.Delete (ThemeId themeId) with
@@ -588,7 +582,7 @@ module WebLog =
     // POST /admin/settings
     let saveSettings : HttpHandler = fun next ctx -> task {
         let  data  = ctx.Data
-        let! model = ctx.BindFormAsync<SettingsModel> ()
+        let! model = ctx.BindFormAsync<SettingsModel>()
         match! data.WebLog.FindById ctx.WebLog.Id with
         | Some webLog ->
             let oldSlug = webLog.Slug
@@ -600,9 +594,9 @@ module WebLog =
             
             if oldSlug <> webLog.Slug then
                 // Rename disk directory if it exists
-                let uploadRoot = Path.Combine ("wwwroot", "upload")
-                let oldDir     = Path.Combine (uploadRoot, oldSlug)
-                if Directory.Exists oldDir then Directory.Move (oldDir, Path.Combine (uploadRoot, webLog.Slug))
+                let uploadRoot = Path.Combine("wwwroot", "upload")
+                let oldDir     = Path.Combine(uploadRoot, oldSlug)
+                if Directory.Exists oldDir then Directory.Move(oldDir, Path.Combine(uploadRoot, webLog.Slug))
         
             do! addMessage ctx { UserMessage.Success with Message = "Web log settings saved successfully" }
             return! redirectToGet "admin/settings" next ctx

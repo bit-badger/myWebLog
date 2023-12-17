@@ -9,17 +9,16 @@ open MyWebLog.ViewModels
 let currentDbVersion = "v2.1"
 
 /// Create a category hierarchy from the given list of categories
-let rec orderByHierarchy (cats : Category list) parentId slugBase parentNames = seq {
+let rec orderByHierarchy (cats: Category list) parentId slugBase parentNames = seq {
     for cat in cats |> List.filter (fun c -> c.ParentId = parentId) do
         let fullSlug = (match slugBase with Some it -> $"{it}/" | None -> "") + cat.Slug
-        { Id          = string cat.Id
-          Slug        = fullSlug
-          Name        = cat.Name
-          Description = cat.Description
-          ParentNames = Array.ofList parentNames
-          // Post counts are filled on a second pass
-          PostCount   = 0
-        }
+        {   Id          = string cat.Id
+            Slug        = fullSlug
+            Name        = cat.Name
+            Description = cat.Description
+            ParentNames = Array.ofList parentNames
+            // Post counts are filled on a second pass
+            PostCount   = 0 }
         yield! orderByHierarchy cats (Some cat.Id) (Some fullSlug) ([ cat.Name ] |> List.append parentNames)
 }
 

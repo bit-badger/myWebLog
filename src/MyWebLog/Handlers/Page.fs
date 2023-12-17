@@ -76,7 +76,7 @@ let editPermalinks pgId : HttpHandler = requireAccess Author >=> fun next ctx ->
 
 // POST /admin/page/permalinks
 let savePermalinks : HttpHandler = requireAccess Author >=> fun next ctx -> task {
-    let! model  = ctx.BindFormAsync<ManagePermalinksModel> ()
+    let! model  = ctx.BindFormAsync<ManagePermalinksModel>()
     let  pageId = PageId model.Id
     match! ctx.Data.Page.FindById pageId ctx.WebLog.Id with
     | Some pg when canEdit pg.AuthorId ctx ->
@@ -117,7 +117,7 @@ let purgeRevisions pgId : HttpHandler = requireAccess Author >=> fun next ctx ->
 open Microsoft.AspNetCore.Http
 
 /// Find the page and the requested revision
-let private findPageRevision pgId revDate (ctx : HttpContext) = task {
+let private findPageRevision pgId revDate (ctx: HttpContext) = task {
     match! ctx.Data.Page.FindFullById (PageId pgId) ctx.WebLog.Id with
     | Some pg ->
         let asOf = parseToUtc revDate
@@ -150,8 +150,7 @@ let restoreRevision (pgId, revDate) : HttpHandler = requireAccess Author >=> fun
         do! ctx.Data.Page.Update
                 { pg with
                     Revisions = { rev with AsOf = Noda.now () }
-                                  :: (pg.Revisions |> List.filter (fun r -> r.AsOf <> rev.AsOf))
-                }
+                                  :: (pg.Revisions |> List.filter (fun r -> r.AsOf <> rev.AsOf)) }
         do! addMessage ctx { UserMessage.Success with Message = "Revision restored successfully" }
         return! redirectToGet $"admin/page/{pgId}/revisions" next ctx
     | Some _, Some _ -> return! Error.notAuthorized next ctx

@@ -11,17 +11,17 @@ open NodaTime
 
 /// Create a password hash a password for a given user
 let createPasswordHash user password =
-    PasswordHasher<WebLogUser>().HashPassword (user, password)
+    PasswordHasher<WebLogUser>().HashPassword(user, password)
 
 /// Verify whether a password is valid
-let verifyPassword user password (ctx : HttpContext) = backgroundTask {
+let verifyPassword user password (ctx: HttpContext) = backgroundTask {
     match user with
     | Some usr ->
-        let hasher = PasswordHasher<WebLogUser> ()
-        match hasher.VerifyHashedPassword (usr, usr.PasswordHash, password) with
+        let hasher = PasswordHasher<WebLogUser>()
+        match hasher.VerifyHashedPassword(usr, usr.PasswordHash, password) with
         | PasswordVerificationResult.Success -> return Ok ()
         | PasswordVerificationResult.SuccessRehashNeeded ->
-            do! ctx.Data.WebLogUser.Update { usr with PasswordHash = hasher.HashPassword (usr, password) }
+            do! ctx.Data.WebLogUser.Update { usr with PasswordHash = hasher.HashPassword(usr, password) }
             return Ok ()
         | _ -> return Error "Log on attempt unsuccessful"
     | None -> return Error "Log on attempt unsuccessful"
@@ -68,11 +68,10 @@ let doLogOn : HttpHandler = fun next ctx -> task {
         do! addMessage ctx
                 { UserMessage.Success with
                     Message = "Log on successful"
-                    Detail  = Some $"Welcome to {ctx.WebLog.Name}!"
-                }
+                    Detail  = Some $"Welcome to {ctx.WebLog.Name}!" }
         return!
             match model.ReturnTo with
-            | Some url -> redirectTo false url next ctx
+            | Some url -> redirectTo false url next ctx // TODO: change to redirectToGet?
             | None -> redirectToGet "admin/dashboard" next ctx
     | Error msg ->
         do! addMessage ctx { UserMessage.Error with Message = msg }
@@ -105,7 +104,7 @@ let all : HttpHandler = fun next ctx -> task {
 }
 
 /// Show the edit user page
-let private showEdit (model : EditUserModel) : HttpHandler = fun next ctx ->
+let private showEdit (model: EditUserModel) : HttpHandler = fun next ctx ->
     hashForPage (if model.IsNew then "Add a New User" else "Edit User")
     |> withAntiCsrf ctx
     |> addToHash ViewContext.Model model
@@ -141,15 +140,13 @@ let delete userId : HttpHandler = fun next ctx -> task {
             | Ok _ ->
                 do! addMessage ctx
                         { UserMessage.Success with
-                            Message = $"User {user.DisplayName} deleted successfully"
-                        }
+                            Message = $"User {user.DisplayName} deleted successfully" }
                 return! all next ctx
             | Error msg ->
                 do! addMessage ctx
                         { UserMessage.Error with
                             Message = $"User {user.DisplayName} was not deleted"
-                            Detail  = Some msg
-                        }
+                            Detail  = Some msg }
                 return! all next ctx
     | None -> return! Error.notFound next ctx
 }
@@ -174,7 +171,7 @@ let myInfo : HttpHandler = requireAccess Author >=> fun next ctx -> task {
 
 // POST /admin/my-info
 let saveMyInfo : HttpHandler = requireAccess Author >=> fun next ctx -> task {
-    let! model = ctx.BindFormAsync<EditMyInfoModel> ()
+    let! model = ctx.BindFormAsync<EditMyInfoModel>()
     let  data  = ctx.Data
     match! data.WebLogUser.FindById ctx.UserId ctx.WebLog.Id with
     | Some user when model.NewPassword = model.NewPasswordConfirm ->
@@ -184,8 +181,7 @@ let saveMyInfo : HttpHandler = requireAccess Author >=> fun next ctx -> task {
                 FirstName     = model.FirstName
                 LastName      = model.LastName
                 PreferredName = model.PreferredName
-                PasswordHash  = pw
-            }
+                PasswordHash  = pw }
         do! data.WebLogUser.Update user
         let pwMsg = if model.NewPassword = "" then "" else " and updated your password"
         do! addMessage ctx { UserMessage.Success with Message = $"Saved your information{pwMsg} successfully" }
@@ -201,15 +197,15 @@ let saveMyInfo : HttpHandler = requireAccess Author >=> fun next ctx -> task {
 
 // POST /admin/settings/user/save
 let save : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
-    let! model   = ctx.BindFormAsync<EditUserModel> ()
+    let! model   = ctx.BindFormAsync<EditUserModel>()
     let  data    = ctx.Data
     let  tryUser =
         if model.IsNew then
             { WebLogUser.Empty with
                 Id        = WebLogUserId.Create()
                 WebLogId  = ctx.WebLog.Id
-                CreatedOn = Noda.now ()
-            } |> someTask
+                CreatedOn = Noda.now () }
+            |> someTask
         else data.WebLogUser.FindById (WebLogUserId model.Id) ctx.WebLog.Id
     match! tryUser with
     | Some user when model.Password = model.PasswordConfirm ->
@@ -223,8 +219,7 @@ let save : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
             do! (if model.IsNew then data.WebLogUser.Add else data.WebLogUser.Update) toUpdate
             do! addMessage ctx
                     { UserMessage.Success with
-                        Message = $"""{if model.IsNew then "Add" else "Updat"}ed user successfully"""
-                    }
+                        Message = $"""{if model.IsNew then "Add" else "Updat"}ed user successfully""" }
             return! all next ctx
     | Some _ ->
         do! addMessage ctx { UserMessage.Error with Message = "The passwords did not match; nothing saved" }

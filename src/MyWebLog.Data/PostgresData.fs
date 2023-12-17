@@ -9,15 +9,15 @@ open Newtonsoft.Json
 open Npgsql.FSharp
 
 /// Data implementation for PostgreSQL
-type PostgresData (log : ILogger<PostgresData>, ser : JsonSerializer) =
+type PostgresData(log: ILogger<PostgresData>, ser: JsonSerializer) =
     
     /// Create any needed tables
     let ensureTables () = backgroundTask {
         // Set up the PostgreSQL document store
         Configuration.useSerializer
             { new IDocumentSerializer with
-                member _.Serialize<'T> (it : 'T) : string = Utils.serialize ser it
-                member _.Deserialize<'T> (it : string) : 'T = Utils.deserialize ser it
+                member _.Serialize<'T>(it: 'T) : string = Utils.serialize ser it
+                member _.Deserialize<'T>(it: string) : 'T = Utils.deserialize ser it
             }
         
         let! tables =

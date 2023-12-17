@@ -69,20 +69,20 @@ module private RethinkHelpers =
     let r = RethinkDB.R
 
     /// Verify that the web log ID matches before returning an item
-    let verifyWebLog<'T> webLogId (prop : 'T -> WebLogId) (f : Net.IConnection -> Task<'T option>) =
+    let verifyWebLog<'T> webLogId (prop: 'T -> WebLogId) (f: Net.IConnection -> Task<'T option>) =
         fun conn -> backgroundTask {
             match! f conn with Some it when (prop it) = webLogId -> return Some it | _ -> return None
         }
     
     /// Get the first item from a list, or None if the list is empty
-    let tryFirst<'T> (f : Net.IConnection -> Task<'T list>) =
+    let tryFirst<'T> (f: Net.IConnection -> Task<'T list>) =
         fun conn -> backgroundTask {
             let! results = f conn
             return results |> List.tryHead
         }
     
     /// Cast a strongly-typed list to an object list
-    let objList<'T> (objects : 'T list) = objects |> List.map (fun it -> it :> obj)
+    let objList<'T> (objects: 'T list) = objects |> List.map (fun it -> it :> obj)
 
 
 open System
@@ -92,15 +92,15 @@ open RethinkDb.Driver.FSharp
 open RethinkHelpers
 
 /// RethinkDB implementation of data functions for myWebLog
-type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<RethinkDbData>) =
+type RethinkDbData(conn: Net.IConnection, config: DataConfig, log: ILogger<RethinkDbData>) =
     
     /// Match theme asset IDs by their prefix (the theme ID)
     let matchAssetByThemeId themeId =
         let keyPrefix = $"^{themeId}/"
-        fun (row : Ast.ReqlExpr) -> row[nameof ThemeAsset.Empty.Id].Match keyPrefix :> obj
+        fun (row: Ast.ReqlExpr) -> row[nameof ThemeAsset.Empty.Id].Match keyPrefix :> obj
     
     /// Function to exclude template text from themes
-    let withoutTemplateText (row : Ast.ReqlExpr) : obj =
+    let withoutTemplateText (row: Ast.ReqlExpr) : obj =
         {|  Templates = row[nameof Theme.Empty.Templates].Without [| nameof ThemeTemplate.Empty.Text |] |}
         
     /// Ensure field indexes exist, as well as special indexes for selected tables
@@ -192,7 +192,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
     }
     
     /// Set a specific database version
-    let setDbVersion (version : string) = backgroundTask {
+    let setDbVersion (version: string) = backgroundTask {
         do! rethink {
             withTable Table.DbVersion
             delete
@@ -320,8 +320,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                                 PostCount = counts
                                             |> Array.tryFind (fun c -> fst c = cat.Id)
                                             |> Option.map snd
-                                            |> Option.defaultValue 0
-                            })
+                                            |> Option.defaultValue 0 })
                         |> Array.ofSeq
                 }
                 
@@ -331,7 +330,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                         get catId
                         resultOption; withRetryOptionDefault
                     }
-                    |> verifyWebLog webLogId (fun c -> c.WebLogId) <| conn
+                    |> verifyWebLog webLogId _.WebLogId <| conn
                 
                 member _.FindByWebLog webLogId = rethink<Category list> {
                     withTable Table.Category
@@ -533,7 +532,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                         nameof page.PriorPermalinks, page.PriorPermalinks
                         nameof page.Metadata,        page.Metadata
                         nameof page.Revisions,       page.Revisions
-                        ]
+                    ]
                     write; withRetryDefault; ignoreResult conn
                 }
                 
@@ -586,7 +585,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                         without [ nameof Post.Empty.PriorPermalinks; nameof Post.Empty.Revisions ]
                         resultOption; withRetryOptionDefault
                     }
-                    |> verifyWebLog webLogId (fun p -> p.WebLogId) <| conn
+                    |> verifyWebLog webLogId _.WebLogId <| conn
                 
                 member _.FindByPermalink permalink webLogId =
                     rethink<Post list> {
@@ -604,7 +603,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                         get postId
                         resultOption; withRetryOptionDefault
                     }
-                    |> verifyWebLog webLogId (fun p -> p.WebLogId) <| conn
+                    |> verifyWebLog webLogId _.WebLogId <| conn
 
                 member _.FindCurrentPermalink permalinks webLogId = backgroundTask {
                     let! result =
@@ -617,7 +616,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                             result; withRetryDefault
                         }
                         |> tryFirst) conn
-                    return result |> Option.map (fun post -> post.Permalink)
+                    return result |> Option.map _.Permalink
                 }
                 
                 member _.FindFullByWebLog webLogId = rethink<Post> {
@@ -756,7 +755,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                         get tagMapId
                         resultOption; withRetryOptionDefault
                     }
-                    |> verifyWebLog webLogId (_.WebLogId) <| conn
+                    |> verifyWebLog webLogId _.WebLogId <| conn
                 
                 member _.FindByUrlValue urlValue webLogId =
                     rethink<TagMap list> {
@@ -908,7 +907,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                             get uploadId
                             resultOption; withRetryOptionDefault
                         }
-                        |> verifyWebLog<Upload> webLogId (fun u -> u.WebLogId) <| conn
+                        |> verifyWebLog<Upload> webLogId _.WebLogId <| conn
                     match upload with
                     | Some up ->
                         do! rethink {
@@ -939,7 +938,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                 
                 member _.FindByWebLogWithData webLogId = rethink<Upload> {
                     withTable Table.Upload
-                    between [| webLogId :> obj; r.Minval () |] [| webLogId :> obj; r.Maxval () |]
+                    between [| webLogId :> obj; r.Minval() |] [| webLogId :> obj; r.Maxval() |]
                             [ Index Index.WebLogAndPath ]
                     resultCursor; withRetryCursorDefault; toList conn
                 }
@@ -971,7 +970,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                 
                 member _.Delete webLogId = backgroundTask {
                      // Comments should be deleted by post IDs
-                     let! thePostIds = rethink<{| Id : string |} list> {
+                     let! thePostIds = rethink<{| Id: string |} list> {
                          withTable Table.Post
                          getAll [ webLogId ] (nameof Post.Empty.WebLogId)
                          pluck [ nameof Post.Empty.Id ]
@@ -1078,7 +1077,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
                         get userId
                         resultOption; withRetryOptionDefault
                     }
-                    |> verifyWebLog webLogId (fun u -> u.WebLogId) <| conn
+                    |> verifyWebLog webLogId _.WebLogId <| conn
                 
                 member this.Delete userId webLogId = backgroundTask {
                     match! this.FindById userId webLogId with
@@ -1205,7 +1204,7 @@ type RethinkDbData (conn : Net.IConnection, config : DataConfig, log : ILogger<R
             do! ensureIndexes Table.WebLog     [ nameof WebLog.Empty.UrlBase ]
             do! ensureIndexes Table.WebLogUser [ nameof WebLogUser.Empty.WebLogId ]
             
-            let! version = rethink<{| Id : string |} list> {
+            let! version = rethink<{| Id: string |} list> {
                  withTable Table.DbVersion
                  limit 1
                  result; withRetryOnce conn

@@ -23,7 +23,7 @@ type FeedType =
     | Custom       of CustomFeed * string
 
 /// Derive the type of RSS feed requested
-let deriveFeedType (ctx : HttpContext) feedPath : (FeedType * int) option =
+let deriveFeedType (ctx: HttpContext) feedPath : (FeedType * int) option =
     let webLog    = ctx.WebLog
     let debug     = debug "Feed" ctx
     let name      = $"/{webLog.Rss.FeedName}"
@@ -33,14 +33,14 @@ let deriveFeedType (ctx : HttpContext) feedPath : (FeedType * int) option =
     match webLog.Rss.IsFeedEnabled && feedPath = name with
     | true  ->
         debug (fun () -> "Found standard feed")
-        Some (StandardFeed feedPath, postCount)
+        Some(StandardFeed feedPath, postCount)
     | false ->
         // Category and tag feeds are handled by defined routes; check for custom feed
         match webLog.Rss.CustomFeeds
               |> List.tryFind (fun it -> feedPath.EndsWith(string it.Path)) with
         | Some feed ->
             debug (fun () -> "Found custom feed")
-            Some (Custom (feed, feedPath), feed.Podcast |> Option.map _.ItemsInFeed |> Option.defaultValue postCount)
+            Some(Custom(feed, feedPath), feed.Podcast |> Option.map _.ItemsInFeed |> Option.defaultValue postCount)
         | None ->
             debug (fun () -> "No matching feed found")
             None
@@ -61,7 +61,7 @@ let private getFeedPosts ctx feedType =
         | Tag      tag   -> data.Post.FindPageOfTaggedPosts ctx.WebLog.Id tag 1
 
 /// Strip HTML from a string
-let private stripHtml text = WebUtility.HtmlDecode <| Regex.Replace (text, "<(.|\n)*?>", "")
+let private stripHtml text = WebUtility.HtmlDecode <| Regex.Replace(text, "<(.|\n)*?>", "")
 
 /// XML namespaces for building RSS feeds
 [<RequireQualifiedAccess>]
@@ -231,8 +231,8 @@ let private addEpisode (webLog: WebLog) (podcast: PodcastOptions) (episode: Epis
     item
     
 /// Add a namespace to the feed
-let private addNamespace (feed : SyndicationFeed) alias nsUrl =
-    feed.AttributeExtensions.Add (XmlQualifiedName (alias, "http://www.w3.org/2000/xmlns/"), nsUrl)
+let private addNamespace (feed: SyndicationFeed) alias nsUrl =
+    feed.AttributeExtensions.Add(XmlQualifiedName(alias, "http://www.w3.org/2000/xmlns/"), nsUrl)
 
 /// Add items to the top of the feed required for podcasts
 let private addPodcast (webLog: WebLog) (rssFeed: SyndicationFeed) (feed: CustomFeed) =
@@ -313,7 +313,7 @@ let private addPodcast (webLog: WebLog) (rssFeed: SyndicationFeed) (feed: Custom
 
 /// Get the feed's self reference and non-feed link
 let private selfAndLink webLog feedType ctx =
-    let withoutFeed (it : string) = Permalink (it.Replace ($"/{webLog.Rss.FeedName}", ""))
+    let withoutFeed (it: string) = Permalink(it.Replace($"/{webLog.Rss.FeedName}", ""))
     match feedType with
     | StandardFeed     path
     | CategoryFeed (_, path)
@@ -325,8 +325,8 @@ let private selfAndLink webLog feedType ctx =
         | Tag tag -> feed.Path, Permalink $"""tag/{tag.Replace(" ", "+")}/""" 
 
 /// Set the title and description of the feed based on its source
-let private setTitleAndDescription feedType (webLog : WebLog) (cats : DisplayCategory[]) (feed : SyndicationFeed) =
-    let cleanText opt def = TextSyndicationContent (stripHtml (defaultArg opt def))
+let private setTitleAndDescription feedType (webLog: WebLog) (cats: DisplayCategory[]) (feed: SyndicationFeed) =
+    let cleanText opt def = TextSyndicationContent(stripHtml (defaultArg opt def))
     match feedType with
     | StandardFeed _ ->
         feed.Title       <- cleanText None webLog.Name
@@ -412,7 +412,7 @@ let generate (feedType: FeedType) postCount : HttpHandler = fun next ctx -> back
 // POST /admin/settings/rss
 let saveSettings : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     let  data  = ctx.Data
-    let! model = ctx.BindFormAsync<EditRssModel> ()
+    let! model = ctx.BindFormAsync<EditRssModel>()
     match! data.WebLog.FindById ctx.WebLog.Id with
     | Some webLog ->
         let webLog = { webLog with Rss = model.UpdateOptions webLog.Rss }
@@ -452,7 +452,7 @@ let saveCustomFeed : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx ->
     let data = ctx.Data
     match! data.WebLog.FindById ctx.WebLog.Id with
     | Some webLog ->
-        let! model = ctx.BindFormAsync<EditCustomFeedModel> ()
+        let! model = ctx.BindFormAsync<EditCustomFeedModel>()
         let theFeed =
             match model.Id with
             | "new" -> Some { CustomFeed.Empty with Id = CustomFeedId.Create() }
@@ -460,13 +460,12 @@ let saveCustomFeed : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx ->
         match theFeed with
         | Some feed ->
             let feeds = model.UpdateFeed feed :: (webLog.Rss.CustomFeeds |> List.filter (fun it -> it.Id <> feed.Id))
-            let webLog = { webLog with Rss = { webLog.Rss with CustomFeeds = feeds } }
+            let webLog = { webLog with Rss.CustomFeeds = feeds }
             do! data.WebLog.UpdateRssOptions webLog
             WebLogCache.set webLog
-            do! addMessage ctx {
-                UserMessage.Success with
-                  Message = $"""Successfully {if model.Id = "new" then "add" else "sav"}ed custom feed"""
-            }
+            do! addMessage ctx
+                    { UserMessage.Success with
+                        Message = $"""Successfully {if model.Id = "new" then "add" else "sav"}ed custom feed""" }
             return! redirectToGet $"admin/settings/rss/{feed.Id}/edit" next ctx
         | None -> return! Error.notFound next ctx
     | None -> return! Error.notFound next ctx
@@ -479,13 +478,11 @@ let deleteCustomFeed feedId : HttpHandler = requireAccess WebLogAdmin >=> fun ne
     | Some webLog ->
         let customId = CustomFeedId feedId
         if webLog.Rss.CustomFeeds |> List.exists (fun f -> f.Id = customId) then
-            let webLog = {
-              webLog with
-                Rss = {
-                  webLog.Rss with
-                    CustomFeeds = webLog.Rss.CustomFeeds |> List.filter (fun f -> f.Id <> customId)
-                }
-            }
+            let webLog =
+                { webLog with
+                    Rss =
+                        { webLog.Rss with
+                            CustomFeeds = webLog.Rss.CustomFeeds |> List.filter (fun f -> f.Id <> customId) } }
             do! data.WebLog.UpdateRssOptions webLog
             WebLogCache.set webLog
             do! addMessage ctx { UserMessage.Success with Message = "Custom feed deleted successfully" }

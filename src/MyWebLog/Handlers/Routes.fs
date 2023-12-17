@@ -11,7 +11,7 @@ module CatchAll =
     open MyWebLog.ViewModels
     
     /// Sequence where the first returned value is the proper handler for the link
-    let private deriveAction (ctx: HttpContext): HttpHandler seq =
+    let private deriveAction (ctx: HttpContext) : HttpHandler seq =
         let webLog   = ctx.WebLog
         let data     = ctx.Data
         let debug    = debug "Routes.CatchAll" ctx
@@ -80,7 +80,7 @@ module CatchAll =
         }
 
     // GET {all-of-the-above}
-    let route: HttpHandler = fun next ctx ->
+    let route : HttpHandler = fun next ctx ->
         match deriveAction ctx |> Seq.tryHead with Some handler -> handler next ctx | None -> Error.notFound next ctx
 
 

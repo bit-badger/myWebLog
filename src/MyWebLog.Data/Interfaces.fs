@@ -7,6 +7,7 @@ open Newtonsoft.Json
 open NodaTime
 
 /// The result of a category deletion attempt
+[<Struct>]
 type CategoryDeleteResult =
     /// The category was deleted successfully
     | CategoryDeleted
@@ -32,7 +33,7 @@ type ICategoryData =
     abstract member Delete : CategoryId -> WebLogId -> Task<CategoryDeleteResult>
     
     /// Find all categories for a web log, sorted alphabetically and grouped by hierarchy
-    abstract member FindAllForView : WebLogId -> Task<DisplayCategory[]>
+    abstract member FindAllForView : WebLogId -> Task<DisplayCategory array>
     
     /// Find a category by its ID
     abstract member FindById : CategoryId -> WebLogId -> Task<Category option>

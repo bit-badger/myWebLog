@@ -6,7 +6,7 @@ open System.Collections.Generic
 open MyWebLog
 
 /// Parse a slug and page number from an "everything else" URL
-let private parseSlugAndPage webLog (slugAndPage : string seq) =
+let private parseSlugAndPage webLog (slugAndPage: string seq) =
     let fullPath = slugAndPage |> Seq.head
     let slugPath = slugAndPage |> Seq.skip 1 |> Seq.head
     let slugs, isFeed =
@@ -24,9 +24,10 @@ let private parseSlugAndPage webLog (slugAndPage : string seq) =
         | idx when idx + 2 = slugs.Length -> Some (int slugs[pageIdx + 1])
         | _ -> None
     let slugParts = if pageIdx > 0 then Array.truncate pageIdx slugs else slugs
-    pageNbr, String.Join ("/", slugParts), isFeed
+    pageNbr, String.Join("/", slugParts), isFeed
 
 /// The type of post list being prepared
+[<Struct>]
 type ListType =
     | AdminList
     | CategoryList
@@ -55,7 +56,7 @@ let preparePostList webLog posts listType (url: string) pageNbr perPage (data: I
             let post   = List.head posts
             let target = defaultArg post.PublishedOn post.UpdatedOn
             data.Post.FindSurroundingPosts webLog.Id target
-        | _ -> Task.FromResult (None, None)
+        | _ -> Task.FromResult(None, None)
     let newerLink =
         match listType, pageNbr with
         | SinglePost,   _ -> newerPost |> Option.map (fun it -> string it.Permalink)
@@ -114,7 +115,7 @@ let pageOfPosts pageNbr : HttpHandler = fun next ctx -> task {
 }
 
 // GET /page/{pageNbr}/
-let redirectToPageOfPosts (pageNbr : int) : HttpHandler = fun next ctx ->
+let redirectToPageOfPosts (pageNbr: int) : HttpHandler = fun next ctx ->
     redirectTo true (ctx.WebLog.RelativeUrl(Permalink $"page/{pageNbr}")) next ctx
 
 // GET /category/{slug}/
@@ -163,7 +164,7 @@ let pageOfTaggedPosts slugAndPage : HttpHandler = fun next ctx -> task {
             | None   -> return urlTag
         }
         if isFeed then
-            return! Feed.generate (Feed.TagFeed (tag, $"tag/{rawTag}/{webLog.Rss.FeedName}"))
+            return! Feed.generate (Feed.TagFeed(tag, $"tag/{rawTag}/{webLog.Rss.FeedName}"))
                         (defaultArg webLog.Rss.ItemsInFeed webLog.PostsPerPage) next ctx
         else
             match! data.Post.FindPageOfTaggedPosts webLog.Id tag pageNbr webLog.PostsPerPage with
@@ -178,7 +179,7 @@ let pageOfTaggedPosts slugAndPage : HttpHandler = fun next ctx -> task {
                     |> themedView "index" next ctx
             // Other systems use hyphens for spaces; redirect if this is an old tag link
             | _ ->
-                let spacedTag = tag.Replace ("-", " ")
+                let spacedTag = tag.Replace("-", " ")
                 match! data.Post.FindPageOfTaggedPosts webLog.Id spacedTag pageNbr 1 with
                 | posts when List.length posts > 0 ->
                     let endUrl = if pageNbr = 1 then "" else $"page/{pageNbr}"
@@ -275,7 +276,7 @@ let editPermalinks postId : HttpHandler = requireAccess Author >=> fun next ctx 
 
 // POST /admin/post/permalinks
 let savePermalinks : HttpHandler = requireAccess Author >=> fun next ctx -> task {
-    let! model  = ctx.BindFormAsync<ManagePermalinksModel> ()
+    let! model  = ctx.BindFormAsync<ManagePermalinksModel>()
     let  postId = PostId model.Id
     match! ctx.Data.Post.FindById postId ctx.WebLog.Id with
     | Some post when canEdit post.AuthorId ctx ->
@@ -317,7 +318,7 @@ let purgeRevisions postId : HttpHandler = requireAccess Author >=> fun next ctx 
 open Microsoft.AspNetCore.Http
 
 /// Find the post and the requested revision
-let private findPostRevision postId revDate (ctx : HttpContext) = task {
+let private findPostRevision postId revDate (ctx: HttpContext) = task {
     match! ctx.Data.Post.FindFullById (PostId postId) ctx.WebLog.Id with
     | Some post ->
         let asOf = parseToUtc revDate
@@ -350,8 +351,7 @@ let restoreRevision (postId, revDate) : HttpHandler = requireAccess Author >=> f
         do! ctx.Data.Post.Update
                 { post with
                     Revisions = { rev with AsOf = Noda.now () }
-                                  :: (post.Revisions |> List.filter (fun r -> r.AsOf <> rev.AsOf))
-                }
+                                  :: (post.Revisions |> List.filter (fun r -> r.AsOf <> rev.AsOf)) }
         do! addMessage ctx { UserMessage.Success with Message = "Revision restored successfully" }
         return! redirectToGet $"admin/post/{postId}/revisions" next ctx
     | Some _, Some _ -> return! Error.notAuthorized next ctx
@@ -380,8 +380,8 @@ let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
             { Post.Empty with
                 Id        = PostId.Create()
                 WebLogId  = ctx.WebLog.Id
-                AuthorId  = ctx.UserId
-            } |> someTask
+                AuthorId  = ctx.UserId }
+            |> someTask
         else data.Post.FindFullById (PostId model.PostId) ctx.WebLog.Id
     match! tryPost with
     | Some post when canEdit post.AuthorId ctx ->
@@ -396,8 +396,7 @@ let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
                         { post with
                             PublishedOn = Some dt
                             UpdatedOn   = dt
-                            Revisions   = [ { (List.head post.Revisions) with AsOf = dt } ]
-                        }
+                            Revisions   = [ { (List.head post.Revisions) with AsOf = dt } ] }
                     else { post with PublishedOn = Some dt }
                 else post
         do! (if model.PostId = "new" then data.Post.Add else data.Post.Update) updatedPost
