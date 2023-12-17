@@ -66,26 +66,26 @@ open MyWebLog.Data
 open NodaTime.Text
 
 /// Run a command that returns a count
-let count (cmd : SqliteCommand) = backgroundTask {
-    let! it = cmd.ExecuteScalarAsync ()
+let count (cmd: SqliteCommand) = backgroundTask {
+    let! it = cmd.ExecuteScalarAsync()
     return int (it :?> int64)
 }
 
 /// Create a list of items from the given data reader
-let toList<'T> (it : SqliteDataReader -> 'T) (rdr : SqliteDataReader) =
+let toList<'T> (it: SqliteDataReader -> 'T) (rdr: SqliteDataReader) =
     seq { while rdr.Read () do it rdr }
     |> List.ofSeq
 
 /// Verify that the web log ID matches before returning an item
 let verifyWebLog<'T> webLogId (prop : 'T -> WebLogId) (it : SqliteDataReader -> 'T) (rdr : SqliteDataReader) =
-    if rdr.Read () then
+    if rdr.Read() then
         let item = it rdr
         if prop item = webLogId then Some item else None
     else None
 
 /// Execute a command that returns no data
-let write (cmd : SqliteCommand) = backgroundTask {
-    let! _ = cmd.ExecuteNonQueryAsync ()
+let write (cmd: SqliteCommand) = backgroundTask {
+    let! _ = cmd.ExecuteNonQueryAsync()
     ()
 }
 
@@ -366,7 +366,26 @@ module Map =
             CreatedOn     = getInstant "created_on"     rdr
             LastSeenOn    = tryInstant "last_seen_on"   rdr
         }
+    
+    /// Map from a document to a domain type, specifying the field name for the document
+    let fromData<'T> ser rdr fieldName : 'T =
+        Utils.deserialize<'T> ser (getString fieldName rdr)
+        
+    /// Map from a document to a domain type
+    let fromDoc<'T> ser rdr : 'T =
+        fromData<'T> ser rdr "data"
+
+/// Queries to assist with document manipulation
+module Query =
+    
+    /// Fragment to add an ID condition to a WHERE clause
+    let whereById =
+        "data ->> 'Id' = @id"
+    
+/// Fragment to add a web log ID condition to a WHERE clause
+let whereWebLogId =
+    "data ->> 'WebLogId' = @webLogId"
 
 /// Add a web log ID parameter
 let addWebLogId (cmd: SqliteCommand) (webLogId: WebLogId) =
-    cmd.Parameters.AddWithValue ("@webLogId", string webLogId) |> ignore
+    cmd.Parameters.AddWithValue("@webLogId", string webLogId) |> ignore

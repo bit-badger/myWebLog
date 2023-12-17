@@ -4,9 +4,10 @@ open System.Threading.Tasks
 open Microsoft.Data.Sqlite
 open MyWebLog
 open MyWebLog.Data
+open Newtonsoft.Json
 
 /// SQLite myWebLog category data implementation
-type SQLiteCategoryData(conn: SqliteConnection) =
+type SQLiteCategoryData(conn: SqliteConnection, ser: JsonSerializer) =
     
     /// Add parameters for category INSERT or UPDATE statements
     let addCategoryParameters (cmd: SqliteCommand) (cat: Category) =
@@ -34,8 +35,8 @@ type SQLiteCategoryData(conn: SqliteConnection) =
     
     /// Count all categories for the given web log
     let countAll webLogId = backgroundTask {
-        use cmd = conn.CreateCommand ()
-        cmd.CommandText <- "SELECT COUNT(id) FROM category WHERE web_log_id = @webLogId"
+        use cmd = conn.CreateCommand()
+        cmd.CommandText <- $"SELECT COUNT(*) FROM {Table.Category} WHERE {whereWebLogId}"
         addWebLogId cmd webLogId
         return! count cmd
     }
@@ -44,25 +45,27 @@ type SQLiteCategoryData(conn: SqliteConnection) =
     let countTopLevel webLogId = backgroundTask {
         use cmd = conn.CreateCommand ()
         cmd.CommandText <-
-            "SELECT COUNT(id) FROM category WHERE web_log_id = @webLogId AND parent_id IS NULL"
+            $"SELECT COUNT(*) FROM {Table.Category}
+               WHERE {whereWebLogId} AND data ->> '{nameof Category.Empty.ParentId}' IS NULL"
         addWebLogId cmd webLogId
         return! count cmd
     }
     
+    // TODO: need to get SQLite in clause format for JSON documents
     /// Retrieve all categories for the given web log in a DotLiquid-friendly format
     let findAllForView webLogId = backgroundTask {
-        use cmd = conn.CreateCommand ()
-        cmd.CommandText <- "SELECT * FROM category WHERE web_log_id = @webLogId"
+        use cmd = conn.CreateCommand()
+        cmd.CommandText <- $"SELECT data FROM {Table.Category} WHERE {whereWebLogId}"
         addWebLogId cmd webLogId
-        use! rdr = cmd.ExecuteReaderAsync ()
+        use! rdr = cmd.ExecuteReaderAsync()
         let cats =
             seq {
-                while rdr.Read () do
-                    Map.toCategory rdr
+                while rdr.Read() do
+                    Map.fromDoc<Category> ser rdr
             }
-            |> Seq.sortBy (fun cat -> cat.Name.ToLowerInvariant ())
+            |> Seq.sortBy _.Name.ToLowerInvariant()
             |> List.ofSeq
-        do! rdr.CloseAsync ()
+        do! rdr.CloseAsync()
         let  ordered = Utils.orderByHierarchy cats None None []
         let! counts  =
             ordered
@@ -71,7 +74,7 @@ type SQLiteCategoryData(conn: SqliteConnection) =
                 let catSql, catParams =
                     ordered
                     |> Seq.filter (fun cat -> cat.ParentNames |> Array.contains it.Name)
-                    |> Seq.map (fun cat -> cat.Id)
+                    |> Seq.map _.Id
                     |> Seq.append (Seq.singleton it.Id)
                     |> List.ofSeq
                     |> inClause "AND pc.category_id" "catId" id
@@ -103,12 +106,12 @@ type SQLiteCategoryData(conn: SqliteConnection) =
     /// Find a category by its ID for the given web log
     let findById (catId: CategoryId) webLogId = backgroundTask {
         use cmd = conn.CreateCommand()
-        cmd.CommandText <- "SELECT * FROM category WHERE id = @id"
-        cmd.Parameters.AddWithValue ("@id", string catId) |> ignore
+        cmd.CommandText <- $"SELECT * FROM {Table.Category} WHERE {Query.whereById}"
+        cmd.Parameters.AddWithValue("@id", string catId) |> ignore
         use! rdr = cmd.ExecuteReaderAsync()
-        return verifyWebLog<Category> webLogId (_.WebLogId) Map.toCategory rdr
+        return verifyWebLog<Category> webLogId (_.WebLogId) (Map.fromDoc ser) rdr
     }
-    
+    // TODO: stopped here
     /// Find all categories for the given web log
     let findByWebLog (webLogId: WebLogId) = backgroundTask {
         use cmd = conn.CreateCommand ()
