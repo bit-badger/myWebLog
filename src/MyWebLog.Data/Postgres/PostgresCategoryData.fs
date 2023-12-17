@@ -23,8 +23,10 @@ type PostgresCategoryData(log: ILogger) =
     let findAllForView webLogId = backgroundTask {
         log.LogTrace "Category.findAllForView"
         let! cats =
-            Custom.list $"{selectWithCriteria Table.Category} ORDER BY LOWER(data ->> '{nameof Category.Empty.Name}')"
-                        [ webLogContains webLogId ] fromData<Category>
+            Custom.list
+                $"{selectWithCriteria Table.Category} ORDER BY LOWER(data ->> '{nameof Category.Empty.Name}')"
+                [ webLogContains webLogId ]
+                fromData<Category>
         let ordered = Utils.orderByHierarchy cats None None []
         let counts  =
             ordered
@@ -39,12 +41,12 @@ type PostgresCategoryData(log: ILogger) =
                     |> arrayContains (nameof Post.Empty.CategoryIds) id
                 let postCount =
                     Custom.scalar
-                        $"""SELECT COUNT(DISTINCT id) AS {countName}
+                        $"""SELECT COUNT(DISTINCT data ->> '{nameof Post.Empty.Id}') AS {countName}
                               FROM {Table.Post}
                              WHERE {Query.whereDataContains "@criteria"}
                                AND {catIdSql}"""
-                        [   "@criteria", Query.jsonbDocParam {| webLogDoc webLogId with Status = Published |}
-                            catIdParams ]
+                        [ "@criteria", Query.jsonbDocParam {| webLogDoc webLogId with Status = Published |}
+                          catIdParams ]
                         Map.toCount
                     |> Async.AwaitTask
                     |> Async.RunSynchronously
@@ -57,23 +59,18 @@ type PostgresCategoryData(log: ILogger) =
                     PostCount = counts
                                 |> List.tryFind (fun c -> fst c = cat.Id)
                                 |> Option.map snd
-                                |> Option.defaultValue 0
-                })
+                                |> Option.defaultValue 0 })
             |> Array.ofSeq
     }
     /// Find a category by its ID for the given web log
     let findById catId webLogId =
         log.LogTrace "Category.findById"
-        Document.findByIdAndWebLog<CategoryId, Category> Table.Category catId string webLogId
+        Document.findByIdAndWebLog<CategoryId, Category> Table.Category catId webLogId
     
     /// Find all categories for the given web log
     let findByWebLog webLogId =
         log.LogTrace "Category.findByWebLog"
         Document.findByWebLog<Category> Table.Category webLogId
-    
-    /// Create parameters for a category insert / update
-    let catParameters (cat : Category) =
-        Query.docParameters (string cat.Id) cat
     
     /// Delete a category
     let delete catId webLogId = backgroundTask {
@@ -81,36 +78,37 @@ type PostgresCategoryData(log: ILogger) =
         match! findById catId webLogId with
         | Some cat ->
             // Reassign any children to the category's parent category
-            let! children = Find.byContains<Category> Table.Category {| ParentId = string catId |}
+            let! children = Find.byContains<Category> Table.Category {| ParentId = catId |}
             let hasChildren = not (List.isEmpty children)
             if hasChildren then
                 let! _ =
                     Configuration.dataSource ()
                     |> Sql.fromDataSource
-                    |> Sql.executeTransactionAsync [
-                        Query.Update.partialById Table.Category,
-                        children |> List.map (fun child -> [
-                            "@id",   Sql.string (string child.Id)
-                            "@data", Query.jsonbDocParam {| ParentId = cat.ParentId |}
-                        ])
-                    ]
+                    |> Sql.executeTransactionAsync
+                        [ Query.Update.partialById Table.Category,
+                          children
+                          |> List.map (fun child ->
+                              [ "@id",   Sql.string (string child.Id)
+                                "@data", Query.jsonbDocParam {| ParentId = cat.ParentId |} ]) ]
                 ()
             // Delete the category off all posts where it is assigned
             let! posts =
-                Custom.list $"SELECT data FROM {Table.Post} WHERE data -> '{nameof Post.Empty.CategoryIds}' @> @id"
-                            [ "@id", Query.jsonbDocParam [| string catId |] ] fromData<Post>
+                Custom.list
+                    $"SELECT data FROM {Table.Post} WHERE data -> '{nameof Post.Empty.CategoryIds}' @> @id"
+                    [ "@id", Query.jsonbDocParam [| string catId |] ]
+                    fromData<Post>
             if not (List.isEmpty posts) then
                 let! _ =
                     Configuration.dataSource ()
                     |> Sql.fromDataSource
-                    |> Sql.executeTransactionAsync [
-                        Query.Update.partialById Table.Post,
-                        posts |> List.map (fun post -> [
-                            "@id",   Sql.string (string post.Id)
-                            "@data", Query.jsonbDocParam
-                                        {| CategoryIds = post.CategoryIds |> List.filter (fun cat -> cat <> catId) |}
-                        ])
-                    ]
+                    |> Sql.executeTransactionAsync
+                        [ Query.Update.partialById Table.Post,
+                          posts
+                          |> List.map (fun post ->
+                              [ "@id",   Sql.string (string post.Id)
+                                "@data", Query.jsonbDocParam
+                                           {| CategoryIds = post.CategoryIds
+                                                            |> List.filter (fun cat -> cat <> catId) |} ]) ]
                 ()
             // Delete the category itself
             do! Delete.byId Table.Category (string catId)
@@ -119,7 +117,7 @@ type PostgresCategoryData(log: ILogger) =
     }
     
     /// Save a category
-    let save (cat : Category) = backgroundTask {
+    let save (cat: Category) = backgroundTask {
         log.LogTrace "Category.save"
         do! save Table.Category cat
     }
@@ -131,7 +129,7 @@ type PostgresCategoryData(log: ILogger) =
             Configuration.dataSource ()
             |> Sql.fromDataSource
             |> Sql.executeTransactionAsync [
-                Query.insert Table.Category, cats |> List.map catParameters
+                Query.insert Table.Category, cats |> List.map (fun c -> [ "@data", Query.jsonbDocParam c ])
             ]
         ()
     }

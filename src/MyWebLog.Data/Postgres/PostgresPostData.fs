@@ -15,23 +15,23 @@ type PostgresPostData(log: ILogger) =
     /// Append revisions to a post
     let appendPostRevisions (post: Post) = backgroundTask {
         log.LogTrace "Post.appendPostRevisions"
-        let! revisions = Revisions.findByEntityId Table.PostRevision Table.Post post.Id string
+        let! revisions = Revisions.findByEntityId Table.PostRevision Table.Post post.Id
         return { post with Revisions = revisions }
     }
     
-    /// Return a post with no revisions, prior permalinks, or text
+    /// Return a post with no revisions or text
     let postWithoutText row =
         { fromData<Post> row with Text = "" }
     
     /// Update a post's revisions
     let updatePostRevisions (postId: PostId) oldRevs newRevs =
         log.LogTrace "Post.updatePostRevisions"
-        Revisions.update Table.PostRevision Table.Post postId string oldRevs newRevs
+        Revisions.update Table.PostRevision Table.Post postId oldRevs newRevs
     
     /// Does the given post exist?
     let postExists (postId: PostId) webLogId =
         log.LogTrace "Post.postExists"
-        Document.existsByWebLog Table.Post postId string webLogId
+        Document.existsByWebLog Table.Post postId webLogId
     
     // IMPLEMENTATION FUNCTIONS
     
@@ -43,14 +43,15 @@ type PostgresPostData(log: ILogger) =
     /// Find a post by its ID for the given web log (excluding revisions)
     let findById postId webLogId =
         log.LogTrace "Post.findById"
-        Document.findByIdAndWebLog<PostId, Post> Table.Post postId string webLogId
+        Document.findByIdAndWebLog<PostId, Post> Table.Post postId webLogId
     
-    /// Find a post by its permalink for the given web log (excluding revisions and prior permalinks)
+    /// Find a post by its permalink for the given web log (excluding revisions)
     let findByPermalink (permalink: Permalink) webLogId =
         log.LogTrace "Post.findByPermalink"
-        Custom.single (selectWithCriteria Table.Post)
-                      [ "@criteria", Query.jsonbDocParam {| webLogDoc webLogId with Permalink = string permalink |} ]
-                      fromData<Post>
+        Custom.single
+            (selectWithCriteria Table.Post)
+            [ "@criteria", Query.jsonbDocParam {| webLogDoc webLogId with Permalink = permalink |} ]
+            fromData<Post>
     
     /// Find a complete post by its ID for the given web log
     let findFullById postId webLogId = backgroundTask {
@@ -68,8 +69,9 @@ type PostgresPostData(log: ILogger) =
         match! postExists postId webLogId with
         | true ->
             do! Custom.nonQuery
-                    $"""DELETE FROM {Table.PostComment} WHERE {Query.whereDataContains "@criteria"};
-                        DELETE FROM {Table.Post}        WHERE id = @id"""
+                    $"""DELETE FROM {Table.PostComment}  WHERE {Query.whereDataContains "@criteria"};
+                        DELETE FROM {Table.PostRevision} WHERE post_id = @id;
+                        DELETE FROM {Table.Post}         WHERE {Query.whereById "@id"}"""
                     [ "@id", Sql.string (string postId); "@criteria", Query.jsonbDocParam {| PostId = postId |} ]
             return true
         | false -> return false
@@ -86,7 +88,9 @@ type PostgresPostData(log: ILogger) =
                     $"""SELECT data ->> '{nameof Post.Empty.Permalink}' AS permalink
                           FROM {Table.Post}
                          WHERE {Query.whereDataContains "@criteria"}
-                           AND {linkSql}""" [ webLogContains webLogId; linkParam ] Map.toPermalink
+                           AND {linkSql}"""
+                    [ webLogContains webLogId; linkParam ]
+                    Map.toPermalink
     }
     
     /// Get all complete posts for the given web log
@@ -109,9 +113,8 @@ type PostgresPostData(log: ILogger) =
                  AND {catSql}
                ORDER BY data ->> '{nameof Post.Empty.PublishedOn}' DESC
                LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"
-            [   "@criteria", Query.jsonbDocParam {| webLogDoc webLogId with Status = Published |}
-                catParam
-            ] fromData<Post>
+            [ "@criteria", Query.jsonbDocParam {| webLogDoc webLogId with Status = Published |}; catParam ]
+            fromData<Post>
     
     /// Get a page of posts for the given web log (excludes text and revisions)
     let findPageOfPosts webLogId pageNbr postsPerPage =
@@ -121,7 +124,8 @@ type PostgresPostData(log: ILogger) =
                ORDER BY data ->> '{nameof Post.Empty.PublishedOn}' DESC NULLS FIRST,
                         data ->> '{nameof Post.Empty.UpdatedOn}'
                LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"
-            [ webLogContains webLogId ] postWithoutText
+            [ webLogContains webLogId ]
+            postWithoutText
     
     /// Get a page of published posts for the given web log (excludes revisions)
     let findPageOfPublishedPosts webLogId pageNbr postsPerPage =
@@ -134,37 +138,40 @@ type PostgresPostData(log: ILogger) =
             fromData<Post>
     
     /// Get a page of tagged posts for the given web log (excludes revisions and prior permalinks)
-    let findPageOfTaggedPosts webLogId (tag : string) pageNbr postsPerPage =
+    let findPageOfTaggedPosts webLogId (tag: string) pageNbr postsPerPage =
         log.LogTrace "Post.findPageOfTaggedPosts"
         Custom.list
             $"{selectWithCriteria Table.Post}
                  AND data['{nameof Post.Empty.Tags}'] @> @tag
                ORDER BY data ->> '{nameof Post.Empty.PublishedOn}' DESC
                LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"
-            [   "@criteria", Query.jsonbDocParam {| webLogDoc webLogId with Status = Published |}
-                "@tag",      Query.jsonbDocParam [| tag |]
-            ] fromData<Post>
+            [ "@criteria", Query.jsonbDocParam {| webLogDoc webLogId with Status = Published |}
+              "@tag",      Query.jsonbDocParam [| tag |] ]
+            fromData<Post>
     
     /// Find the next newest and oldest post from a publish date for the given web log
     let findSurroundingPosts webLogId publishedOn = backgroundTask {
         log.LogTrace "Post.findSurroundingPosts"
-        let queryParams () = [
-            "@criteria",    Query.jsonbDocParam {| webLogDoc webLogId with Status = Published |}
-            "@publishedOn", Sql.string ((InstantPattern.General.Format publishedOn)[..19])
-        ]
-        let pubField  = nameof Post.Empty.PublishedOn
+        let queryParams () =
+            [ "@criteria",    Query.jsonbDocParam {| webLogDoc webLogId with Status = Published |}
+              "@publishedOn", Sql.string ((InstantPattern.General.Format publishedOn)[..19]) ]
+        let pubField = nameof Post.Empty.PublishedOn
         let! older =
             Custom.list
                 $"{selectWithCriteria Table.Post}
                      AND SUBSTR(data ->> '{pubField}', 1, 19) < @publishedOn
                    ORDER BY data ->> '{pubField}' DESC
-                   LIMIT 1" (queryParams ()) fromData<Post>
+                   LIMIT 1"
+                (queryParams ())
+                fromData<Post>
         let! newer =
             Custom.list
                 $"{selectWithCriteria Table.Post}
                      AND SUBSTR(data ->> '{pubField}', 1, 19) > @publishedOn
                    ORDER BY data ->> '{pubField}'
-                   LIMIT 1" (queryParams ()) fromData<Post>
+                   LIMIT 1"
+                (queryParams ())
+                fromData<Post>
         return List.tryHead older, List.tryHead newer
     }
     
@@ -183,17 +190,16 @@ type PostgresPostData(log: ILogger) =
         let! _ =
             Configuration.dataSource ()
             |> Sql.fromDataSource
-            |> Sql.executeTransactionAsync [
-                Query.insert Table.Post,
-                    posts |> List.map (fun post -> Query.docParameters (string post.Id) { post with Revisions = [] })
-                Revisions.insertSql Table.PostRevision,
-                    revisions |> List.map (fun (postId, rev) -> Revisions.revParams postId string rev)
-            ]
+            |> Sql.executeTransactionAsync
+                [ Query.insert Table.Post,
+                    posts |> List.map (fun post -> [ "@data", Query.jsonbDocParam { post with Revisions = [] } ])
+                  Revisions.insertSql Table.PostRevision,
+                    revisions |> List.map (fun (postId, rev) -> Revisions.revParams postId rev) ]
         ()
     }
     
     /// Update prior permalinks for a post
-    let updatePriorPermalinks postId webLogId permalinks = backgroundTask {
+    let updatePriorPermalinks postId webLogId (permalinks: Permalink list) = backgroundTask {
         log.LogTrace "Post.updatePriorPermalinks"
         match! postExists postId webLogId with
         | true ->

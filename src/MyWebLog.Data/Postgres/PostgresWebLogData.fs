@@ -5,11 +5,11 @@ open Microsoft.Extensions.Logging
 open MyWebLog
 open MyWebLog.Data
 
-/// PostgreSQL myWebLog web log data implementation        
-type PostgresWebLogData (log : ILogger) =
+/// PostgreSQL myWebLog web log data implementation
+type PostgresWebLogData(log: ILogger) =
     
     /// Add a web log
-    let add (webLog : WebLog) =
+    let add (webLog: WebLog) =
         log.LogTrace "WebLog.add"
         insert Table.WebLog webLog
     
@@ -31,25 +31,24 @@ type PostgresWebLogData (log : ILogger) =
                 {Query.Delete.byContains Table.TagMap};
                 {Query.Delete.byContains Table.WebLogUser};
                 DELETE FROM {Table.Upload} WHERE web_log_id = @webLogId;
-                DELETE FROM {Table.WebLog} WHERE id         = @webLogId"""
+                DELETE FROM {Table.WebLog} WHERE {Query.whereById "@webLogId"}"""
             [ webLogIdParam webLogId; webLogContains webLogId ]
     
     /// Find a web log by its host (URL base)
-    let findByHost (url : string) =
+    let findByHost (url: string) =
         log.LogTrace "WebLog.findByHost"
-        Custom.single (selectWithCriteria Table.WebLog) [ "@criteria", Query.jsonbDocParam {| UrlBase = url |} ]
-                      fromData<WebLog>
+        Find.firstByContains<WebLog> Table.WebLog {| UrlBase = url |}
     
     /// Find a web log by its ID
     let findById (webLogId: WebLogId) = 
         log.LogTrace "WebLog.findById"
         Find.byId<WebLog> Table.WebLog (string webLogId)
     
+    /// Update redirect rules for a web log
     let updateRedirectRules (webLog: WebLog) = backgroundTask {
         log.LogTrace "WebLog.updateRedirectRules"
         match! findById webLog.Id with
-        | Some _ ->
-            do! Update.partialById Table.WebLog (string webLog.Id) {| RedirectRules = webLog.RedirectRules |}
+        | Some _ -> do! Update.partialById Table.WebLog (string webLog.Id) {| RedirectRules = webLog.RedirectRules |}
         | None -> ()
     }
     
@@ -68,7 +67,7 @@ type PostgresWebLogData (log : ILogger) =
     
     interface IWebLogData with
         member _.Add webLog = add webLog
-        member _.All () = all ()
+        member _.All() = all ()
         member _.Delete webLogId = delete webLogId
         member _.FindByHost url = findByHost url
         member _.FindById webLogId = findById webLogId

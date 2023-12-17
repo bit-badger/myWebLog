@@ -32,9 +32,10 @@ type PostgresData(log: ILogger<PostgresData>, ser: JsonSerializer) =
             if needsTable Table.Theme then
                 isNew <- true
                 Definition.createTable Table.Theme
+                Definition.createKey   Table.Theme
             if needsTable Table.ThemeAsset then
                 $"CREATE TABLE {Table.ThemeAsset} (
-                    theme_id    TEXT        NOT NULL REFERENCES {Table.Theme} (id) ON DELETE CASCADE,
+                    theme_id    TEXT        NOT NULL,
                     path        TEXT        NOT NULL,
                     updated_on  TIMESTAMPTZ NOT NULL,
                     data        BYTEA       NOT NULL,
@@ -43,28 +44,32 @@ type PostgresData(log: ILogger<PostgresData>, ser: JsonSerializer) =
             // Web log table
             if needsTable Table.WebLog then
                 Definition.createTable Table.WebLog
+                Definition.createKey   Table.WebLog
                 Definition.createIndex Table.WebLog Optimized
             
             // Category table
             if needsTable Table.Category then
                 Definition.createTable Table.Category
+                Definition.createKey   Table.Category
                 Definition.createIndex Table.Category Optimized
             
             // Web log user table
             if needsTable Table.WebLogUser then
                 Definition.createTable Table.WebLogUser
+                Definition.createKey   Table.WebLogUser
                 Definition.createIndex Table.WebLogUser Optimized
             
             // Page tables
             if needsTable Table.Page then
                 Definition.createTable Table.Page
+                Definition.createKey   Table.Page
                 $"CREATE INDEX page_web_log_idx   ON {Table.Page} ((data ->> '{nameof Page.Empty.WebLogId}'))"
                 $"CREATE INDEX page_author_idx    ON {Table.Page} ((data ->> '{nameof Page.Empty.AuthorId}'))"
                 $"CREATE INDEX page_permalink_idx ON {Table.Page}
                     ((data ->> '{nameof Page.Empty.WebLogId}'), (data ->> '{nameof Page.Empty.Permalink}'))"
             if needsTable Table.PageRevision then
                 $"CREATE TABLE {Table.PageRevision} (
-                    page_id        TEXT        NOT NULL REFERENCES {Table.Page} (id) ON DELETE CASCADE,
+                    page_id        TEXT        NOT NULL,
                     as_of          TIMESTAMPTZ NOT NULL,
                     revision_text  TEXT        NOT NULL,
                     PRIMARY KEY (page_id, as_of))"
@@ -72,6 +77,7 @@ type PostgresData(log: ILogger<PostgresData>, ser: JsonSerializer) =
             // Post tables
             if needsTable Table.Post then
                 Definition.createTable Table.Post
+                Definition.createKey   Table.Post
                 $"CREATE INDEX post_web_log_idx   ON {Table.Post} ((data ->> '{nameof Post.Empty.WebLogId}'))"
                 $"CREATE INDEX post_author_idx    ON {Table.Post} ((data ->> '{nameof Post.Empty.AuthorId}'))"
                 $"CREATE INDEX post_status_idx    ON {Table.Post}
@@ -83,25 +89,27 @@ type PostgresData(log: ILogger<PostgresData>, ser: JsonSerializer) =
                 $"CREATE INDEX post_tag_idx       ON {Table.Post} USING GIN ((data['{nameof Post.Empty.Tags}']))"
             if needsTable Table.PostRevision then
                 $"CREATE TABLE {Table.PostRevision} (
-                    post_id        TEXT        NOT NULL REFERENCES {Table.Post} (id) ON DELETE CASCADE,
+                    post_id        TEXT        NOT NULL,
                     as_of          TIMESTAMPTZ NOT NULL,
                     revision_text  TEXT        NOT NULL,
                     PRIMARY KEY (post_id, as_of))"
             if needsTable Table.PostComment then
                 Definition.createTable Table.PostComment
+                Definition.createKey   Table.PostComment
                 $"CREATE INDEX post_comment_post_idx ON {Table.PostComment}
                     ((data ->> '{nameof Comment.Empty.PostId}'))"
             
             // Tag map table
             if needsTable Table.TagMap then
                 Definition.createTable Table.TagMap
+                Definition.createKey   Table.TagMap
                 Definition.createIndex Table.TagMap Optimized
             
             // Uploaded file table
             if needsTable Table.Upload then
                 $"CREATE TABLE {Table.Upload} (
                     id          TEXT        NOT NULL PRIMARY KEY,
-                    web_log_id  TEXT        NOT NULL REFERENCES {Table.WebLog} (id),
+                    web_log_id  TEXT        NOT NULL,
                     path        TEXT        NOT NULL,
                     updated_on  TIMESTAMPTZ NOT NULL,
                     data        BYTEA       NOT NULL)"
@@ -120,7 +128,7 @@ type PostgresData(log: ILogger<PostgresData>, ser: JsonSerializer) =
             (sql
              |> Seq.map (fun s ->
                 let parts = s.Replace(" IF NOT EXISTS", "", System.StringComparison.OrdinalIgnoreCase).Split ' '
-                if parts[1].ToLowerInvariant () = "table" then
+                if parts[1].ToLowerInvariant() = "table" then
                     log.LogInformation $"Creating {parts[2]} table..."
                 s, [ [] ])
              |> List.ofSeq)
@@ -150,7 +158,7 @@ type PostgresData(log: ILogger<PostgresData>, ser: JsonSerializer) =
             " - Drop all tables from the database"
             " - Use this executable to restore each backup"; ""
             "Commands to back up all web logs:"
-            yield! webLogs |> List.map (fun (url, slug) -> sprintf "./myWebLog backup %s v2-rc2.%s.json" url slug)
+            yield! webLogs |> List.map (fun (url, slug) -> $"./myWebLog backup {url} v2-rc2.{slug}.json")
         ]
         |> String.concat "\n"
         |> log.LogWarning
