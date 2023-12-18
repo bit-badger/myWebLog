@@ -23,8 +23,12 @@ type PostgresWebLogData(log: ILogger) =
         log.LogTrace "WebLog.delete"
         Custom.nonQuery
             $"""DELETE FROM {Table.PostComment}
-                 WHERE data ->> '{nameof Comment.Empty.PostId}' IN
-                           (SELECT id FROM {Table.Post} WHERE {Query.whereDataContains "@criteria"});
+                 WHERE data ->> '{nameof Comment.Empty.PostId}'
+                         IN (SELECT id FROM {Table.Post} WHERE {Query.whereDataContains "@criteria"});
+                DELETE FROM {Table.PostRevision}
+                 WHERE post_id IN (SELECT data ->> 'Id' FROM {Table.Post} WHERE {Query.whereDataContains "@criteria"});
+                DELETE FROM {Table.PageRevision}
+                 WHERE page_id IN (SELECT data ->> 'Id' FROM {Table.Page} WHERE {Query.whereDataContains "@criteria"});
                 {Query.Delete.byContains Table.Post};
                 {Query.Delete.byContains Table.Page};
                 {Query.Delete.byContains Table.Category};

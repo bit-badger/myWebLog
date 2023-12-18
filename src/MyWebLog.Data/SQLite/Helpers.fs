@@ -168,16 +168,6 @@ module Map =
     /// Get a string value from a data reader
     let getString col (rdr: SqliteDataReader) = rdr.GetString(rdr.GetOrdinal col)
     
-    /// Parse a Duration from the given value
-    let parseDuration value =
-        match DurationPattern.Roundtrip.Parse value with
-        | it when it.Success -> it.Value
-        | it -> raise it.Exception
-    
-    /// Get a Duration value from a data reader
-    let getDuration col rdr =
-        getString col rdr |> parseDuration
-    
     /// Parse an Instant from the given value
     let parseInstant value =
         match InstantPattern.General.Parse value with
@@ -211,28 +201,9 @@ module Map =
     let tryString col (rdr: SqliteDataReader) =
         if rdr.IsDBNull(rdr.GetOrdinal col) then None else Some (getString col rdr)
     
-    /// Get a possibly null Duration value from a data reader
-    let tryDuration col rdr =
-        tryString col rdr |> Option.map parseDuration
-    
-    /// Get a possibly null Instant value from a data reader
-    let tryInstant col rdr =
-        tryString col rdr |> Option.map parseInstant
-    
     /// Get a possibly null timespan value from a data reader
     let tryTimeSpan col (rdr: SqliteDataReader) =
         if rdr.IsDBNull(rdr.GetOrdinal col) then None else Some (getTimeSpan col rdr)
-    
-    /// Map an id field to a category ID
-    let toCategoryId rdr = getString "id" rdr |> CategoryId
-    
-    /// Create a custom feed from the current row in the given data reader
-    let toCustomFeed ser rdr : CustomFeed =
-        {   Id      = getString "id"      rdr |> CustomFeedId
-            Source  = getString "source"  rdr |> CustomFeedSource.Parse
-            Path    = getString "path"    rdr |> Permalink
-            Podcast = tryString "podcast" rdr |> Option.map (Utils.deserialize ser)
-        }
     
     /// Create a permalink from the current row in the given data reader
     let toPermalink rdr = getString "permalink" rdr |> Permalink
@@ -241,22 +212,6 @@ module Map =
     let toRevision rdr : Revision =
         { AsOf = getInstant "as_of"         rdr
           Text = getString  "revision_text" rdr |> MarkupText.Parse }
-    
-    /// Create a tag mapping from the current row in the given data reader
-    let toTagMap rdr : TagMap =
-        {   Id       = getString "id"         rdr |> TagMapId
-            WebLogId = getString "web_log_id" rdr |> WebLogId
-            Tag      = getString "tag"        rdr
-            UrlValue = getString "url_value"  rdr
-        }
-    
-    /// Create a theme from the current row in the given data reader (excludes templates)
-    let toTheme rdr : Theme =
-        { Theme.Empty with
-            Id      = getString "id"      rdr |> ThemeId
-            Name    = getString "name"    rdr
-            Version = getString "version" rdr
-        }
     
     /// Create a theme asset from the current row in the given data reader
     let toThemeAsset includeData rdr : ThemeAsset =
@@ -271,12 +226,6 @@ module Map =
         { Id        = ThemeAssetId (ThemeId (getString "theme_id" rdr), getString "path" rdr)
           UpdatedOn = getInstant "updated_on" rdr
           Data      = assetData }
-    
-    /// Create a theme template from the current row in the given data reader
-    let toThemeTemplate includeText rdr : ThemeTemplate =
-        {   Name = getString "name" rdr
-            Text = if includeText then getString "template" rdr else ""
-        }
     
     /// Create an uploaded file from the current row in the given data reader
     let toUpload includeData rdr : Upload =
@@ -293,46 +242,6 @@ module Map =
           Path      = getString  "path"       rdr |> Permalink
           UpdatedOn = getInstant "updated_on" rdr
           Data      = data }
-    
-    /// Create a web log from the current row in the given data reader
-    let toWebLog ser rdr : WebLog =
-        {   Id            = getString  "id"             rdr |> WebLogId
-            Name          = getString  "name"           rdr
-            Slug          = getString  "slug"           rdr
-            Subtitle      = tryString  "subtitle"       rdr
-            DefaultPage   = getString  "default_page"   rdr
-            PostsPerPage  = getInt     "posts_per_page" rdr
-            ThemeId       = getString  "theme_id"       rdr |> ThemeId
-            UrlBase       = getString  "url_base"       rdr
-            TimeZone      = getString  "time_zone"      rdr
-            AutoHtmx      = getBoolean "auto_htmx"      rdr
-            Uploads       = getString  "uploads"        rdr |> UploadDestination.Parse
-            Rss           = {
-                IsFeedEnabled     = getBoolean "is_feed_enabled"     rdr
-                FeedName          = getString  "feed_name"           rdr
-                ItemsInFeed       = tryInt     "items_in_feed"       rdr
-                IsCategoryEnabled = getBoolean "is_category_enabled" rdr
-                IsTagEnabled      = getBoolean "is_tag_enabled"      rdr
-                Copyright         = tryString  "copyright"           rdr
-                CustomFeeds       = []
-            }
-            RedirectRules = getString "redirect_rules" rdr |> Utils.deserialize ser
-        }
-    
-    /// Create a web log user from the current row in the given data reader
-    let toWebLogUser rdr : WebLogUser =
-        {   Id            = getString  "id"             rdr |> WebLogUserId
-            WebLogId      = getString  "web_log_id"     rdr |> WebLogId
-            Email         = getString  "email"          rdr
-            FirstName     = getString  "first_name"     rdr
-            LastName      = getString  "last_name"      rdr
-            PreferredName = getString  "preferred_name" rdr
-            PasswordHash  = getString  "password_hash"  rdr
-            Url           = tryString  "url"            rdr
-            AccessLevel   = getString  "access_level"   rdr |> AccessLevel.Parse
-            CreatedOn     = getInstant "created_on"     rdr
-            LastSeenOn    = tryInstant "last_seen_on"   rdr
-        }
     
     /// Map from a document to a domain type, specifying the field name for the document
     let fromData<'T> ser rdr fieldName : 'T =
@@ -409,6 +318,16 @@ module Document =
         return! count cmd
     }
     
+    /// Find a document by its ID
+    let findById<'TKey, 'TDoc> (conn: SqliteConnection) ser table (key: 'TKey) = backgroundTask {
+        use cmd = conn.CreateCommand()
+        cmd.CommandText <- $"{Query.selectFromTable table} WHERE {Query.whereById}"
+        addDocId cmd key
+        use! rdr = cmd.ExecuteReaderAsync()
+        let! isFound = rdr.ReadAsync()
+        return if isFound then Some (Map.fromDoc<'TDoc> ser rdr) else None
+    }
+    
     /// Find a document by its ID and web log ID
     let findByIdAndWebLog<'TKey, 'TDoc> (conn: SqliteConnection) ser table (key: 'TKey) webLogId = backgroundTask {
         use cmd = conn.CreateCommand()
@@ -441,6 +360,17 @@ module Document =
         cmd.CommandText <- Query.updateById table
         addDocId cmd key
         addDocParam<'TDoc> cmd doc ser
+        do! write cmd
+    }
+    
+    /// Update a field in a document by its ID
+    let updateField<'TKey, 'TValue> (conn: SqliteConnection) ser table (key: 'TKey) jsonField
+            (value: 'TValue) = backgroundTask {
+        use cmd = conn.CreateCommand()
+        cmd.CommandText <-
+            $"UPDATE %s{table} SET data = json_set(data, '$.{jsonField}', json(@it)) WHERE {Query.whereById}"
+        addDocId cmd key
+        addParam cmd "@it" (Utils.serialize ser value)
         do! write cmd
     }
     

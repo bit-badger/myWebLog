@@ -474,11 +474,11 @@ type SQLiteData(conn: SqliteConnection, log: ILogger<SQLiteData>, ser: JsonSeria
         member _.Page       = SQLitePageData       (conn, ser, log)
         member _.Post       = SQLitePostData       (conn, ser, log)
         member _.TagMap     = SQLiteTagMapData     (conn, ser, log)
-        member _.Theme      = SQLiteThemeData      conn
-        member _.ThemeAsset = SQLiteThemeAssetData conn
-        member _.Upload     = SQLiteUploadData     conn
-        member _.WebLog     = SQLiteWebLogData     (conn, ser)
-        member _.WebLogUser = SQLiteWebLogUserData conn
+        member _.Theme      = SQLiteThemeData      (conn, ser, log)
+        member _.ThemeAsset = SQLiteThemeAssetData (conn, log)
+        member _.Upload     = SQLiteUploadData     (conn, log)
+        member _.WebLog     = SQLiteWebLogData     (conn, ser, log)
+        member _.WebLogUser = SQLiteWebLogUserData (conn, ser, log)
         
         member _.Serializer = ser
         

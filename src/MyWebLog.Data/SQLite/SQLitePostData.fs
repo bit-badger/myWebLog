@@ -224,14 +224,7 @@ type SQLitePostData(conn: SqliteConnection, ser: JsonSerializer, log: ILogger) =
     let updatePriorPermalinks postId webLogId (permalinks: Permalink list) = backgroundTask {
         match! findById postId webLogId with
         | Some _ ->
-            use cmd = conn.CreateCommand()
-            cmd.CommandText <- $"
-                UPDATE {Table.Post}
-                   SET data = json_set(data, '$.{nameof Post.Empty.PriorPermalinks}', json(@links))
-                 WHERE {Query.whereById}"
-            addDocId cmd postId
-            addParam cmd "@links" (Utils.serialize ser permalinks)
-            do! write cmd
+            do! Document.updateField conn ser Table.Post postId (nameof Post.Empty.PriorPermalinks) permalinks
             return true
         | None -> return false
     }

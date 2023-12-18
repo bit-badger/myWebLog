@@ -186,14 +186,7 @@ type SQLitePageData(conn: SqliteConnection, ser: JsonSerializer, log: ILogger) =
         log.LogTrace "Page.updatePriorPermalinks"
         match! findById pageId webLogId with
         | Some _ ->
-            use cmd = conn.CreateCommand()
-            cmd.CommandText <- $"
-                UPDATE {Table.Page}
-                   SET data = json_set(data, '$.{nameof Page.Empty.PriorPermalinks}', json(@links))
-                 WHERE {Query.whereById}"
-            addDocId cmd pageId
-            addParam cmd "@links" (Utils.serialize ser permalinks)
-            do! write cmd
+            do! Document.updateField conn ser Table.Page pageId (nameof Page.Empty.PriorPermalinks) permalinks
             return true
         | None -> return false
     }

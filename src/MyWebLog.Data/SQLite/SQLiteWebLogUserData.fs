@@ -1,11 +1,13 @@
 namespace MyWebLog.Data.SQLite
 
 open Microsoft.Data.Sqlite
+open Microsoft.Extensions.Logging
 open MyWebLog
 open MyWebLog.Data
+open Newtonsoft.Json
 
 /// SQLite myWebLog user data implementation
-type SQLiteWebLogUserData(conn: SqliteConnection) =
+type SQLiteWebLogUserData(conn: SqliteConnection, ser: JsonSerializer, log: ILogger) =
     
     // SUPPORT FUNCTIONS
 
@@ -27,119 +29,94 @@ type SQLiteWebLogUserData(conn: SqliteConnection) =
     // IMPLEMENTATION FUNCTIONS
     
     /// Add a user
-    let add user = backgroundTask {
-        use cmd = conn.CreateCommand ()
-        cmd.CommandText <-
-            "INSERT INTO web_log_user (
-                id, web_log_id, email, first_name, last_name, preferred_name, password_hash, url, access_level,
-                created_on, last_seen_on
-            ) VALUES (
-                @id, @webLogId, @email, @firstName, @lastName, @preferredName, @passwordHash, @url, @accessLevel,
-                @createdOn, @lastSeenOn
-            )"
-        addWebLogUserParameters cmd user
-        do! write cmd
-    }
+    let add user =
+        log.LogTrace "WebLogUser.add"
+        Document.insert<WebLogUser> conn ser Table.WebLogUser user
     
     /// Find a user by their ID for the given web log
-    let findById (userId: WebLogUserId) webLogId = backgroundTask {
-        use cmd = conn.CreateCommand ()
-        cmd.CommandText <- "SELECT * FROM web_log_user WHERE id = @id"
-        cmd.Parameters.AddWithValue ("@id", string userId) |> ignore
-        use! rdr = cmd.ExecuteReaderAsync ()
-        return verifyWebLog<WebLogUser> webLogId (_.WebLogId) Map.toWebLogUser rdr 
-    }
+    let findById userId webLogId =
+        log.LogTrace "WebLogUser.findById"
+        Document.findByIdAndWebLog<WebLogUserId, WebLogUser> conn ser Table.WebLogUser userId webLogId
     
     /// Delete a user if they have no posts or pages
     let delete userId webLogId = backgroundTask {
+        log.LogTrace "WebLogUser.delete"
         match! findById userId webLogId with
         | Some _ ->
-            use cmd = conn.CreateCommand ()
-            cmd.CommandText <- "SELECT COUNT(id) FROM page WHERE author_id = @userId"
-            cmd.Parameters.AddWithValue ("@userId", string userId) |> ignore
+            use cmd = conn.CreateCommand()
+            cmd.CommandText <- $"SELECT COUNT(*) FROM {Table.Page} WHERE data ->> 'AuthorId' = @id"
+            addDocId cmd userId
             let! pageCount = count cmd
-            cmd.CommandText <- "SELECT COUNT(id) FROM post WHERE author_id = @userId"
+            cmd.CommandText <- cmd.CommandText.Replace($"FROM {Table.Page}", $"FROM {Table.Post}")
             let! postCount = count cmd
             if pageCount + postCount > 0 then
                 return Error "User has pages or posts; cannot delete"
             else
-                cmd.CommandText <- "DELETE FROM web_log_user WHERE id = @userId"
-                let! _ = cmd.ExecuteNonQueryAsync ()
+                do! Document.delete conn Table.WebLogUser userId
                 return Ok true
         | None -> return Error "User does not exist"
     }
     
     /// Find a user by their e-mail address for the given web log
-    let findByEmail (email : string) webLogId = backgroundTask {
-        use cmd = conn.CreateCommand ()
-        cmd.CommandText <- "SELECT * FROM web_log_user WHERE web_log_id = @webLogId AND email = @email"
+    let findByEmail (email: string) webLogId = backgroundTask {
+        log.LogTrace "WebLogUser.findByEmail"
+        use cmd = conn.CreateCommand()
+        cmd.CommandText <- $"
+            {Query.selectFromTable Table.WebLogUser}
+             WHERE {Query.whereByWebLog}
+               AND data ->> '{nameof WebLogUser.Empty.Email}' = @email"
         addWebLogId cmd webLogId
-        cmd.Parameters.AddWithValue ("@email", email) |> ignore
-        use! rdr = cmd.ExecuteReaderAsync ()
-        return if rdr.Read () then Some (Map.toWebLogUser rdr) else None
+        addParam cmd "@email" email
+        use! rdr = cmd.ExecuteReaderAsync()
+        let! isFound = rdr.ReadAsync()
+        return if isFound then Some (Map.fromDoc<WebLogUser> ser rdr) else None
     }
     
     /// Get all users for the given web log
     let findByWebLog webLogId = backgroundTask {
-        use cmd = conn.CreateCommand ()
-        cmd.CommandText <- "SELECT * FROM web_log_user WHERE web_log_id = @webLogId ORDER BY LOWER(preferred_name)"
-        addWebLogId cmd webLogId
-        use! rdr = cmd.ExecuteReaderAsync ()
-        return toList Map.toWebLogUser rdr
+        log.LogTrace "WebLogUser.findByWebLog"
+        let! users = Document.findByWebLog<WebLogUser> conn ser Table.WebLogUser webLogId
+        return users |> List.sortBy _.PreferredName.ToLowerInvariant()
     }
     
     /// Find the names of users by their IDs for the given web log
     let findNames webLogId (userIds: WebLogUserId list) = backgroundTask {
-        use cmd = conn.CreateCommand ()
-        let nameSql, nameParams = inClause "AND id" "id" string userIds 
-        cmd.CommandText <- $"SELECT * FROM web_log_user WHERE web_log_id = @webLogId {nameSql}"
+        log.LogTrace "WebLogUser.findNames"
+        use cmd = conn.CreateCommand()
+        let nameSql, nameParams = inClause "AND data ->> 'Id'" "id" string userIds 
+        cmd.CommandText <- $"{Query.selectFromTable Table.WebLogUser} WHERE {Query.whereByWebLog} {nameSql}"
         addWebLogId cmd webLogId
         cmd.Parameters.AddRange nameParams
-        use! rdr = cmd.ExecuteReaderAsync ()
-        return toList Map.toWebLogUser rdr |> List.map (fun u -> { Name = string u.Id; Value = u.DisplayName })
+        let! users = cmdToList<WebLogUser> cmd ser
+        return users |> List.map (fun u -> { Name = string u.Id; Value = u.DisplayName })
     }
     
     /// Restore users from a backup
     let restore users = backgroundTask {
+        log.LogTrace "WebLogUser.restore"
         for user in users do
             do! add user
     }
     
     /// Set a user's last seen date/time to now
     let setLastSeen (userId: WebLogUserId) webLogId = backgroundTask {
-        use cmd = conn.CreateCommand ()
-        cmd.CommandText <-
-            "UPDATE web_log_user
-                SET last_seen_on = @lastSeenOn
-              WHERE id         = @id
-                AND web_log_id = @webLogId"
+        log.LogTrace "WebLogUser.setLastSeen"
+        use cmd = conn.CreateCommand()
+        cmd.CommandText <- $"
+            UPDATE {Table.WebLogUser}
+               SET data = json_set(data, '$.{nameof WebLogUser.Empty.LastSeenOn}', @lastSeenOn)
+             WHERE {Query.whereById}
+               AND {Query.whereByWebLog}"
+        addDocId cmd userId
         addWebLogId cmd webLogId
-        [   cmd.Parameters.AddWithValue ("@id",         string userId)
-            cmd.Parameters.AddWithValue ("@lastSeenOn", instantParam (Noda.now ()))
-        ] |> ignore
-        let! _ = cmd.ExecuteNonQueryAsync ()
-        ()
+        addParam cmd "@lastSeenOn" (instantParam (Noda.now ()))
+        do! write cmd
     }
     
     /// Update a user
-    let update user = backgroundTask {
-        use cmd = conn.CreateCommand ()
-        cmd.CommandText <-
-            "UPDATE web_log_user
-                SET email          = @email,
-                    first_name     = @firstName,
-                    last_name      = @lastName,
-                    preferred_name = @preferredName,
-                    password_hash  = @passwordHash,
-                    url            = @url,
-                    access_level   = @accessLevel,
-                    created_on     = @createdOn,
-                    last_seen_on   = @lastSeenOn
-              WHERE id         = @id
-                AND web_log_id = @webLogId"
-        addWebLogUserParameters cmd user
-        do! write cmd
-    }
+    let update (user: WebLogUser) =
+        log.LogTrace "WebLogUser.update"
+        Document.update conn ser Table.WebLogUser user.Id user
     
     interface IWebLogUserData with
         member _.Add user = add user
