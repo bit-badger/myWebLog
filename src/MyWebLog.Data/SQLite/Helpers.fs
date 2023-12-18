@@ -108,8 +108,25 @@ let maybeDuration =
 let maybeInstant =
     Option.map instantParam >> maybe
 
+/// Create the SQL and parameters for an EXISTS applied to a JSON array
+let inJsonArray<'T> table jsonField paramName (items: 'T list) =
+    if List.isEmpty items then "", []
+    else
+        let mutable idx = 0
+        items
+        |> List.skip 1
+        |> List.fold (fun (itemS, itemP) it ->
+            idx <- idx + 1
+            $"{itemS}, @%s{paramName}{idx}", (SqliteParameter($"@%s{paramName}{idx}", string it) :: itemP))
+            (Seq.ofList items
+             |> Seq.map (fun it -> $"(@%s{paramName}0", [ SqliteParameter($"@%s{paramName}0", string it) ])
+             |> Seq.head)
+        |> function
+            sql, ps ->
+                $"EXISTS (SELECT 1 FROM json_each(%s{table}.data, '$.%s{jsonField}') WHERE value IN {sql}))", ps
+
 /// Create the SQL and parameters for an IN clause
-let inClause<'T> colNameAndPrefix paramName (valueFunc: 'T -> string) (items : 'T list) =
+let inClause<'T> colNameAndPrefix paramName (valueFunc: 'T -> string) (items: 'T list) =
     if List.isEmpty items then "", []
     else
         let mutable idx = 0
@@ -131,25 +148,25 @@ module Map =
     open System.IO
     
     /// Get a boolean value from a data reader
-    let getBoolean col (rdr : SqliteDataReader) = rdr.GetBoolean (rdr.GetOrdinal col)
+    let getBoolean col (rdr: SqliteDataReader) = rdr.GetBoolean(rdr.GetOrdinal col)
     
     /// Get a date/time value from a data reader
-    let getDateTime col (rdr : SqliteDataReader) = rdr.GetDateTime (rdr.GetOrdinal col)
+    let getDateTime col (rdr: SqliteDataReader) = rdr.GetDateTime(rdr.GetOrdinal col)
     
     /// Get a Guid value from a data reader
-    let getGuid col (rdr : SqliteDataReader) = rdr.GetGuid (rdr.GetOrdinal col)
+    let getGuid col (rdr: SqliteDataReader) = rdr.GetGuid(rdr.GetOrdinal col)
     
     /// Get an int value from a data reader
-    let getInt col (rdr : SqliteDataReader) = rdr.GetInt32 (rdr.GetOrdinal col)
+    let getInt col (rdr: SqliteDataReader) = rdr.GetInt32(rdr.GetOrdinal col)
     
     /// Get a long (64-bit int) value from a data reader
-    let getLong col (rdr : SqliteDataReader) = rdr.GetInt64 (rdr.GetOrdinal col)
+    let getLong col (rdr: SqliteDataReader) = rdr.GetInt64(rdr.GetOrdinal col)
     
     /// Get a BLOB stream value from a data reader
-    let getStream col (rdr : SqliteDataReader) = rdr.GetStream (rdr.GetOrdinal col)
+    let getStream col (rdr: SqliteDataReader) = rdr.GetStream(rdr.GetOrdinal col)
     
     /// Get a string value from a data reader
-    let getString col (rdr : SqliteDataReader) = rdr.GetString (rdr.GetOrdinal col)
+    let getString col (rdr: SqliteDataReader) = rdr.GetString(rdr.GetOrdinal col)
     
     /// Parse a Duration from the given value
     let parseDuration value =
@@ -172,27 +189,27 @@ module Map =
         getString col rdr |> parseInstant
     
     /// Get a timespan value from a data reader
-    let getTimeSpan col (rdr : SqliteDataReader) = rdr.GetTimeSpan (rdr.GetOrdinal col)
+    let getTimeSpan col (rdr: SqliteDataReader) = rdr.GetTimeSpan(rdr.GetOrdinal col)
     
     /// Get a possibly null boolean value from a data reader
-    let tryBoolean col (rdr : SqliteDataReader) =
-        if rdr.IsDBNull (rdr.GetOrdinal col) then None else Some (getBoolean col rdr)
+    let tryBoolean col (rdr: SqliteDataReader) =
+        if rdr.IsDBNull(rdr.GetOrdinal col) then None else Some (getBoolean col rdr)
     
     /// Get a possibly null date/time value from a data reader
-    let tryDateTime col (rdr : SqliteDataReader) =
-        if rdr.IsDBNull (rdr.GetOrdinal col) then None else Some (getDateTime col rdr)
+    let tryDateTime col (rdr: SqliteDataReader) =
+        if rdr.IsDBNull(rdr.GetOrdinal col) then None else Some (getDateTime col rdr)
     
     /// Get a possibly null Guid value from a data reader
-    let tryGuid col (rdr : SqliteDataReader) =
-        if rdr.IsDBNull (rdr.GetOrdinal col) then None else Some (getGuid col rdr)
+    let tryGuid col (rdr: SqliteDataReader) =
+        if rdr.IsDBNull(rdr.GetOrdinal col) then None else Some (getGuid col rdr)
     
     /// Get a possibly null int value from a data reader
-    let tryInt col (rdr : SqliteDataReader) =
-        if rdr.IsDBNull (rdr.GetOrdinal col) then None else Some (getInt col rdr)
+    let tryInt col (rdr: SqliteDataReader) =
+        if rdr.IsDBNull(rdr.GetOrdinal col) then None else Some (getInt col rdr)
     
     /// Get a possibly null string value from a data reader
-    let tryString col (rdr : SqliteDataReader) =
-        if rdr.IsDBNull (rdr.GetOrdinal col) then None else Some (getString col rdr)
+    let tryString col (rdr: SqliteDataReader) =
+        if rdr.IsDBNull(rdr.GetOrdinal col) then None else Some (getString col rdr)
     
     /// Get a possibly null Duration value from a data reader
     let tryDuration col rdr =
@@ -203,21 +220,11 @@ module Map =
         tryString col rdr |> Option.map parseInstant
     
     /// Get a possibly null timespan value from a data reader
-    let tryTimeSpan col (rdr : SqliteDataReader) =
-        if rdr.IsDBNull (rdr.GetOrdinal col) then None else Some (getTimeSpan col rdr)
+    let tryTimeSpan col (rdr: SqliteDataReader) =
+        if rdr.IsDBNull(rdr.GetOrdinal col) then None else Some (getTimeSpan col rdr)
     
     /// Map an id field to a category ID
     let toCategoryId rdr = getString "id" rdr |> CategoryId
-    
-    /// Create a category from the current row in the given data reader
-    let toCategory rdr : Category =
-        {   Id          = toCategoryId            rdr
-            WebLogId    = getString "web_log_id"  rdr |> WebLogId
-            Name        = getString "name"        rdr
-            Slug        = getString "slug"        rdr
-            Description = tryString "description" rdr
-            ParentId    = tryString "parent_id"   rdr |> Option.map CategoryId
-        }
     
     /// Create a custom feed from the current row in the given data reader
     let toCustomFeed ser rdr : CustomFeed =
@@ -230,48 +237,10 @@ module Map =
     /// Create a permalink from the current row in the given data reader
     let toPermalink rdr = getString "permalink" rdr |> Permalink
     
-    /// Create a page from the current row in the given data reader
-    let toPage ser rdr : Page =
-        { Page.Empty with
-            Id           = getString   "id"              rdr |> PageId
-            WebLogId     = getString   "web_log_id"      rdr |> WebLogId
-            AuthorId     = getString   "author_id"       rdr |> WebLogUserId
-            Title        = getString   "title"           rdr
-            Permalink    = toPermalink                   rdr
-            PublishedOn  = getInstant  "published_on"    rdr
-            UpdatedOn    = getInstant  "updated_on"      rdr
-            IsInPageList = getBoolean  "is_in_page_list" rdr
-            Template     = tryString   "template"        rdr
-            Text         = getString   "page_text"       rdr
-            Metadata     = tryString   "meta_items"   rdr
-                           |> Option.map (Utils.deserialize ser)
-                           |> Option.defaultValue []
-        }
-    
-    /// Create a post from the current row in the given data reader
-    let toPost ser rdr : Post =
-        { Post.Empty with
-            Id          = getString   "id"           rdr |> PostId
-            WebLogId    = getString   "web_log_id"   rdr |> WebLogId
-            AuthorId    = getString   "author_id"    rdr |> WebLogUserId
-            Status      = getString   "status"       rdr |> PostStatus.Parse
-            Title       = getString   "title"        rdr
-            Permalink   = toPermalink                rdr
-            PublishedOn = tryInstant  "published_on" rdr
-            UpdatedOn   = getInstant  "updated_on"   rdr
-            Template    = tryString   "template"     rdr
-            Text        = getString   "post_text"    rdr
-            Episode     = tryString   "episode"      rdr |> Option.map (Utils.deserialize ser)
-            Metadata    = tryString   "meta_items"   rdr
-                          |> Option.map (Utils.deserialize ser)
-                          |> Option.defaultValue []
-        }
-    
     /// Create a revision from the current row in the given data reader
     let toRevision rdr : Revision =
-        {   AsOf = getInstant "as_of"         rdr
-            Text = getString  "revision_text" rdr |> MarkupText.Parse
-        }
+        { AsOf = getInstant "as_of"         rdr
+          Text = getString  "revision_text" rdr |> MarkupText.Parse }
     
     /// Create a tag mapping from the current row in the given data reader
     let toTagMap rdr : TagMap =
@@ -293,16 +262,15 @@ module Map =
     let toThemeAsset includeData rdr : ThemeAsset =
         let assetData =
             if includeData then
-                use dataStream = new MemoryStream ()
+                use dataStream = new MemoryStream()
                 use blobStream = getStream "data" rdr
                 blobStream.CopyTo dataStream
-                dataStream.ToArray ()
+                dataStream.ToArray()
             else
                 [||]
-        {   Id        = ThemeAssetId (ThemeId (getString "theme_id" rdr), getString "path" rdr)
-            UpdatedOn = getInstant "updated_on" rdr
-            Data      = assetData
-        }
+        { Id        = ThemeAssetId (ThemeId (getString "theme_id" rdr), getString "path" rdr)
+          UpdatedOn = getInstant "updated_on" rdr
+          Data      = assetData }
     
     /// Create a theme template from the current row in the given data reader
     let toThemeTemplate includeText rdr : ThemeTemplate =
@@ -320,12 +288,11 @@ module Map =
                 dataStream.ToArray ()
             else
                 [||]
-        {   Id        = getString  "id"         rdr |> UploadId
-            WebLogId  = getString  "web_log_id" rdr |> WebLogId
-            Path      = getString  "path"       rdr |> Permalink
-            UpdatedOn = getInstant "updated_on" rdr
-            Data      = data
-        }
+        { Id        = getString  "id"         rdr |> UploadId
+          WebLogId  = getString  "web_log_id" rdr |> WebLogId
+          Path      = getString  "path"       rdr |> Permalink
+          UpdatedOn = getInstant "updated_on" rdr
+          Data      = data }
     
     /// Create a web log from the current row in the given data reader
     let toWebLog ser rdr : WebLog =
@@ -375,17 +342,170 @@ module Map =
     let fromDoc<'T> ser rdr : 'T =
         fromData<'T> ser rdr "data"
 
+/// Create a list of items for the results of the given command
+let cmdToList<'TDoc> (cmd: SqliteCommand) ser = backgroundTask {
+    use! rdr = cmd.ExecuteReaderAsync()
+    let mutable it: 'TDoc list = []
+    while! rdr.ReadAsync() do
+        it <- Map.fromDoc ser rdr :: it
+    return List.rev it
+}
+
 /// Queries to assist with document manipulation
 module Query =
     
-    /// Fragment to add an ID condition to a WHERE clause
+    /// Fragment to add an ID condition to a WHERE clause (parameter @id)
     let whereById =
         "data ->> 'Id' = @id"
     
-/// Fragment to add a web log ID condition to a WHERE clause
-let whereWebLogId =
-    "data ->> 'WebLogId' = @webLogId"
+    /// Fragment to add a web log ID condition to a WHERE clause (parameter @webLogId)
+    let whereByWebLog =
+        "data ->> 'WebLogId' = @webLogId"
+    
+    /// A SELECT/FROM pair for the given table
+    let selectFromTable table =
+        $"SELECT data FROM %s{table}"
+    
+    /// An INSERT statement for a document (parameter @data)
+    let insert table =
+        $"INSERT INTO %s{table} VALUES (@data)"
+    
+    /// A SELECT query to count documents for a given web log ID
+    let countByWebLog table =
+        $"SELECT COUNT(*) FROM %s{table} WHERE {whereByWebLog}"
+    
+    /// An UPDATE query to update a full document by its ID (parameters @data and @id)
+    let updateById table =
+        $"UPDATE %s{table} SET data = @data WHERE {whereById}"
+    
+    /// A DELETE query to delete a document by its ID (parameter @id)
+    let deleteById table =
+        $"DELETE FROM %s{table} WHERE {whereById}"
+    
+
+let addParam (cmd: SqliteCommand) name (value: obj) =
+    cmd.Parameters.AddWithValue(name, value) |> ignore
+
+/// Add an ID parameter for a document
+let addDocId<'TKey> (cmd: SqliteCommand) (id: 'TKey) =
+    addParam cmd "@id" (string id)
+
+/// Add a document parameter
+let addDocParam<'TDoc> (cmd: SqliteCommand) (doc: 'TDoc) ser =
+    addParam cmd "@data" (Utils.serialize ser doc)
 
 /// Add a web log ID parameter
 let addWebLogId (cmd: SqliteCommand) (webLogId: WebLogId) =
-    cmd.Parameters.AddWithValue("@webLogId", string webLogId) |> ignore
+    addParam cmd "@webLogId" (string webLogId)
+
+/// Functions for manipulating documents
+module Document =
+    
+    /// Count documents for the given web log ID
+    let countByWebLog (conn: SqliteConnection) table webLogId = backgroundTask {
+        use cmd = conn.CreateCommand()
+        cmd.CommandText <- Query.countByWebLog table
+        addWebLogId cmd webLogId
+        return! count cmd
+    }
+    
+    /// Find a document by its ID and web log ID
+    let findByIdAndWebLog<'TKey, 'TDoc> (conn: SqliteConnection) ser table (key: 'TKey) webLogId = backgroundTask {
+        use cmd = conn.CreateCommand()
+        cmd.CommandText <- $"{Query.selectFromTable table} WHERE {Query.whereById} AND {Query.whereByWebLog}"
+        addDocId    cmd key
+        addWebLogId cmd webLogId
+        use! rdr = cmd.ExecuteReaderAsync()
+        let! isFound = rdr.ReadAsync()
+        return if isFound then Some (Map.fromDoc<'TDoc> ser rdr) else None
+    }
+    
+    /// Find documents for the given web log
+    let findByWebLog<'TDoc> (conn: SqliteConnection) ser table webLogId =
+        use cmd = conn.CreateCommand()
+        cmd.CommandText <- $"{Query.selectFromTable table} WHERE {Query.whereByWebLog}"
+        addWebLogId cmd webLogId
+        cmdToList<'TDoc> cmd ser
+    
+    /// Insert a document
+    let insert<'TDoc> (conn: SqliteConnection) ser table (doc: 'TDoc) = backgroundTask {
+        use cmd = conn.CreateCommand()
+        cmd.CommandText <- Query.insert table
+        addDocParam<'TDoc> cmd doc ser
+        do! write cmd
+    }
+    
+    /// Update (replace) a document by its ID
+    let update<'TKey, 'TDoc> (conn: SqliteConnection) ser table (key: 'TKey) (doc: 'TDoc) = backgroundTask {
+        use cmd = conn.CreateCommand()
+        cmd.CommandText <- Query.updateById table
+        addDocId cmd key
+        addDocParam<'TDoc> cmd doc ser
+        do! write cmd
+    }
+    
+    /// Delete a document by its ID
+    let delete<'TKey> (conn: SqliteConnection) table (key: 'TKey) = backgroundTask {
+        use cmd = conn.CreateCommand()
+        cmd.CommandText <- Query.deleteById table
+        addDocId cmd key
+        do! write cmd
+    }
+
+/// Functions to support revisions
+module Revisions =
+    
+    /// Find all revisions for the given entity
+    let findByEntityId<'TKey> (conn: SqliteConnection) revTable entityTable (key: 'TKey) = backgroundTask {
+        use cmd = conn.CreateCommand()
+        cmd.CommandText <-
+            $"SELECT as_of, revision_text FROM %s{revTable} WHERE %s{entityTable}_id = @id ORDER BY as_of DESC"
+        addDocId cmd key
+        use! rdr = cmd.ExecuteReaderAsync()
+        return toList Map.toRevision rdr
+    }
+    
+    /// Find all revisions for all posts for the given web log
+    let findByWebLog<'TKey> (conn: SqliteConnection) revTable entityTable (keyFunc: string -> 'TKey)
+            webLogId = backgroundTask {
+        use cmd = conn.CreateCommand()
+        cmd.CommandText <-
+            $"SELECT pr.*
+                FROM %s{revTable} pr
+                     INNER JOIN %s{entityTable} p ON p.data ->> 'Id' = pr.{entityTable}_id
+               WHERE p.{Query.whereByWebLog}
+               ORDER BY as_of DESC"
+        addWebLogId cmd webLogId
+        use! rdr = cmd.ExecuteReaderAsync()
+        return toList (fun rdr -> keyFunc (Map.getString $"{entityTable}_id" rdr), Map.toRevision rdr) rdr
+    }
+
+    /// Parameters for a revision INSERT statement
+    let revParams<'TKey> (key: 'TKey) rev =
+        [ SqliteParameter("asOf",  rev.AsOf)
+          SqliteParameter("@id",   string key)
+          SqliteParameter("@text", rev.Text) ]
+    
+    /// The SQL statement to insert a revision
+    let insertSql table =
+        $"INSERT INTO %s{table} VALUES (@id, @asOf, @text)"
+    
+    /// Update a page or post's revisions
+    let update<'TKey> (conn: SqliteConnection) revTable entityTable (key: 'TKey) oldRevs newRevs = backgroundTask {
+        let toDelete, toAdd = Utils.diffRevisions oldRevs newRevs
+        if not (List.isEmpty toDelete) || not (List.isEmpty toAdd) then
+            use cmd = conn.CreateCommand()
+            if not (List.isEmpty toDelete) then
+                cmd.CommandText <- $"DELETE FROM %s{revTable} WHERE %s{entityTable}_id = @id AND as_of = @asOf"
+                for delRev in toDelete do
+                    cmd.Parameters.Clear()
+                    addDocId cmd key
+                    addParam cmd "@asOf" delRev.AsOf
+                    do! write cmd
+            if not (List.isEmpty toAdd) then
+                cmd.CommandText <- insertSql revTable
+                for addRev in toAdd do
+                    cmd.Parameters.Clear()
+                    cmd.Parameters.AddRange(revParams key addRev)
+                    do! write cmd
+    }

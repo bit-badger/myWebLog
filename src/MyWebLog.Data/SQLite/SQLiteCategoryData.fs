@@ -2,71 +2,46 @@ namespace MyWebLog.Data.SQLite
 
 open System.Threading.Tasks
 open Microsoft.Data.Sqlite
+open Microsoft.Extensions.Logging
 open MyWebLog
 open MyWebLog.Data
 open Newtonsoft.Json
 
 /// SQLite myWebLog category data implementation
-type SQLiteCategoryData(conn: SqliteConnection, ser: JsonSerializer) =
+type SQLiteCategoryData(conn: SqliteConnection, ser: JsonSerializer, log: ILogger) =
     
-    /// Add parameters for category INSERT or UPDATE statements
-    let addCategoryParameters (cmd: SqliteCommand) (cat: Category) =
-        [   cmd.Parameters.AddWithValue ("@id",          string cat.Id)
-            cmd.Parameters.AddWithValue ("@webLogId",    string cat.WebLogId)
-            cmd.Parameters.AddWithValue ("@name",        cat.Name)
-            cmd.Parameters.AddWithValue ("@slug",        cat.Slug)
-            cmd.Parameters.AddWithValue ("@description", maybe cat.Description)
-            cmd.Parameters.AddWithValue ("@parentId",    maybe (cat.ParentId |> Option.map string))
-        ] |> ignore
+    /// The name of the parent ID field
+    let parentIdField = nameof Category.Empty.ParentId
     
     /// Add a category
-    let add cat = backgroundTask {
-        use cmd = conn.CreateCommand ()
-        cmd.CommandText <-
-            "INSERT INTO category (
-                id, web_log_id, name, slug, description, parent_id
-            ) VALUES (
-                @id, @webLogId, @name, @slug, @description, @parentId
-            )"
-        addCategoryParameters cmd cat
-        let! _ = cmd.ExecuteNonQueryAsync ()
-        ()
-    }
+    let add (cat: Category) =
+        log.LogTrace "Category.add"
+        Document.insert conn ser Table.Category cat
     
     /// Count all categories for the given web log
-    let countAll webLogId = backgroundTask {
-        use cmd = conn.CreateCommand()
-        cmd.CommandText <- $"SELECT COUNT(*) FROM {Table.Category} WHERE {whereWebLogId}"
-        addWebLogId cmd webLogId
-        return! count cmd
-    }
+    let countAll webLogId =
+        log.LogTrace "Category.countAll"
+        Document.countByWebLog conn Table.Category webLogId
     
     /// Count all top-level categories for the given web log
     let countTopLevel webLogId = backgroundTask {
-        use cmd = conn.CreateCommand ()
-        cmd.CommandText <-
-            $"SELECT COUNT(*) FROM {Table.Category}
-               WHERE {whereWebLogId} AND data ->> '{nameof Category.Empty.ParentId}' IS NULL"
+        log.LogTrace "Category.countTopLevel"
+        use cmd = conn.CreateCommand()
+        cmd.CommandText <- $"{Query.countByWebLog} AND data ->> '{parentIdField}' IS NULL"
         addWebLogId cmd webLogId
         return! count cmd
     }
     
-    // TODO: need to get SQLite in clause format for JSON documents
+    /// Find all categories for the given web log
+    let findByWebLog webLogId =
+        log.LogTrace "Category.findByWebLog"
+        Document.findByWebLog<Category> conn ser Table.Category webLogId
+    
     /// Retrieve all categories for the given web log in a DotLiquid-friendly format
     let findAllForView webLogId = backgroundTask {
-        use cmd = conn.CreateCommand()
-        cmd.CommandText <- $"SELECT data FROM {Table.Category} WHERE {whereWebLogId}"
-        addWebLogId cmd webLogId
-        use! rdr = cmd.ExecuteReaderAsync()
-        let cats =
-            seq {
-                while rdr.Read() do
-                    Map.fromDoc<Category> ser rdr
-            }
-            |> Seq.sortBy _.Name.ToLowerInvariant()
-            |> List.ofSeq
-        do! rdr.CloseAsync()
-        let  ordered = Utils.orderByHierarchy cats None None []
+        log.LogTrace "Category.findAllForView"
+        let! cats    = findByWebLog webLogId
+        let  ordered = Utils.orderByHierarchy (cats |> List.sortBy _.Name.ToLowerInvariant()) None None []
         let! counts  =
             ordered
             |> Seq.map (fun it -> backgroundTask {
@@ -77,74 +52,83 @@ type SQLiteCategoryData(conn: SqliteConnection, ser: JsonSerializer) =
                     |> Seq.map _.Id
                     |> Seq.append (Seq.singleton it.Id)
                     |> List.ofSeq
-                    |> inClause "AND pc.category_id" "catId" id
-                cmd.Parameters.Clear ()
+                    |> inJsonArray Table.Post (nameof Post.Empty.CategoryIds) "catId"
+                use cmd = conn.CreateCommand()
+                cmd.CommandText <- $"
+                    SELECT COUNT(DISTINCT data ->> '{nameof Post.Empty.Id}')
+                      FROM {Table.Post}
+                     WHERE {Query.whereByWebLog}
+                       AND data ->> '{nameof Post.Empty.Status}' = '{string Published}'
+                       AND {catSql}"
                 addWebLogId cmd webLogId
                 cmd.Parameters.AddRange catParams
-                cmd.CommandText <- $"
-                    SELECT COUNT(DISTINCT p.id)
-                      FROM post p
-                           INNER JOIN post_category pc ON pc.post_id = p.id
-                     WHERE p.web_log_id = @webLogId
-                       AND p.status     = 'Published'
-                       {catSql}"
                 let! postCount = count cmd
                 return it.Id, postCount
-                })
+            })
             |> Task.WhenAll
         return
             ordered
             |> Seq.map (fun cat ->
                 { cat with
-                    PostCount = counts
-                                |> Array.tryFind (fun c -> fst c = cat.Id)
-                                |> Option.map snd
-                                |> Option.defaultValue 0
-                })
+                    PostCount =
+                        counts
+                        |> Array.tryFind (fun c -> fst c = cat.Id)
+                        |> Option.map snd
+                        |> Option.defaultValue 0 })
             |> Array.ofSeq
     }
+    
     /// Find a category by its ID for the given web log
-    let findById (catId: CategoryId) webLogId = backgroundTask {
-        use cmd = conn.CreateCommand()
-        cmd.CommandText <- $"SELECT * FROM {Table.Category} WHERE {Query.whereById}"
-        cmd.Parameters.AddWithValue("@id", string catId) |> ignore
-        use! rdr = cmd.ExecuteReaderAsync()
-        return verifyWebLog<Category> webLogId (_.WebLogId) (Map.fromDoc ser) rdr
-    }
-    // TODO: stopped here
-    /// Find all categories for the given web log
-    let findByWebLog (webLogId: WebLogId) = backgroundTask {
-        use cmd = conn.CreateCommand ()
-        cmd.CommandText <- "SELECT * FROM category WHERE web_log_id = @webLogId"
-        cmd.Parameters.AddWithValue ("@webLogId", string webLogId) |> ignore
-        use! rdr = cmd.ExecuteReaderAsync ()
-        return toList Map.toCategory rdr
-    }
+    let findById catId webLogId =
+        log.LogTrace "Category.findById"
+        Document.findByIdAndWebLog<CategoryId, Category> conn ser Table.Category catId webLogId
     
     /// Delete a category
     let delete catId webLogId = backgroundTask {
+        log.LogTrace "Category.delete"
         match! findById catId webLogId with
         | Some cat ->
-            use cmd = conn.CreateCommand ()
+            use cmd = conn.CreateCommand()
             // Reassign any children to the category's parent category
-            cmd.CommandText <- "SELECT COUNT(id) FROM category WHERE parent_id = @parentId"
-            cmd.Parameters.AddWithValue ("@parentId", string catId) |> ignore
+            cmd.CommandText <- $"SELECT COUNT(*) FROM {Table.Category} WHERE data ->> '{parentIdField}' = @parentId"
+            addParam cmd "@parentId" (string catId)
             let! children = count cmd
             if children > 0 then
-                cmd.CommandText <- "UPDATE category SET parent_id = @newParentId WHERE parent_id = @parentId"
-                cmd.Parameters.AddWithValue ("@newParentId", maybe (cat.ParentId |> Option.map string))
-                |> ignore
+                cmd.CommandText <- $"
+                    UPDATE {Table.Category}
+                       SET data = json_set(data, '$.{parentIdField}', @newParentId)
+                     WHERE data ->> '{parentIdField}' = @parentId"
+                addParam cmd "@newParentId" (maybe (cat.ParentId |> Option.map string))
                 do! write cmd
             // Delete the category off all posts where it is assigned, and the category itself
-            cmd.CommandText <-
-                "DELETE FROM post_category
-                  WHERE category_id = @id
-                    AND post_id IN (SELECT id FROM post WHERE web_log_id = @webLogId);
-                 DELETE FROM category WHERE id = @id"
-            cmd.Parameters.Clear ()
-            let _ = cmd.Parameters.AddWithValue ("@id", string catId)
+            let catIdField = Post.Empty.CategoryIds
+            cmd.CommandText <- $"
+                SELECT data ->> '{Post.Empty.Id}' AS id, data -> '{catIdField}' AS cat_ids
+                  FROM {Table.Post}
+                 WHERE {Query.whereByWebLog}
+                   AND EXISTS
+                         (SELECT 1 FROM json_each({Table.Post}.data -> '{catIdField}') WHERE json_each.value = @id)"
+            cmd.Parameters.Clear()
+            addDocId cmd catId
             addWebLogId cmd webLogId
-            do! write cmd
+            use! postRdr = cmd.ExecuteReaderAsync()
+            if postRdr.HasRows then
+                let postIdAndCats =
+                    toList
+                        (fun rdr ->
+                            Map.getString "id" rdr, Utils.deserialize<string list> ser (Map.getString "cat_ids" rdr))
+                        postRdr
+                do! postRdr.CloseAsync()
+                for postId, cats in postIdAndCats do
+                    cmd.CommandText <- $"
+                        UPDATE {Table.Post}
+                           SET data = json_set(data, '$.{catIdField}', json(@catIds))
+                         WHERE {Query.whereById}"
+                    cmd.Parameters.Clear()
+                    addDocId cmd postId
+                    addParam cmd "@catIds" (cats |> List.filter (fun it -> it <> string catId) |> Utils.serialize ser)
+                    do! write cmd
+            do! Document.delete conn Table.Category catId
             return if children = 0 then CategoryDeleted else ReassignedChildCategories
         | None -> return CategoryNotFound
     }
@@ -156,17 +140,12 @@ type SQLiteCategoryData(conn: SqliteConnection, ser: JsonSerializer) =
     }
     
     /// Update a category
-    let update cat = backgroundTask {
-        use cmd = conn.CreateCommand ()
-        cmd.CommandText <-
-            "UPDATE category
-                SET name        = @name,
-                    slug        = @slug,
-                    description = @description,
-                    parent_id   = @parentId
-              WHERE id         = @id
-                AND web_log_id = @webLogId"
-        addCategoryParameters cmd cat
+    let update (cat: Category) = backgroundTask {
+        use cmd = conn.CreateCommand()
+        cmd.CommandText <- $"{Query.updateById} AND {Query.whereByWebLog}"
+        addDocId cmd cat.Id
+        addDocParam cmd cat ser
+        addWebLogId cmd cat.WebLogId
         do! write cmd
     }
     

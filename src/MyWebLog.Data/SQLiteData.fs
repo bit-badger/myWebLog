@@ -29,7 +29,7 @@ type SQLiteData(conn: SqliteConnection, log: ILogger<SQLiteData>, ser: JsonSeria
         
         let jsonTable table =
             $"CREATE TABLE {table} (data TEXT NOT NULL);
-              CREATE UNIQUE INDEX idx_{table}_key ON {table} (data ->> 'Id')"
+              CREATE UNIQUE INDEX idx_{table}_key ON {table} ((data ->> 'Id'))"
         
         seq {
             // Theme tables
@@ -48,18 +48,20 @@ type SQLiteData(conn: SqliteConnection, log: ILogger<SQLiteData>, ser: JsonSeria
             // Category table
             if needsTable Table.Category then
                 $"{jsonTable Table.Category};
-                  CREATE INDEX idx_{Table.Category}_web_log ON {Table.Category} (data ->> 'WebLogId')"
+                  CREATE INDEX idx_{Table.Category}_web_log ON {Table.Category} ((data ->> 'WebLogId'))"
             
             // Web log user table
             if needsTable Table.WebLogUser then
                 $"{jsonTable Table.WebLogUser};
-                  CREATE INDEX idx_{Table.WebLogUser}_email ON {Table.WebLogUser} (data ->> 'WebLogId', data ->> 'Email')"
+                  CREATE INDEX idx_{Table.WebLogUser}_email
+                    ON {Table.WebLogUser} ((data ->> 'WebLogId'), (data ->> 'Email'))"
             
             // Page tables
             if needsTable Table.Page then
                 $"{jsonTable Table.Page};
-                  CREATE INDEX idx_{Table.Page}_author ON {Table.Page} (data ->> 'AuthorId');
-                  CREATE INDEX idx_{Table.Page}_permalink ON {Table.Page} (data ->> 'WebLogId', data ->> 'Permalink')"
+                  CREATE INDEX idx_{Table.Page}_author ON {Table.Page} ((data ->> 'AuthorId'));
+                  CREATE INDEX idx_{Table.Page}_permalink
+                    ON {Table.Page} ((data ->> 'WebLogId'), (data ->> 'Permalink'))"
             if needsTable Table.PageRevision then
                 "CREATE TABLE page_revision (
                     page_id        TEXT NOT NULL,
@@ -70,9 +72,11 @@ type SQLiteData(conn: SqliteConnection, log: ILogger<SQLiteData>, ser: JsonSeria
             // Post tables
             if needsTable Table.Post then
                 $"{jsonTable Table.Post};
-                  CREATE INDEX idx_{Table.Post}_author ON {Table.Post} (data ->> 'AuthorId');
-                  CREATE INDEX idx_{Table.Post}_status ON {Table.Post} (data ->> 'WebLogId', data ->> 'Status', data ->> 'UpdatedOn');
-                  CREATE INDEX idx_{Table.Post}_permalink ON {Table.Post} (data ->> 'WebLogId', data ->> 'Permalink')"
+                  CREATE INDEX idx_{Table.Post}_author ON {Table.Post} ((data ->> 'AuthorId'));
+                  CREATE INDEX idx_{Table.Post}_status
+                    ON {Table.Post} ((data ->> 'WebLogId'), (data ->> 'Status'), (data ->> 'UpdatedOn'));
+                  CREATE INDEX idx_{Table.Post}_permalink
+                    ON {Table.Post} ((data ->> 'WebLogId'), (data ->> 'Permalink'))"
                   // TODO: index categories by post?
             if needsTable Table.PostRevision then
                 $"CREATE TABLE {Table.PostRevision} (
@@ -82,12 +86,12 @@ type SQLiteData(conn: SqliteConnection, log: ILogger<SQLiteData>, ser: JsonSeria
                     PRIMARY KEY (post_id, as_of))"
             if needsTable Table.PostComment then
                 $"{jsonTable Table.PostComment};
-                  CREATE INDEX idx_{Table.PostComment}_post ON {Table.PostComment} (data ->> 'PostId')"
+                  CREATE INDEX idx_{Table.PostComment}_post ON {Table.PostComment} ((data ->> 'PostId'))"
             
             // Tag map table
             if needsTable Table.TagMap then
                 $"{jsonTable Table.TagMap};
-                  CREATE INDEX idx_{Table.TagMap}_tag ON {Table.TagMap} (data ->> 'WebLogId', data ->> 'UrlValue')";
+                  CREATE INDEX idx_{Table.TagMap}_tag ON {Table.TagMap} ((data ->> 'WebLogId'), (data ->> 'UrlValue'))"
             
             // Uploaded file table
             if needsTable Table.Upload then
@@ -451,7 +455,7 @@ type SQLiteData(conn: SqliteConnection, log: ILogger<SQLiteData>, ser: JsonSeria
             log.LogWarning $"Unknown database version; assuming {Utils.currentDbVersion}"
             do! setDbVersion Utils.currentDbVersion
     }
-
+    
     /// The connection for this instance
     member _.Conn = conn
     
@@ -466,10 +470,10 @@ type SQLiteData(conn: SqliteConnection, log: ILogger<SQLiteData>, ser: JsonSeria
     
     interface IData with
     
-        member _.Category   = SQLiteCategoryData   (conn, ser)
-        member _.Page       = SQLitePageData       (conn, ser)
-        member _.Post       = SQLitePostData       (conn, ser)
-        member _.TagMap     = SQLiteTagMapData     conn
+        member _.Category   = SQLiteCategoryData   (conn, ser, log)
+        member _.Page       = SQLitePageData       (conn, ser, log)
+        member _.Post       = SQLitePostData       (conn, ser, log)
+        member _.TagMap     = SQLiteTagMapData     (conn, ser, log)
         member _.Theme      = SQLiteThemeData      conn
         member _.ThemeAsset = SQLiteThemeAssetData conn
         member _.Upload     = SQLiteUploadData     conn
@@ -481,8 +485,9 @@ type SQLiteData(conn: SqliteConnection, log: ILogger<SQLiteData>, ser: JsonSeria
         member _.StartUp () = backgroundTask {
             do! ensureTables ()
             
-            use cmd = conn.CreateCommand ()
+            use cmd = conn.CreateCommand()
             cmd.CommandText <- $"SELECT id FROM {Table.DbVersion}"
-            use! rdr = cmd.ExecuteReaderAsync ()
-            do! migrate (if rdr.Read () then Some (Map.getString "id" rdr) else None)
+            use! rdr = cmd.ExecuteReaderAsync()
+            let! isFound = rdr.ReadAsync()
+            do! migrate (if isFound then Some (Map.getString "id" rdr) else None)
         }

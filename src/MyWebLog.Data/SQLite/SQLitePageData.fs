@@ -2,184 +2,99 @@ namespace MyWebLog.Data.SQLite
 
 open System.Threading.Tasks
 open Microsoft.Data.Sqlite
+open Microsoft.Extensions.Logging
 open MyWebLog
 open MyWebLog.Data
 open Newtonsoft.Json
 
 /// SQLite myWebLog page data implementation
-type SQLitePageData(conn: SqliteConnection, ser: JsonSerializer) =
+type SQLitePageData(conn: SqliteConnection, ser: JsonSerializer, log: ILogger) =
+    
+    /// The JSON field for the permalink
+    let linkField = $"data ->> '{nameof Page.Empty.Permalink}'"
+    
+    /// The JSON field for the "is in page list" flag
+    let pgListField = $"data ->> '{nameof Page.Empty.IsInPageList}'"
+    
+    /// The JSON field for the title of the page
+    let titleField = $"data ->> '{nameof Page.Empty.Title}'"
     
     // SUPPORT FUNCTIONS
     
-    /// Add parameters for page INSERT or UPDATE statements
-    let addPageParameters (cmd: SqliteCommand) (page: Page) =
-        [   cmd.Parameters.AddWithValue ("@id",           string page.Id)
-            cmd.Parameters.AddWithValue ("@webLogId",     string page.WebLogId)
-            cmd.Parameters.AddWithValue ("@authorId",     string page.AuthorId)
-            cmd.Parameters.AddWithValue ("@title",        page.Title)
-            cmd.Parameters.AddWithValue ("@permalink",    string page.Permalink)
-            cmd.Parameters.AddWithValue ("@publishedOn",  instantParam page.PublishedOn)
-            cmd.Parameters.AddWithValue ("@updatedOn",    instantParam page.UpdatedOn)
-            cmd.Parameters.AddWithValue ("@isInPageList", page.IsInPageList)
-            cmd.Parameters.AddWithValue ("@template",     maybe page.Template)
-            cmd.Parameters.AddWithValue ("@text",         page.Text)
-            cmd.Parameters.AddWithValue ("@metaItems",    maybe (if List.isEmpty page.Metadata then None
-                                                                 else Some (Utils.serialize ser page.Metadata)))
-        ] |> ignore
-    
-    /// Append revisions and permalinks to a page
-    let appendPageRevisionsAndPermalinks (page : Page) = backgroundTask {
-        use cmd = conn.CreateCommand ()
-        cmd.Parameters.AddWithValue ("@pageId", string page.Id) |> ignore
-        
-        cmd.CommandText <- "SELECT permalink FROM page_permalink WHERE page_id = @pageId"
-        use! rdr = cmd.ExecuteReaderAsync ()
-        let page = { page with PriorPermalinks = toList Map.toPermalink rdr }
-        do! rdr.CloseAsync ()
-        
-        cmd.CommandText <- "SELECT as_of, revision_text FROM page_revision WHERE page_id = @pageId ORDER BY as_of DESC"
-        use! rdr = cmd.ExecuteReaderAsync ()
-        return { page with Revisions = toList Map.toRevision rdr }
+    /// Append revisions to a page
+    let appendPageRevisions (page : Page) = backgroundTask {
+        log.LogTrace "Page.appendPageRevisions"
+        let! revisions = Revisions.findByEntityId conn Table.PageRevision Table.Page page.Id
+        return { page with Revisions = revisions }
     }
     
-    /// Shorthand for mapping a data reader to a page
-    let toPage =
-        Map.toPage ser
-    
-    /// Return a page with no text (or prior permalinks or revisions)
-    let pageWithoutText rdr =
-        { toPage rdr with Text = "" }
-    
-    /// Update a page's prior permalinks
-    let updatePagePermalinks (pageId: PageId) oldLinks newLinks = backgroundTask {
-        let toDelete, toAdd = Utils.diffPermalinks oldLinks newLinks
-        if List.isEmpty toDelete && List.isEmpty toAdd then
-            return ()
-        else
-            use cmd = conn.CreateCommand ()
-            [ cmd.Parameters.AddWithValue ("@pageId", string pageId)
-              cmd.Parameters.Add          ("@link",   SqliteType.Text)
-            ] |> ignore
-            let runCmd (link: Permalink) = backgroundTask {
-                cmd.Parameters["@link"].Value <- string link
-                do! write cmd
-            }
-            cmd.CommandText <- "DELETE FROM page_permalink WHERE page_id = @pageId AND permalink = @link" 
-            toDelete
-            |> List.map runCmd
-            |> Task.WhenAll
-            |> ignore
-            cmd.CommandText <- "INSERT INTO page_permalink VALUES (@pageId, @link)"
-            toAdd
-            |> List.map runCmd
-            |> Task.WhenAll
-            |> ignore
-    }
+    /// Return a page with no text
+    let withoutText (page: Page) =
+        { page with Text = "" }
     
     /// Update a page's revisions
-    let updatePageRevisions (pageId: PageId) oldRevs newRevs = backgroundTask {
-        let toDelete, toAdd = Utils.diffRevisions oldRevs newRevs
-        if List.isEmpty toDelete && List.isEmpty toAdd then
-            return ()
-        else
-            use cmd = conn.CreateCommand ()
-            let runCmd withText rev = backgroundTask {
-                cmd.Parameters.Clear ()
-                [   cmd.Parameters.AddWithValue ("@pageId", string pageId)
-                    cmd.Parameters.AddWithValue ("@asOf",   instantParam rev.AsOf)
-                ] |> ignore
-                if withText then cmd.Parameters.AddWithValue ("@text", string rev.Text) |> ignore
-                do! write cmd
-            }
-            cmd.CommandText <- "DELETE FROM page_revision WHERE page_id = @pageId AND as_of = @asOf" 
-            toDelete
-            |> List.map (runCmd false)
-            |> Task.WhenAll
-            |> ignore
-            cmd.CommandText <- "INSERT INTO page_revision VALUES (@pageId, @asOf, @text)"
-            toAdd
-            |> List.map (runCmd true)
-            |> Task.WhenAll
-            |> ignore
-    }
+    let updatePageRevisions (pageId: PageId) oldRevs newRevs =
+        log.LogTrace "Page.updatePageRevisions"
+        Revisions.update conn Table.PageRevision Table.Page pageId oldRevs newRevs
     
     // IMPLEMENTATION FUNCTIONS
     
     /// Add a page
     let add page = backgroundTask {
-        use cmd = conn.CreateCommand ()
-        // The page itself
-        cmd.CommandText <-
-            "INSERT INTO page (
-                id, web_log_id, author_id, title, permalink, published_on, updated_on, is_in_page_list, template,
-                page_text, meta_items
-            ) VALUES (
-                @id, @webLogId, @authorId, @title, @permalink, @publishedOn, @updatedOn, @isInPageList, @template,
-                @text, @metaItems
-            )"
-        addPageParameters cmd page
-        do! write cmd
-        do! updatePagePermalinks page.Id [] page.PriorPermalinks
-        do! updatePageRevisions  page.Id [] page.Revisions
+        log.LogTrace "Page.add"
+        do! Document.insert<Page> conn ser Table.Page { page with Revisions = [] } 
+        do! updatePageRevisions page.Id [] page.Revisions
     }
     
-    /// Get all pages for a web log (without text, revisions, prior permalinks, or metadata)
+    /// Get all pages for a web log (without text or revisions)
     let all webLogId = backgroundTask {
-        use cmd = conn.CreateCommand ()
-        cmd.CommandText <- "SELECT * FROM page WHERE web_log_id = @webLogId ORDER BY LOWER(title)"
+        log.LogTrace "Page.all"
+        use cmd = conn.CreateCommand()
+        cmd.CommandText <-
+            $"{Query.selectFromTable Table.Page} WHERE {Query.whereByWebLog} ORDER BY LOWER({titleField})"
         addWebLogId cmd webLogId
-        use! rdr = cmd.ExecuteReaderAsync ()
-        return toList pageWithoutText rdr
+        let! pages = cmdToList<Page> cmd ser
+        return pages |> List.map withoutText
     }
     
     /// Count all pages for the given web log
-    let countAll webLogId = backgroundTask {
-        use cmd = conn.CreateCommand ()
-        cmd.CommandText <- "SELECT COUNT(id) FROM page WHERE web_log_id = @webLogId"
-        addWebLogId cmd webLogId
-        return! count cmd
-    }
+    let countAll webLogId =
+        log.LogTrace "Page.countAll"
+        Document.countByWebLog conn Table.Page webLogId
     
     /// Count all pages shown in the page list for the given web log
     let countListed webLogId = backgroundTask {
-        use cmd = conn.CreateCommand ()
-        cmd.CommandText <-
-            "SELECT COUNT(id)
-               FROM page
-              WHERE web_log_id      = @webLogId
-                AND is_in_page_list = @isInPageList"
+        log.LogTrace "Page.countListed"
+        use cmd = conn.CreateCommand()
+        cmd.CommandText <- $"{Query.countByWebLog} AND {pgListField} = 'true'"
         addWebLogId cmd webLogId
-        cmd.Parameters.AddWithValue ("@isInPageList", true) |> ignore
         return! count cmd
     }
     
-    /// Find a page by its ID (without revisions and prior permalinks)
-    let findById (pageId: PageId) webLogId = backgroundTask {
-        use cmd = conn.CreateCommand ()
-        cmd.CommandText <- "SELECT * FROM page WHERE id = @id"
-        cmd.Parameters.AddWithValue ("@id", string pageId) |> ignore
-        use! rdr = cmd.ExecuteReaderAsync ()
-        return verifyWebLog<Page> webLogId (_.WebLogId) (Map.toPage ser) rdr
-    }
+    /// Find a page by its ID (without revisions)
+    let findById pageId webLogId =
+        log.LogTrace "Page.findById"
+        Document.findByIdAndWebLog<PageId, Page> conn ser Table.Page pageId webLogId
     
     /// Find a complete page by its ID
     let findFullById pageId webLogId = backgroundTask {
+        log.LogTrace "Page.findFullById"
         match! findById pageId webLogId with
         | Some page ->
-            let! page = appendPageRevisionsAndPermalinks page
+            let! page = appendPageRevisions page
             return Some page
         | None -> return None
     }
     
+    // TODO: need to handle when the page being deleted is the home page
+    /// Delete a page by its ID
     let delete pageId webLogId = backgroundTask {
+        log.LogTrace "Page.delete"
         match! findById pageId webLogId with
         | Some _ ->
-            use cmd = conn.CreateCommand ()
-            cmd.Parameters.AddWithValue ("@id", string pageId) |> ignore
-            cmd.CommandText <-
-                "DELETE FROM page_revision  WHERE page_id = @id;
-                 DELETE FROM page_permalink WHERE page_id = @id;
-                 DELETE FROM page           WHERE id      = @id"
+            use cmd = conn.CreateCommand()
+            cmd.CommandText <- $"DELETE FROM {Table.PageRevision} WHERE page_id = @id; {Query.deleteById}"
+            addDocId cmd pageId
             do! write cmd
             return true
         | None -> return false
@@ -187,112 +102,98 @@ type SQLitePageData(conn: SqliteConnection, ser: JsonSerializer) =
     
     /// Find a page by its permalink for the given web log
     let findByPermalink (permalink: Permalink) webLogId = backgroundTask {
-        use cmd = conn.CreateCommand ()
-        cmd.CommandText <- "SELECT * FROM page WHERE web_log_id = @webLogId AND permalink = @link"
+        log.LogTrace "Page.findByPermalink"
+        use cmd = conn.CreateCommand()
+        cmd.CommandText <- $" {Query.selectFromTable Table.Page} WHERE {Query.whereByWebLog} AND {linkField} = @link"
         addWebLogId cmd webLogId
-        cmd.Parameters.AddWithValue ("@link", string permalink) |> ignore
-        use! rdr = cmd.ExecuteReaderAsync ()
-        return if rdr.Read () then Some (toPage rdr) else None
+        addParam cmd "@link" (string permalink)
+        use! rdr = cmd.ExecuteReaderAsync()
+        let! isFound = rdr.ReadAsync()
+        return if isFound then Some (Map.fromDoc<Page> ser rdr) else None
     }
     
     /// Find the current permalink within a set of potential prior permalinks for the given web log
     let findCurrentPermalink (permalinks: Permalink list) webLogId = backgroundTask {
-        use cmd = conn.CreateCommand ()
-        let linkSql, linkParams = inClause "AND pp.permalink" "link" string permalinks
-        cmd.CommandText <- $"
-            SELECT p.permalink
-               FROM page p
-                    INNER JOIN page_permalink pp ON pp.page_id = p.id
-              WHERE p.web_log_id = @webLogId
-                {linkSql}"
+        log.LogTrace "Page.findCurrentPermalink"
+        let linkSql, linkParams = inJsonArray Table.Page (nameof Page.Empty.PriorPermalinks) "link" permalinks
+        use cmd = conn.CreateCommand()
+        cmd.CommandText <-
+            $"SELECT {linkField} AS permalink FROM {Table.Page} WHERE {Query.whereByWebLog} AND {linkSql}"
         addWebLogId cmd webLogId
         cmd.Parameters.AddRange linkParams
-        use! rdr = cmd.ExecuteReaderAsync ()
-        return if rdr.Read () then Some (Map.toPermalink rdr) else None
+        use! rdr = cmd.ExecuteReaderAsync()
+        let! isFound = rdr.ReadAsync()
+        return if isFound then Some (Map.toPermalink rdr) else None
     }
     
     /// Get all complete pages for the given web log
     let findFullByWebLog webLogId = backgroundTask {
-        use cmd = conn.CreateCommand ()
-        cmd.CommandText <- "SELECT * FROM page WHERE web_log_id = @webLogId"
-        addWebLogId cmd webLogId
-        use! rdr = cmd.ExecuteReaderAsync ()
-        let! pages =
-            toList toPage rdr
-            |> List.map (fun page -> backgroundTask { return! appendPageRevisionsAndPermalinks page })
+        log.LogTrace "Page.findFullByWebLog"
+        let! pages = Document.findByWebLog<Page> conn ser Table.Page webLogId
+        let! withRevs =
+            pages
+            |> List.map (fun page -> backgroundTask { return! appendPageRevisions page })
             |> Task.WhenAll
-        return List.ofArray pages
+        return List.ofArray withRevs
     }
     
-    /// Get all listed pages for the given web log (without revisions, prior permalinks, or text)
+    /// Get all listed pages for the given web log (without revisions or text)
     let findListed webLogId = backgroundTask {
+        log.LogTrace "Page.findListed"
         use cmd = conn.CreateCommand ()
-        cmd.CommandText <-
-            "SELECT *
-               FROM page
-              WHERE web_log_id      = @webLogId
-                AND is_in_page_list = @isInPageList
-              ORDER BY LOWER(title)"
+        cmd.CommandText <- $"
+            {Query.selectFromTable Table.Page}
+              WHERE {Query.whereByWebLog}
+                AND {pgListField} = 'true'
+              ORDER BY LOWER({titleField})"
         addWebLogId cmd webLogId
-        cmd.Parameters.AddWithValue ("@isInPageList", true) |> ignore
-        use! rdr = cmd.ExecuteReaderAsync ()
-        return toList pageWithoutText rdr
+        let! pages = cmdToList<Page> cmd ser
+        return pages |> List.map withoutText
     }
     
-    /// Get a page of pages for the given web log (without revisions, prior permalinks, or metadata)
-    let findPageOfPages webLogId pageNbr = backgroundTask {
-        use cmd = conn.CreateCommand ()
-        cmd.CommandText <-
-            "SELECT *
-               FROM page
-              WHERE web_log_id = @webLogId
-              ORDER BY LOWER(title)
-              LIMIT @pageSize OFFSET @toSkip"
+    /// Get a page of pages for the given web log (without revisions)
+    let findPageOfPages webLogId pageNbr =
+        log.LogTrace "Page.findPageOfPages"
+        use cmd = conn.CreateCommand()
+        cmd.CommandText <- $"
+            {Query.selectFromTable Table.Page} WHERE {Query.whereByWebLog}
+             ORDER BY LOWER({titleField})
+             LIMIT @pageSize OFFSET @toSkip"
         addWebLogId cmd webLogId
-        [   cmd.Parameters.AddWithValue ("@pageSize", 26)
-            cmd.Parameters.AddWithValue ("@toSkip",   (pageNbr - 1) * 25)
-        ] |> ignore
-        use! rdr = cmd.ExecuteReaderAsync ()
-        return toList toPage rdr
-    }
+        addParam cmd "@pageSize" 26
+        addParam cmd "@toSkip"   ((pageNbr - 1) * 25)
+        cmdToList<Page> cmd ser
     
     /// Restore pages from a backup
     let restore pages = backgroundTask {
+        log.LogTrace "Page.restore"
         for page in pages do
             do! add page
     }
     
     /// Update a page
-    let update (page : Page) = backgroundTask {
+    let update (page: Page) = backgroundTask {
+        log.LogTrace "Page.update"
         match! findFullById page.Id page.WebLogId with
         | Some oldPage ->
-            use cmd = conn.CreateCommand ()
-            cmd.CommandText <-
-                "UPDATE page
-                    SET author_id       = @authorId,
-                        title           = @title,
-                        permalink       = @permalink,
-                        published_on    = @publishedOn,
-                        updated_on      = @updatedOn,
-                        is_in_page_list = @isInPageList,
-                        template        = @template,
-                        page_text       = @text,
-                        meta_items      = @metaItems
-                  WHERE id         = @id
-                    AND web_log_id = @webLogId"
-            addPageParameters cmd page
-            do! write cmd
-            do! updatePagePermalinks page.Id oldPage.PriorPermalinks page.PriorPermalinks
-            do! updatePageRevisions  page.Id oldPage.Revisions       page.Revisions
-            return ()
-        | None -> return ()
+            do! Document.update conn ser Table.Page page.Id { page with Revisions = [] } 
+            do! updatePageRevisions page.Id oldPage.Revisions page.Revisions
+        | None -> ()
     }
     
     /// Update a page's prior permalinks
-    let updatePriorPermalinks pageId webLogId permalinks = backgroundTask {
-        match! findFullById pageId webLogId with
-        | Some page ->
-            do! updatePagePermalinks pageId page.PriorPermalinks permalinks
+    let updatePriorPermalinks pageId webLogId (permalinks: Permalink list) = backgroundTask {
+        log.LogTrace "Page.updatePriorPermalinks"
+        match! findById pageId webLogId with
+        | Some _ ->
+            use cmd = conn.CreateCommand()
+            cmd.CommandText <- $"
+                UPDATE {Table.Page}
+                   SET data = json_set(data, '$.{nameof Page.Empty.PriorPermalinks}', json(@links))
+                 WHERE {Query.whereById}"
+            addDocId cmd pageId
+            addParam cmd "@links" (Utils.serialize ser permalinks)
+            do! write cmd
             return true
         | None -> return false
     }
