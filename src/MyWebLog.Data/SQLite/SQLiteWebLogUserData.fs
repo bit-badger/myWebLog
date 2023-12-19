@@ -62,8 +62,8 @@ type SQLiteWebLogUserData(conn: SqliteConnection, ser: JsonSerializer, log: ILog
         log.LogTrace "WebLogUser.findByEmail"
         use cmd = conn.CreateCommand()
         cmd.CommandText <- $"
-            {Query.selectFromTable Table.WebLogUser}
-             WHERE {Query.whereByWebLog}
+            {QueryOld.selectFromTable Table.WebLogUser}
+             WHERE {QueryOld.whereByWebLog}
                AND data ->> '{nameof WebLogUser.Empty.Email}' = @email"
         addWebLogId cmd webLogId
         addParam cmd "@email" email
@@ -84,7 +84,7 @@ type SQLiteWebLogUserData(conn: SqliteConnection, ser: JsonSerializer, log: ILog
         log.LogTrace "WebLogUser.findNames"
         use cmd = conn.CreateCommand()
         let nameSql, nameParams = inClause "AND data ->> 'Id'" "id" string userIds 
-        cmd.CommandText <- $"{Query.selectFromTable Table.WebLogUser} WHERE {Query.whereByWebLog} {nameSql}"
+        cmd.CommandText <- $"{QueryOld.selectFromTable Table.WebLogUser} WHERE {QueryOld.whereByWebLog} {nameSql}"
         addWebLogId cmd webLogId
         cmd.Parameters.AddRange nameParams
         let! users = cmdToList<WebLogUser> cmd ser
@@ -105,8 +105,8 @@ type SQLiteWebLogUserData(conn: SqliteConnection, ser: JsonSerializer, log: ILog
         cmd.CommandText <- $"
             UPDATE {Table.WebLogUser}
                SET data = json_set(data, '$.{nameof WebLogUser.Empty.LastSeenOn}', @lastSeenOn)
-             WHERE {Query.whereById}
-               AND {Query.whereByWebLog}"
+             WHERE {QueryOld.whereById}
+               AND {QueryOld.whereByWebLog}"
         addDocId cmd userId
         addWebLogId cmd webLogId
         addParam cmd "@lastSeenOn" (instantParam (Noda.now ()))

@@ -20,7 +20,7 @@ type SQLiteThemeData(conn : SqliteConnection, ser: JsonSerializer, log: ILogger)
     let all () = backgroundTask {
         log.LogTrace "Theme.all"
         use cmd = conn.CreateCommand()
-        cmd.CommandText <- $"{Query.selectFromTable Table.Theme} WHERE {idField} <> 'admin' ORDER BY {idField}"
+        cmd.CommandText <- $"{QueryOld.selectFromTable Table.Theme} WHERE {idField} <> 'admin' ORDER BY {idField}"
         let! themes = cmdToList<Theme> cmd ser
         return themes |> List.map withoutTemplateText
     }
@@ -55,7 +55,7 @@ type SQLiteThemeData(conn : SqliteConnection, ser: JsonSerializer, log: ILogger)
             use cmd = conn.CreateCommand()
             cmd.CommandText <- $"
                 DELETE FROM {Table.ThemeAsset} WHERE theme_id = @id;
-                DELETE FROM {Table.Theme}      WHERE {Query.whereById}"
+                DELETE FROM {Table.Theme}      WHERE {QueryOld.whereById}"
             addDocId cmd themeId
             do! write cmd
             return true

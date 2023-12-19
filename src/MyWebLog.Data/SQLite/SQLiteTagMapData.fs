@@ -29,8 +29,8 @@ type SQLiteTagMapData(conn: SqliteConnection, ser: JsonSerializer, log: ILogger)
         log.LogTrace "TagMap.findByUrlValue"
         use cmd = conn.CreateCommand()
         cmd.CommandText <- $"
-            {Query.selectFromTable Table.TagMap}
-             WHERE {Query.whereByWebLog}
+            {QueryOld.selectFromTable Table.TagMap}
+             WHERE {QueryOld.whereByWebLog}
                AND data ->> '{nameof TagMap.Empty.UrlValue}' = @urlValue"
         addWebLogId cmd webLogId
         addParam cmd "@urlValue" urlValue
@@ -49,7 +49,7 @@ type SQLiteTagMapData(conn: SqliteConnection, ser: JsonSerializer, log: ILogger)
         log.LogTrace "TagMap.findMappingForTags"
         use cmd = conn.CreateCommand ()
         let mapSql, mapParams = inClause $"AND data ->> '{nameof TagMap.Empty.Tag}'" "tag" id tags
-        cmd.CommandText <- $"{Query.selectFromTable Table.TagMap} WHERE {Query.whereByWebLog} {mapSql}"
+        cmd.CommandText <- $"{QueryOld.selectFromTable Table.TagMap} WHERE {QueryOld.whereByWebLog} {mapSql}"
         addWebLogId cmd webLogId
         cmd.Parameters.AddRange mapParams
         cmdToList<TagMap> cmd ser

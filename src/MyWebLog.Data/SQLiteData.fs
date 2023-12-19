@@ -2,6 +2,7 @@ namespace MyWebLog.Data
 
 open System.Threading.Tasks
 open BitBadger.Sqlite.FSharp.Documents
+open BitBadger.Sqlite.FSharp.Documents.WithConn
 open Microsoft.Data.Sqlite
 open Microsoft.Extensions.Logging
 open MyWebLog
@@ -12,9 +13,10 @@ open NodaTime
 /// SQLite myWebLog data implementation
 type SQLiteData(conn: SqliteConnection, log: ILogger<SQLiteData>, ser: JsonSerializer) =
     
+    /// Create tables (and their associated indexes) if they do not exist
     let ensureTables () = backgroundTask {
 
-        let! tables = Custom.list<string> "SELECT name FROM sqlite_master WHERE type = 'table'" None _.GetString(0)
+        let! tables = Custom.list<string> "SELECT name FROM sqlite_master WHERE type = 'table'" [] (_.GetString(0)) conn
         
         let needsTable table =
             not (List.contains table tables)
@@ -102,19 +104,16 @@ type SQLiteData(conn: SqliteConnection, log: ILogger<SQLiteData>, ser: JsonSeria
             }
             |> Seq.map (fun sql ->
                 log.LogInformation $"""Creating {(sql.Replace("IF NOT EXISTS ", "").Split ' ')[2]} table..."""
-                Custom.nonQuery sql None)
+                Custom.nonQuery sql [] conn)
         
         let! _ = Task.WhenAll tasks
         ()
     }
     
     /// Set the database version to the specified version
-    let setDbVersion version = backgroundTask {
-        use cmd = conn.CreateCommand()
-        cmd.CommandText <- $"DELETE FROM {Table.DbVersion}; INSERT INTO {Table.DbVersion} VALUES ('%s{version}')"
-        do! write cmd
-    }
-    
+    let setDbVersion version =
+        Custom.nonQuery $"DELETE FROM {Table.DbVersion}; INSERT INTO {Table.DbVersion} VALUES ('%s{version}')" [] conn
+        
     /// Implement the changes between v2-rc1 and v2-rc2
     let migrateV2Rc1ToV2Rc2 () = backgroundTask {
         let logStep = Utils.logMigrationStep log "v2-rc1 to v2-rc2"
@@ -418,6 +417,7 @@ type SQLiteData(conn: SqliteConnection, log: ILogger<SQLiteData>, ser: JsonSeria
 
     /// Migrate from v2 to v2.1
     let migrateV2ToV2point1 () = backgroundTask {
+        // FIXME: This will be a backup/restore scenario, as we're changing to documents for most tables
         Utils.logMigrationStep log "v2 to v2.1" "Adding redirect rules to web_log table"
         use cmd = conn.CreateCommand()
         cmd.CommandText <- "ALTER TABLE web_log ADD COLUMN redirect_rules TEXT NOT NULL DEFAULT '[]'"
@@ -454,8 +454,8 @@ type SQLiteData(conn: SqliteConnection, log: ILogger<SQLiteData>, ser: JsonSeria
     interface IData with
     
         member _.Category   = SQLiteCategoryData   (conn, ser, log)
-        member _.Page       = SQLitePageData       (conn, ser, log)
-        member _.Post       = SQLitePostData       (conn, ser, log)
+        member _.Page       = SQLitePageData       (conn, log)
+        member _.Post       = SQLitePostData       (conn, log)
         member _.TagMap     = SQLiteTagMapData     (conn, ser, log)
         member _.Theme      = SQLiteThemeData      (conn, ser, log)
         member _.ThemeAsset = SQLiteThemeAssetData (conn, log)
@@ -467,6 +467,6 @@ type SQLiteData(conn: SqliteConnection, log: ILogger<SQLiteData>, ser: JsonSeria
         
         member _.StartUp () = backgroundTask {
             do! ensureTables ()
-            let! version = Custom.single<string> $"SELECT id FROM {Table.DbVersion}" None _.GetString(0)
+            let! version = Custom.single<string> $"SELECT id FROM {Table.DbVersion}" [] (_.GetString(0)) conn
             do! migrate version
         }

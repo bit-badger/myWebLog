@@ -76,13 +76,6 @@ let toList<'T> (it: SqliteDataReader -> 'T) (rdr: SqliteDataReader) =
     seq { while rdr.Read () do it rdr }
     |> List.ofSeq
 
-/// Verify that the web log ID matches before returning an item
-let verifyWebLog<'T> webLogId (prop : 'T -> WebLogId) (it : SqliteDataReader -> 'T) (rdr : SqliteDataReader) =
-    if rdr.Read() then
-        let item = it rdr
-        if prop item = webLogId then Some item else None
-    else None
-
 /// Execute a command that returns no data
 let write (cmd: SqliteCommand) = backgroundTask {
     let! _ = cmd.ExecuteNonQueryAsync()
@@ -90,7 +83,7 @@ let write (cmd: SqliteCommand) = backgroundTask {
 }
 
 /// Add a possibly-missing parameter, substituting null for None
-let maybe<'T> (it : 'T option) : obj = match it with Some x -> x :> obj | None -> DBNull.Value
+let maybe<'T> (it: 'T option) : obj = match it with Some x -> x :> obj | None -> DBNull.Value
 
 /// Create a value for a Duration
 let durationParam =
@@ -261,7 +254,8 @@ let cmdToList<'TDoc> (cmd: SqliteCommand) ser = backgroundTask {
 }
 
 /// Queries to assist with document manipulation
-module Query =
+[<Obsolete("change me")>]
+module QueryOld =
     
     /// Fragment to add an ID condition to a WHERE clause (parameter @id)
     let whereById =
@@ -292,6 +286,14 @@ module Query =
         $"DELETE FROM %s{table} WHERE {whereById}"
     
 
+/// Create a document ID parameter
+let idParam (key: 'TKey) =
+    SqliteParameter("@id", string key)
+
+/// Create a web log ID parameter
+let webLogParam (webLogId: WebLogId) =
+    SqliteParameter("@webLogId", string webLogId)
+
 let addParam (cmd: SqliteCommand) name (value: obj) =
     cmd.Parameters.AddWithValue(name, value) |> ignore
 
@@ -307,18 +309,39 @@ let addDocParam<'TDoc> (cmd: SqliteCommand) (doc: 'TDoc) ser =
 let addWebLogId (cmd: SqliteCommand) (webLogId: WebLogId) =
     addParam cmd "@webLogId" (string webLogId)
 
+open BitBadger.Sqlite.FSharp.Documents
+open BitBadger.Sqlite.FSharp.Documents.WithConn
+
 /// Functions for manipulating documents
 module Document =
     
+    /// Queries to assist with document manipulation
+    module Query =
+        
+        /// Fragment to add a web log ID condition to a WHERE clause (parameter @webLogId)
+        let whereByWebLog =
+            Query.whereFieldEquals "WebLogId" "@webLogId"
+        
+        /// A SELECT query to count documents for a given web log ID
+        let countByWebLog table =
+            $"{Query.Count.all table} WHERE {whereByWebLog}"
+        
+        /// A query to select from a table by the document's ID and its web log ID
+        let selectByIdAndWebLog table =
+            $"{Query.Find.byFieldEquals table} AND {whereByWebLog}"
+        
+        /// A query to select from a table by its web log ID
+        let selectByWebLog table =
+            $"{Query.selectFromTable table} WHERE {whereByWebLog}"
+    
     /// Count documents for the given web log ID
-    let countByWebLog (conn: SqliteConnection) table webLogId = backgroundTask {
-        use cmd = conn.CreateCommand()
-        cmd.CommandText <- Query.countByWebLog table
-        addWebLogId cmd webLogId
-        return! count cmd
+    let countByWebLog table (webLogId: WebLogId) conn = backgroundTask {
+        let! count = Count.byFieldEquals table "WebLogId" webLogId conn
+        return int count
     }
     
     /// Find a document by its ID
+    [<Obsolete("replace this")>]
     let findById<'TKey, 'TDoc> (conn: SqliteConnection) ser table (key: 'TKey) = backgroundTask {
         use cmd = conn.CreateCommand()
         cmd.CommandText <- $"{Query.selectFromTable table} WHERE {Query.whereById}"
@@ -329,55 +352,49 @@ module Document =
     }
     
     /// Find a document by its ID and web log ID
-    let findByIdAndWebLog<'TKey, 'TDoc> (conn: SqliteConnection) ser table (key: 'TKey) webLogId = backgroundTask {
-        use cmd = conn.CreateCommand()
-        cmd.CommandText <- $"{Query.selectFromTable table} WHERE {Query.whereById} AND {Query.whereByWebLog}"
-        addDocId    cmd key
-        addWebLogId cmd webLogId
-        use! rdr = cmd.ExecuteReaderAsync()
-        let! isFound = rdr.ReadAsync()
-        return if isFound then Some (Map.fromDoc<'TDoc> ser rdr) else None
-    }
+    let findByIdAndWebLog<'TKey, 'TDoc> table (key: 'TKey) webLogId conn =
+        Custom.single (Query.selectByIdAndWebLog table) [ idParam key; webLogParam webLogId ] fromData<'TDoc> conn
     
     /// Find documents for the given web log
-    let findByWebLog<'TDoc> (conn: SqliteConnection) ser table webLogId =
-        use cmd = conn.CreateCommand()
-        cmd.CommandText <- $"{Query.selectFromTable table} WHERE {Query.whereByWebLog}"
-        addWebLogId cmd webLogId
-        cmdToList<'TDoc> cmd ser
+    let findByWebLog<'TDoc> table (webLogId: WebLogId) conn =
+        Find.byFieldEquals<'TDoc> table "WebLogId" webLogId conn
     
     /// Insert a document
+    [<Obsolete("replace this")>]
     let insert<'TDoc> (conn: SqliteConnection) ser table (doc: 'TDoc) = backgroundTask {
         use cmd = conn.CreateCommand()
-        cmd.CommandText <- Query.insert table
+        cmd.CommandText <- QueryOld.insert table
         addDocParam<'TDoc> cmd doc ser
         do! write cmd
     }
     
     /// Update (replace) a document by its ID
+    [<Obsolete("replace this")>]
     let update<'TKey, 'TDoc> (conn: SqliteConnection) ser table (key: 'TKey) (doc: 'TDoc) = backgroundTask {
         use cmd = conn.CreateCommand()
-        cmd.CommandText <- Query.updateById table
+        cmd.CommandText <- QueryOld.updateById table
         addDocId cmd key
         addDocParam<'TDoc> cmd doc ser
         do! write cmd
     }
     
     /// Update a field in a document by its ID
+    [<Obsolete("replace this")>]
     let updateField<'TKey, 'TValue> (conn: SqliteConnection) ser table (key: 'TKey) jsonField
             (value: 'TValue) = backgroundTask {
         use cmd = conn.CreateCommand()
         cmd.CommandText <-
-            $"UPDATE %s{table} SET data = json_set(data, '$.{jsonField}', json(@it)) WHERE {Query.whereById}"
+            $"UPDATE %s{table} SET data = json_set(data, '$.{jsonField}', json(@it)) WHERE {QueryOld.whereById}"
         addDocId cmd key
         addParam cmd "@it" (Utils.serialize ser value)
         do! write cmd
     }
     
     /// Delete a document by its ID
+    [<Obsolete("replace this")>]
     let delete<'TKey> (conn: SqliteConnection) table (key: 'TKey) = backgroundTask {
         use cmd = conn.CreateCommand()
-        cmd.CommandText <- Query.deleteById table
+        cmd.CommandText <- QueryOld.deleteById table
         addDocId cmd key
         do! write cmd
     }
@@ -386,29 +403,24 @@ module Document =
 module Revisions =
     
     /// Find all revisions for the given entity
-    let findByEntityId<'TKey> (conn: SqliteConnection) revTable entityTable (key: 'TKey) = backgroundTask {
-        use cmd = conn.CreateCommand()
-        cmd.CommandText <-
+    let findByEntityId<'TKey> revTable entityTable (key: 'TKey) conn =
+        Custom.list
             $"SELECT as_of, revision_text FROM %s{revTable} WHERE %s{entityTable}_id = @id ORDER BY as_of DESC"
-        addDocId cmd key
-        use! rdr = cmd.ExecuteReaderAsync()
-        return toList Map.toRevision rdr
-    }
+            [ idParam key ]
+            Map.toRevision
+            conn
     
     /// Find all revisions for all posts for the given web log
-    let findByWebLog<'TKey> (conn: SqliteConnection) revTable entityTable (keyFunc: string -> 'TKey)
-            webLogId = backgroundTask {
-        use cmd = conn.CreateCommand()
-        cmd.CommandText <-
+    let findByWebLog<'TKey> revTable entityTable (keyFunc: string -> 'TKey) webLogId conn =
+        Custom.list
             $"SELECT pr.*
                 FROM %s{revTable} pr
                      INNER JOIN %s{entityTable} p ON p.data ->> 'Id' = pr.{entityTable}_id
-               WHERE p.{Query.whereByWebLog}
+               WHERE p.{Document.Query.whereByWebLog}
                ORDER BY as_of DESC"
-        addWebLogId cmd webLogId
-        use! rdr = cmd.ExecuteReaderAsync()
-        return toList (fun rdr -> keyFunc (Map.getString $"{entityTable}_id" rdr), Map.toRevision rdr) rdr
-    }
+            [ webLogParam webLogId ]
+            (fun rdr -> keyFunc (Map.getString $"{entityTable}_id" rdr), Map.toRevision rdr)
+            conn
 
     /// Parameters for a revision INSERT statement
     let revParams<'TKey> (key: 'TKey) rev =
@@ -416,26 +428,15 @@ module Revisions =
           SqliteParameter("@id",   string key)
           SqliteParameter("@text", rev.Text) ]
     
-    /// The SQL statement to insert a revision
-    let insertSql table =
-        $"INSERT INTO %s{table} VALUES (@id, @asOf, @text)"
-    
     /// Update a page or post's revisions
-    let update<'TKey> (conn: SqliteConnection) revTable entityTable (key: 'TKey) oldRevs newRevs = backgroundTask {
+    let update<'TKey> revTable entityTable (key: 'TKey) oldRevs newRevs conn = backgroundTask {
         let toDelete, toAdd = Utils.diffRevisions oldRevs newRevs
         if not (List.isEmpty toDelete) || not (List.isEmpty toAdd) then
-            use cmd = conn.CreateCommand()
-            if not (List.isEmpty toDelete) then
-                cmd.CommandText <- $"DELETE FROM %s{revTable} WHERE %s{entityTable}_id = @id AND as_of = @asOf"
-                for delRev in toDelete do
-                    cmd.Parameters.Clear()
-                    addDocId cmd key
-                    addParam cmd "@asOf" delRev.AsOf
-                    do! write cmd
-            if not (List.isEmpty toAdd) then
-                cmd.CommandText <- insertSql revTable
-                for addRev in toAdd do
-                    cmd.Parameters.Clear()
-                    cmd.Parameters.AddRange(revParams key addRev)
-                    do! write cmd
+            for delRev in toDelete do
+                do! Custom.nonQuery
+                        $"DELETE FROM %s{revTable} WHERE %s{entityTable}_id = @id AND as_of = @asOf"
+                        [ idParam key; SqliteParameter("@asOf", instantParam delRev.AsOf) ]
+                        conn
+            for addRev in toAdd do
+                do! Custom.nonQuery $"INSERT INTO {revTable} VALUES (@id, @asOf, @text)" (revParams key addRev) conn
     }

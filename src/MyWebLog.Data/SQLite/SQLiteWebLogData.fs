@@ -19,7 +19,7 @@ type SQLiteWebLogData(conn: SqliteConnection, ser: JsonSerializer, log: ILogger)
     let all () =
         log.LogTrace "WebLog.all"
         use cmd = conn.CreateCommand()
-        cmd.CommandText <- Query.selectFromTable Table.WebLog
+        cmd.CommandText <- QueryOld.selectFromTable Table.WebLog
         cmdToList<WebLog> cmd ser
     
     /// Delete a web log by its ID
@@ -48,7 +48,7 @@ type SQLiteWebLogData(conn: SqliteConnection, ser: JsonSerializer, log: ILogger)
         log.LogTrace "WebLog.findByHost"
         use cmd = conn.CreateCommand()
         cmd.CommandText <-
-            $"{Query.selectFromTable Table.WebLog} WHERE data ->> '{nameof WebLog.Empty.UrlBase}' = @urlBase"
+            $"{QueryOld.selectFromTable Table.WebLog} WHERE data ->> '{nameof WebLog.Empty.UrlBase}' = @urlBase"
         addParam cmd "@urlBase" url
         use! rdr = cmd.ExecuteReaderAsync()
         let! isFound = rdr.ReadAsync()
