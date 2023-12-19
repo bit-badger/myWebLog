@@ -1,5 +1,7 @@
 namespace MyWebLog.Data
 
+open System.Threading.Tasks
+open BitBadger.Sqlite.FSharp.Documents
 open Microsoft.Data.Sqlite
 open Microsoft.Extensions.Logging
 open MyWebLog
@@ -12,108 +14,98 @@ type SQLiteData(conn: SqliteConnection, log: ILogger<SQLiteData>, ser: JsonSeria
     
     let ensureTables () = backgroundTask {
 
-        use cmd = conn.CreateCommand()
-        
-        let! tables = backgroundTask {
-            cmd.CommandText <- "SELECT name FROM sqlite_master WHERE type = 'table'"
-            let! rdr = cmd.ExecuteReaderAsync()
-            let mutable tableList = []
-            while! rdr.ReadAsync() do
-                tableList <- Map.getString "name" rdr :: tableList
-            do! rdr.CloseAsync()
-            return tableList
-        }
+        let! tables = Custom.list<string> "SELECT name FROM sqlite_master WHERE type = 'table'" None _.GetString(0)
         
         let needsTable table =
             not (List.contains table tables)
         
         let jsonTable table =
-            $"CREATE TABLE {table} (data TEXT NOT NULL);
-              CREATE UNIQUE INDEX idx_{table}_key ON {table} ((data ->> 'Id'))"
+            $"{Definition.createTable table}; {Definition.createKey table}"
         
-        seq {
-            // Theme tables
-            if needsTable Table.Theme then jsonTable Table.Theme
-            if needsTable Table.ThemeAsset then
-                $"CREATE TABLE {Table.ThemeAsset} (
-                    theme_id    TEXT NOT NULL,
-                    path        TEXT NOT NULL,
-                    updated_on  TEXT NOT NULL,
-                    data        BLOB NOT NULL,
-                    PRIMARY KEY (theme_id, path))"
-            
-            // Web log table
-            if needsTable Table.WebLog then jsonTable Table.WebLog
-            
-            // Category table
-            if needsTable Table.Category then
-                $"{jsonTable Table.Category};
-                  CREATE INDEX idx_{Table.Category}_web_log ON {Table.Category} ((data ->> 'WebLogId'))"
-            
-            // Web log user table
-            if needsTable Table.WebLogUser then
-                $"{jsonTable Table.WebLogUser};
-                  CREATE INDEX idx_{Table.WebLogUser}_email
-                    ON {Table.WebLogUser} ((data ->> 'WebLogId'), (data ->> 'Email'))"
-            
-            // Page tables
-            if needsTable Table.Page then
-                $"{jsonTable Table.Page};
-                  CREATE INDEX idx_{Table.Page}_author ON {Table.Page} ((data ->> 'AuthorId'));
-                  CREATE INDEX idx_{Table.Page}_permalink
-                    ON {Table.Page} ((data ->> 'WebLogId'), (data ->> 'Permalink'))"
-            if needsTable Table.PageRevision then
-                "CREATE TABLE page_revision (
-                    page_id        TEXT NOT NULL,
-                    as_of          TEXT NOT NULL,
-                    revision_text  TEXT NOT NULL,
-                    PRIMARY KEY (page_id, as_of))"
-            
-            // Post tables
-            if needsTable Table.Post then
-                $"{jsonTable Table.Post};
-                  CREATE INDEX idx_{Table.Post}_author ON {Table.Post} ((data ->> 'AuthorId'));
-                  CREATE INDEX idx_{Table.Post}_status
-                    ON {Table.Post} ((data ->> 'WebLogId'), (data ->> 'Status'), (data ->> 'UpdatedOn'));
-                  CREATE INDEX idx_{Table.Post}_permalink
-                    ON {Table.Post} ((data ->> 'WebLogId'), (data ->> 'Permalink'))"
-                  // TODO: index categories by post?
-            if needsTable Table.PostRevision then
-                $"CREATE TABLE {Table.PostRevision} (
-                    post_id        TEXT NOT NULL,
-                    as_of          TEXT NOT NULL,
-                    revision_text  TEXT NOT NULL,
-                    PRIMARY KEY (post_id, as_of))"
-            if needsTable Table.PostComment then
-                $"{jsonTable Table.PostComment};
-                  CREATE INDEX idx_{Table.PostComment}_post ON {Table.PostComment} ((data ->> 'PostId'))"
-            
-            // Tag map table
-            if needsTable Table.TagMap then
-                $"{jsonTable Table.TagMap};
-                  CREATE INDEX idx_{Table.TagMap}_tag ON {Table.TagMap} ((data ->> 'WebLogId'), (data ->> 'UrlValue'))"
-            
-            // Uploaded file table
-            if needsTable Table.Upload then
-                $"CREATE TABLE {Table.Upload} (
-                    id          TEXT PRIMARY KEY,
-                    web_log_id  TEXT NOT NULL,
-                    path        TEXT NOT NULL,
-                    updated_on  TEXT NOT NULL,
-                    data        BLOB NOT NULL);
-                  CREATE INDEX idx_{Table.Upload}_path ON {Table.Upload} (web_log_id, path)"
-            
-            // Database version table
-            if needsTable Table.DbVersion then
-                $"CREATE TABLE {Table.DbVersion} (id TEXT PRIMARY KEY);
-                  INSERT INTO {Table.DbVersion} VALUES ('v2.1')"
-        }
-        |> Seq.map (fun sql ->
-            log.LogInformation $"Creating {(sql.Split ' ')[2]} table..."
-            cmd.CommandText <- sql
-            write cmd |> Async.AwaitTask |> Async.RunSynchronously)
-        |> List.ofSeq
-        |> ignore
+        let tasks =
+            seq {
+                // Theme tables
+                if needsTable Table.Theme then jsonTable Table.Theme
+                if needsTable Table.ThemeAsset then
+                    $"CREATE TABLE {Table.ThemeAsset} (
+                        theme_id    TEXT NOT NULL,
+                        path        TEXT NOT NULL,
+                        updated_on  TEXT NOT NULL,
+                        data        BLOB NOT NULL,
+                        PRIMARY KEY (theme_id, path))"
+                
+                // Web log table
+                if needsTable Table.WebLog then jsonTable Table.WebLog
+                
+                // Category table
+                if needsTable Table.Category then
+                    $"{jsonTable Table.Category};
+                      CREATE INDEX idx_{Table.Category}_web_log ON {Table.Category} ((data ->> 'WebLogId'))"
+                
+                // Web log user table
+                if needsTable Table.WebLogUser then
+                    $"{jsonTable Table.WebLogUser};
+                      CREATE INDEX idx_{Table.WebLogUser}_email
+                        ON {Table.WebLogUser} ((data ->> 'WebLogId'), (data ->> 'Email'))"
+                
+                // Page tables
+                if needsTable Table.Page then
+                    $"{jsonTable Table.Page};
+                      CREATE INDEX idx_{Table.Page}_author ON {Table.Page} ((data ->> 'AuthorId'));
+                      CREATE INDEX idx_{Table.Page}_permalink
+                        ON {Table.Page} ((data ->> 'WebLogId'), (data ->> 'Permalink'))"
+                if needsTable Table.PageRevision then
+                    $"CREATE TABLE {Table.PageRevision} (
+                        page_id        TEXT NOT NULL,
+                        as_of          TEXT NOT NULL,
+                        revision_text  TEXT NOT NULL,
+                        PRIMARY KEY (page_id, as_of))"
+                
+                // Post tables
+                if needsTable Table.Post then
+                    $"{jsonTable Table.Post};
+                      CREATE INDEX idx_{Table.Post}_author ON {Table.Post} ((data ->> 'AuthorId'));
+                      CREATE INDEX idx_{Table.Post}_status
+                        ON {Table.Post} ((data ->> 'WebLogId'), (data ->> 'Status'), (data ->> 'UpdatedOn'));
+                      CREATE INDEX idx_{Table.Post}_permalink
+                        ON {Table.Post} ((data ->> 'WebLogId'), (data ->> 'Permalink'))"
+                      // TODO: index categories by post?
+                if needsTable Table.PostRevision then
+                    $"CREATE TABLE {Table.PostRevision} (
+                        post_id        TEXT NOT NULL,
+                        as_of          TEXT NOT NULL,
+                        revision_text  TEXT NOT NULL,
+                        PRIMARY KEY (post_id, as_of))"
+                if needsTable Table.PostComment then
+                    $"{jsonTable Table.PostComment};
+                      CREATE INDEX idx_{Table.PostComment}_post ON {Table.PostComment} ((data ->> 'PostId'))"
+                
+                // Tag map table
+                if needsTable Table.TagMap then
+                    $"{jsonTable Table.TagMap};
+                      CREATE INDEX idx_{Table.TagMap}_tag ON {Table.TagMap} ((data ->> 'WebLogId'), (data ->> 'UrlValue'))"
+                
+                // Uploaded file table
+                if needsTable Table.Upload then
+                    $"CREATE TABLE {Table.Upload} (
+                        id          TEXT PRIMARY KEY,
+                        web_log_id  TEXT NOT NULL,
+                        path        TEXT NOT NULL,
+                        updated_on  TEXT NOT NULL,
+                        data        BLOB NOT NULL);
+                      CREATE INDEX idx_{Table.Upload}_path ON {Table.Upload} (web_log_id, path)"
+                
+                // Database version table
+                if needsTable Table.DbVersion then
+                    $"CREATE TABLE {Table.DbVersion} (id TEXT PRIMARY KEY);
+                      INSERT INTO {Table.DbVersion} VALUES ('v2.1')"
+            }
+            |> Seq.map (fun sql ->
+                log.LogInformation $"""Creating {(sql.Replace("IF NOT EXISTS ", "").Split ' ')[2]} table..."""
+                Custom.nonQuery sql None)
+        
+        let! _ = Task.WhenAll tasks
+        ()
     }
     
     /// Set the database version to the specified version
@@ -459,15 +451,6 @@ type SQLiteData(conn: SqliteConnection, log: ILogger<SQLiteData>, ser: JsonSeria
     /// The connection for this instance
     member _.Conn = conn
     
-    /// Make a SQLite connection ready to execute commends
-    static member setUpConnection (conn: SqliteConnection) = backgroundTask {
-        do! conn.OpenAsync()
-        use cmd = conn.CreateCommand()
-        cmd.CommandText <- "PRAGMA foreign_keys = TRUE"
-        let! _ = cmd.ExecuteNonQueryAsync()
-        ()
-    }
-    
     interface IData with
     
         member _.Category   = SQLiteCategoryData   (conn, ser, log)
@@ -484,10 +467,6 @@ type SQLiteData(conn: SqliteConnection, log: ILogger<SQLiteData>, ser: JsonSeria
         
         member _.StartUp () = backgroundTask {
             do! ensureTables ()
-            
-            use cmd = conn.CreateCommand()
-            cmd.CommandText <- $"SELECT id FROM {Table.DbVersion}"
-            use! rdr = cmd.ExecuteReaderAsync()
-            let! isFound = rdr.ReadAsync()
-            do! migrate (if isFound then Some (Map.getString "id" rdr) else None)
+            let! version = Custom.single<string> $"SELECT id FROM {Table.DbVersion}" None _.GetString(0)
+            do! migrate version
         }

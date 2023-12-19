@@ -50,11 +50,16 @@ type RedirectRuleMiddleware(next: RequestDelegate, log: ILogger<RedirectRuleMidd
 
 
 open System
-open BitBadger.Npgsql.FSharp.Documents
 open Microsoft.Extensions.DependencyInjection
 open MyWebLog.Data
 open Newtonsoft.Json
 open Npgsql
+
+// The PostgreSQL document library
+module Postgres = BitBadger.Npgsql.FSharp.Documents
+
+// The SQLite document library
+module Sqlite = BitBadger.Sqlite.FSharp.Documents
 
 /// Logic to obtain a data connection and implementation based on configured values
 module DataImplementation =
@@ -62,13 +67,13 @@ module DataImplementation =
     open MyWebLog.Converters
     open RethinkDb.Driver.FSharp
     open RethinkDb.Driver.Net
-
+    
     /// Create an NpgsqlDataSource from the connection string, configuring appropriately
     let createNpgsqlDataSource (cfg: IConfiguration) =
         let builder = NpgsqlDataSourceBuilder(cfg.GetConnectionString "PostgreSQL")
         let _ = builder.UseNodaTime()
         // let _ = builder.UseLoggerFactory(LoggerFactory.Create(fun it -> it.AddConsole () |> ignore))
-        (builder.Build >> Configuration.useDataSource) ()
+        (builder.Build >> Postgres.Configuration.useDataSource) ()
 
     /// Get the configured data implementation
     let get (sp: IServiceProvider) : IData =
@@ -77,10 +82,10 @@ module DataImplementation =
         let connStr    name = config.GetConnectionString name
         let hasConnStr name = (connStr >> isNull >> not) name
         let createSQLite connStr : IData =
+            Sqlite.Configuration.useConnectionString connStr
             let log  = sp.GetRequiredService<ILogger<SQLiteData>>()
             let conn = new SqliteConnection(connStr)
             log.LogInformation $"Using SQLite database {conn.DataSource}"
-            await (SQLiteData.setUpConnection conn)
             SQLiteData(conn, log, Json.configure (JsonSerializer.CreateDefault()))
         
         if hasConnStr "SQLite" then
@@ -93,7 +98,7 @@ module DataImplementation =
             RethinkDbData(conn, rethinkCfg, log)
         elif hasConnStr "PostgreSQL" then
             createNpgsqlDataSource config
-            use conn = Configuration.dataSource().CreateConnection()
+            use conn = Postgres.Configuration.dataSource().CreateConnection()
             let log  = sp.GetRequiredService<ILogger<PostgresData>>()
             log.LogInformation $"Using PostgreSQL database {conn.Database}"
             PostgresData(log, Json.configure (JsonSerializer.CreateDefault()))
@@ -170,13 +175,13 @@ let main args =
                 opts.TableName  <- "Session"
                 opts.Connection <- rethink.Conn)
         ()
-    | :? SQLiteData as sql ->
+    | :? SQLiteData ->
         // ADO.NET connections are designed to work as per-request instantiation
         let cfg  = sp.GetRequiredService<IConfiguration>()
         let _ =
             builder.Services.AddScoped<SqliteConnection>(fun sp ->
-                let conn = new SqliteConnection(sql.Conn.ConnectionString)
-                SQLiteData.setUpConnection conn |> Async.AwaitTask |> Async.RunSynchronously
+                let conn = Sqlite.Configuration.dbConn ()
+                conn.OpenAsync() |> Async.AwaitTask |> Async.RunSynchronously
                 conn)
         let _ = builder.Services.AddScoped<IData, SQLiteData>()
         // Use SQLite for caching as well
@@ -185,7 +190,7 @@ let main args =
         ()
     | :? PostgresData as postgres ->
         // ADO.NET Data Sources are designed to work as singletons
-        let _ = builder.Services.AddSingleton<NpgsqlDataSource>(Configuration.dataSource ())
+        let _ = builder.Services.AddSingleton<NpgsqlDataSource>(Postgres.Configuration.dataSource ())
         let _ = builder.Services.AddSingleton<IData> postgres
         let _ =
             builder.Services.AddSingleton<IDistributedCache>(fun _ ->

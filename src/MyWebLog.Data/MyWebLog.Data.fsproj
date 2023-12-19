@@ -5,6 +5,10 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<ProjectReference Include="..\..\..\BitBadger.Sqlite.Documents\src\BitBadger.Sqlite.FSharp.Documents\BitBadger.Sqlite.FSharp.Documents.fsproj" />
+	</ItemGroup>
+	
+	<ItemGroup>
 		<PackageReference Include="BitBadger.Npgsql.FSharp.Documents" Version="2.0.0" />
 		<PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.0" />
 		<PackageReference Include="Microsoft.Extensions.Caching.Abstractions" Version="8.0.0" />
