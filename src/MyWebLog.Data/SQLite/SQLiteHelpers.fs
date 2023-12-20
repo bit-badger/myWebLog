@@ -1,6 +1,6 @@
 /// Helper functions for the SQLite data implementation
 [<AutoOpen>]
-module MyWebLog.Data.SQLite.Helpers
+module MyWebLog.Data.SQLite.SQLiteHelpers
 
 /// The table names used in the SQLite implementation
 [<RequireQualifiedAccess>]

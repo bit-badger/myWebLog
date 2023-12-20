@@ -25,7 +25,7 @@
 		<Compile Include="Interfaces.fs" />
 		<Compile Include="Utils.fs" />
 		<Compile Include="RethinkDbData.fs" />
-		<Compile Include="SQLite\Helpers.fs" />
+		<Compile Include="SQLite\SQLiteHelpers.fs" />
 		<Compile Include="SQLite\SQLiteCategoryData.fs" />
 		<Compile Include="SQLite\SQLitePageData.fs" />
 		<Compile Include="SQLite\SQLitePostData.fs" />
