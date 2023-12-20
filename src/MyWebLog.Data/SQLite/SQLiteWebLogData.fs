@@ -1,79 +1,68 @@
 namespace MyWebLog.Data.SQLite
 
-open System.Threading.Tasks
+open BitBadger.Sqlite.FSharp.Documents
+open BitBadger.Sqlite.FSharp.Documents.WithConn
 open Microsoft.Data.Sqlite
 open Microsoft.Extensions.Logging
 open MyWebLog
 open MyWebLog.Data
-open Newtonsoft.Json
 
 /// SQLite myWebLog web log data implementation
-type SQLiteWebLogData(conn: SqliteConnection, ser: JsonSerializer, log: ILogger) =
+type SQLiteWebLogData(conn: SqliteConnection, log: ILogger) =
     
     /// Add a web log
     let add webLog =
         log.LogTrace "WebLog.add"
-        Document.insert<WebLog> conn ser Table.WebLog webLog
+        insert<WebLog> Table.WebLog webLog conn
     
     /// Retrieve all web logs
     let all () =
         log.LogTrace "WebLog.all"
-        use cmd = conn.CreateCommand()
-        cmd.CommandText <- QueryOld.selectFromTable Table.WebLog
-        cmdToList<WebLog> cmd ser
+        Find.all<WebLog> Table.WebLog conn
     
     /// Delete a web log by its ID
-    let delete webLogId = backgroundTask {
+    let delete webLogId =
         log.LogTrace "WebLog.delete"
-        let idField = "data ->> 'WebLogId'"
-        let subQuery table = $"(SELECT data ->> 'Id' FROM {table} WHERE {idField} = @webLogId)"
-        use cmd = conn.CreateCommand()
-        cmd.CommandText <- $"
-            DELETE FROM {Table.PostComment}  WHERE data ->> 'PostId' IN {subQuery Table.Post};
-            DELETE FROM {Table.PostRevision} WHERE post_id           IN {subQuery Table.Post};
-            DELETE FROM {Table.PageRevision} WHERE page_id           IN {subQuery Table.Page};
-            DELETE FROM {Table.Post}         WHERE {idField}  = @webLogId;
-            DELETE FROM {Table.Page}         WHERE {idField}  = @webLogId;
-            DELETE FROM {Table.Category}     WHERE {idField}  = @webLogId;
-            DELETE FROM {Table.TagMap}       WHERE {idField}  = @webLogId;
-            DELETE FROM {Table.Upload}       WHERE web_log_id = @webLogId;
-            DELETE FROM {Table.WebLogUser}   WHERE {idField}  = @webLogId;
-            DELETE FROM {Table.WebLog}       WHERE id         = @webLogId"
-        addWebLogId cmd webLogId
-        do! write cmd
-    }
+        let subQuery table =
+            $"""(SELECT data ->> 'Id' FROM {table} WHERE {Query.whereFieldEquals "WebLogId" "@webLogId"}"""
+        Custom.nonQuery
+            $"""DELETE FROM {Table.PostComment}  WHERE data ->> 'PostId' IN {subQuery Table.Post};
+                DELETE FROM {Table.PostRevision} WHERE post_id           IN {subQuery Table.Post};
+                DELETE FROM {Table.PageRevision} WHERE page_id           IN {subQuery Table.Page};
+                DELETE FROM {Table.Post}         WHERE {Query.whereFieldEquals "WebLogId" "@webLogId"};
+                DELETE FROM {Table.Page}         WHERE {Query.whereFieldEquals "WebLogId" "@webLogId"};
+                DELETE FROM {Table.Category}     WHERE {Query.whereFieldEquals "WebLogId" "@webLogId"};
+                DELETE FROM {Table.TagMap}       WHERE {Query.whereFieldEquals "WebLogId" "@webLogId"};
+                DELETE FROM {Table.Upload}       WHERE web_log_id = @id;
+                DELETE FROM {Table.WebLogUser}   WHERE {Query.whereFieldEquals "WebLogId" "@webLogId"};
+                DELETE FROM {Table.WebLog}       WHERE {Query.whereById "@webLogId"}"""
+            [ webLogParam webLogId ]
+            conn
     
     /// Find a web log by its host (URL base)
-    let findByHost (url: string) = backgroundTask {
+    let findByHost (url: string) =
         log.LogTrace "WebLog.findByHost"
-        use cmd = conn.CreateCommand()
-        cmd.CommandText <-
-            $"{QueryOld.selectFromTable Table.WebLog} WHERE data ->> '{nameof WebLog.Empty.UrlBase}' = @urlBase"
-        addParam cmd "@urlBase" url
-        use! rdr = cmd.ExecuteReaderAsync()
-        let! isFound = rdr.ReadAsync()
-        return if isFound then Some (Map.fromDoc<WebLog> ser rdr) else None
-    }
+        Find.firstByFieldEquals<WebLog> Table.WebLog (nameof WebLog.Empty.UrlBase) url conn
     
     /// Find a web log by its ID
     let findById webLogId =
         log.LogTrace "WebLog.findById"
-        Document.findById<WebLogId, WebLog> conn ser Table.WebLog webLogId
+        Find.byId<WebLogId, WebLog> Table.WebLog webLogId conn
     
     /// Update redirect rules for a web log
     let updateRedirectRules (webLog: WebLog) =
         log.LogTrace "WebLog.updateRedirectRules"
-        Document.updateField conn ser Table.WebLog webLog.Id (nameof WebLog.Empty.RedirectRules) webLog.RedirectRules
+        Update.partialById Table.WebLog webLog.Id {| RedirectRules = webLog.RedirectRules |} conn
 
     /// Update RSS options for a web log
     let updateRssOptions (webLog: WebLog) =
         log.LogTrace "WebLog.updateRssOptions"
-        Document.updateField conn ser Table.WebLog webLog.Id (nameof WebLog.Empty.Rss) webLog.Rss
+        Update.partialById Table.WebLog webLog.Id {| Rss = webLog.Rss |} conn
     
     /// Update settings for a web log
     let updateSettings (webLog: WebLog) =
         log.LogTrace "WebLog.updateSettings"
-        Document.update conn ser Table.WebLog webLog.Id webLog
+        Update.full Table.WebLog webLog.Id webLog conn
     
     interface IWebLogData with
         member _.Add webLog = add webLog

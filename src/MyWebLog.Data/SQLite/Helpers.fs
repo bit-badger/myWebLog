@@ -65,17 +65,6 @@ open MyWebLog
 open MyWebLog.Data
 open NodaTime.Text
 
-/// Run a command that returns a count
-let count (cmd: SqliteCommand) = backgroundTask {
-    let! it = cmd.ExecuteScalarAsync()
-    return int (it :?> int64)
-}
-
-/// Create a list of items from the given data reader
-let toList<'T> (it: SqliteDataReader -> 'T) (rdr: SqliteDataReader) =
-    seq { while rdr.Read () do it rdr }
-    |> List.ofSeq
-
 /// Execute a command that returns no data
 let write (cmd: SqliteCommand) = backgroundTask {
     let! _ = cmd.ExecuteNonQueryAsync()
@@ -85,17 +74,9 @@ let write (cmd: SqliteCommand) = backgroundTask {
 /// Add a possibly-missing parameter, substituting null for None
 let maybe<'T> (it: 'T option) : obj = match it with Some x -> x :> obj | None -> DBNull.Value
 
-/// Create a value for a Duration
-let durationParam =
-    DurationPattern.Roundtrip.Format
-
 /// Create a value for an Instant
 let instantParam =
     InstantPattern.General.Format
-
-/// Create an optional value for a Duration
-let maybeDuration =
-    Option.map durationParam >> maybe
 
 /// Create an optional value for an Instant
 let maybeInstant =
@@ -224,7 +205,7 @@ module Map =
     let toUpload includeData rdr : Upload =
         let data =
             if includeData then
-                use dataStream = new MemoryStream ()
+                use dataStream = new MemoryStream()
                 use blobStream = getStream "data" rdr
                 blobStream.CopyTo dataStream
                 dataStream.ToArray ()
@@ -235,79 +216,20 @@ module Map =
           Path      = getString  "path"       rdr |> Permalink
           UpdatedOn = getInstant "updated_on" rdr
           Data      = data }
-    
-    /// Map from a document to a domain type, specifying the field name for the document
-    let fromData<'T> ser rdr fieldName : 'T =
-        Utils.deserialize<'T> ser (getString fieldName rdr)
-        
-    /// Map from a document to a domain type
-    let fromDoc<'T> ser rdr : 'T =
-        fromData<'T> ser rdr "data"
 
-/// Create a list of items for the results of the given command
-let cmdToList<'TDoc> (cmd: SqliteCommand) ser = backgroundTask {
-    use! rdr = cmd.ExecuteReaderAsync()
-    let mutable it: 'TDoc list = []
-    while! rdr.ReadAsync() do
-        it <- Map.fromDoc ser rdr :: it
-    return List.rev it
-}
 
-/// Queries to assist with document manipulation
-[<Obsolete("change me")>]
-module QueryOld =
+/// Create a named parameter
+let sqlParam name (value: obj) =
+    SqliteParameter(name, value)
     
-    /// Fragment to add an ID condition to a WHERE clause (parameter @id)
-    let whereById =
-        "data ->> 'Id' = @id"
-    
-    /// Fragment to add a web log ID condition to a WHERE clause (parameter @webLogId)
-    let whereByWebLog =
-        "data ->> 'WebLogId' = @webLogId"
-    
-    /// A SELECT/FROM pair for the given table
-    let selectFromTable table =
-        $"SELECT data FROM %s{table}"
-    
-    /// An INSERT statement for a document (parameter @data)
-    let insert table =
-        $"INSERT INTO %s{table} VALUES (@data)"
-    
-    /// A SELECT query to count documents for a given web log ID
-    let countByWebLog table =
-        $"SELECT COUNT(*) FROM %s{table} WHERE {whereByWebLog}"
-    
-    /// An UPDATE query to update a full document by its ID (parameters @data and @id)
-    let updateById table =
-        $"UPDATE %s{table} SET data = @data WHERE {whereById}"
-    
-    /// A DELETE query to delete a document by its ID (parameter @id)
-    let deleteById table =
-        $"DELETE FROM %s{table} WHERE {whereById}"
-    
-
 /// Create a document ID parameter
 let idParam (key: 'TKey) =
-    SqliteParameter("@id", string key)
+    sqlParam "@id" (string key)
 
 /// Create a web log ID parameter
 let webLogParam (webLogId: WebLogId) =
-    SqliteParameter("@webLogId", string webLogId)
+    sqlParam "@webLogId" (string webLogId)
 
-let addParam (cmd: SqliteCommand) name (value: obj) =
-    cmd.Parameters.AddWithValue(name, value) |> ignore
-
-/// Add an ID parameter for a document
-let addDocId<'TKey> (cmd: SqliteCommand) (id: 'TKey) =
-    addParam cmd "@id" (string id)
-
-/// Add a document parameter
-let addDocParam<'TDoc> (cmd: SqliteCommand) (doc: 'TDoc) ser =
-    addParam cmd "@data" (Utils.serialize ser doc)
-
-/// Add a web log ID parameter
-let addWebLogId (cmd: SqliteCommand) (webLogId: WebLogId) =
-    addParam cmd "@webLogId" (string webLogId)
 
 open BitBadger.Sqlite.FSharp.Documents
 open BitBadger.Sqlite.FSharp.Documents.WithConn
@@ -340,17 +262,6 @@ module Document =
         return int count
     }
     
-    /// Find a document by its ID
-    [<Obsolete("replace this")>]
-    let findById<'TKey, 'TDoc> (conn: SqliteConnection) ser table (key: 'TKey) = backgroundTask {
-        use cmd = conn.CreateCommand()
-        cmd.CommandText <- $"{Query.selectFromTable table} WHERE {Query.whereById}"
-        addDocId cmd key
-        use! rdr = cmd.ExecuteReaderAsync()
-        let! isFound = rdr.ReadAsync()
-        return if isFound then Some (Map.fromDoc<'TDoc> ser rdr) else None
-    }
-    
     /// Find a document by its ID and web log ID
     let findByIdAndWebLog<'TKey, 'TDoc> table (key: 'TKey) webLogId conn =
         Custom.single (Query.selectByIdAndWebLog table) [ idParam key; webLogParam webLogId ] fromData<'TDoc> conn
@@ -358,46 +269,7 @@ module Document =
     /// Find documents for the given web log
     let findByWebLog<'TDoc> table (webLogId: WebLogId) conn =
         Find.byFieldEquals<'TDoc> table "WebLogId" webLogId conn
-    
-    /// Insert a document
-    [<Obsolete("replace this")>]
-    let insert<'TDoc> (conn: SqliteConnection) ser table (doc: 'TDoc) = backgroundTask {
-        use cmd = conn.CreateCommand()
-        cmd.CommandText <- QueryOld.insert table
-        addDocParam<'TDoc> cmd doc ser
-        do! write cmd
-    }
-    
-    /// Update (replace) a document by its ID
-    [<Obsolete("replace this")>]
-    let update<'TKey, 'TDoc> (conn: SqliteConnection) ser table (key: 'TKey) (doc: 'TDoc) = backgroundTask {
-        use cmd = conn.CreateCommand()
-        cmd.CommandText <- QueryOld.updateById table
-        addDocId cmd key
-        addDocParam<'TDoc> cmd doc ser
-        do! write cmd
-    }
-    
-    /// Update a field in a document by its ID
-    [<Obsolete("replace this")>]
-    let updateField<'TKey, 'TValue> (conn: SqliteConnection) ser table (key: 'TKey) jsonField
-            (value: 'TValue) = backgroundTask {
-        use cmd = conn.CreateCommand()
-        cmd.CommandText <-
-            $"UPDATE %s{table} SET data = json_set(data, '$.{jsonField}', json(@it)) WHERE {QueryOld.whereById}"
-        addDocId cmd key
-        addParam cmd "@it" (Utils.serialize ser value)
-        do! write cmd
-    }
-    
-    /// Delete a document by its ID
-    [<Obsolete("replace this")>]
-    let delete<'TKey> (conn: SqliteConnection) table (key: 'TKey) = backgroundTask {
-        use cmd = conn.CreateCommand()
-        cmd.CommandText <- QueryOld.deleteById table
-        addDocId cmd key
-        do! write cmd
-    }
+
 
 /// Functions to support revisions
 module Revisions =
@@ -422,21 +294,17 @@ module Revisions =
             (fun rdr -> keyFunc (Map.getString $"{entityTable}_id" rdr), Map.toRevision rdr)
             conn
 
-    /// Parameters for a revision INSERT statement
-    let revParams<'TKey> (key: 'TKey) rev =
-        [ SqliteParameter("asOf",  rev.AsOf)
-          SqliteParameter("@id",   string key)
-          SqliteParameter("@text", rev.Text) ]
-    
     /// Update a page or post's revisions
     let update<'TKey> revTable entityTable (key: 'TKey) oldRevs newRevs conn = backgroundTask {
         let toDelete, toAdd = Utils.diffRevisions oldRevs newRevs
-        if not (List.isEmpty toDelete) || not (List.isEmpty toAdd) then
-            for delRev in toDelete do
-                do! Custom.nonQuery
-                        $"DELETE FROM %s{revTable} WHERE %s{entityTable}_id = @id AND as_of = @asOf"
-                        [ idParam key; SqliteParameter("@asOf", instantParam delRev.AsOf) ]
-                        conn
-            for addRev in toAdd do
-                do! Custom.nonQuery $"INSERT INTO {revTable} VALUES (@id, @asOf, @text)" (revParams key addRev) conn
+        for delRev in toDelete do
+            do! Custom.nonQuery
+                    $"DELETE FROM %s{revTable} WHERE %s{entityTable}_id = @id AND as_of = @asOf"
+                    [ idParam key; sqlParam "@asOf" (instantParam delRev.AsOf) ]
+                    conn
+        for addRev in toAdd do
+            do! Custom.nonQuery
+                    $"INSERT INTO {revTable} VALUES (@id, @asOf, @text)"
+                    [ idParam key; sqlParam "asOf" (instantParam addRev.AsOf); sqlParam "@text" addRev.Text ]
+                    conn
     }

@@ -100,7 +100,7 @@ type SQLiteCategoryData(conn: SqliteConnection, ser: JsonSerializer, log: ILogge
             for postId, cats in posts do
                 do! Update.partialById
                         Table.Post postId {| CategoryIds = cats |> List.filter (fun it -> it <> string catId) |} conn
-            do! Document.delete conn Table.Category catId
+            do! Delete.byId Table.Category catId conn
             return if children = 0L then CategoryDeleted else ReassignedChildCategories
         | None -> return CategoryNotFound
     }

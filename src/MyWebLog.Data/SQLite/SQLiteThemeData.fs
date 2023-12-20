@@ -1,74 +1,68 @@
 namespace MyWebLog.Data.SQLite
 
+open BitBadger.Sqlite.FSharp.Documents
+open BitBadger.Sqlite.FSharp.Documents.WithConn
 open Microsoft.Data.Sqlite
 open Microsoft.Extensions.Logging
 open MyWebLog
 open MyWebLog.Data
-open Newtonsoft.Json
 
 /// SQLite myWebLog theme data implementation
-type SQLiteThemeData(conn : SqliteConnection, ser: JsonSerializer, log: ILogger) =
+type SQLiteThemeData(conn : SqliteConnection, log: ILogger) =
     
     /// The JSON field for the theme ID
     let idField = $"data ->> '{nameof Theme.Empty.Id}'"
     
+    /// Convert a document to a theme with no template text
+    let withoutTemplateText (rdr: SqliteDataReader) =
+        let theme = fromData<Theme> rdr
+        { theme with Templates = theme.Templates |> List.map (fun t -> { t with Text = "" })}
+    
     /// Remove the template text from a theme
-    let withoutTemplateText (it: Theme) =
+    let withoutTemplateText' (it: Theme) =
         { it with Templates = it.Templates |> List.map (fun t -> { t with Text = "" }) }
     
     /// Retrieve all themes (except 'admin'; excludes template text)
-    let all () = backgroundTask {
+    let all () =
         log.LogTrace "Theme.all"
-        use cmd = conn.CreateCommand()
-        cmd.CommandText <- $"{QueryOld.selectFromTable Table.Theme} WHERE {idField} <> 'admin' ORDER BY {idField}"
-        let! themes = cmdToList<Theme> cmd ser
-        return themes |> List.map withoutTemplateText
-    }
+        Custom.list
+            $"{Query.selectFromTable Table.Theme} WHERE {idField} <> 'admin' ORDER BY {idField}"
+            []
+            withoutTemplateText
+            conn
     
     /// Does a given theme exist?
-    let exists (themeId: ThemeId) = backgroundTask {
+    let exists (themeId: ThemeId) =
         log.LogTrace "Theme.exists"
-        use cmd = conn.CreateCommand ()
-        cmd.CommandText <- $"SELECT COUNT(*) FROM {Table.Theme} WHERE {idField} = @id"
-        addDocId cmd themeId
-        let! count = count cmd
-        return count > 0
-    }
+        Exists.byId Table.Theme themeId conn
     
     /// Find a theme by its ID
     let findById themeId =
         log.LogTrace "Theme.findById"
-        Document.findById<ThemeId, Theme> conn ser Table.Theme themeId
+        Find.byId<ThemeId, Theme> Table.Theme themeId conn
     
     /// Find a theme by its ID (excludes the text of templates)
-    let findByIdWithoutText themeId = backgroundTask {
+    let findByIdWithoutText (themeId: ThemeId) =
         log.LogTrace "Theme.findByIdWithoutText"
-        let! theme = findById themeId
-        return theme |> Option.map withoutTemplateText
-    }
+        Custom.single (Query.Find.byId Table.Theme) [ idParam themeId ] withoutTemplateText conn
     
     /// Delete a theme by its ID
     let delete themeId = backgroundTask {
         log.LogTrace "Theme.delete"
         match! findByIdWithoutText themeId with
         | Some _ ->
-            use cmd = conn.CreateCommand()
-            cmd.CommandText <- $"
-                DELETE FROM {Table.ThemeAsset} WHERE theme_id = @id;
-                DELETE FROM {Table.Theme}      WHERE {QueryOld.whereById}"
-            addDocId cmd themeId
-            do! write cmd
+            do! Custom.nonQuery
+                    $"DELETE FROM {Table.ThemeAsset} WHERE theme_id = @id; {Query.Delete.byId Table.Theme}"
+                    [ idParam themeId ]
+                    conn
             return true
         | None -> return false
     }
     
     /// Save a theme
-    let save (theme: Theme) = backgroundTask {
+    let save (theme: Theme) =
         log.LogTrace "Theme.save"
-        match! findById theme.Id with
-        | Some _ -> do! Document.update conn ser Table.Theme theme.Id theme
-        | None -> do! Document.insert conn ser Table.Theme theme
-    }
+        save Table.Theme theme conn
     
     interface IThemeData with
         member _.All() = all ()
@@ -84,92 +78,72 @@ open System.IO
 /// SQLite myWebLog theme data implementation
 type SQLiteThemeAssetData(conn : SqliteConnection, log: ILogger) =
     
+    /// Create parameters for a theme asset ID
+    let assetIdParams assetId =
+        let (ThemeAssetId (ThemeId themeId, path)) = assetId
+        [ idParam themeId; sqlParam "@path" path ]
+    
     /// Get all theme assets (excludes data)
-    let all () = backgroundTask {
+    let all () =
         log.LogTrace "ThemeAsset.all"
-        use cmd = conn.CreateCommand()
-        cmd.CommandText <- $"SELECT theme_id, path, updated_on FROM {Table.ThemeAsset}"
-        use! rdr = cmd.ExecuteReaderAsync()
-        return toList (Map.toThemeAsset false) rdr
-    }
+        Custom.list $"SELECT theme_id, path, updated_on FROM {Table.ThemeAsset}" [] (Map.toThemeAsset false) conn
     
     /// Delete all assets for the given theme
-    let deleteByTheme (themeId: ThemeId) = backgroundTask {
+    let deleteByTheme (themeId: ThemeId) =
         log.LogTrace "ThemeAsset.deleteByTheme"
-        use cmd = conn.CreateCommand()
-        cmd.CommandText <- $"DELETE FROM {Table.ThemeAsset} WHERE theme_id = @themeId"
-        addParam cmd "@themeId" (string themeId)
-        do! write cmd
-    }
+        Custom.nonQuery $"DELETE FROM {Table.ThemeAsset} WHERE theme_id = @id" [ idParam themeId ] conn
     
     /// Find a theme asset by its ID
-    let findById assetId = backgroundTask {
+    let findById assetId =
         log.LogTrace "ThemeAsset.findById"
-        use cmd = conn.CreateCommand ()
-        cmd.CommandText <- $"SELECT *, ROWID FROM {Table.ThemeAsset} WHERE theme_id = @themeId AND path = @path"
-        let (ThemeAssetId (ThemeId themeId, path)) = assetId
-        addParam cmd "@themeId" themeId
-        addParam cmd "@path"    path
-        use! rdr = cmd.ExecuteReaderAsync()
-        let! isFound = rdr.ReadAsync()
-        return if isFound then Some (Map.toThemeAsset true rdr) else None
-    }
+        Custom.single
+            $"SELECT *, ROWID FROM {Table.ThemeAsset} WHERE theme_id = @id AND path = @path"
+            (assetIdParams assetId)
+            (Map.toThemeAsset true)
+            conn
     
     /// Get theme assets for the given theme (excludes data)
-    let findByTheme (themeId: ThemeId) = backgroundTask {
+    let findByTheme (themeId: ThemeId) =
         log.LogTrace "ThemeAsset.findByTheme"
-        use cmd = conn.CreateCommand()
-        cmd.CommandText <- $"SELECT theme_id, path, updated_on FROM {Table.ThemeAsset} WHERE theme_id = @themeId"
-        addParam cmd "@themeId" (string themeId)
-        use! rdr = cmd.ExecuteReaderAsync()
-        return toList (Map.toThemeAsset false) rdr
-    }
+        Custom.list
+            $"SELECT theme_id, path, updated_on FROM {Table.ThemeAsset} WHERE theme_id = @id"
+            [ idParam themeId ]
+            (Map.toThemeAsset false)
+            conn
     
     /// Get theme assets for the given theme
-    let findByThemeWithData (themeId: ThemeId) = backgroundTask {
+    let findByThemeWithData (themeId: ThemeId) =
         log.LogTrace "ThemeAsset.findByThemeWithData"
-        use cmd = conn.CreateCommand()
-        cmd.CommandText <- $"SELECT *, ROWID FROM {Table.ThemeAsset} WHERE theme_id = @themeId"
-        addParam cmd "@themeId" (string themeId)
-        use! rdr = cmd.ExecuteReaderAsync ()
-        return toList (Map.toThemeAsset true) rdr
-    }
+        Custom.list
+            $"SELECT *, ROWID FROM {Table.ThemeAsset} WHERE theme_id = @id"
+            [ idParam themeId ]
+            (Map.toThemeAsset true)
+            conn
     
     /// Save a theme asset
     let save (asset: ThemeAsset) = backgroundTask {
         log.LogTrace "ThemeAsset.save"
-        use sideCmd = conn.CreateCommand()
-        sideCmd.CommandText <- $"SELECT COUNT(*) FROM {Table.ThemeAsset} WHERE theme_id = @themeId AND path = @path"
-        let (ThemeAssetId (ThemeId themeId, path)) = asset.Id
-        addParam sideCmd "@themeId" themeId
-        addParam sideCmd "@path"    path
-        let! exists = count sideCmd
-        
-        use cmd = conn.CreateCommand ()
-        cmd.CommandText <-
-            if exists = 1 then
-                $"UPDATE {Table.ThemeAsset}
-                     SET updated_on = @updatedOn,
-                         data       = ZEROBLOB(@dataLength)
-                   WHERE theme_id = @themeId
-                     AND path     = @path"
-            else
+        do! Custom.nonQuery
                 $"INSERT INTO {Table.ThemeAsset} (
                     theme_id, path, updated_on, data
                   ) VALUES (
                     @themeId, @path, @updatedOn, ZEROBLOB(@dataLength)
-                  )"
-        addParam cmd "@themeId"    themeId
-        addParam cmd "@path"       path
-        addParam cmd "@updatedOn"  (instantParam asset.UpdatedOn)
-        addParam cmd "@dataLength" asset.Data.Length
-        do! write cmd
+                  ) ON CONFLICT (theme_id, path) DO UPDATE
+                  SET updated_on = @updatedOn,
+                      data       = ZEROBLOB(@dataLength)"
+                [ sqlParam "@updatedOn" (instantParam asset.UpdatedOn)
+                  sqlParam "@dataLength" asset.Data.Length
+                  yield! (assetIdParams asset.Id) ]
+                conn
         
-        sideCmd.CommandText <- $"SELECT ROWID FROM {Table.ThemeAsset} WHERE theme_id = @themeId AND path = @path"
-        let! rowId = sideCmd.ExecuteScalarAsync()
-        
+        let! rowId =
+            Custom.scalar
+                $"SELECT ROWID FROM {Table.ThemeAsset} WHERE theme_id = @id AND path = @path"
+                (assetIdParams asset.Id)
+                (_.GetInt64(0))
+                conn
         use dataStream = new MemoryStream(asset.Data)
-        use blobStream = new SqliteBlob(conn, Table.ThemeAsset, "data", rowId :?> int64)
+        use blobStream = new SqliteBlob(conn, Table.ThemeAsset, "data", rowId)
         do! dataStream.CopyToAsync blobStream
     }
     

@@ -97,7 +97,7 @@ type SQLitePostData(conn: SqliteConnection, log: ILogger) =
         log.LogTrace "Post.findCurrentPermalink"
         let linkSql, linkParams = inJsonArray Table.Post (nameof Post.Empty.PriorPermalinks) "link" permalinks
         Custom.single
-            $"SELECT data ->> '{linkName}'
+            $"SELECT data ->> '{linkName}' AS permalink
                 FROM {Table.Post}
                WHERE {Document.Query.whereByWebLog} AND {linkSql}"
             (webLogParam webLogId :: linkParams)

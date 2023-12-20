@@ -48,6 +48,7 @@ type PostgresTagMapData(log: ILogger) =
     
     /// Save a tag mapping
     let save (tagMap: TagMap) =
+        log.LogTrace "TagMap.save"
         save Table.TagMap tagMap
     
     /// Restore tag mappings from a backup
