@@ -15,7 +15,9 @@ type SQLiteData(conn: SqliteConnection, log: ILogger<SQLiteData>, ser: JsonSeria
     
     /// Create tables (and their associated indexes) if they do not exist
     let ensureTables () = backgroundTask {
-
+        
+        Configuration.useSerializer (Utils.createDocumentSerializer ser)
+        
         let! tables = conn.customList<string> "SELECT name FROM sqlite_master WHERE type = 'table'" [] _.GetString(0)
         
         let needsTable table =

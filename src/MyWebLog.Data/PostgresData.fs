@@ -14,11 +14,7 @@ type PostgresData(log: ILogger<PostgresData>, ser: JsonSerializer) =
     /// Create any needed tables
     let ensureTables () = backgroundTask {
         // Set up the PostgreSQL document store
-        Configuration.useSerializer
-            { new IDocumentSerializer with
-                member _.Serialize<'T>(it: 'T) : string = Utils.serialize ser it
-                member _.Deserialize<'T>(it: string) : 'T = Utils.deserialize ser it
-            }
+        Configuration.useSerializer (Utils.createDocumentSerializer ser)
         
         let! tables =
             Custom.list "SELECT tablename FROM pg_tables WHERE schemaname = 'public'" []

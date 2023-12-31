@@ -50,6 +50,16 @@ let serialize<'T> ser (item: 'T) =
 let deserialize<'T> (ser: JsonSerializer) value =
     JsonConvert.DeserializeObject<'T>(value, Json.settings ser)
 
+open BitBadger.Documents
+
+/// Create a document serializer using the given JsonSerializer
+let createDocumentSerializer ser =
+    { new IDocumentSerializer with
+        member _.Serialize<'T>(it: 'T) : string = serialize ser it
+        member _.Deserialize<'T>(it: string) : 'T = deserialize ser it
+    }
+
+
 open Microsoft.Extensions.Logging
 
 /// Log a migration step
