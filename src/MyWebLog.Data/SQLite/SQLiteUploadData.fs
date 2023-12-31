@@ -1,7 +1,7 @@
 namespace MyWebLog.Data.SQLite
 
 open System.IO
-open BitBadger.Sqlite.FSharp.Documents.WithConn
+open BitBadger.Documents.Sqlite
 open Microsoft.Data.Sqlite
 open Microsoft.Extensions.Logging
 open MyWebLog
@@ -13,7 +13,7 @@ type SQLiteUploadData(conn: SqliteConnection, log: ILogger) =
     /// Save an uploaded file
     let add (upload: Upload) = backgroundTask {
         log.LogTrace "Upload.add"
-        do! Custom.nonQuery
+        do! conn.customNonQuery
                 $"INSERT INTO {Table.Upload} (
                     id, web_log_id, path, updated_on, data
                   ) VALUES (
@@ -24,9 +24,8 @@ type SQLiteUploadData(conn: SqliteConnection, log: ILogger) =
                   sqlParam "@path"       (string upload.Path)
                   sqlParam "@updatedOn"  (instantParam upload.UpdatedOn)
                   sqlParam "@dataLength" upload.Data.Length ]
-                conn
         let! rowId =
-            Custom.scalar $"SELECT ROWID FROM {Table.Upload} WHERE id = @id" [ idParam upload.Id ] (_.GetInt64(0)) conn
+            conn.customScalar $"SELECT ROWID FROM {Table.Upload} WHERE id = @id" [ idParam upload.Id ] _.GetInt64(0)
         use dataStream = new MemoryStream(upload.Data)
         use blobStream = new SqliteBlob(conn, Table.Upload, "data", rowId)
         do! dataStream.CopyToAsync blobStream
@@ -36,14 +35,13 @@ type SQLiteUploadData(conn: SqliteConnection, log: ILogger) =
     let delete (uploadId: UploadId) webLogId = backgroundTask {
         log.LogTrace "Upload.delete"
         let! upload =
-            Custom.single
+            conn.customSingle
                 $"SELECT id, web_log_id, path, updated_on FROM {Table.Upload} WHERE id = @id AND web_log_id = @webLogId"
                 [ idParam uploadId; webLogParam webLogId ]
                 (Map.toUpload false)
-                conn
         match upload with
         | Some up ->
-            do! Custom.nonQuery $"DELETE FROM {Table.Upload} WHERE id = @id" [ idParam up.Id ] conn
+            do! conn.customNonQuery $"DELETE FROM {Table.Upload} WHERE id = @id" [ idParam up.Id ]
             return Ok (string up.Path)
         | None -> return Error $"Upload ID {string uploadId} not found"
     }
@@ -51,29 +49,26 @@ type SQLiteUploadData(conn: SqliteConnection, log: ILogger) =
     /// Find an uploaded file by its path for the given web log
     let findByPath (path: string) webLogId =
         log.LogTrace "Upload.findByPath"
-        Custom.single
+        conn.customSingle
             $"SELECT *, ROWID FROM {Table.Upload} WHERE web_log_id = @webLogId AND path = @path"
             [ webLogParam webLogId; sqlParam "@path" path ]
             (Map.toUpload true)
-            conn
     
     /// Find all uploaded files for the given web log (excludes data)
     let findByWebLog webLogId =
         log.LogTrace "Upload.findByWebLog"
-        Custom.list
+        conn.customList
             $"SELECT id, web_log_id, path, updated_on FROM {Table.Upload} WHERE web_log_id = @webLogId"
             [ webLogParam webLogId ]
             (Map.toUpload false)
-            conn
     
     /// Find all uploaded files for the given web log
     let findByWebLogWithData webLogId =
         log.LogTrace "Upload.findByWebLogWithData"
-        Custom.list
+        conn.customList
             $"SELECT *, ROWID FROM {Table.Upload} WHERE web_log_id = @webLogId"
             [ webLogParam webLogId ]
             (Map.toUpload true)
-            conn
     
     /// Restore uploads from a backup
     let restore uploads = backgroundTask {

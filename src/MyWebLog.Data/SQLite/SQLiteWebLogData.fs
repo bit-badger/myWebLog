@@ -1,7 +1,7 @@
 namespace MyWebLog.Data.SQLite
 
-open BitBadger.Sqlite.FSharp.Documents
-open BitBadger.Sqlite.FSharp.Documents.WithConn
+open BitBadger.Documents
+open BitBadger.Documents.Sqlite
 open Microsoft.Data.Sqlite
 open Microsoft.Extensions.Logging
 open MyWebLog
@@ -13,56 +13,55 @@ type SQLiteWebLogData(conn: SqliteConnection, log: ILogger) =
     /// Add a web log
     let add webLog =
         log.LogTrace "WebLog.add"
-        insert<WebLog> Table.WebLog webLog conn
+        conn.insert<WebLog> Table.WebLog webLog
     
     /// Retrieve all web logs
     let all () =
         log.LogTrace "WebLog.all"
-        Find.all<WebLog> Table.WebLog conn
+        conn.findAll<WebLog> Table.WebLog
     
     /// Delete a web log by its ID
     let delete webLogId =
         log.LogTrace "WebLog.delete"
         let subQuery table =
-            $"""(SELECT data ->> 'Id' FROM {table} WHERE {Query.whereFieldEquals "WebLogId" "@webLogId"}"""
+            $"""(SELECT data ->> 'Id' FROM {table} WHERE {Query.whereByField "WebLogId" EQ "@webLogId"}"""
         Custom.nonQuery
             $"""DELETE FROM {Table.PostComment}  WHERE data ->> 'PostId' IN {subQuery Table.Post};
                 DELETE FROM {Table.PostRevision} WHERE post_id           IN {subQuery Table.Post};
                 DELETE FROM {Table.PageRevision} WHERE page_id           IN {subQuery Table.Page};
-                DELETE FROM {Table.Post}         WHERE {Query.whereFieldEquals "WebLogId" "@webLogId"};
-                DELETE FROM {Table.Page}         WHERE {Query.whereFieldEquals "WebLogId" "@webLogId"};
-                DELETE FROM {Table.Category}     WHERE {Query.whereFieldEquals "WebLogId" "@webLogId"};
-                DELETE FROM {Table.TagMap}       WHERE {Query.whereFieldEquals "WebLogId" "@webLogId"};
-                DELETE FROM {Table.Upload}       WHERE web_log_id = @id;
-                DELETE FROM {Table.WebLogUser}   WHERE {Query.whereFieldEquals "WebLogId" "@webLogId"};
+                DELETE FROM {Table.Post}         WHERE {Query.whereByField "WebLogId" EQ "@webLogId"};
+                DELETE FROM {Table.Page}         WHERE {Query.whereByField "WebLogId" EQ "@webLogId"};
+                DELETE FROM {Table.Category}     WHERE {Query.whereByField "WebLogId" EQ "@webLogId"};
+                DELETE FROM {Table.TagMap}       WHERE {Query.whereByField "WebLogId" EQ "@webLogId"};
+                DELETE FROM {Table.Upload}       WHERE web_log_id = @webLogId;
+                DELETE FROM {Table.WebLogUser}   WHERE {Query.whereByField "WebLogId" EQ "@webLogId"};
                 DELETE FROM {Table.WebLog}       WHERE {Query.whereById "@webLogId"}"""
             [ webLogParam webLogId ]
-            conn
     
     /// Find a web log by its host (URL base)
     let findByHost (url: string) =
         log.LogTrace "WebLog.findByHost"
-        Find.firstByFieldEquals<WebLog> Table.WebLog (nameof WebLog.Empty.UrlBase) url conn
+        conn.findFirstByField<WebLog> Table.WebLog (nameof WebLog.Empty.UrlBase) EQ url
     
     /// Find a web log by its ID
     let findById webLogId =
         log.LogTrace "WebLog.findById"
-        Find.byId<WebLogId, WebLog> Table.WebLog webLogId conn
+        conn.findById<WebLogId, WebLog> Table.WebLog webLogId
     
     /// Update redirect rules for a web log
     let updateRedirectRules (webLog: WebLog) =
         log.LogTrace "WebLog.updateRedirectRules"
-        Update.partialById Table.WebLog webLog.Id {| RedirectRules = webLog.RedirectRules |} conn
+        conn.patchById Table.WebLog webLog.Id {| RedirectRules = webLog.RedirectRules |}
 
     /// Update RSS options for a web log
     let updateRssOptions (webLog: WebLog) =
         log.LogTrace "WebLog.updateRssOptions"
-        Update.partialById Table.WebLog webLog.Id {| Rss = webLog.Rss |} conn
+        conn.patchById Table.WebLog webLog.Id {| Rss = webLog.Rss |}
     
     /// Update settings for a web log
     let updateSettings (webLog: WebLog) =
         log.LogTrace "WebLog.updateSettings"
-        Update.full Table.WebLog webLog.Id webLog conn
+        conn.updateById Table.WebLog webLog.Id webLog
     
     interface IWebLogData with
         member _.Add webLog = add webLog

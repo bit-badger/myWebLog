@@ -1,8 +1,8 @@
 namespace MyWebLog.Data.SQLite
 
 open System.Threading.Tasks
-open BitBadger.Sqlite.FSharp.Documents
-open BitBadger.Sqlite.FSharp.Documents.WithConn
+open BitBadger.Documents
+open BitBadger.Documents.Sqlite
 open Microsoft.Data.Sqlite
 open Microsoft.Extensions.Logging
 open MyWebLog
@@ -23,11 +23,10 @@ type SQLiteCategoryData(conn: SqliteConnection, ser: JsonSerializer, log: ILogge
     /// Count all top-level categories for the given web log
     let countTopLevel webLogId =
         log.LogTrace "Category.countTopLevel"
-        Custom.scalar
+        conn.customScalar
             $"{Document.Query.countByWebLog} AND data ->> '{parentIdField}' IS NULL"
             [ webLogParam webLogId ]
-            (fun rdr -> int (rdr.GetInt64(0)))
-            conn
+            (toCount >> int)
     
     /// Find all categories for the given web log
     let findByWebLog webLogId =
@@ -54,9 +53,9 @@ type SQLiteCategoryData(conn: SqliteConnection, ser: JsonSerializer, log: ILogge
                     SELECT COUNT(DISTINCT data ->> '{nameof Post.Empty.Id}')
                       FROM {Table.Post}
                      WHERE {Document.Query.whereByWebLog}
-                       AND {Query.whereFieldEquals (nameof Post.Empty.Status) $"'{string Published}'"}
+                       AND {Query.whereByField (nameof Post.Empty.Status) EQ $"'{string Published}'"}
                        AND {catSql}"""
-                let! postCount = Custom.scalar query (webLogParam webLogId :: catParams) (_.GetInt64(0)) conn
+                let! postCount = conn.customScalar query (webLogParam webLogId :: catParams) toCount
                 return it.Id, int postCount
             })
             |> Task.WhenAll
@@ -80,13 +79,13 @@ type SQLiteCategoryData(conn: SqliteConnection, ser: JsonSerializer, log: ILogge
         match! findById catId webLogId with
         | Some cat ->
             // Reassign any children to the category's parent category
-            let! children = Count.byFieldEquals Table.Category parentIdField catId conn
+            let! children = conn.countByField Table.Category parentIdField EQ catId
             if children > 0 then
-                do! Update.partialByFieldEquals Table.Category parentIdField catId {| ParentId = cat.ParentId |} conn
+                do! conn.patchByField Table.Category parentIdField EQ catId {| ParentId = cat.ParentId |}
             // Delete the category off all posts where it is assigned, and the category itself
             let catIdField = Post.Empty.CategoryIds
             let! posts =
-                Custom.list
+                conn.customList
                     $"SELECT data ->> '{Post.Empty.Id}', data -> '{catIdField}'
                         FROM {Table.Post}
                        WHERE {Document.Query.whereByWebLog}
@@ -96,11 +95,10 @@ type SQLiteCategoryData(conn: SqliteConnection, ser: JsonSerializer, log: ILogge
                                  WHERE json_each.value = @id)"
                     [ idParam catId; webLogParam webLogId ]
                     (fun rdr -> rdr.GetString(0), Utils.deserialize<string list> ser (rdr.GetString(1)))
-                    conn
             for postId, cats in posts do
-                do! Update.partialById
-                        Table.Post postId {| CategoryIds = cats |> List.filter (fun it -> it <> string catId) |} conn
-            do! Delete.byId Table.Category catId conn
+                do! conn.patchById
+                        Table.Post postId {| CategoryIds = cats |> List.filter (fun it -> it <> string catId) |}
+            do! conn.deleteById Table.Category catId
             return if children = 0L then CategoryDeleted else ReassignedChildCategories
         | None -> return CategoryNotFound
     }
@@ -108,7 +106,7 @@ type SQLiteCategoryData(conn: SqliteConnection, ser: JsonSerializer, log: ILogge
     /// Save a category
     let save cat =
         log.LogTrace "Category.save"
-        save<Category> Table.Category cat conn
+        conn.save<Category> Table.Category cat
     
     /// Restore categories from a backup
     let restore cats = backgroundTask {

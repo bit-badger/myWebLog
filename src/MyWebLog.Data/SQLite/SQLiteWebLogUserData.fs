@@ -1,7 +1,7 @@
 namespace MyWebLog.Data.SQLite
 
-open BitBadger.Sqlite.FSharp.Documents
-open BitBadger.Sqlite.FSharp.Documents.WithConn
+open BitBadger.Documents
+open BitBadger.Documents.Sqlite
 open Microsoft.Data.Sqlite
 open Microsoft.Extensions.Logging
 open MyWebLog
@@ -20,12 +20,12 @@ type SQLiteWebLogUserData(conn: SqliteConnection, log: ILogger) =
         log.LogTrace "WebLogUser.delete"
         match! findById userId webLogId with
         | Some _ ->
-            let! pageCount = Count.byFieldEquals Table.Page (nameof Page.Empty.AuthorId) (string userId) conn
-            let! postCount = Count.byFieldEquals Table.Post (nameof Post.Empty.AuthorId) (string userId) conn
+            let! pageCount = conn.countByField Table.Page (nameof Page.Empty.AuthorId) EQ (string userId)
+            let! postCount = conn.countByField Table.Post (nameof Post.Empty.AuthorId) EQ (string userId)
             if pageCount + postCount > 0 then
                 return Error "User has pages or posts; cannot delete"
             else
-                do! Delete.byId Table.WebLogUser userId conn
+                do! conn.deleteById Table.WebLogUser userId
                 return Ok true
         | None -> return Error "User does not exist"
     }
@@ -33,12 +33,11 @@ type SQLiteWebLogUserData(conn: SqliteConnection, log: ILogger) =
     /// Find a user by their e-mail address for the given web log
     let findByEmail (email: string) webLogId =
         log.LogTrace "WebLogUser.findByEmail"
-        Custom.single
+        conn.customSingle
             $"""{Document.Query.selectByWebLog Table.WebLogUser}
-                  AND {Query.whereFieldEquals (nameof WebLogUser.Empty.Email) "@email"}"""
+                  AND {Query.whereByField (nameof WebLogUser.Empty.Email) EQ "@email"}"""
             [ webLogParam webLogId; sqlParam "@email" email ]
             fromData<WebLogUser>
-            conn
     
     /// Get all users for the given web log
     let findByWebLog webLogId = backgroundTask {
@@ -51,18 +50,17 @@ type SQLiteWebLogUserData(conn: SqliteConnection, log: ILogger) =
     let findNames webLogId (userIds: WebLogUserId list) =
         log.LogTrace "WebLogUser.findNames"
         let nameSql, nameParams = inClause "AND data ->> 'Id'" "id" string userIds 
-        Custom.list
+        conn.customList
             $"{Document.Query.selectByWebLog Table.WebLogUser} {nameSql}"
             (webLogParam webLogId :: nameParams)
             (fun rdr ->
                 let user = fromData<WebLogUser> rdr
                 { Name = string user.Id; Value = user.DisplayName })
-            conn
     
     /// Save a user
     let save user =
         log.LogTrace "WebLogUser.update"
-        save<WebLogUser> Table.WebLogUser user conn
+        conn.save<WebLogUser> Table.WebLogUser user
     
     /// Restore users from a backup
     let restore users = backgroundTask {
@@ -74,7 +72,7 @@ type SQLiteWebLogUserData(conn: SqliteConnection, log: ILogger) =
     let setLastSeen userId webLogId = backgroundTask {
         log.LogTrace "WebLogUser.setLastSeen"
         match! findById userId webLogId with
-        | Some _ -> do! Update.partialById Table.WebLogUser userId {| LastSeenOn = Noda.now () |} conn
+        | Some _ -> do! conn.patchById Table.WebLogUser userId {| LastSeenOn = Noda.now () |}
         | None -> ()
     }
     

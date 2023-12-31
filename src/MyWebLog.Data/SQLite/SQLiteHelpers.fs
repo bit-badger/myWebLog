@@ -222,17 +222,14 @@ module Map =
 let sqlParam name (value: obj) =
     SqliteParameter(name, value)
     
-/// Create a document ID parameter
-let idParam (key: 'TKey) =
-    sqlParam "@id" (string key)
-
 /// Create a web log ID parameter
 let webLogParam (webLogId: WebLogId) =
     sqlParam "@webLogId" (string webLogId)
 
 
-open BitBadger.Sqlite.FSharp.Documents
-open BitBadger.Sqlite.FSharp.Documents.WithConn
+open BitBadger.Documents
+open BitBadger.Documents.Sqlite
+open BitBadger.Documents.Sqlite.WithConn
 
 /// Functions for manipulating documents
 module Document =
@@ -242,7 +239,7 @@ module Document =
         
         /// Fragment to add a web log ID condition to a WHERE clause (parameter @webLogId)
         let whereByWebLog =
-            Query.whereFieldEquals "WebLogId" "@webLogId"
+            Query.whereByField "WebLogId" EQ "@webLogId"
         
         /// A SELECT query to count documents for a given web log ID
         let countByWebLog table =
@@ -250,7 +247,7 @@ module Document =
         
         /// A query to select from a table by the document's ID and its web log ID
         let selectByIdAndWebLog table =
-            $"{Query.Find.byFieldEquals table} AND {whereByWebLog}"
+            $"{Query.Find.byId table} AND {whereByWebLog}"
         
         /// A query to select from a table by its web log ID
         let selectByWebLog table =
@@ -258,7 +255,7 @@ module Document =
     
     /// Count documents for the given web log ID
     let countByWebLog table (webLogId: WebLogId) conn = backgroundTask {
-        let! count = Count.byFieldEquals table "WebLogId" webLogId conn
+        let! count = Count.byField table "WebLogId" EQ webLogId conn
         return int count
     }
     
@@ -268,7 +265,7 @@ module Document =
     
     /// Find documents for the given web log
     let findByWebLog<'TDoc> table (webLogId: WebLogId) conn =
-        Find.byFieldEquals<'TDoc> table "WebLogId" webLogId conn
+        Find.byField<'TDoc> table "WebLogId" EQ webLogId conn
 
 
 /// Functions to support revisions

@@ -1,7 +1,7 @@
 namespace MyWebLog.Data.SQLite
 
-open BitBadger.Sqlite.FSharp.Documents
-open BitBadger.Sqlite.FSharp.Documents.WithConn
+open BitBadger.Documents
+open BitBadger.Documents.Sqlite
 open Microsoft.Data.Sqlite
 open Microsoft.Extensions.Logging
 open MyWebLog
@@ -20,7 +20,7 @@ type SQLiteTagMapData(conn: SqliteConnection, log: ILogger) =
         log.LogTrace "TagMap.delete"
         match! findById tagMapId webLogId with
         | Some _ ->
-            do! Delete.byId Table.TagMap tagMapId conn
+            do! conn.deleteById Table.TagMap tagMapId
             return true
         | None -> return false
     }
@@ -28,12 +28,11 @@ type SQLiteTagMapData(conn: SqliteConnection, log: ILogger) =
     /// Find a tag mapping by its URL value for the given web log
     let findByUrlValue (urlValue: string) webLogId =
         log.LogTrace "TagMap.findByUrlValue"
-        Custom.single
+        conn.customSingle
             $"""{Document.Query.selectByWebLog Table.TagMap}
-                  AND {Query.whereFieldEquals (nameof TagMap.Empty.UrlValue) "@urlValue"}"""
+                  AND {Query.whereByField (nameof TagMap.Empty.UrlValue) EQ "@urlValue"}"""
             [ webLogParam webLogId; SqliteParameter("@urlValue", urlValue) ]
             fromData<TagMap>
-            conn
     
     /// Get all tag mappings for the given web log
     let findByWebLog webLogId =
@@ -44,16 +43,15 @@ type SQLiteTagMapData(conn: SqliteConnection, log: ILogger) =
     let findMappingForTags (tags: string list) webLogId =
         log.LogTrace "TagMap.findMappingForTags"
         let mapSql, mapParams = inClause $"AND data ->> '{nameof TagMap.Empty.Tag}'" "tag" id tags
-        Custom.list
+        conn.customList
             $"{Document.Query.selectByWebLog Table.TagMap} {mapSql}"
             (webLogParam webLogId :: mapParams)
             fromData<TagMap>
-            conn
     
     /// Save a tag mapping
     let save (tagMap: TagMap) =
         log.LogTrace "TagMap.save"
-        save Table.TagMap tagMap conn
+        conn.save Table.TagMap tagMap
     
     /// Restore tag mappings from a backup
     let restore tagMaps = backgroundTask {

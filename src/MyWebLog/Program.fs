@@ -56,9 +56,6 @@ open MyWebLog.Data
 open Newtonsoft.Json
 open Npgsql
 
-// The SQLite document library
-module Sqlite = BitBadger.Sqlite.FSharp.Documents
-
 /// Logic to obtain a data connection and implementation based on configured values
 module DataImplementation =
     
@@ -176,11 +173,7 @@ let main args =
     | :? SQLiteData ->
         // ADO.NET connections are designed to work as per-request instantiation
         let cfg  = sp.GetRequiredService<IConfiguration>()
-        let _ =
-            builder.Services.AddScoped<SqliteConnection>(fun sp ->
-                let conn = Sqlite.Configuration.dbConn ()
-                conn.OpenAsync() |> Async.AwaitTask |> Async.RunSynchronously
-                conn)
+        let _ = builder.Services.AddScoped<SqliteConnection>(fun sp -> Sqlite.Configuration.dbConn ())
         let _ = builder.Services.AddScoped<IData, SQLiteData>()
         // Use SQLite for caching as well
         let cachePath = defaultArg (Option.ofObj (cfg.GetConnectionString "SQLiteCachePath")) "./session.db"

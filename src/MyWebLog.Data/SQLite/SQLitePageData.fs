@@ -1,8 +1,8 @@
 namespace MyWebLog.Data.SQLite
 
 open System.Threading.Tasks
-open BitBadger.Sqlite.FSharp.Documents
-open BitBadger.Sqlite.FSharp.Documents.WithConn
+open BitBadger.Documents
+open BitBadger.Documents.Sqlite
 open Microsoft.Data.Sqlite
 open Microsoft.Extensions.Logging
 open MyWebLog
@@ -39,11 +39,10 @@ type SQLitePageData(conn: SqliteConnection, log: ILogger) =
     /// Get all pages for a web log (without text or revisions)
     let all webLogId =
         log.LogTrace "Page.all"
-        Custom.list
+        conn.customList
             $"{Query.selectFromTable Table.Page} WHERE {Document.Query.whereByWebLog} ORDER BY LOWER({titleField})"
             [ webLogParam webLogId ]
             (fun rdr -> { fromData<Page> rdr with Text = "" })
-            conn
     
     /// Count all pages for the given web log
     let countAll webLogId =
@@ -53,11 +52,10 @@ type SQLitePageData(conn: SqliteConnection, log: ILogger) =
     /// Count all pages shown in the page list for the given web log
     let countListed webLogId =
         log.LogTrace "Page.countListed"
-        Custom.scalar
-            $"""{Document.Query.countByWebLog} AND {Query.whereFieldEquals pgListName "'true'"}"""
+        conn.customScalar
+            $"""{Document.Query.countByWebLog} AND {Query.whereByField pgListName EQ "'true'"}"""
             [ webLogParam webLogId ]
-            (fun rdr -> int (rdr.GetInt64(0)))
-            conn
+            (toCount >> int)
     
     /// Find a page by its ID (without revisions)
     let findById pageId webLogId =
@@ -80,10 +78,9 @@ type SQLitePageData(conn: SqliteConnection, log: ILogger) =
         log.LogTrace "Page.delete"
         match! findById pageId webLogId with
         | Some _ ->
-            do! Custom.nonQuery
+            do! conn.customNonQuery
                     $"DELETE FROM {Table.PageRevision} WHERE page_id = @id; {Query.Delete.byId Table.Page}"
                     [ idParam pageId ]
-                    conn
             return true
         | None -> return false
     }
@@ -91,23 +88,21 @@ type SQLitePageData(conn: SqliteConnection, log: ILogger) =
     /// Find a page by its permalink for the given web log
     let findByPermalink (permalink: Permalink) webLogId =
         log.LogTrace "Page.findByPermalink"
-        Custom.single
-            $"""{Document.Query.selectByWebLog} AND {Query.whereFieldEquals linkName "@link"}"""
+        conn.customSingle
+            $"""{Document.Query.selectByWebLog} AND {Query.whereByField linkName EQ "@link"}"""
             [ webLogParam webLogId; SqliteParameter("@link", string permalink) ]
             fromData<Page>
-            conn
     
     /// Find the current permalink within a set of potential prior permalinks for the given web log
     let findCurrentPermalink (permalinks: Permalink list) webLogId =
         log.LogTrace "Page.findCurrentPermalink"
         let linkSql, linkParams = inJsonArray Table.Page (nameof Page.Empty.PriorPermalinks) "link" permalinks
-        Custom.single
+        conn.customSingle
             $"SELECT data ->> '{linkName}' AS permalink
                 FROM {Table.Page}
                WHERE {Document.Query.whereByWebLog} AND {linkSql}"
             (webLogParam webLogId :: linkParams)
             Map.toPermalink
-            conn
     
     /// Get all complete pages for the given web log
     let findFullByWebLog webLogId = backgroundTask {
@@ -120,27 +115,25 @@ type SQLitePageData(conn: SqliteConnection, log: ILogger) =
     /// Get all listed pages for the given web log (without revisions or text)
     let findListed webLogId =
         log.LogTrace "Page.findListed"
-        Custom.list
-            $"""{Document.Query.selectByWebLog Table.Page} AND {Query.whereFieldEquals pgListName "'true'"}
+        conn.customList
+            $"""{Document.Query.selectByWebLog Table.Page} AND {Query.whereByField pgListName EQ "'true'"}
                 ORDER BY LOWER({titleField})"""
             [ webLogParam webLogId ]
             (fun rdr -> { fromData<Page> rdr with Text = "" })
-            conn
     
     /// Get a page of pages for the given web log (without revisions)
     let findPageOfPages webLogId pageNbr =
         log.LogTrace "Page.findPageOfPages"
-        Custom.list
+        conn.customList
             $"{Document.Query.selectByWebLog Table.Page} ORDER BY LOWER({titleField}) LIMIT @pageSize OFFSET @toSkip"
             [ webLogParam webLogId; SqliteParameter("@pageSize", 26); SqliteParameter("@toSkip", (pageNbr - 1) * 25) ]
             fromData<Page>
-            conn
     
     /// Save a page
     let save (page: Page) = backgroundTask {
         log.LogTrace "Page.update"
         let! oldPage = findFullById page.Id page.WebLogId
-        do! save Table.Page { page with Revisions = [] } conn 
+        do! conn.save Table.Page { page with Revisions = [] } 
         do! updatePageRevisions page.Id (match oldPage with Some p -> p.Revisions | None -> []) page.Revisions
     }
     
@@ -155,7 +148,7 @@ type SQLitePageData(conn: SqliteConnection, log: ILogger) =
         log.LogTrace "Page.updatePriorPermalinks"
         match! findById pageId webLogId with
         | Some _ ->
-            do! Update.partialById Table.Page pageId {| PriorPermalinks = permalinks |} conn
+            do! conn.patchById Table.Page pageId {| PriorPermalinks = permalinks |}
             return true
          | None -> return false
     }

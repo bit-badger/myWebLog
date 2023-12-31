@@ -1,8 +1,8 @@
 namespace MyWebLog.Data
 
 open System.Threading.Tasks
-open BitBadger.Sqlite.FSharp.Documents
-open BitBadger.Sqlite.FSharp.Documents.WithConn
+open BitBadger.Documents
+open BitBadger.Documents.Sqlite
 open Microsoft.Data.Sqlite
 open Microsoft.Extensions.Logging
 open MyWebLog
@@ -16,13 +16,13 @@ type SQLiteData(conn: SqliteConnection, log: ILogger<SQLiteData>, ser: JsonSeria
     /// Create tables (and their associated indexes) if they do not exist
     let ensureTables () = backgroundTask {
 
-        let! tables = Custom.list<string> "SELECT name FROM sqlite_master WHERE type = 'table'" [] (_.GetString(0)) conn
+        let! tables = conn.customList<string> "SELECT name FROM sqlite_master WHERE type = 'table'" [] _.GetString(0)
         
         let needsTable table =
             not (List.contains table tables)
         
         let jsonTable table =
-            $"{Definition.createTable table}; {Definition.createKey table}"
+            $"{Query.Definition.ensureTable table}; {Query.Definition.ensureKey table}"
         
         let tasks =
             seq {
@@ -41,21 +41,23 @@ type SQLiteData(conn: SqliteConnection, log: ILogger<SQLiteData>, ser: JsonSeria
                 
                 // Category table
                 if needsTable Table.Category then
-                    $"{jsonTable Table.Category};
-                      CREATE INDEX idx_{Table.Category}_web_log ON {Table.Category} ((data ->> 'WebLogId'))"
+                    $"""{jsonTable Table.Category};
+                        {Query.Definition.ensureIndexOn Table.Category "web_log" [ nameof Category.Empty.WebLogId ]}"""
                 
                 // Web log user table
                 if needsTable Table.WebLogUser then
-                    $"{jsonTable Table.WebLogUser};
-                      CREATE INDEX idx_{Table.WebLogUser}_email
-                        ON {Table.WebLogUser} ((data ->> 'WebLogId'), (data ->> 'Email'))"
+                    $"""{jsonTable Table.WebLogUser};
+                        {Query.Definition.ensureIndexOn
+                             Table.WebLogUser
+                             "email"
+                             [ nameof WebLogUser.Empty.WebLogId; nameof WebLogUser.Empty.Email ]}"""
                 
                 // Page tables
                 if needsTable Table.Page then
-                    $"{jsonTable Table.Page};
-                      CREATE INDEX idx_{Table.Page}_author ON {Table.Page} ((data ->> 'AuthorId'));
-                      CREATE INDEX idx_{Table.Page}_permalink
-                        ON {Table.Page} ((data ->> 'WebLogId'), (data ->> 'Permalink'))"
+                    $"""{jsonTable Table.Page};
+                        {Query.Definition.ensureIndexOn Table.Page "author" [ nameof Page.Empty.AuthorId ]};
+                        {Query.Definition.ensureIndexOn
+                             Table.Page "permalink" [ nameof Page.Empty.WebLogId; nameof Page.Empty.Permalink ]}"""
                 if needsTable Table.PageRevision then
                     $"CREATE TABLE {Table.PageRevision} (
                         page_id        TEXT NOT NULL,
@@ -65,12 +67,14 @@ type SQLiteData(conn: SqliteConnection, log: ILogger<SQLiteData>, ser: JsonSeria
                 
                 // Post tables
                 if needsTable Table.Post then
-                    $"{jsonTable Table.Post};
-                      CREATE INDEX idx_{Table.Post}_author ON {Table.Post} ((data ->> 'AuthorId'));
-                      CREATE INDEX idx_{Table.Post}_status
-                        ON {Table.Post} ((data ->> 'WebLogId'), (data ->> 'Status'), (data ->> 'UpdatedOn'));
-                      CREATE INDEX idx_{Table.Post}_permalink
-                        ON {Table.Post} ((data ->> 'WebLogId'), (data ->> 'Permalink'))"
+                    $"""{jsonTable Table.Post};
+                        {Query.Definition.ensureIndexOn Table.Post "author" [ nameof Post.Empty.AuthorId ]};
+                        {Query.Definition.ensureIndexOn
+                             Table.Post "permalink" [ nameof Post.Empty.WebLogId; nameof Post.Empty.Permalink ]};
+                        {Query.Definition.ensureIndexOn
+                             Table.Post
+                             "status"
+                             [ nameof Post.Empty.WebLogId; nameof Post.Empty.Status; nameof Post.Empty.UpdatedOn ]}"""
                       // TODO: index categories by post?
                 if needsTable Table.PostRevision then
                     $"CREATE TABLE {Table.PostRevision} (
@@ -79,13 +83,14 @@ type SQLiteData(conn: SqliteConnection, log: ILogger<SQLiteData>, ser: JsonSeria
                         revision_text  TEXT NOT NULL,
                         PRIMARY KEY (post_id, as_of))"
                 if needsTable Table.PostComment then
-                    $"{jsonTable Table.PostComment};
-                      CREATE INDEX idx_{Table.PostComment}_post ON {Table.PostComment} ((data ->> 'PostId'))"
+                    $"""{jsonTable Table.PostComment};
+                        {Query.Definition.ensureIndexOn Table.PostComment "post" [ nameof Comment.Empty.PostId ]}"""
                 
                 // Tag map table
                 if needsTable Table.TagMap then
-                    $"{jsonTable Table.TagMap};
-                      CREATE INDEX idx_{Table.TagMap}_tag ON {Table.TagMap} ((data ->> 'WebLogId'), (data ->> 'UrlValue'))"
+                    $"""{jsonTable Table.TagMap};
+                        {Query.Definition.ensureIndexOn
+                             Table.TagMap "url" [ nameof TagMap.Empty.WebLogId; nameof TagMap.Empty.UrlValue ]}"""
                 
                 // Uploaded file table
                 if needsTable Table.Upload then
@@ -104,7 +109,7 @@ type SQLiteData(conn: SqliteConnection, log: ILogger<SQLiteData>, ser: JsonSeria
             }
             |> Seq.map (fun sql ->
                 log.LogInformation $"""Creating {(sql.Replace("IF NOT EXISTS ", "").Split ' ')[2]} table..."""
-                Custom.nonQuery sql [] conn)
+                conn.customNonQuery sql [])
         
         let! _ = Task.WhenAll tasks
         ()
@@ -112,7 +117,7 @@ type SQLiteData(conn: SqliteConnection, log: ILogger<SQLiteData>, ser: JsonSeria
     
     /// Set the database version to the specified version
     let setDbVersion version =
-        Custom.nonQuery $"DELETE FROM {Table.DbVersion}; INSERT INTO {Table.DbVersion} VALUES ('%s{version}')" [] conn
+        conn.customNonQuery $"DELETE FROM {Table.DbVersion}; INSERT INTO {Table.DbVersion} VALUES ('%s{version}')" []
         
     /// Implement the changes between v2-rc1 and v2-rc2
     let migrateV2Rc1ToV2Rc2 () = backgroundTask {
@@ -467,6 +472,6 @@ type SQLiteData(conn: SqliteConnection, log: ILogger<SQLiteData>, ser: JsonSeria
         
         member _.StartUp () = backgroundTask {
             do! ensureTables ()
-            let! version = Custom.single<string> $"SELECT id FROM {Table.DbVersion}" [] (_.GetString(0)) conn
+            let! version = conn.customSingle<string> $"SELECT id FROM {Table.DbVersion}" [] _.GetString(0)
             do! migrate version
         }
