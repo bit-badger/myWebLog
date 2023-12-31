@@ -1,6 +1,7 @@
 namespace MyWebLog.Data.Postgres
 
-open BitBadger.Npgsql.FSharp.Documents
+open BitBadger.Documents
+open BitBadger.Documents.Postgres
 open Microsoft.Extensions.Logging
 open MyWebLog
 open MyWebLog.Data
@@ -76,7 +77,7 @@ type PostgresPageData(log: ILogger) =
             do! Custom.nonQuery
                     $"""DELETE FROM {Table.PageRevision} WHERE page_id = @id;
                         DELETE FROM {Table.Page}         WHERE {Query.whereById "@id"}"""
-                    [ "@id", Sql.string (string pageId) ]
+                    [ idParam pageId ]
             return true
         | false -> return false
     }
@@ -119,7 +120,7 @@ type PostgresPageData(log: ILogger) =
         log.LogTrace "Page.findListed"
         Custom.list
             $"{selectWithCriteria Table.Page} ORDER BY LOWER(data ->> '{nameof Page.Empty.Title}')"
-            [ "@criteria", Query.jsonbDocParam {| webLogDoc webLogId with IsInPageList = true |} ]
+            [ jsonParam "@criteria" {| webLogDoc webLogId with IsInPageList = true |} ]
             pageWithoutText
     
     /// Get a page of pages for the given web log (without revisions)
@@ -141,7 +142,7 @@ type PostgresPageData(log: ILogger) =
             |> Sql.fromDataSource
             |> Sql.executeTransactionAsync
                 [ Query.insert Table.Page,
-                    pages |> List.map (fun page -> [ "@data", Query.jsonbDocParam { page with Revisions = [] } ])
+                    pages |> List.map (fun page -> [ jsonParam "@data" { page with Revisions = [] } ])
                   Revisions.insertSql Table.PageRevision,
                     revisions |> List.map (fun (pageId, rev) -> Revisions.revParams pageId rev) ]
         ()
@@ -161,7 +162,7 @@ type PostgresPageData(log: ILogger) =
         log.LogTrace "Page.updatePriorPermalinks"
         match! pageExists pageId webLogId with
         | true ->
-            do! Update.partialById Table.Page (string pageId) {| PriorPermalinks = permalinks |}
+            do! Patch.byId Table.Page pageId {| PriorPermalinks = permalinks |}
             return true
         | false -> return false
     }

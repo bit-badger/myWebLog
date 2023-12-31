@@ -1,6 +1,7 @@
 ﻿namespace MyWebLog.Data.Postgres
 
-open BitBadger.Npgsql.FSharp.Documents
+open BitBadger.Documents
+open BitBadger.Documents.Postgres
 open Microsoft.Extensions.Logging
 open MyWebLog
 open MyWebLog.Data
@@ -46,13 +47,13 @@ type PostgresWebLogData(log: ILogger) =
     /// Find a web log by its ID
     let findById (webLogId: WebLogId) = 
         log.LogTrace "WebLog.findById"
-        Find.byId<WebLog> Table.WebLog (string webLogId)
+        Find.byId<WebLogId, WebLog> Table.WebLog webLogId
     
     /// Update redirect rules for a web log
     let updateRedirectRules (webLog: WebLog) = backgroundTask {
         log.LogTrace "WebLog.updateRedirectRules"
         match! findById webLog.Id with
-        | Some _ -> do! Update.partialById Table.WebLog (string webLog.Id) {| RedirectRules = webLog.RedirectRules |}
+        | Some _ -> do! Patch.byId Table.WebLog webLog.Id {| RedirectRules = webLog.RedirectRules |}
         | None -> ()
     }
     
@@ -60,14 +61,14 @@ type PostgresWebLogData(log: ILogger) =
     let updateRssOptions (webLog: WebLog) = backgroundTask {
         log.LogTrace "WebLog.updateRssOptions"
         match! findById webLog.Id with
-        | Some _ -> do! Update.partialById Table.WebLog (string webLog.Id) {| Rss = webLog.Rss |}
+        | Some _ -> do! Patch.byId Table.WebLog webLog.Id {| Rss = webLog.Rss |}
         | None -> ()
     }
     
     /// Update settings for a web log
     let updateSettings (webLog: WebLog) =
         log.LogTrace "WebLog.updateSettings"
-        Update.full Table.WebLog (string webLog.Id) webLog
+        Update.byId Table.WebLog webLog.Id webLog
     
     interface IWebLogData with
         member _.Add webLog = add webLog

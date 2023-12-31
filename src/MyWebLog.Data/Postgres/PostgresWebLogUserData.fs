@@ -1,6 +1,7 @@
 namespace MyWebLog.Data.Postgres
 
-open BitBadger.Npgsql.FSharp.Documents
+open BitBadger.Documents
+open BitBadger.Documents.Postgres
 open Microsoft.Extensions.Logging
 open MyWebLog
 open MyWebLog.Data
@@ -24,13 +25,13 @@ type PostgresWebLogUserData(log: ILogger) =
                 Custom.scalar
                     $" SELECT (   EXISTS (SELECT 1 FROM {Table.Page} WHERE {criteria})
                                OR EXISTS (SELECT 1 FROM {Table.Post} WHERE {criteria})
-                              ) AS {existsName}"
-                    [ "@criteria", Query.jsonbDocParam {| AuthorId = userId |} ]
-                    Map.toExists
+                              ) AS it"
+                    [ jsonParam "@criteria" {| AuthorId = userId |} ]
+                    toExists
             if isAuthor then
                 return Error "User has pages or posts; cannot delete"
             else
-                do! Delete.byId Table.WebLogUser (string userId)
+                do! Delete.byId Table.WebLogUser userId
                 return Ok true
         | None -> return Error "User does not exist"
     }
@@ -67,8 +68,7 @@ type PostgresWebLogUserData(log: ILogger) =
             Configuration.dataSource ()
             |> Sql.fromDataSource
             |> Sql.executeTransactionAsync
-                [ Query.insert Table.WebLogUser,
-                    users |> List.map (fun user -> Query.docParameters (string user.Id) user) ]
+                [ Query.insert Table.WebLogUser, users |> List.map (fun user -> [ jsonParam "@data" user ]) ]
         ()
     }
     
@@ -76,7 +76,7 @@ type PostgresWebLogUserData(log: ILogger) =
     let setLastSeen (userId: WebLogUserId) webLogId = backgroundTask {
         log.LogTrace "WebLogUser.setLastSeen"
         match! Document.existsByWebLog Table.WebLogUser userId webLogId with
-        | true -> do! Update.partialById Table.WebLogUser (string userId) {| LastSeenOn = Some (Noda.now ()) |}
+        | true -> do! Patch.byId Table.WebLogUser userId {| LastSeenOn = Some (Noda.now ()) |}
         | false -> ()
     }
     

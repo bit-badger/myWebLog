@@ -1,7 +1,7 @@
 ﻿namespace MyWebLog.Data
 
-open BitBadger.Npgsql.Documents
-open BitBadger.Npgsql.FSharp.Documents
+open BitBadger.Documents
+open BitBadger.Documents.Postgres
 open Microsoft.Extensions.Logging
 open MyWebLog
 open MyWebLog.Data.Postgres
@@ -31,8 +31,8 @@ type PostgresData(log: ILogger<PostgresData>, ser: JsonSerializer) =
             // Theme tables
             if needsTable Table.Theme then
                 isNew <- true
-                Definition.createTable Table.Theme
-                Definition.createKey   Table.Theme
+                Query.Definition.ensureTable Table.Theme
+                Query.Definition.ensureKey   Table.Theme
             if needsTable Table.ThemeAsset then
                 $"CREATE TABLE {Table.ThemeAsset} (
                     theme_id    TEXT        NOT NULL,
@@ -43,30 +43,29 @@ type PostgresData(log: ILogger<PostgresData>, ser: JsonSerializer) =
             
             // Web log table
             if needsTable Table.WebLog then
-                Definition.createTable Table.WebLog
-                Definition.createKey   Table.WebLog
-                Definition.createIndex Table.WebLog Optimized
+                Query.Definition.ensureTable         Table.WebLog
+                Query.Definition.ensureKey           Table.WebLog
+                Query.Definition.ensureDocumentIndex Table.WebLog Optimized
             
             // Category table
             if needsTable Table.Category then
-                Definition.createTable Table.Category
-                Definition.createKey   Table.Category
-                Definition.createIndex Table.Category Optimized
+                Query.Definition.ensureTable         Table.Category
+                Query.Definition.ensureKey           Table.Category
+                Query.Definition.ensureDocumentIndex Table.Category Optimized
             
             // Web log user table
             if needsTable Table.WebLogUser then
-                Definition.createTable Table.WebLogUser
-                Definition.createKey   Table.WebLogUser
-                Definition.createIndex Table.WebLogUser Optimized
+                Query.Definition.ensureTable         Table.WebLogUser
+                Query.Definition.ensureKey           Table.WebLogUser
+                Query.Definition.ensureDocumentIndex Table.WebLogUser Optimized
             
             // Page tables
             if needsTable Table.Page then
-                Definition.createTable Table.Page
-                Definition.createKey   Table.Page
-                $"CREATE INDEX page_web_log_idx   ON {Table.Page} ((data ->> '{nameof Page.Empty.WebLogId}'))"
-                $"CREATE INDEX page_author_idx    ON {Table.Page} ((data ->> '{nameof Page.Empty.AuthorId}'))"
-                $"CREATE INDEX page_permalink_idx ON {Table.Page}
-                    ((data ->> '{nameof Page.Empty.WebLogId}'), (data ->> '{nameof Page.Empty.Permalink}'))"
+                Query.Definition.ensureTable   Table.Page
+                Query.Definition.ensureKey     Table.Page
+                Query.Definition.ensureIndexOn Table.Page "author" [ nameof Page.Empty.AuthorId ]
+                Query.Definition.ensureIndexOn
+                    Table.Page "permalink" [ nameof Page.Empty.WebLogId; nameof Page.Empty.Permalink ]
             if needsTable Table.PageRevision then
                 $"CREATE TABLE {Table.PageRevision} (
                     page_id        TEXT        NOT NULL,
@@ -76,15 +75,15 @@ type PostgresData(log: ILogger<PostgresData>, ser: JsonSerializer) =
             
             // Post tables
             if needsTable Table.Post then
-                Definition.createTable Table.Post
-                Definition.createKey   Table.Post
-                $"CREATE INDEX post_web_log_idx   ON {Table.Post} ((data ->> '{nameof Post.Empty.WebLogId}'))"
-                $"CREATE INDEX post_author_idx    ON {Table.Post} ((data ->> '{nameof Post.Empty.AuthorId}'))"
-                $"CREATE INDEX post_status_idx    ON {Table.Post}
-                    ((data ->> '{nameof Post.Empty.WebLogId}'), (data ->> '{nameof Post.Empty.Status}'),
-                     (data ->> '{nameof Post.Empty.UpdatedOn}'))"
-                $"CREATE INDEX post_permalink_idx ON {Table.Post}
-                    ((data ->> '{nameof Post.Empty.WebLogId}'), (data ->> '{nameof Post.Empty.Permalink}'))"
+                Query.Definition.ensureTable   Table.Post
+                Query.Definition.ensureKey     Table.Post
+                Query.Definition.ensureIndexOn Table.Post "author" [ nameof Post.Empty.AuthorId ]
+                Query.Definition.ensureIndexOn
+                    Table.Post "permalink" [ nameof Post.Empty.WebLogId; nameof Post.Empty.Permalink ]
+                Query.Definition.ensureIndexOn
+                    Table.Post
+                    "status"
+                    [ nameof Post.Empty.WebLogId; nameof Post.Empty.Status; nameof Post.Empty.UpdatedOn ]
                 $"CREATE INDEX post_category_idx  ON {Table.Post} USING GIN ((data['{nameof Post.Empty.CategoryIds}']))"
                 $"CREATE INDEX post_tag_idx       ON {Table.Post} USING GIN ((data['{nameof Post.Empty.Tags}']))"
             if needsTable Table.PostRevision then
@@ -94,16 +93,15 @@ type PostgresData(log: ILogger<PostgresData>, ser: JsonSerializer) =
                     revision_text  TEXT        NOT NULL,
                     PRIMARY KEY (post_id, as_of))"
             if needsTable Table.PostComment then
-                Definition.createTable Table.PostComment
-                Definition.createKey   Table.PostComment
-                $"CREATE INDEX post_comment_post_idx ON {Table.PostComment}
-                    ((data ->> '{nameof Comment.Empty.PostId}'))"
+                Query.Definition.ensureTable   Table.PostComment
+                Query.Definition.ensureKey     Table.PostComment
+                Query.Definition.ensureIndexOn Table.PostComment "post" [ nameof Comment.Empty.PostId ]
             
             // Tag map table
             if needsTable Table.TagMap then
-                Definition.createTable Table.TagMap
-                Definition.createKey   Table.TagMap
-                Definition.createIndex Table.TagMap Optimized
+                Query.Definition.ensureTable         Table.TagMap
+                Query.Definition.ensureKey           Table.TagMap
+                Query.Definition.ensureDocumentIndex Table.TagMap Optimized
             
             // Uploaded file table
             if needsTable Table.Upload then

@@ -61,7 +61,8 @@ module Table =
 
 open System
 open System.Threading.Tasks
-open BitBadger.Npgsql.FSharp.Documents
+open BitBadger.Documents
+open BitBadger.Documents.Postgres
 open MyWebLog
 open MyWebLog.Data
 open NodaTime
@@ -78,13 +79,7 @@ let webLogDoc (webLogId: WebLogId) =
 
 /// Create a parameter for a web log document-contains query
 let webLogContains webLogId =
-    "@criteria", Query.jsonbDocParam (webLogDoc webLogId)
-
-/// The name of the field to select to be able to use Map.toCount
-let countName = "the_count"
-
-/// The name of the field to select to be able to use Map.toExists
-let existsName = "does_exist"
+    jsonParam "@criteria" (webLogDoc webLogId)
 
 /// A SQL string to select data from a table with the given JSON document contains criteria
 let selectWithCriteria tableName =
@@ -129,14 +124,6 @@ let optParam<'T> name (it: 'T option) =
 /// Mapping functions for SQL queries
 module Map =
     
-    /// Get a count from a row
-    let toCount (row: RowReader) =
-        row.int countName
-    
-    /// Get a true/false value as to whether an item exists
-    let toExists (row: RowReader) =
-        row.bool existsName
-    
     /// Create a permalink from the current row
     let toPermalink (row: RowReader) =
         Permalink (row.string "permalink")
@@ -168,9 +155,9 @@ module Document =
         Custom.scalar
             $"""SELECT EXISTS (
                     SELECT 1 FROM %s{table} WHERE {Query.whereById "@id"} AND {Query.whereDataContains "@criteria"}
-                    ) AS {existsName}"""
+                    ) AS it"""
             [ "@id", Sql.string (string key); webLogContains webLogId ]
-            Map.toExists
+            toExists
     
     /// Find a document by its ID for the given web log
     let findByIdAndWebLog<'TKey, 'TDoc> table (key: 'TKey) webLogId =

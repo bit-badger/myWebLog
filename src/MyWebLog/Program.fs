@@ -50,13 +50,11 @@ type RedirectRuleMiddleware(next: RequestDelegate, log: ILogger<RedirectRuleMidd
 
 
 open System
+open BitBadger.Documents
 open Microsoft.Extensions.DependencyInjection
 open MyWebLog.Data
 open Newtonsoft.Json
 open Npgsql
-
-// The PostgreSQL document library
-module Postgres = BitBadger.Npgsql.FSharp.Documents
 
 // The SQLite document library
 module Sqlite = BitBadger.Sqlite.FSharp.Documents

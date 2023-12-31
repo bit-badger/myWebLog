@@ -2,7 +2,7 @@ namespace MyWebLog.Data.Postgres
 
 open System.Threading
 open System.Threading.Tasks
-open BitBadger.Npgsql.FSharp.Documents
+open BitBadger.Documents.Postgres
 open Microsoft.Extensions.Caching.Distributed
 open NodaTime
 
@@ -48,9 +48,11 @@ type DistributedCache () =
         task {
             let! exists =
                 Custom.scalar
-                    $"SELECT EXISTS
-                        (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'session')
-                      AS {existsName}" [] Map.toExists
+                    "SELECT EXISTS
+                       (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'session')
+                     AS it"
+                    []
+                    toExists
             if not exists then
                 do! Custom.nonQuery
                         "CREATE TABLE session (

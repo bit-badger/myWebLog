@@ -1,6 +1,7 @@
 namespace MyWebLog.Data.Postgres
 
-open BitBadger.Npgsql.FSharp.Documents
+open BitBadger.Documents
+open BitBadger.Documents.Postgres
 open Microsoft.Extensions.Logging
 open MyWebLog
 open MyWebLog.Data
@@ -19,7 +20,7 @@ type PostgresTagMapData(log: ILogger) =
         log.LogTrace "TagMap.delete"
         let! exists = Document.existsByWebLog Table.TagMap tagMapId webLogId
         if exists then
-            do! Delete.byId Table.TagMap (string tagMapId)
+            do! Delete.byId Table.TagMap tagMapId
             return true
         else return false
     }
@@ -58,7 +59,7 @@ type PostgresTagMapData(log: ILogger) =
             |> Sql.fromDataSource
             |> Sql.executeTransactionAsync
                 [ Query.insert Table.TagMap,
-                    tagMaps |> List.map (fun tagMap -> [ "@data", Query.jsonbDocParam tagMap ]) ]
+                    tagMaps |> List.map (fun tagMap -> [ jsonParam "@data" tagMap ]) ]
         ()
     }
     

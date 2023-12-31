@@ -1,6 +1,7 @@
 ﻿namespace MyWebLog.Data.Postgres
 
-open BitBadger.Npgsql.FSharp.Documents
+open BitBadger.Documents
+open BitBadger.Documents.Postgres
 open Microsoft.Extensions.Logging
 open MyWebLog
 open MyWebLog.Data
@@ -41,13 +42,12 @@ type PostgresCategoryData(log: ILogger) =
                     |> arrayContains (nameof Post.Empty.CategoryIds) id
                 let postCount =
                     Custom.scalar
-                        $"""SELECT COUNT(DISTINCT data ->> '{nameof Post.Empty.Id}') AS {countName}
+                        $"""SELECT COUNT(DISTINCT data ->> '{nameof Post.Empty.Id}') AS it
                               FROM {Table.Post}
                              WHERE {Query.whereDataContains "@criteria"}
                                AND {catIdSql}"""
-                        [ "@criteria", Query.jsonbDocParam {| webLogDoc webLogId with Status = Published |}
-                          catIdParams ]
-                        Map.toCount
+                        [ jsonParam "@criteria" {| webLogDoc webLogId with Status = Published |}; catIdParams ]
+                        toCount
                     |> Async.AwaitTask
                     |> Async.RunSynchronously
                 it.Id, postCount)
@@ -85,33 +85,32 @@ type PostgresCategoryData(log: ILogger) =
                     Configuration.dataSource ()
                     |> Sql.fromDataSource
                     |> Sql.executeTransactionAsync
-                        [ Query.Update.partialById Table.Category,
+                        [ Query.Patch.byId Table.Category,
                           children
                           |> List.map (fun child ->
-                              [ "@id",   Sql.string (string child.Id)
-                                "@data", Query.jsonbDocParam {| ParentId = cat.ParentId |} ]) ]
+                              [ idParam child.Id; jsonParam "@data" {| ParentId = cat.ParentId |} ]) ]
                 ()
             // Delete the category off all posts where it is assigned
             let! posts =
                 Custom.list
                     $"SELECT data FROM {Table.Post} WHERE data -> '{nameof Post.Empty.CategoryIds}' @> @id"
-                    [ "@id", Query.jsonbDocParam [| string catId |] ]
+                    [ jsonParam "@id" [| string catId |] ]
                     fromData<Post>
             if not (List.isEmpty posts) then
                 let! _ =
                     Configuration.dataSource ()
                     |> Sql.fromDataSource
                     |> Sql.executeTransactionAsync
-                        [ Query.Update.partialById Table.Post,
+                        [ Query.Patch.byId Table.Post,
                           posts
                           |> List.map (fun post ->
-                              [ "@id",   Sql.string (string post.Id)
-                                "@data", Query.jsonbDocParam
-                                           {| CategoryIds = post.CategoryIds
-                                                            |> List.filter (fun cat -> cat <> catId) |} ]) ]
+                              [ idParam post.Id
+                                jsonParam
+                                    "@data"
+                                    {| CategoryIds = post.CategoryIds |> List.filter (fun cat -> cat <> catId) |} ]) ]
                 ()
             // Delete the category itself
-            do! Delete.byId Table.Category (string catId)
+            do! Delete.byId Table.Category catId
             return if hasChildren then ReassignedChildCategories else CategoryDeleted
         | None -> return CategoryNotFound
     }
@@ -129,7 +128,7 @@ type PostgresCategoryData(log: ILogger) =
             Configuration.dataSource ()
             |> Sql.fromDataSource
             |> Sql.executeTransactionAsync [
-                Query.insert Table.Category, cats |> List.map (fun c -> [ "@data", Query.jsonbDocParam c ])
+                Query.insert Table.Category, cats |> List.map (fun c -> [ jsonParam "@data" c ])
             ]
         ()
     }

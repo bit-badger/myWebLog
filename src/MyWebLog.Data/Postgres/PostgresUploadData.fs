@@ -1,6 +1,7 @@
 ﻿namespace MyWebLog.Data.Postgres
 
-open BitBadger.Npgsql.FSharp.Documents
+open BitBadger.Documents
+open BitBadger.Documents.Postgres
 open Microsoft.Extensions.Logging
 open MyWebLog
 open MyWebLog.Data
@@ -21,7 +22,7 @@ type PostgresUploadData(log: ILogger) =
     let upParams (upload: Upload) =
         [ webLogIdParam upload.WebLogId
           typedParam "updatedOn" upload.UpdatedOn
-          "@id",   Sql.string (string upload.Id)
+          idParam upload.Id
           "@path", Sql.string (string upload.Path)
           "@data", Sql.bytea  upload.Data ]
     
@@ -33,7 +34,7 @@ type PostgresUploadData(log: ILogger) =
     /// Delete an uploaded file by its ID
     let delete uploadId webLogId = backgroundTask {
         log.LogTrace "Upload.delete"
-        let idParam = [ "@id", Sql.string (string uploadId) ]
+        let idParam = [ idParam uploadId ]
         let! path =
             Custom.single
                 $"SELECT path FROM {Table.Upload} WHERE id = @id AND web_log_id = @webLogId"
