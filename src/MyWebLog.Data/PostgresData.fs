@@ -77,8 +77,8 @@ type PostgresData(log: ILogger<PostgresData>, ser: JsonSerializer) =
                     Table.Post
                     "status"
                     [ nameof Post.Empty.WebLogId; nameof Post.Empty.Status; nameof Post.Empty.UpdatedOn ]
-                $"CREATE INDEX post_category_idx  ON {Table.Post} USING GIN ((data['{nameof Post.Empty.CategoryIds}']))"
-                $"CREATE INDEX post_tag_idx       ON {Table.Post} USING GIN ((data['{nameof Post.Empty.Tags}']))"
+                $"CREATE INDEX idx_post_category ON {Table.Post} USING GIN ((data['{nameof Post.Empty.CategoryIds}']))"
+                $"CREATE INDEX idx_post_tag      ON {Table.Post} USING GIN ((data['{nameof Post.Empty.Tags}']))"
             if needsTable Table.PostRevision then
                 $"CREATE TABLE {Table.PostRevision} (
                     post_id        TEXT        NOT NULL,
@@ -104,13 +104,13 @@ type PostgresData(log: ILogger<PostgresData>, ser: JsonSerializer) =
                     path        TEXT        NOT NULL,
                     updated_on  TIMESTAMPTZ NOT NULL,
                     data        BYTEA       NOT NULL)"
-                $"CREATE INDEX upload_web_log_idx ON {Table.Upload} (web_log_id)"
-                $"CREATE INDEX upload_path_idx    ON {Table.Upload} (web_log_id, path)"
+                $"CREATE INDEX idx_upload_web_log ON {Table.Upload} (web_log_id)"
+                $"CREATE INDEX idx_upload_path    ON {Table.Upload} (web_log_id, path)"
             
             // Database version table
             if needsTable Table.DbVersion then
                 $"CREATE TABLE {Table.DbVersion} (id TEXT NOT NULL PRIMARY KEY)"
-                $"INSERT INTO {Table.DbVersion} VALUES ('{Utils.currentDbVersion}')"
+                $"INSERT INTO {Table.DbVersion} VALUES ('{Utils.Migration.currentDbVersion}')"
         }
         
         Configuration.dataSource ()
@@ -134,35 +134,54 @@ type PostgresData(log: ILogger<PostgresData>, ser: JsonSerializer) =
     
     /// Migrate from v2-rc2 to v2 (manual migration required)
     let migrateV2Rc2ToV2 () = backgroundTask {
-        Utils.logMigrationStep log "v2-rc2 to v2" "Requires user action"
-        
         let! webLogs =
-            Configuration.dataSource ()
-            |> Sql.fromDataSource
-            |> Sql.query $"SELECT url_base, slug FROM {Table.WebLog}"
-            |> Sql.executeAsync (fun row -> row.string "url_base", row.string "slug")
-        
-        [   "** MANUAL DATABASE UPGRADE REQUIRED **"; ""
-            "The data structure for PostgreSQL changed significantly between v2-rc2 and v2."
-            "To migrate your data:"
-            " - Use a v2-rc2 executable to back up each web log"
-            " - Drop all tables from the database"
-            " - Use this executable to restore each backup"; ""
-            "Commands to back up all web logs:"
-            yield! webLogs |> List.map (fun (url, slug) -> $"./myWebLog backup {url} v2-rc2.{slug}.json") ]
-        |> String.concat "\n"
-        |> log.LogWarning
-        
-        log.LogCritical "myWebLog will now exit"
-        exit 1
+            Custom.list
+                $"SELECT url_base, slug FROM {Table.WebLog}" [] (fun row -> row.string "url_base", row.string "slug")
+        Utils.Migration.backupAndRestoreRequired log "v2-rc2" "v2" webLogs
     }
 
     /// Migrate from v2 to v2.1
     let migrateV2ToV2point1 () = backgroundTask {
-        Utils.logMigrationStep log "v2 to v2.1" "Adding empty redirect rule set to all weblogs"
+        let migration = "v2 to v2.1"
+        Utils.Migration.logStep log migration "Adding empty redirect rule set to all weblogs"
         do! Custom.nonQuery $"""UPDATE {Table.WebLog} SET data = data + '{{ "RedirectRules": [] }}'::json""" []
 
-        Utils.logMigrationStep log "v2 to v2.1" "Setting database to version 2.1"
+        let tables =
+            [ Table.Category; Table.Page; Table.Post; Table.PostComment; Table.TagMap; Table.Theme; Table.WebLog
+              Table.WebLogUser ]
+        
+        Utils.Migration.logStep log migration "Adding unique indexes on ID fields"
+        do! Custom.nonQuery (tables |> List.map Query.Definition.ensureKey |> String.concat "; ") []
+        
+        Utils.Migration.logStep log migration "Dropping old ID columns"
+        do! Custom.nonQuery (tables |> List.map (sprintf "ALTER TABLE %s DROP COLUMN id") |> String.concat "; ") []
+        
+        Utils.Migration.logStep log migration "Adjusting indexes"
+        let toDrop = [ "page_web_log_idx"; "post_web_log_idx" ]
+        do! Custom.nonQuery (toDrop |> List.map (sprintf "DROP INDEX %s") |> String.concat "; ") []
+        
+        let toRename =
+            [ "idx_category",          "idx_category_document"
+              "idx_tag_map",           "idx_tag_map_document"
+              "idx_web_log",           "idx_web_log_document"
+              "idx_web_log_user",      "idx_web_log_user_document"
+              "page_author_idx",       "idx_page_author"
+              "page_permalink_idx",    "idx_page_permalink"
+              "post_author_idx",       "idx_post_author"
+              "post_status_idx",       "idx_post_status"
+              "post_permalink_idx",    "idx_post_permalink"
+              "post_category_idx",     "idx_post_category"
+              "post_tag_idx",          "idx_post_tag"
+              "post_comment_post_idx", "idx_post_comment_post"
+              "upload_web_log_idx",    "idx_upload_web_log"
+              "upload_path_idx",       "idx_upload_path" ]
+        do! Custom.nonQuery
+                (toRename
+                 |> List.map (fun (oldName, newName) -> $"ALTER INDEX {oldName} RENAME TO {newName}")
+                 |> String.concat "; ")
+                []
+        
+        Utils.Migration.logStep log migration "Setting database to version 2.1"
         do! setDbVersion "v2.1"
     }
 
@@ -178,9 +197,9 @@ type PostgresData(log: ILogger<PostgresData>, ser: JsonSerializer) =
             do! migrateV2ToV2point1 ()
             v <- "v2.1"
         
-        if v <> "v2.1" then
-            log.LogWarning $"Unknown database version; assuming {Utils.currentDbVersion}"
-            do! setDbVersion Utils.currentDbVersion
+        if v <> Utils.Migration.currentDbVersion then
+            log.LogWarning $"Unknown database version; assuming {Utils.Migration.currentDbVersion}"
+            do! setDbVersion Utils.Migration.currentDbVersion
     }
         
     interface IData with

@@ -5,9 +5,6 @@ module internal MyWebLog.Data.Utils
 open MyWebLog
 open MyWebLog.ViewModels
 
-/// The current database version
-let currentDbVersion = "v2.1"
-
 /// Create a category hierarchy from the given list of categories
 let rec orderByHierarchy (cats: Category list) parentId slugBase parentNames = seq {
     for cat in cats |> List.filter (fun c -> c.ParentId = parentId) do
@@ -59,9 +56,33 @@ let createDocumentSerializer ser =
         member _.Deserialize<'T>(it: string) : 'T = deserialize ser it
     }
 
+/// Data migration utilities
+module Migration =
+    
+    open Microsoft.Extensions.Logging
 
-open Microsoft.Extensions.Logging
+    /// The current database version
+    let currentDbVersion = "v2.1"
 
-/// Log a migration step
-let logMigrationStep<'T> (log: ILogger<'T>) migration message =
-    log.LogInformation $"Migrating %s{migration}: %s{message}"
+    /// Log a migration step
+    let logStep<'T> (log: ILogger<'T>) migration message =
+        log.LogInformation $"Migrating %s{migration}: %s{message}"
+
+    /// Notify the user that a backup/restore
+    let backupAndRestoreRequired log oldVersion newVersion webLogs =
+        logStep log $"%s{oldVersion} to %s{newVersion}" "Requires Using Action"
+
+        [ "** MANUAL DATABASE UPGRADE REQUIRED **"; ""
+          $"The data structure changed between {oldVersion} and {newVersion}."
+          "To migrate your data:"
+          $" - Use a {oldVersion} executable to back up each web log"
+          " - Drop all tables from the database"
+          " - Use this executable to restore each backup"; ""
+          "Commands to back up all web logs:"
+          yield! webLogs |> List.map (fun (url, slug) -> $"./myWebLog backup %s{url} {oldVersion}.%s{slug}.json") ]
+        |> String.concat "\n"
+        |> log.LogWarning
+        
+        log.LogCritical "myWebLog will now exit"
+        exit 1 |> ignore
+        

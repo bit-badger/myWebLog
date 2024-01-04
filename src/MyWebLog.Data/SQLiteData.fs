@@ -18,7 +18,7 @@ type SQLiteData(conn: SqliteConnection, log: ILogger<SQLiteData>, ser: JsonSeria
         
         Configuration.useSerializer (Utils.createDocumentSerializer ser)
         
-        let! tables = conn.customList<string> "SELECT name FROM sqlite_master WHERE type = 'table'" [] _.GetString(0)
+        let! tables = conn.customList "SELECT name FROM sqlite_master WHERE type = 'table'" [] _.GetString(0)
         
         let needsTable table =
             not (List.contains table tables)
@@ -107,7 +107,7 @@ type SQLiteData(conn: SqliteConnection, log: ILogger<SQLiteData>, ser: JsonSeria
                 // Database version table
                 if needsTable Table.DbVersion then
                     $"CREATE TABLE {Table.DbVersion} (id TEXT PRIMARY KEY);
-                      INSERT INTO {Table.DbVersion} VALUES ('v2.1')"
+                      INSERT INTO {Table.DbVersion} VALUES ('{Utils.Migration.currentDbVersion}')"
             }
             |> Seq.map (fun sql ->
                 log.LogInformation $"""Creating {(sql.Replace("IF NOT EXISTS ", "").Split ' ')[2]} table..."""
@@ -123,7 +123,7 @@ type SQLiteData(conn: SqliteConnection, log: ILogger<SQLiteData>, ser: JsonSeria
         
     /// Implement the changes between v2-rc1 and v2-rc2
     let migrateV2Rc1ToV2Rc2 () = backgroundTask {
-        let logStep = Utils.logMigrationStep log "v2-rc1 to v2-rc2"
+        let logStep = Utils.Migration.logStep log "v2-rc1 to v2-rc2"
         // Move meta items, podcast settings, and episode details to JSON-encoded text fields
         use cmd = conn.CreateCommand()
         logStep "Adding new columns"
@@ -418,20 +418,15 @@ type SQLiteData(conn: SqliteConnection, log: ILogger<SQLiteData>, ser: JsonSeria
     
     /// Migrate from v2-rc2 to v2
     let migrateV2Rc2ToV2 () = backgroundTask {
-        Utils.logMigrationStep log "v2-rc2 to v2" "Setting database version; no migration required"
+        Utils.Migration.logStep log "v2-rc2 to v2" "Setting database version; no migration required"
         do! setDbVersion "v2"
     }
 
     /// Migrate from v2 to v2.1
     let migrateV2ToV2point1 () = backgroundTask {
-        // FIXME: This will be a backup/restore scenario, as we're changing to documents for most tables
-        Utils.logMigrationStep log "v2 to v2.1" "Adding redirect rules to web_log table"
-        use cmd = conn.CreateCommand()
-        cmd.CommandText <- "ALTER TABLE web_log ADD COLUMN redirect_rules TEXT NOT NULL DEFAULT '[]'"
-        do! write cmd
-
-        Utils.logMigrationStep log "v2 to v2.1" "Setting database version to v2.1"
-        do! setDbVersion "v2.1"
+        let! webLogs =
+            Custom.list $"SELECT url_base, slug FROM {Table.WebLog}" [] (fun rdr -> rdr.GetString(0), rdr.GetString(1))
+        Utils.Migration.backupAndRestoreRequired log "v2" "v2.1" webLogs
     }
 
     /// Migrate data among versions (up only)
@@ -450,9 +445,9 @@ type SQLiteData(conn: SqliteConnection, log: ILogger<SQLiteData>, ser: JsonSeria
             do! migrateV2ToV2point1 ()
             v <- "v2.1"
         
-        if v <> "v2.1" then
-            log.LogWarning $"Unknown database version; assuming {Utils.currentDbVersion}"
-            do! setDbVersion Utils.currentDbVersion
+        if v <> Utils.Migration.currentDbVersion then
+            log.LogWarning $"Unknown database version; assuming {Utils.Migration.currentDbVersion}"
+            do! setDbVersion Utils.Migration.currentDbVersion
     }
     
     /// The connection for this instance

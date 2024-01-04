@@ -207,7 +207,7 @@ type RethinkDbData(conn: Net.IConnection, config: DataConfig, log: ILogger<Rethi
     
     /// Migrate from v2-rc1 to v2-rc2
     let migrateV2Rc1ToV2Rc2 () = backgroundTask {
-        let logStep = Utils.logMigrationStep log "v2-rc1 to v2-rc2"
+        let logStep = Utils.Migration.logStep log "v2-rc1 to v2-rc2"
         logStep "**IMPORTANT**"
         logStep "See release notes about required backup/restoration for RethinkDB."
         logStep "If there is an error immediately below this message, this is why."
@@ -217,20 +217,20 @@ type RethinkDbData(conn: Net.IConnection, config: DataConfig, log: ILogger<Rethi
 
     /// Migrate from v2-rc2 to v2
     let migrateV2Rc2ToV2 () = backgroundTask {
-        Utils.logMigrationStep log "v2-rc2 to v2" "Setting database version; no migration required"
+        Utils.Migration.logStep log "v2-rc2 to v2" "Setting database version; no migration required"
         do! setDbVersion "v2"
     }
 
     /// Migrate from v2 to v2.1
     let migrateV2ToV2point1 () = backgroundTask {
-        Utils.logMigrationStep log "v2 to v2.1" "Adding empty redirect rule set to all weblogs"
+        Utils.Migration.logStep log "v2 to v2.1" "Adding empty redirect rule set to all weblogs"
         do! rethink {
             withTable Table.WebLog
             update [ nameof WebLog.Empty.RedirectRules, [] :> obj ]
             write; withRetryOnce; ignoreResult conn
         }
         
-        Utils.logMigrationStep log "v2 to v2.1" "Setting database version to v2.1"
+        Utils.Migration.logStep log "v2 to v2.1" "Setting database version to v2.1"
         do! setDbVersion "v2.1"
     }
     
@@ -250,9 +250,9 @@ type RethinkDbData(conn: Net.IConnection, config: DataConfig, log: ILogger<Rethi
             do! migrateV2ToV2point1 ()
             v <- "v2.1"
         
-        if v <> "v2.1" then
-            log.LogWarning $"Unknown database version; assuming {Utils.currentDbVersion}"
-            do! setDbVersion Utils.currentDbVersion
+        if v <> Utils.Migration.currentDbVersion then
+            log.LogWarning $"Unknown database version; assuming {Utils.Migration.currentDbVersion}"
+            do! setDbVersion Utils.Migration.currentDbVersion
     }
     
     /// The connection for this instance
