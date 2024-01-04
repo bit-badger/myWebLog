@@ -122,7 +122,7 @@ type SQLiteThemeAssetData(conn : SqliteConnection, log: ILogger) =
                 $"INSERT INTO {Table.ThemeAsset} (
                     theme_id, path, updated_on, data
                   ) VALUES (
-                    @themeId, @path, @updatedOn, ZEROBLOB(@dataLength)
+                    @id, @path, @updatedOn, ZEROBLOB(@dataLength)
                   ) ON CONFLICT (theme_id, path) DO UPDATE
                   SET updated_on = @updatedOn,
                       data       = ZEROBLOB(@dataLength)"

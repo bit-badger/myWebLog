@@ -255,7 +255,7 @@ module Document =
     
     /// Count documents for the given web log ID
     let countByWebLog table (webLogId: WebLogId) conn = backgroundTask {
-        let! count = Count.byField table "WebLogId" EQ webLogId conn
+        let! count = Count.byField table "WebLogId" EQ (string webLogId) conn
         return int count
     }
     
@@ -265,7 +265,7 @@ module Document =
     
     /// Find documents for the given web log
     let findByWebLog<'TDoc> table (webLogId: WebLogId) conn =
-        Find.byField<'TDoc> table "WebLogId" EQ webLogId conn
+        Find.byField<'TDoc> table "WebLogId" EQ (string webLogId) conn
 
 
 /// Functions to support revisions
@@ -302,6 +302,6 @@ module Revisions =
         for addRev in toAdd do
             do! Custom.nonQuery
                     $"INSERT INTO {revTable} VALUES (@id, @asOf, @text)"
-                    [ idParam key; sqlParam "asOf" (instantParam addRev.AsOf); sqlParam "@text" addRev.Text ]
+                    [ idParam key; sqlParam "asOf" (instantParam addRev.AsOf); sqlParam "@text" (string addRev.Text) ]
                     conn
     }

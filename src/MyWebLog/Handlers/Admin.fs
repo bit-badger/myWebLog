@@ -443,7 +443,7 @@ module Theme =
         let themeName = fileName.Split(".").[0].ToLowerInvariant().Replace(" ", "-")
         if themeName.EndsWith "-theme" then
             if Regex.IsMatch(themeName, """^[a-z0-9\-]+$""") then
-                Ok(ThemeId(themeName[..themeName.Length - 6]))
+                Ok(ThemeId(themeName[..themeName.Length - 7]))
             else Error $"Theme ID {fileName} is invalid"
         else Error "Theme .zip file name must end in \"-theme.zip\""
 

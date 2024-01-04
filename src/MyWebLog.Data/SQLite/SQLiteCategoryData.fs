@@ -24,7 +24,7 @@ type SQLiteCategoryData(conn: SqliteConnection, ser: JsonSerializer, log: ILogge
     let countTopLevel webLogId =
         log.LogTrace "Category.countTopLevel"
         conn.customScalar
-            $"{Document.Query.countByWebLog} AND data ->> '{parentIdField}' IS NULL"
+            $"{Document.Query.countByWebLog Table.Category} AND data ->> '{parentIdField}' IS NULL"
             [ webLogParam webLogId ]
             (toCount >> int)
     
@@ -79,11 +79,11 @@ type SQLiteCategoryData(conn: SqliteConnection, ser: JsonSerializer, log: ILogge
         match! findById catId webLogId with
         | Some cat ->
             // Reassign any children to the category's parent category
-            let! children = conn.countByField Table.Category parentIdField EQ catId
+            let! children = conn.countByField Table.Category parentIdField EQ (string catId)
             if children > 0 then
-                do! conn.patchByField Table.Category parentIdField EQ catId {| ParentId = cat.ParentId |}
+                do! conn.patchByField Table.Category parentIdField EQ (string catId) {| ParentId = cat.ParentId |}
             // Delete the category off all posts where it is assigned, and the category itself
-            let catIdField = Post.Empty.CategoryIds
+            let catIdField = nameof Post.Empty.CategoryIds
             let! posts =
                 conn.customList
                     $"SELECT data ->> '{Post.Empty.Id}', data -> '{catIdField}'
@@ -94,7 +94,7 @@ type SQLiteCategoryData(conn: SqliteConnection, ser: JsonSerializer, log: ILogge
                                   FROM json_each({Table.Post}.data -> '{catIdField}')
                                  WHERE json_each.value = @id)"
                     [ idParam catId; webLogParam webLogId ]
-                    (fun rdr -> rdr.GetString(0), Utils.deserialize<string list> ser (rdr.GetString(1)))
+                    (fun rdr -> rdr.GetString 0, Utils.deserialize<string list> ser (rdr.GetString 1))
             for postId, cats in posts do
                 do! conn.patchById
                         Table.Post postId {| CategoryIds = cats |> List.filter (fun it -> it <> string catId) |}

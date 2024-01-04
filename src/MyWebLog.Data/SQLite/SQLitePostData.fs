@@ -47,7 +47,7 @@ type SQLitePostData(conn: SqliteConnection, log: ILogger) =
     let countByStatus (status: PostStatus) webLogId =
         log.LogTrace "Post.countByStatus"
         conn.customScalar
-            $"""{Document.Query.countByWebLog} AND {Query.whereByField statName EQ "@status"}"""
+            $"""{Document.Query.countByWebLog Table.Post} AND {Query.whereByField statName EQ "@status"}"""
             [ webLogParam webLogId; SqliteParameter("@status", string status) ]
             (toCount >> int)
     

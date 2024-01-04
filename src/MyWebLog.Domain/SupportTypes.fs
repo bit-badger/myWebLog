@@ -13,7 +13,7 @@ module private Helpers =
     /// Create a new ID (short GUID)
     // https://www.madskristensen.net/blog/A-shorter-and-URL-friendly-GUID
     let newId () =
-        Convert.ToBase64String(Guid.NewGuid().ToByteArray()).Replace('/', '_').Replace('+', '-')[..22]
+        Convert.ToBase64String(Guid.NewGuid().ToByteArray()).Replace('/', '_').Replace('+', '-')[..21]
     
     /// Pipeline with most extensions enabled
     let markdownPipeline = MarkdownPipelineBuilder().UseSmartyPants().UseAdvancedExtensions().UseColorCode().Build()

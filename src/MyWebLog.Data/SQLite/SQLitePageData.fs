@@ -53,7 +53,7 @@ type SQLitePageData(conn: SqliteConnection, log: ILogger) =
     let countListed webLogId =
         log.LogTrace "Page.countListed"
         conn.customScalar
-            $"""{Document.Query.countByWebLog} AND {Query.whereByField pgListName EQ "'true'"}"""
+            $"""{Document.Query.countByWebLog Table.Page} AND {Query.whereByField pgListName EQ "'true'"}"""
             [ webLogParam webLogId ]
             (toCount >> int)
     
@@ -89,7 +89,7 @@ type SQLitePageData(conn: SqliteConnection, log: ILogger) =
     let findByPermalink (permalink: Permalink) webLogId =
         log.LogTrace "Page.findByPermalink"
         conn.customSingle
-            $"""{Document.Query.selectByWebLog} AND {Query.whereByField linkName EQ "@link"}"""
+            $"""{Document.Query.selectByWebLog Table.Page} AND {Query.whereByField linkName EQ "@link"}"""
             [ webLogParam webLogId; SqliteParameter("@link", string permalink) ]
             fromData<Page>
     

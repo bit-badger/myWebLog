@@ -17,16 +17,13 @@ type PostgresData(log: ILogger<PostgresData>, ser: JsonSerializer) =
         Configuration.useSerializer (Utils.createDocumentSerializer ser)
         
         let! tables =
-            Custom.list "SELECT tablename FROM pg_tables WHERE schemaname = 'public'" []
-                        (fun row -> row.string "tablename")
+            Custom.list
+                "SELECT tablename FROM pg_tables WHERE schemaname = 'public'" [] (fun row -> row.string "tablename")
         let needsTable table = not (List.contains table tables)
-        // Create a document table
-        let mutable isNew = false
         
         let sql = seq {
             // Theme tables
             if needsTable Table.Theme then
-                isNew <- true
                 Query.Definition.ensureTable Table.Theme
                 Query.Definition.ensureKey   Table.Theme
             if needsTable Table.ThemeAsset then
@@ -152,8 +149,7 @@ type PostgresData(log: ILogger<PostgresData>, ser: JsonSerializer) =
             " - Drop all tables from the database"
             " - Use this executable to restore each backup"; ""
             "Commands to back up all web logs:"
-            yield! webLogs |> List.map (fun (url, slug) -> $"./myWebLog backup {url} v2-rc2.{slug}.json")
-        ]
+            yield! webLogs |> List.map (fun (url, slug) -> $"./myWebLog backup {url} v2-rc2.{slug}.json") ]
         |> String.concat "\n"
         |> log.LogWarning
         

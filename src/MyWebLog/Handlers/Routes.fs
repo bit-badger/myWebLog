@@ -18,7 +18,7 @@ module CatchAll =
         let textLink =
             let extra = webLog.ExtraPath
             let url   = string ctx.Request.Path
-            (if extra = "" then url else url[..extra.Length]).ToLowerInvariant()
+            (if extra = "" then url else url[extra.Length..]).ToLowerInvariant()
         let await it = (Async.AwaitTask >> Async.RunSynchronously) it
         seq {
             debug (fun () -> $"Considering URL {textLink}")

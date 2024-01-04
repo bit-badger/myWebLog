@@ -79,7 +79,7 @@ module DataImplementation =
         let createSQLite connStr : IData =
             Sqlite.Configuration.useConnectionString connStr
             let log  = sp.GetRequiredService<ILogger<SQLiteData>>()
-            let conn = new SqliteConnection(connStr)
+            let conn = Sqlite.Configuration.dbConn ()
             log.LogInformation $"Using SQLite database {conn.DataSource}"
             SQLiteData(conn, log, Json.configure (JsonSerializer.CreateDefault()))
         
