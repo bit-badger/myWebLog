@@ -227,6 +227,9 @@ type Episode = {
     /// The MIME type for the chapter file
     ChapterType: string option
     
+    /// Whether the chapters have locations that should be displayed as waypoints
+    ChapterWaypoints: bool option
+    
     /// The URL for the transcript of the episode (may be permalink)
     TranscriptUrl: string option
     
@@ -264,6 +267,7 @@ type Episode = {
         Chapters           = None
         ChapterFile        = None
         ChapterType        = None
+        ChapterWaypoints   = None 
         TranscriptUrl      = None
         TranscriptType     = None
         TranscriptLang     = None
