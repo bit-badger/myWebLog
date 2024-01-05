@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/sdk:7.0-alpine AS build
+FROM mcr.microsoft.com/dotnet/sdk:8.0-alpine AS build
 WORKDIR /mwl
 COPY ./MyWebLog.sln                            ./
 COPY ./Directory.Build.props                   ./
@@ -9,7 +9,7 @@ RUN dotnet restore
 
 COPY . ./
 WORKDIR /mwl/MyWebLog
-RUN dotnet publish -f net7.0 -c Release -r linux-x64 --no-self-contained -p:PublishSingleFile=false
+RUN dotnet publish -f net8.0 -c Release -r linux-x64 --no-self-contained -p:PublishSingleFile=false
 
 FROM alpine AS theme
 RUN apk add --no-cache zip
@@ -19,12 +19,13 @@ RUN zip default-theme.zip ./default-theme/*
 COPY ./admin-theme ./admin-theme/
 RUN zip admin-theme.zip ./admin-theme/*
 
-FROM  mcr.microsoft.com/dotnet/aspnet:7.0-alpine as final
+FROM  mcr.microsoft.com/dotnet/aspnet:8.0-alpine as final
 WORKDIR /app
 RUN apk add --no-cache icu-libs
 ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
-COPY --from=build /mwl/MyWebLog/bin/Release/net7.0/linux-x64/publish/ ./
+COPY --from=build /mwl/MyWebLog/bin/Release/net8.0/linux-x64/publish/ ./
 COPY --from=theme /themes/*.zip /app/
+RUN mkdir themes
 
 EXPOSE 80
 CMD [ "dotnet", "/app/MyWebLog.dll" ]

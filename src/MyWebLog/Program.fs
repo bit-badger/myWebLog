@@ -98,7 +98,7 @@ module DataImplementation =
             log.LogInformation $"Using PostgreSQL database {conn.Database}"
             PostgresData(log, Json.configure (JsonSerializer.CreateDefault()))
         else
-            createSQLite "Data Source=./myweblog.db;Cache=Shared"
+            createSQLite "Data Source=./data/myweblog.db;Cache=Shared"
 
 
 open System.Threading.Tasks
@@ -176,7 +176,7 @@ let main args =
         let _ = builder.Services.AddScoped<SqliteConnection>(fun sp -> Sqlite.Configuration.dbConn ())
         let _ = builder.Services.AddScoped<IData, SQLiteData>()
         // Use SQLite for caching as well
-        let cachePath = defaultArg (Option.ofObj (cfg.GetConnectionString "SQLiteCachePath")) "./session.db"
+        let cachePath = defaultArg (Option.ofObj (cfg.GetConnectionString "SQLiteCachePath")) "./data/session.db"
         let _ = builder.Services.AddSqliteCache(fun o -> o.CachePath <- cachePath)
         ()
     | :? PostgresData as postgres ->
@@ -214,9 +214,12 @@ let main args =
         printfn $"""Unrecognized command "{it}" - valid commands are:"""
         showHelp ()
     | None -> task {
-        // Load all themes in the application directory
-        for themeFile in Directory.EnumerateFiles(".", "*-theme.zip") do
-            do! Maintenance.loadTheme [| ""; themeFile |] app.Services
+        // Load admin and default themes, and all themes in the /themes directory
+        do! Maintenance.loadTheme [| ""; "./admin-theme.zip"   |] app.Services
+        do! Maintenance.loadTheme [| ""; "./default-theme.zip" |] app.Services
+        if Directory.Exists "./themes" then
+            for themeFile in Directory.EnumerateFiles("./themes", "*-theme.zip") do
+                do! Maintenance.loadTheme [| ""; themeFile |] app.Services
             
         let _ = app.UseForwardedHeaders()
         

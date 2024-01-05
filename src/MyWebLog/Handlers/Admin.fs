@@ -482,7 +482,7 @@ module Theme =
                     do! ThemeAssetCache.refreshTheme themeId data
                     TemplateCache.invalidateTheme themeId
                     // Save the .zip file
-                    use file = new FileStream($"{themeId}-theme.zip", FileMode.Create)
+                    use file = new FileStream($"./themes/{themeId}-theme.zip", FileMode.Create)
                     do! themeFile.CopyToAsync file
                     do! addMessage ctx
                             { UserMessage.Success with
@@ -517,7 +517,7 @@ module Theme =
         | _ ->
             match! data.Theme.Delete (ThemeId themeId) with
             | true ->
-                let zippedTheme = $"{themeId}-theme.zip"
+                let zippedTheme = $"./themes/{themeId}-theme.zip"
                 if File.Exists zippedTheme then File.Delete zippedTheme
                 do! addMessage ctx { UserMessage.Success with Message = $"Theme ID {themeId} deleted successfully" }
                 return! all next ctx

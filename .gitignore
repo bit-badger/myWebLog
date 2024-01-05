@@ -265,4 +265,4 @@ src/MyWebLog/wwwroot/img/bit-badger
 src/MyWebLog/appsettings.Production.json
 
 # SQLite database files
-src/MyWebLog/*.db*
+src/MyWebLog/data/*.db*
