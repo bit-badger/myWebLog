@@ -656,6 +656,9 @@ type EditPostModel = {
     /// The type of the chapter file (optional; defaults to application/json+chapters if chapterFile is provided)
     ChapterType: string
     
+    /// Whether the chapter file (or chapters) contains/contain waypoints
+    ContainsWaypoints: bool
+    
     /// The URL for the transcript (may be permalink; optional)
     TranscriptUrl: string
     
@@ -714,6 +717,7 @@ type EditPostModel = {
             Explicit           = defaultArg (episode.Explicit |> Option.map string) ""
             ChapterFile        = defaultArg episode.ChapterFile ""
             ChapterType        = defaultArg episode.ChapterType ""
+            ContainsWaypoints  = defaultArg episode.ChapterWaypoints false
             TranscriptUrl      = defaultArg episode.TranscriptUrl ""
             TranscriptType     = defaultArg episode.TranscriptType ""
             TranscriptLang     = defaultArg episode.TranscriptLang ""
@@ -775,6 +779,7 @@ type EditPostModel = {
                             Chapters           = match post.Episode with Some e -> e.Chapters | None -> None
                             ChapterFile        = noneIfBlank this.ChapterFile
                             ChapterType        = noneIfBlank this.ChapterType
+                            ChapterWaypoints   = if this.ContainsWaypoints then Some true else None
                             TranscriptUrl      = noneIfBlank this.TranscriptUrl
                             TranscriptType     = noneIfBlank this.TranscriptType
                             TranscriptLang     = noneIfBlank this.TranscriptLang

@@ -214,6 +214,7 @@ type SQLiteData(conn: SqliteConnection, log: ILogger<SQLiteData>, ser: JsonSeria
                                            |> Option.map (Utils.deserialize<Chapter list> ser)
                       ChapterFile        = Map.tryString   "chapter_file"        epRdr
                       ChapterType        = Map.tryString   "chapter_type"        epRdr
+                      ChapterWaypoints   = None 
                       TranscriptUrl      = Map.tryString   "transcript_url"      epRdr
                       TranscriptType     = Map.tryString   "transcript_type"     epRdr
                       TranscriptLang     = Map.tryString   "transcript_lang"     epRdr

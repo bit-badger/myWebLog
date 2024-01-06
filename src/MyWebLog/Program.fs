@@ -50,6 +50,7 @@ type RedirectRuleMiddleware(next: RequestDelegate, log: ILogger<RedirectRuleMidd
 
 
 open System
+open System.IO
 open BitBadger.Documents
 open Microsoft.Extensions.DependencyInjection
 open MyWebLog.Data
@@ -98,6 +99,7 @@ module DataImplementation =
             log.LogInformation $"Using PostgreSQL database {conn.Database}"
             PostgresData(log, Json.configure (JsonSerializer.CreateDefault()))
         else
+            if not (Directory.Exists "./data") then Directory.CreateDirectory "./data" |> ignore
             createSQLite "Data Source=./data/myweblog.db;Cache=Shared"
 
 
@@ -122,7 +124,6 @@ let showHelp () =
     Task.FromResult()
 
 
-open System.IO
 open BitBadger.AspNetCore.CanonicalDomains
 open Giraffe
 open Giraffe.EndpointRouting
