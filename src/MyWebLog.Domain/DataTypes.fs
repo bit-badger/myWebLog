@@ -381,8 +381,12 @@ type WebLog = {
     /// Any extra path where this web log is hosted (blank if web log is hosted at the root of the domain)
     [<JsonIgnore>]
     member this.ExtraPath =
-        let path = this.UrlBase.Split("://").[1].Split "/"
-        if path.Length > 1 then $"""/{String.Join("/", path |> Array.skip 1)}""" else ""
+        let pathParts = this.UrlBase.Split("://")
+        if pathParts.Length < 2 then
+            ""
+        else
+            let path = pathParts[1].Split "/"
+            if path.Length > 1 then $"""/{String.Join("/", path |> Array.skip 1)}""" else ""
     
     /// Generate an absolute URL for the given link
     member this.AbsoluteUrl(permalink: Permalink) =
@@ -394,7 +398,7 @@ type WebLog = {
     
     /// Convert an Instant (UTC reference) to the web log's local date/time
     member this.LocalTime(date: Instant) =
-        match DateTimeZoneProviders.Tzdb[this.TimeZone] with
+        match DateTimeZoneProviders.Tzdb.GetZoneOrNull this.TimeZone with
         | null -> date.ToDateTimeUtc()
         | tz -> date.InZone(tz).ToDateTimeUnspecified()
 
@@ -454,5 +458,5 @@ type WebLogUser = {
     /// Get the user's displayed name
     [<JsonIgnore>]
     member this.DisplayName =
-        (seq { match this.PreferredName with "" -> this.FirstName | n -> n; " "; this.LastName }
+        (seq { (match this.PreferredName with "" -> this.FirstName | n -> n); " "; this.LastName }
          |> Seq.reduce (+)).Trim()
