@@ -660,7 +660,10 @@ type ThemeAssetId =
     /// Convert a string into a theme asset ID
     static member Parse(it : string) =
         let themeIdx = it.IndexOf "/"
-        ThemeAssetId(ThemeId it[..(themeIdx - 1)], it[(themeIdx + 1)..])
+        if themeIdx < 0 then
+            invalidArg "id" $"Invalid format; expected [theme_id]/[asset_id] (received {it})"
+        else
+            ThemeAssetId(ThemeId it[..(themeIdx - 1)], it[(themeIdx + 1)..])
     
     /// Convert a theme asset ID into a path string
     override this.ToString() =
