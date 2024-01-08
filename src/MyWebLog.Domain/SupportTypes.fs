@@ -554,7 +554,27 @@ type PodcastOptions = {
     
     /// The medium (what the podcast IS, not what it is ABOUT)
     Medium: PodcastMedium option
-}
+} with
+    
+    /// A default set of podcast options
+    static member Empty = {
+        Title            = ""
+        Subtitle         = None
+        ItemsInFeed      = 0
+        Summary          = ""
+        DisplayedAuthor  = ""
+        Email            = ""
+        ImageUrl         = Permalink.Empty
+        AppleCategory    = ""
+        AppleSubcategory = None
+        Explicit         = No
+        DefaultMediaType = None
+        MediaBaseUrl     = None
+        PodcastGuid      = None
+        FundingUrl       = None
+        FundingText      = None
+        Medium           = None 
+    }
 
 
 /// A custom feed

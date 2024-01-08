@@ -501,6 +501,75 @@ let webLogUserTests =
         ]
     ]
 
+// --- VIEW MODELS ---
+
+open MyWebLog.ViewModels
+
+/// Unit tests for the addBaseToRelativeUrls helper function
+let addBaseToRelativeUrlsTests =
+    testList "PublicHelpers.addBaseToRelativeUrls" [
+        test "succeeds when there is no extra URL path" {
+            let testText = """<a href="/somewhere-else.html">Howdy></a>"""
+            let modified = addBaseToRelativeUrls "" testText
+            Expect.equal modified testText "The text should not have been modified"
+        }
+        test "succeeds with an extra URL path" {
+            let testText =
+                """<a href="/my-link.htm"><img src="/pretty-picture.jpg"></a><a href="https://example.com>link</a>"""
+            let expected =
+                """<a href="/a/b/my-link.htm"><img src="/a/b/pretty-picture.jpg"></a><a href="https://example.com>link</a>"""
+            Expect.equal (addBaseToRelativeUrls "/a/b" testText) expected "Relative URLs not modified correctly"
+        }
+    ]
+
+/// Unit tests for the DisplayCustomFeed type
+let displayCustomFeedTests =
+    testList "DisplayCustomFeed.FromFeed" [
+        test "succeeds for a feed for an existing category" {
+            let cats =
+                [| { DisplayCategory.Id = "abc"
+                     Slug        = "a-b-c"
+                     Name        = "My Lovely Category"
+                     Description = None
+                     ParentNames = [||]
+                     PostCount   = 3 } |]
+            let feed =
+                { CustomFeed.Empty with
+                    Id     = CustomFeedId "test-feed"
+                    Source = Category (CategoryId "abc")
+                    Path   = Permalink "test-feed.xml" }
+            let model = DisplayCustomFeed.FromFeed cats feed
+            Expect.equal model.Id "test-feed" "Id not filled properly"
+            Expect.equal model.Source "Category: My Lovely Category" "Source not filled properly"
+            Expect.equal model.Path "test-feed.xml" "Path not filled properly"
+            Expect.isFalse model.IsPodcast "IsPodcast not filled properly"
+        }
+        test "succeeds for a feed for a non-existing category" {
+            let feed =
+                { CustomFeed.Empty with
+                    Id     = CustomFeedId "bad-feed"
+                    Source = Category (CategoryId "xyz")
+                    Path   = Permalink "trouble.xml" }
+            let model = DisplayCustomFeed.FromFeed [||] feed
+            Expect.equal model.Id "bad-feed" "Id not filled properly"
+            Expect.equal model.Source "Category: --INVALID; DELETE THIS FEED--" "Source not filled properly"
+            Expect.equal model.Path "trouble.xml" "Path not filled properly"
+            Expect.isFalse model.IsPodcast "IsPodcast not filled properly"
+        }
+        test "succeeds for a feed for a tag" {
+            let feed =
+                { Id      = CustomFeedId "tag-feed"
+                  Source  = Tag "testing"
+                  Path    = Permalink "testing-posts.xml"
+                  Podcast = Some PodcastOptions.Empty }
+            let model = DisplayCustomFeed.FromFeed [||] feed
+            Expect.equal model.Id "tag-feed" "Id not filled properly"
+            Expect.equal model.Source "Tag: testing" "Source not filled properly"
+            Expect.equal model.Path "testing-posts.xml" "Path not filled properly"
+            Expect.isTrue model.IsPodcast "IsPodcast not filled properly"
+        }
+    ]
+
 /// All tests for the Domain namespace
 let all =
     testList
@@ -519,4 +588,7 @@ let all =
           uploadDestinationTests
           // data types
           webLogTests
-          webLogUserTests ]
+          webLogUserTests
+          // view models
+          addBaseToRelativeUrlsTests
+          displayCustomFeedTests ]

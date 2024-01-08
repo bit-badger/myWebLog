@@ -89,7 +89,12 @@ type DisplayCustomFeed = {
     static member FromFeed (cats: DisplayCategory array) (feed: CustomFeed) =
         let source =
             match feed.Source with
-            | Category (CategoryId catId) -> $"Category: {(cats |> Array.find (fun cat -> cat.Id = catId)).Name}"
+            | Category (CategoryId catId) ->
+                cats
+                |> Array.tryFind (fun cat -> cat.Id = catId)
+                |> Option.map _.Name
+                |> Option.defaultValue "--INVALID; DELETE THIS FEED--"
+                |> sprintf "Category: %s"
             | Tag tag -> $"Tag: {tag}"
         {   Id        = string feed.Id
             Source    = source
