@@ -434,33 +434,33 @@ let webLogTests =
             }
             test "succeeds for single subdirectory" {
                 Expect.equal
-                    { WebLog.Empty with UrlBase = "http://a.com/subdir" }.ExtraPath
-                    "/subdir"
+                    { WebLog.Empty with UrlBase = "https://a.com/sub" }.ExtraPath
+                    "/sub"
                     "Extra path incorrect for a single subdirectory"
             }
             test "succeeds for deeper nesting" {
                 Expect.equal
-                    { WebLog.Empty with UrlBase = "http://b.com/users/test/units" }.ExtraPath
+                    { WebLog.Empty with UrlBase = "https://b.com/users/test/units" }.ExtraPath
                     "/users/test/units"
                     "Extra path incorrect for deeper nesting"
             }
         ]
         test "AbsoluteUrl succeeds" {
             Expect.equal
-                ({ WebLog.Empty with UrlBase = "http://my.site" }.AbsoluteUrl(Permalink "blog/page.html"))
-                "http://my.site/blog/page.html"
+                ({ WebLog.Empty with UrlBase = "https://my.site" }.AbsoluteUrl(Permalink "blog/page.html"))
+                "https://my.site/blog/page.html"
                 "Absolute URL is incorrect"
         }
         testList "RelativeUrl" [
             test "succeeds for domain root URL" {
                 Expect.equal
-                    ({ WebLog.Empty with UrlBase = "http://test.me" }.RelativeUrl(Permalink "about.htm"))
+                    ({ WebLog.Empty with UrlBase = "https://test.me" }.RelativeUrl(Permalink "about.htm"))
                     "/about.htm"
                     "Relative URL is incorrect for domain root site"
             }
             test "succeeds for domain non-root URL" {
                 Expect.equal
-                    ({ WebLog.Empty with UrlBase = "http://site.page/a/b/c" }.RelativeUrl(Permalink "x/y/z"))
+                    ({ WebLog.Empty with UrlBase = "https://site.page/a/b/c" }.RelativeUrl(Permalink "x/y/z"))
                     "/a/b/c/x/y/z"
                     "Relative URL is incorrect for domain non-root site"
             }
@@ -672,15 +672,15 @@ let displayThemeTests =
             Expect.isFalse model.IsOnDisk "IsOnDisk should not have been set"
         }
         test "succeeds when the theme is not in use as is on disk" {
-            let file = File.Create "the-theme-theme.zip"
+            let file = File.Create "another-theme.zip"
             try
-                let model = DisplayTheme.FromTheme (fun _ -> false) theme
+                let model = DisplayTheme.FromTheme (fun _ -> false) { theme with Id = ThemeId "another" }
                 Expect.isFalse model.IsInUse "IsInUse should not have been set"
                 Expect.isTrue model.IsOnDisk "IsOnDisk should have been set"
             finally
                file.Close()
                file.Dispose()
-               File.Delete "the-theme-theme.zip"
+               File.Delete "another-theme.zip"
         }
     ]
 
