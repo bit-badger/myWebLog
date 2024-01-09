@@ -570,6 +570,138 @@ let displayCustomFeedTests =
         }
     ]
 
+/// Unit tests for the DisplayPage type
+let displayPageTests =
+    testList "DisplayPage" [
+        let page =
+            { Page.Empty with
+                Id          = PageId "my-page"
+                AuthorId    = WebLogUserId "jim"
+                Title       = "A Fine Example"
+                Permalink   = Permalink "about/a-fine-example.html"
+                PublishedOn = Noda.epoch
+                UpdatedOn   = Noda.epoch + Duration.FromHours 1
+                Text        = """<a href="/link.html">Click Me!</a>"""
+                Metadata    = [ { Name = "unit"; Value = "test" } ] }
+        testList "FromPageMinimal" [
+            test "succeeds when page is default page" {
+                let webLog = { WebLog.Empty with TimeZone = "Etc/GMT-1"; DefaultPage = "my-page" }
+                let model = DisplayPage.FromPageMinimal webLog page
+                Expect.equal model.Id "my-page" "Id not filled properly"
+                Expect.equal model.AuthorId "jim" "AuthorId not filled properly"
+                Expect.equal model.Title "A Fine Example" "Title not filled properly"
+                Expect.equal model.Permalink "about/a-fine-example.html" "Permalink not filled properly"
+                Expect.equal
+                    model.PublishedOn
+                    ((Noda.epoch + Duration.FromHours 1).ToDateTimeUtc())
+                    "PublishedOn not filled properly"
+                Expect.equal
+                    model.UpdatedOn
+                    ((Noda.epoch + Duration.FromHours 2).ToDateTimeUtc())
+                    "UpdatedOn not filled properly"
+                Expect.isFalse model.IsInPageList "IsInPageList should not have been set"
+                Expect.isTrue model.IsDefault "IsDefault should have been set"
+                Expect.equal model.Text "" "Text should have been blank"
+                Expect.isEmpty model.Metadata "Metadata should have been empty"
+            }
+            test "succeeds when page is not the default page" {
+                let model = DisplayPage.FromPageMinimal { WebLog.Empty with DefaultPage = "posts" } page
+                Expect.isFalse model.IsDefault "IsDefault should not have been set"
+            }
+        ]
+        testList "FromPage" [
+            test "succeeds when the web log is on the domain root" {
+                let webLog = { WebLog.Empty with TimeZone = "Etc/GMT-4"; UrlBase = "https://example.com" }
+                let model = DisplayPage.FromPage webLog page
+                Expect.equal model.Id "my-page" "Id not filled properly"
+                Expect.equal model.AuthorId "jim" "AuthorId not filled properly"
+                Expect.equal model.Title "A Fine Example" "Title not filled properly"
+                Expect.equal model.Permalink "about/a-fine-example.html" "Permalink not filled properly"
+                Expect.equal
+                    model.PublishedOn
+                    ((Noda.epoch + Duration.FromHours 4).ToDateTimeUtc())
+                    "PublishedOn not filled properly"
+                Expect.equal
+                    model.UpdatedOn
+                    ((Noda.epoch + Duration.FromHours 5).ToDateTimeUtc())
+                    "UpdatedOn not filled properly"
+                Expect.isFalse model.IsInPageList "IsInPageList should not have been set"
+                Expect.isFalse model.IsDefault "IsDefault should not have been set"
+                Expect.equal model.Text """<a href="/link.html">Click Me!</a>""" "Text not filled properly"
+                Expect.equal model.Metadata.Length 1 "Metadata not filled properly"
+            }
+            test "succeeds when the web log is not on the domain root" {
+                let model = DisplayPage.FromPage { WebLog.Empty with UrlBase = "https://example.com/a/b/c" } page
+                Expect.equal model.Text """<a href="/a/b/c/link.html">Click Me!</a>""" "Text not filled properly"
+            }
+        ]
+    ]
+
+/// Unit tests for the DisplayRevision type
+let displayRevisionTests =
+    test "DisplayRevision.FromRevision succeeds" {
+        let model =
+            DisplayRevision.FromRevision
+                { WebLog.Empty with TimeZone = "Etc/GMT+1" }
+                { Text = Html "howdy"; AsOf = Noda.epoch }
+        Expect.equal model.AsOf (Noda.epoch.ToDateTimeUtc()) "AsOf not filled properly"
+        Expect.equal
+            model.AsOfLocal ((Noda.epoch - Duration.FromHours 1).ToDateTimeUtc()) "AsOfLocal not filled properly"
+        Expect.equal model.Format "HTML" "Format not filled properly"
+    }
+
+open System.IO
+
+/// Unit tests for the DisplayTheme type
+let displayThemeTests =
+    testList "DisplayTheme.FromTheme" [
+        let theme =
+            { Id        = ThemeId "the-theme"
+              Name      = "Test Theme"
+              Version   = "v0.1.2"
+              Templates = [ ThemeTemplate.Empty; ThemeTemplate.Empty ] }
+        test "succeeds when theme is in use and not on disk" {
+            let model =
+                DisplayTheme.FromTheme
+                    (fun it -> Expect.equal it (ThemeId "the-theme") "The theme ID not passed correctly"; true) theme
+            Expect.equal model.Id "the-theme" "Id not filled properly"
+            Expect.equal model.Name "Test Theme" "Name not filled properly"
+            Expect.equal model.Version "v0.1.2" "Version not filled properly"
+            Expect.equal model.TemplateCount 2 "TemplateCount not filled properly"
+            Expect.isTrue model.IsInUse "IsInUse should have been set"
+            Expect.isFalse model.IsOnDisk "IsOnDisk should not have been set"
+        }
+        test "succeeds when the theme is not in use as is on disk" {
+            let file = File.Create "the-theme-theme.zip"
+            try
+                let model = DisplayTheme.FromTheme (fun _ -> false) theme
+                Expect.isFalse model.IsInUse "IsInUse should not have been set"
+                Expect.isTrue model.IsOnDisk "IsOnDisk should have been set"
+            finally
+               file.Close()
+               file.Dispose()
+               File.Delete "the-theme-theme.zip"
+        }
+    ]
+
+/// Unit tests for the DisplayUpload type
+let displayUploadTests =
+    test "DisplayUpload.FromUpload succeeds" {
+        let upload =
+            { Upload.Empty with
+                Id        = UploadId "test-up"
+                Path      = Permalink "2022/04/my-pic.jpg"
+                UpdatedOn = Noda.epoch }
+        let model = DisplayUpload.FromUpload { WebLog.Empty with TimeZone = "Etc/GMT-1" } Database upload
+        Expect.equal model.Id "test-up" "Id not filled properly"
+        Expect.equal model.Name "my-pic.jpg" "Name not filled properly"
+        Expect.equal model.Path "2022/04/" "Path not filled properly"
+        Expect.equal model.Source "Database" "Source not filled properly"
+        Expect.isSome model.UpdatedOn "There should have been an UpdatedOn value"
+        Expect.equal
+            model.UpdatedOn.Value ((Noda.epoch + Duration.FromHours 1).ToDateTimeUtc()) "UpdatedOn not filled properly"
+    }
+
 /// All tests for the Domain namespace
 let all =
     testList
@@ -591,4 +723,8 @@ let all =
           webLogUserTests
           // view models
           addBaseToRelativeUrlsTests
-          displayCustomFeedTests ]
+          displayCustomFeedTests
+          displayPageTests
+          displayRevisionTests
+          displayThemeTests
+          displayUploadTests ]
