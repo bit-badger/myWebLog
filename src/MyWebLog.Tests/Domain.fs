@@ -702,6 +702,48 @@ let displayUploadTests =
             model.UpdatedOn.Value ((Noda.epoch + Duration.FromHours 1).ToDateTimeUtc()) "UpdatedOn not filled properly"
     }
 
+/// Unit tests for the DisplayUser type
+let displayUserTests =
+    testList "DisplayUser.FromUser" [
+        let minimalUser =
+            { WebLogUser.Empty with
+                Id            = WebLogUserId "test-user"
+                Email         = "jim.james@example.com"
+                FirstName     = "Jim"
+                LastName      = "James"
+                PreferredName = "John"
+                AccessLevel   = Editor
+                CreatedOn     = Noda.epoch }
+        test "succeeds when the user has minimal information" {
+            let model = DisplayUser.FromUser WebLog.Empty minimalUser
+            Expect.equal model.Id "test-user" "Id not filled properly"
+            Expect.equal model.Email "jim.james@example.com" "Email not filled properly"
+            Expect.equal model.FirstName "Jim" "FirstName not filled properly"
+            Expect.equal model.LastName "James" "LastName not filled properly"
+            Expect.equal model.PreferredName "John" "PreferredName not filled properly"
+            Expect.equal model.Url "" "Url not filled properly"
+            Expect.equal model.AccessLevel "Editor" "AccessLevel not filled properly"
+            Expect.equal model.CreatedOn (Noda.epoch.ToDateTimeUtc()) "CreatedOn not filled properly"
+            Expect.isFalse model.LastSeenOn.HasValue "LastSeenOn should have been null"
+        }
+        test "succeeds when the user has all information" {
+            let model =
+                DisplayUser.FromUser
+                    { WebLog.Empty with TimeZone = "Etc/GMT-1" }
+                    { minimalUser with
+                        Url = Some "https://my.site"
+                        LastSeenOn = Some (Noda.epoch + Duration.FromDays 4) } 
+            Expect.equal model.Url "https://my.site" "Url not filled properly"
+            Expect.equal
+                model.CreatedOn ((Noda.epoch + Duration.FromHours 1).ToDateTimeUtc()) "CreatedOn not filled properly"
+            Expect.isTrue model.LastSeenOn.HasValue "LastSeenOn should not have been null"
+            Expect.equal
+                model.LastSeenOn.Value
+                ((Noda.epoch + Duration.FromDays 4 + Duration.FromHours 1).ToDateTimeUtc())
+                "LastSeenOn not filled properly"
+        }
+    ]
+
 /// All tests for the Domain namespace
 let all =
     testList
@@ -727,4 +769,5 @@ let all =
           displayPageTests
           displayRevisionTests
           displayThemeTests
-          displayUploadTests ]
+          displayUploadTests
+          displayUserTests ]
