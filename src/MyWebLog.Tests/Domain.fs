@@ -744,6 +744,39 @@ let displayUserTests =
         }
     ]
 
+/// Unit tests for the EditCategoryModel type
+let editCategoryModelTests =
+    testList "EditCategoryModel" [
+        testList "FromCategory" [
+            let minimalCat = { Category.Empty with Id = CategoryId "test-cat"; Name = "test"; Slug = "test-slug" }
+            test "succeeds with minimal information" {
+                let model = EditCategoryModel.FromCategory minimalCat
+                Expect.equal model.CategoryId "test-cat" "CategoryId not filled properly"
+                Expect.equal model.Name "test" "Name not filled properly"
+                Expect.equal model.Slug "test-slug" "Slug not filled properly"
+                Expect.equal model.Description "" "Description not filled properly"
+                Expect.equal model.ParentId "" "ParentId not filled properly"
+            }
+            test "succeeds with complete information" {
+                let model =
+                    EditCategoryModel.FromCategory
+                        { minimalCat with Description = Some "Testing"; ParentId = Some (CategoryId "parent") }
+                Expect.equal model.Description "Testing" "Description not filled properly"
+                Expect.equal model.ParentId "parent" "ParentId not filled properly"
+            }
+        ]
+        testList "IsNew" [
+            test "succeeds for a new category" {
+                let model = EditCategoryModel.FromCategory { Category.Empty with Id = CategoryId "new" }
+                Expect.isTrue model.IsNew "Category should have been considered new"
+            }
+            test "succeeds for a non-new category" {
+                let model = EditCategoryModel.FromCategory Category.Empty
+                Expect.isFalse model.IsNew "Category should not have been considered new"
+            }
+        ]
+    ]
+
 /// All tests for the Domain namespace
 let all =
     testList
@@ -770,4 +803,5 @@ let all =
           displayRevisionTests
           displayThemeTests
           displayUploadTests
-          displayUserTests ]
+          displayUserTests
+          editCategoryModelTests ]
