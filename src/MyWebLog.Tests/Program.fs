@@ -3,7 +3,7 @@
 let allTests =
     testList
         "MyWebLog"
-        [ Domain.all ]
+        [ testList "Domain" [ SupportTypesTests.all; DataTypesTests.all; ViewModelsTests.all ] ]
 
 [<EntryPoint>]
 let main args = runTestsWithCLIArgs [] args allTests
