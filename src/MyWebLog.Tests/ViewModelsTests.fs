@@ -454,6 +454,123 @@ let editMyInfoModelTests = test "EditMyInfoModel.FromUser succeeds" {
     Expect.equal model.NewPasswordConfirm "" "NewPasswordConfirm not filled properly"
 }
 
+let editPageModelTests = testList "EditPageModel" [
+    let fullPage =
+        { Page.Empty with
+            Id           = PageId "the-page"
+            Title        = "Test Page"
+            Permalink    = Permalink "blog/page.html"
+            Template     = Some "bork"
+            IsInPageList = true
+            Revisions    =
+                [ { AsOf = Noda.epoch + Duration.FromHours 1; Text = Markdown "# Howdy!" }
+                  { AsOf = Noda.epoch; Text = Html "<h1>howdy</h1>" } ]
+            Metadata     = [ { Name = "Test"; Value = "me" }; { Name = "Two"; Value = "2" } ] }
+    testList "FromPage" [
+        test "succeeds for empty page" {
+            let model = EditPageModel.FromPage { Page.Empty with Id = PageId "abc" }
+            Expect.equal model.PageId "abc" "PageId not filled properly"
+            Expect.equal model.Title "" "Title not filled properly"
+            Expect.equal model.Permalink "" "Permalink not filled properly"
+            Expect.equal model.Template "" "Template not filled properly"
+            Expect.isFalse model.IsShownInPageList "IsShownInPageList should not have been set"
+            Expect.equal model.Source "HTML" "Source not filled properly"
+            Expect.equal model.Text "" "Text not set properly"
+            Expect.equal model.MetaNames.Length 1 "MetaNames should have one entry"
+            Expect.equal model.MetaNames[0] "" "Meta name not set properly"
+            Expect.equal model.MetaValues.Length 1 "MetaValues should have one entry"
+            Expect.equal model.MetaValues[0] "" "Meta value not set properly"
+        }
+        test "succeeds for filled page" {
+            let model = EditPageModel.FromPage fullPage
+            Expect.equal model.PageId "the-page" "PageId not filled properly"
+            Expect.equal model.Title "Test Page" "Title not filled properly"
+            Expect.equal model.Permalink "blog/page.html" "Permalink not filled properly"
+            Expect.equal model.Template "bork" "Template not filled properly"
+            Expect.isTrue model.IsShownInPageList "IsShownInPageList should have been set"
+            Expect.equal model.Source "Markdown" "Source not filled properly"
+            Expect.equal model.Text "# Howdy!" "Text not filled properly"
+            Expect.equal model.MetaNames.Length 2 "MetaNames should have two entries"
+            Expect.equal model.MetaNames[0] "Test" "Meta name 0 not set properly"
+            Expect.equal model.MetaNames[1] "Two" "Meta name 1 not set properly"
+            Expect.equal model.MetaValues.Length 2 "MetaValues should have two entries"
+            Expect.equal model.MetaValues[0] "me" "Meta value 0 not set properly"
+            Expect.equal model.MetaValues[1] "2" "Meta value 1 not set properly"
+        }
+    ]
+    testList "IsNew" [
+        test "succeeds for a new page" {
+            Expect.isTrue
+                (EditPageModel.FromPage { Page.Empty with Id = PageId "new" }).IsNew "IsNew should have been set"
+        }
+        test "succeeds for an existing page" {
+            Expect.isFalse (EditPageModel.FromPage Page.Empty).IsNew "IsNew should not have been set"
+        }
+    ]
+    testList "UpdatePage" [
+        test "succeeds with minimal changes" {
+            let model = { EditPageModel.FromPage fullPage with Title = "Updated Page"; IsShownInPageList = false }
+            let page = model.UpdatePage fullPage (Noda.epoch + Duration.FromHours 4)
+            Expect.equal page.Title "Updated Page" "Title not filled properly"
+            Expect.equal page.Permalink (Permalink "blog/page.html") "Permalink not filled properly"
+            Expect.isEmpty page.PriorPermalinks "PriorPermalinks should be empty"
+            Expect.equal page.UpdatedOn (Noda.epoch + Duration.FromHours 4) "UpdatedOn not filled properly"
+            Expect.isFalse page.IsInPageList "IsInPageList should have been unset"
+            Expect.equal page.Template (Some "bork") "Template not filled properly"
+            Expect.equal page.Text "<h1 id=\"howdy\">Howdy!</h1>\n" "Text not filled properly"
+            Expect.equal page.Metadata.Length 2 "There should be 2 metadata items"
+            let item1 = List.item 0 page.Metadata
+            Expect.equal item1.Name "Test" "Meta item 0 name not filled properly"
+            Expect.equal item1.Value "me" "Meta item 0 value not filled properly"
+            let item2 = List.item 1 page.Metadata
+            Expect.equal item2.Name "Two" "Meta item 1 name not filled properly"
+            Expect.equal item2.Value "2" "Meta item 1 value not filled properly"
+            Expect.equal page.Revisions.Length 2 "There should be 2 revisions"
+            let rev1 = List.item 0 page.Revisions
+            Expect.equal rev1.AsOf (Noda.epoch + Duration.FromHours 1) "Revision 0 as-of not filled properly"
+            Expect.equal rev1.Text (Markdown "# Howdy!") "Revision 0 text not filled properly"
+            let rev2 = List.item 1 page.Revisions
+            Expect.equal rev2.AsOf Noda.epoch "Revision 1 as-of not filled properly"
+            Expect.equal rev2.Text (Html "<h1>howdy</h1>") "Revision 1 text not filled properly"
+        }
+        test "succeeds with all changes" {
+            let model =
+                { PageId            = "this-page"
+                  Title             = "My Updated Page"
+                  Permalink         = "blog/updated.html"
+                  Template          = ""
+                  IsShownInPageList = false
+                  Source            = "HTML"
+                  Text              = "<h1>Howdy, partners!</h1>"
+                  MetaNames         = [| "banana"; "apple"; "grape" |]
+                  MetaValues        = [| "monkey"; "zebra"; "ape"   |] }
+            let now = Noda.epoch + Duration.FromDays 7
+            let page = model.UpdatePage fullPage now
+            Expect.equal page.Title "My Updated Page" "Title not filled properly"
+            Expect.equal page.Permalink (Permalink "blog/updated.html") "Permalink not filled properly"
+            Expect.equal page.PriorPermalinks [ Permalink "blog/page.html" ] "PriorPermalinks not filled properly"
+            Expect.equal page.UpdatedOn now "UpdatedOn not filled properly"
+            Expect.isFalse page.IsInPageList "IsInPageList should not have been set"
+            Expect.isNone page.Template "Template not filled properly"
+            Expect.equal page.Text "<h1>Howdy, partners!</h1>" "Text not filled properly"
+            Expect.equal page.Metadata.Length 3 "There should be 3 metadata items"
+            let item1 = List.item 0 page.Metadata
+            Expect.equal item1.Name "apple" "Meta item 0 name not filled properly"
+            Expect.equal item1.Value "zebra" "Meta item 0 value not filled properly"
+            let item2 = List.item 1 page.Metadata
+            Expect.equal item2.Name "banana" "Meta item 1 name not filled properly"
+            Expect.equal item2.Value "monkey" "Meta item 1 value not filled properly"
+            let item3 = List.item 2 page.Metadata
+            Expect.equal item3.Name "grape" "Meta item 2 name not filled properly"
+            Expect.equal item3.Value "ape" "Meta item 2 value not filled properly"
+            Expect.equal page.Revisions.Length 3 "There should be 3 revisions"
+            Expect.equal page.Revisions.Head.AsOf now "Head revision as-of not filled properly"
+            Expect.equal
+                page.Revisions.Head.Text (Html "<h1>Howdy, partners!</h1>") "Head revision text not filled properly"
+        }
+    ]
+]
+
 /// All tests in the Domain.ViewModels file
 let all = testList "ViewModels" [
     addBaseToRelativeUrlsTests
@@ -466,4 +583,5 @@ let all = testList "ViewModels" [
     editCategoryModelTests
     editCustomFeedModelTests
     editMyInfoModelTests
+    editPageModelTests
 ]
