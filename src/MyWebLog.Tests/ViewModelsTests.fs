@@ -571,6 +571,142 @@ let editPageModelTests = testList "EditPageModel" [
     ]
 ]
 
+/// Unit tests for the EditPostModel type
+let editPostModelTests = testList "EditPostModel" [
+    let fullPost =
+        { Post.Empty with
+            Id          = PostId "a-post"
+            Status      = Published
+            Title       = "A Post"
+            Permalink   = Permalink "1970/01/a-post.html"
+            PublishedOn = Some (Noda.epoch + Duration.FromDays 7)
+            UpdatedOn   = Noda.epoch + Duration.FromDays 365
+            Template    = Some "demo"
+            Text        = "<p>A post!</p>"
+            CategoryIds = [ CategoryId "cat-a"; CategoryId "cat-b"; CategoryId "cat-n" ]
+            Tags        = [ "demo"; "post" ]
+            Metadata    = [ { Name = "A Meta"; Value = "A Value" } ]
+            Revisions   =
+                [ { AsOf = Noda.epoch + Duration.FromDays 365; Text = Html "<p>A post!</p>" }
+                  { AsOf = Noda.epoch + Duration.FromDays 7;   Text = Markdown "A post!" } ]
+            Episode     =
+                Some { Media              = "a-post-ep.mp3"
+                       Length             = 15555L
+                       Duration           = Some (Duration.FromMinutes 15L + Duration.FromSeconds 22L)
+                       MediaType          = Some "audio/mpeg3"
+                       ImageUrl           = Some "uploads/podcast-cover.jpg"
+                       Subtitle           = Some "Narration"
+                       Explicit           = Some Clean
+                       Chapters           = None // for future implementation 
+                       ChapterFile        = Some "uploads/1970/01/chapters.txt"
+                       ChapterType        = Some "chapters"
+                       ChapterWaypoints   = Some true
+                       TranscriptUrl      = Some "uploads/1970/01/transcript.txt"
+                       TranscriptType     = Some "transcript"
+                       TranscriptLang     = Some "EN-us"
+                       TranscriptCaptions = Some true
+                       SeasonNumber       = Some 3
+                       SeasonDescription  = Some "Season Three"
+                       EpisodeNumber      = Some 322.
+                       EpisodeDescription = Some "Episode 322" } }
+    testList "FromPost" [
+        test "succeeds for empty post" {
+            let model = EditPostModel.FromPost WebLog.Empty { Post.Empty with Id = PostId "lalala" }
+            Expect.equal model.PostId "lalala" "PostId not filled properly"
+            Expect.equal model.Title "" "Title not filled properly"
+            Expect.equal model.Permalink "" "Permalink not filled properly"
+            Expect.equal model.Source "HTML" "Source not filled properly"
+            Expect.equal model.Text "" "Text not filled properly"
+            Expect.equal model.Tags "" "Tags not filled properly"
+            Expect.equal model.Template "" "Template not filled properly"
+            Expect.isEmpty model.CategoryIds "CategoryIds not filled properly"
+            Expect.equal model.Status (string Draft) "Status not filled properly"
+            Expect.isFalse model.DoPublish "DoPublish should not have been set"
+            Expect.equal model.MetaNames.Length 1 "MetaNames not filled properly"
+            Expect.equal model.MetaNames[0] "" "Meta name 0 not filled properly"
+            Expect.equal model.MetaValues.Length 1 "MetaValues not filled properly"
+            Expect.equal model.MetaValues[0] "" "Meta value 0 not filled properly"
+            Expect.isFalse model.SetPublished "SetPublished should not have been set"
+            Expect.isFalse model.PubOverride.HasValue "PubOverride not filled properly"
+            Expect.isFalse model.SetUpdated "SetUpdated should not have been set"
+            Expect.isFalse model.IsEpisode "IsEpisode should not have been set"
+            Expect.equal model.Media "" "Media not filled properly"
+            Expect.equal model.Length 0L "Length not filled properly"
+            Expect.equal model.Duration "" "Duration not filled properly"
+            Expect.equal model.MediaType "" "MediaType not filled properly"
+            Expect.equal model.ImageUrl "" "ImageUrl not filled properly"
+            Expect.equal model.Subtitle "" "Subtitle not filled properly"
+            Expect.equal model.Explicit "" "Explicit not filled properly"
+            Expect.equal model.ChapterFile "" "ChapterFile not filled properly"
+            Expect.equal model.ChapterType "" "ChapterType not filled properly"
+            Expect.isFalse model.ContainsWaypoints "ContainsWaypoints should not have been set"
+            Expect.equal model.TranscriptUrl "" "TranscriptUrl not filled properly"
+            Expect.equal model.TranscriptType "" "TranscriptType not filled properly"
+            Expect.equal model.TranscriptLang "" "TranscriptLang not filled properly"
+            Expect.isFalse model.TranscriptCaptions "TranscriptCaptions should not have been set"
+            Expect.equal model.SeasonNumber 0 "SeasonNumber not filled properly"
+            Expect.equal model.SeasonDescription "" "SeasonDescription not filled properly"
+            Expect.equal model.EpisodeNumber "" "EpisodeNumber not filled properly"
+            Expect.equal model.EpisodeDescription "" "EpisodeDescription not filled properly"
+        }
+        test "succeeds for full post" {
+            let model = EditPostModel.FromPost { WebLog.Empty with TimeZone = "Etc/GMT+1" } fullPost
+            Expect.equal model.PostId "a-post" "PostId not filled properly"
+            Expect.equal model.Title "A Post" "Title not filled properly"
+            Expect.equal model.Permalink "1970/01/a-post.html" "Permalink not filled properly"
+            Expect.equal model.Source "HTML" "Source not filled properly"
+            Expect.equal model.Text "<p>A post!</p>" "Text not filled properly"
+            Expect.equal model.Tags "demo, post" "Tags not filled properly"
+            Expect.equal model.Template "demo" "Template not filled properly"
+            Expect.equal model.CategoryIds [| "cat-a"; "cat-b"; "cat-n" |] "CategoryIds not filled properly"
+            Expect.equal model.Status (string Published) "Status not filled properly"
+            Expect.isFalse model.DoPublish "DoPublish should not have been set"
+            Expect.equal model.MetaNames.Length 1 "MetaNames not filled properly"
+            Expect.equal model.MetaNames[0] "A Meta" "Meta name 0 not filled properly"
+            Expect.equal model.MetaValues.Length 1 "MetaValues not filled properly"
+            Expect.equal model.MetaValues[0] "A Value" "Meta value 0 not filled properly"
+            Expect.isFalse model.SetPublished "SetPublished should not have been set"
+            Expect.isTrue model.PubOverride.HasValue "PubOverride should not have been null"
+            Expect.equal
+                model.PubOverride.Value
+                ((Noda.epoch + Duration.FromDays 7 - Duration.FromHours 1).ToDateTimeUtc())
+                "PubOverride not filled properly"
+            Expect.isFalse model.SetUpdated "SetUpdated should not have been set"
+            Expect.isTrue model.IsEpisode "IsEpisode should have been set"
+            Expect.equal model.Media "a-post-ep.mp3" "Media not filled properly"
+            Expect.equal model.Length 15555L "Length not filled properly"
+            Expect.equal model.Duration "0:15:22" "Duration not filled properly"
+            Expect.equal model.MediaType "audio/mpeg3" "MediaType not filled properly"
+            Expect.equal model.ImageUrl "uploads/podcast-cover.jpg" "ImageUrl not filled properly"
+            Expect.equal model.Subtitle "Narration" "Subtitle not filled properly"
+            Expect.equal model.Explicit "clean" "Explicit not filled properly"
+            Expect.equal model.ChapterFile "uploads/1970/01/chapters.txt" "ChapterFile not filled properly"
+            Expect.equal model.ChapterType "chapters" "ChapterType not filled properly"
+            Expect.isTrue model.ContainsWaypoints "ContainsWaypoints should have been set"
+            Expect.equal model.TranscriptUrl "uploads/1970/01/transcript.txt" "TranscriptUrl not filled properly"
+            Expect.equal model.TranscriptType "transcript" "TranscriptType not filled properly"
+            Expect.equal model.TranscriptLang "EN-us" "TranscriptLang not filled properly"
+            Expect.isTrue model.TranscriptCaptions "TranscriptCaptions should have been set"
+            Expect.equal model.SeasonNumber 3 "SeasonNumber not filled properly"
+            Expect.equal model.SeasonDescription "Season Three" "SeasonDescription not filled properly"
+            Expect.equal model.EpisodeNumber "322" "EpisodeNumber not filled properly"
+            Expect.equal model.EpisodeDescription "Episode 322" "EpisodeDescription not filled properly"
+        }
+    ]
+    testList "IsNew" [
+        test "succeeds for a new post" {
+            Expect.isTrue
+                (EditPostModel.FromPost WebLog.Empty { Post.Empty with Id = PostId "new" }).IsNew
+                "IsNew should be set for new post"
+        }
+        test "succeeds for a not-new post" {
+            Expect.isFalse
+                (EditPostModel.FromPost WebLog.Empty { Post.Empty with Id = PostId "nu" }).IsNew
+                "IsNew should not be set for not-new post"
+        }
+    ]
+]
+
 /// All tests in the Domain.ViewModels file
 let all = testList "ViewModels" [
     addBaseToRelativeUrlsTests
@@ -584,4 +720,5 @@ let all = testList "ViewModels" [
     editCustomFeedModelTests
     editMyInfoModelTests
     editPageModelTests
+    editPostModelTests
 ]
