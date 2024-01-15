@@ -705,6 +705,130 @@ let editPostModelTests = testList "EditPostModel" [
                 "IsNew should not be set for not-new post"
         }
     ]
+    let updatedModel =
+        { EditPostModel.FromPost WebLog.Empty fullPost with
+            Title              = "An Updated Post"
+            Permalink          = "1970/01/updated-post.html"
+            Source             = "HTML"
+            Text               = "<p>An updated post!</p>"
+            Tags               = "Zebras, Aardvarks, , Turkeys"
+            Template           = "updated" 
+            CategoryIds        = [| "cat-x"; "cat-y" |]
+            MetaNames          = [| "Zed Meta"; "A Meta" |]
+            MetaValues         = [| "A Value"; "Zed Value" |]
+            Media              = "an-updated-ep.mp3"
+            Length             = 14444L
+            Duration           = "0:14:42"
+            MediaType          = "audio/mp3"
+            ImageUrl           = "updated-cover.png"
+            Subtitle           = "Talking"
+            Explicit           = "no"
+            ChapterFile        = "updated-chapters.txt"
+            ChapterType        = "indexes"
+            TranscriptUrl      = "updated-transcript.txt"
+            TranscriptType     = "subtitles"
+            TranscriptLang     = "ES-mx"
+            SeasonNumber       = 4
+            SeasonDescription  = "Season Fo"
+            EpisodeNumber      = "432.1" 
+            EpisodeDescription = "Four Three Two pt One" }
+    testList "UpdatePost" [
+        test "succeeds for a full podcast episode" {
+            let post = updatedModel.UpdatePost fullPost (Noda.epoch + Duration.FromDays 400)
+            Expect.equal post.Title "An Updated Post" "Title not filled properly"
+            Expect.equal post.Permalink (Permalink "1970/01/updated-post.html") "Permalink not filled properly"
+            Expect.equal post.PriorPermalinks [ Permalink "1970/01/a-post.html" ] "PriorPermalinks not filled properly"
+            Expect.equal post.PublishedOn fullPost.PublishedOn "PublishedOn should not have changed"
+            Expect.equal post.UpdatedOn (Noda.epoch + Duration.FromDays 400) "UpdatedOn not filled properly"
+            Expect.equal post.Text "<p>An updated post!</p>" "Text not filled properly"
+            Expect.equal post.Tags [ "aardvarks"; "turkeys"; "zebras" ] "Tags not filled properly"
+            Expect.equal post.Template (Some "updated") "Template not filled properly"
+            Expect.equal post.CategoryIds [ CategoryId "cat-x"; CategoryId "cat-y" ] "Categories not filled properly"
+            Expect.equal post.Metadata.Length 2 "There should have been 2 meta items"
+            Expect.equal post.Metadata[0].Name "A Meta" "Meta item 0 name not filled properly"
+            Expect.equal post.Metadata[0].Value "Zed Value" "Meta item 0 value not filled properly"
+            Expect.equal post.Metadata[1].Name "Zed Meta" "Meta item 1 name not filled properly"
+            Expect.equal post.Metadata[1].Value "A Value" "Meta item 1 value not filled properly"
+            Expect.equal post.Revisions.Length 3 "There should have been 3 revisions"
+            Expect.equal
+                post.Revisions[0].AsOf (Noda.epoch + Duration.FromDays 400) "Revision 0 AsOf not filled properly"
+            Expect.equal post.Revisions[0].Text (Html "<p>An updated post!</p>") "Revision 0 Text not filled properly"
+            Expect.isSome post.Episode "There should have been a podcast episode"
+            let ep = post.Episode.Value
+            Expect.equal ep.Media "an-updated-ep.mp3" "Media not filled properly"
+            Expect.equal ep.Length 14444L "Length not filled properly"
+            Expect.equal
+                ep.Duration (Some (Duration.FromMinutes 14L + Duration.FromSeconds 42L)) "Duration not filled properly"
+            Expect.equal ep.MediaType (Some "audio/mp3") "MediaType not filled properly"
+            Expect.equal ep.ImageUrl (Some "updated-cover.png") "ImageUrl not filled properly"
+            Expect.equal ep.Subtitle (Some "Talking") "Subtitle not filled properly"
+            Expect.equal ep.Explicit (Some No) "ExplicitRating not filled properly"
+            Expect.equal ep.ChapterFile (Some "updated-chapters.txt") "ChapterFile not filled properly"
+            Expect.equal ep.ChapterType (Some "indexes") "ChapterType not filled properly"
+            Expect.equal ep.ChapterWaypoints (Some true) "ChapterWaypoints should have been set"
+            Expect.equal ep.TranscriptUrl (Some "updated-transcript.txt") "TranscriptUrl not filled properly"
+            Expect.equal ep.TranscriptType (Some "subtitles") "TranscriptType not filled properly"
+            Expect.equal ep.TranscriptLang (Some "ES-mx") "TranscriptLang not filled properly"
+            Expect.equal ep.TranscriptCaptions (Some true) "TranscriptCaptions should have been set"
+            Expect.equal ep.SeasonNumber (Some 4) "SeasonNumber not filled properly"
+            Expect.equal ep.SeasonDescription (Some "Season Fo") "SeasonDescription not filled properly"
+            Expect.equal ep.EpisodeNumber (Some 432.1) "EpisodeNumber not filled properly"
+            Expect.equal ep.EpisodeDescription (Some "Four Three Two pt One") "EpisodeDescription not filled properly"
+        }
+        test "succeeds for a minimal podcast episode" {
+            let minModel =
+                { updatedModel with
+                    Duration           = ""
+                    MediaType          = ""
+                    ImageUrl           = ""
+                    Subtitle           = ""
+                    Explicit           = ""
+                    ChapterFile        = ""
+                    ChapterType        = ""
+                    ContainsWaypoints  = false
+                    TranscriptUrl      = ""
+                    TranscriptType     = ""
+                    TranscriptLang     = ""
+                    TranscriptCaptions = false
+                    SeasonNumber       = 0
+                    SeasonDescription  = ""
+                    EpisodeNumber      = ""
+                    EpisodeDescription = "" }
+            let post = minModel.UpdatePost fullPost (Noda.epoch + Duration.FromDays 500)
+            Expect.isSome post.Episode "There should have been a podcast episode"
+            let ep = post.Episode.Value
+            Expect.equal ep.Media "an-updated-ep.mp3" "Media not filled properly"
+            Expect.equal ep.Length 14444L "Length not filled properly"
+            Expect.isNone ep.Duration "Duration not filled properly"
+            Expect.isNone ep.MediaType "MediaType not filled properly"
+            Expect.isNone ep.ImageUrl "ImageUrl not filled properly"
+            Expect.isNone ep.Subtitle "Subtitle not filled properly"
+            Expect.isNone ep.Explicit "ExplicitRating not filled properly"
+            Expect.isNone ep.ChapterFile "ChapterFile not filled properly"
+            Expect.isNone ep.ChapterType "ChapterType not filled properly"
+            Expect.isNone ep.ChapterWaypoints "ChapterWaypoints should have been set"
+            Expect.isNone ep.TranscriptUrl "TranscriptUrl not filled properly"
+            Expect.isNone ep.TranscriptType "TranscriptType not filled properly"
+            Expect.isNone ep.TranscriptLang "TranscriptLang not filled properly"
+            Expect.isNone ep.TranscriptCaptions "TranscriptCaptions should have been set"
+            Expect.isNone ep.SeasonNumber "SeasonNumber not filled properly"
+            Expect.isNone ep.SeasonDescription "SeasonDescription not filled properly"
+            Expect.isNone ep.EpisodeNumber "EpisodeNumber not filled properly"
+            Expect.isNone ep.EpisodeDescription "EpisodeDescription not filled properly"
+        }
+        test "succeeds for no podcast episode and no template" {
+            let post = { updatedModel with IsEpisode = false; Template = "" }.UpdatePost fullPost Noda.epoch
+            Expect.isNone post.Template "Template not filled properly"
+            Expect.isNone post.Episode "Episode not filled properly"
+        }
+        test "succeeds when publishing a draft" {
+            let post =
+                { updatedModel with DoPublish = true }.UpdatePost
+                    { fullPost with Status = Draft } (Noda.epoch + Duration.FromDays 375)
+            Expect.equal post.Status Published "Status not set properly"
+            Expect.equal post.PublishedOn (Some (Noda.epoch + Duration.FromDays 375)) "PublishedOn not set properly"
+        }
+    ]
 ]
 
 /// All tests in the Domain.ViewModels file
