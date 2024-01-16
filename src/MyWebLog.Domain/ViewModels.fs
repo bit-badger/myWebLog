@@ -96,11 +96,10 @@ type DisplayCustomFeed = {
                 |> Option.defaultValue "--INVALID; DELETE THIS FEED--"
                 |> sprintf "Category: %s"
             | Tag tag -> $"Tag: {tag}"
-        {   Id        = string feed.Id
-            Source    = source
-            Path      = string feed.Path
-            IsPodcast = Option.isSome feed.Podcast
-        }
+        { Id        = string feed.Id
+          Source    = source
+          Path      = string feed.Path
+          IsPodcast = Option.isSome feed.Podcast }
 
 
 /// Details about a page used to display page lists
@@ -138,18 +137,17 @@ type DisplayPage = {
 } with
     
     /// Create a minimal display page (no text or metadata) from a database page
-    static member FromPageMinimal (webLog: WebLog) (page: Page) = {
-        Id           = string page.Id
-        AuthorId     = string page.AuthorId
-        Title        = page.Title
-        Permalink    = string page.Permalink
-        PublishedOn  = webLog.LocalTime page.PublishedOn
-        UpdatedOn    = webLog.LocalTime page.UpdatedOn
-        IsInPageList = page.IsInPageList
-        IsDefault    = string page.Id = webLog.DefaultPage
-        Text         = ""
-        Metadata     = []
-    }
+    static member FromPageMinimal (webLog: WebLog) (page: Page) =
+        { Id           = string page.Id
+          AuthorId     = string page.AuthorId
+          Title        = page.Title
+          Permalink    = string page.Permalink
+          PublishedOn  = webLog.LocalTime page.PublishedOn
+          UpdatedOn    = webLog.LocalTime page.UpdatedOn
+          IsInPageList = page.IsInPageList
+          IsDefault    = string page.Id = webLog.DefaultPage
+          Text         = ""
+          Metadata     = [] }
     
     /// Create a display page from a database page
     static member FromPage webLog page =
@@ -173,11 +171,10 @@ type DisplayRevision = {
 } with
     
     /// Create a display revision from an actual revision
-    static member FromRevision (webLog: WebLog) (rev : Revision) = {
-        AsOf      = rev.AsOf.ToDateTimeUtc()
-        AsOfLocal = webLog.LocalTime rev.AsOf
-        Format    = rev.Text.SourceType
-    }
+    static member FromRevision (webLog: WebLog) (rev : Revision) =
+        { AsOf      = rev.AsOf.ToDateTimeUtc()
+          AsOfLocal = webLog.LocalTime rev.AsOf
+          Format    = rev.Text.SourceType }
 
 
 open System.IO
@@ -205,14 +202,13 @@ type DisplayTheme = {
 } with
     
     /// Create a display theme from a theme
-    static member FromTheme inUseFunc (theme: Theme) = {
-        Id            = string theme.Id
-        Name          = theme.Name
-        Version       = theme.Version
-        TemplateCount = List.length theme.Templates
-        IsInUse       = inUseFunc theme.Id
-        IsOnDisk      = File.Exists $"{theme.Id}-theme.zip"
-    }
+    static member FromTheme inUseFunc (theme: Theme) =
+        { Id            = string theme.Id
+          Name          = theme.Name
+          Version       = theme.Version
+          TemplateCount = List.length theme.Templates
+          IsInUse       = inUseFunc theme.Id
+          IsOnDisk      = File.Exists $"{theme.Id}-theme.zip" }
 
 
 /// Information about an uploaded file used for display
@@ -238,12 +234,11 @@ type DisplayUpload = {
     static member FromUpload (webLog: WebLog) (source: UploadDestination) (upload: Upload) =
         let path = string upload.Path
         let name = Path.GetFileName path
-        {   Id        = string upload.Id
-            Name      = name
-            Path      = path.Replace(name, "")
-            UpdatedOn = Some (webLog.LocalTime upload.UpdatedOn)
-            Source    = string source
-        }
+        { Id        = string upload.Id
+          Name      = name
+          Path      = path.Replace(name, "")
+          UpdatedOn = Some (webLog.LocalTime upload.UpdatedOn)
+          Source    = string source }
 
 
 /// View model to display a user's information
@@ -278,17 +273,16 @@ type DisplayUser = {
 } with
     
     /// Construct a displayed user from a web log user
-    static member FromUser (webLog: WebLog) (user: WebLogUser) = {
-        Id            = string user.Id
-        Email         = user.Email
-        FirstName     = user.FirstName
-        LastName      = user.LastName
-        PreferredName = user.PreferredName
-        Url           = defaultArg user.Url ""
-        AccessLevel   = string user.AccessLevel
-        CreatedOn     = webLog.LocalTime user.CreatedOn
-        LastSeenOn    = user.LastSeenOn |> Option.map webLog.LocalTime |> Option.toNullable
-    }
+    static member FromUser (webLog: WebLog) (user: WebLogUser) =
+        { Id            = string user.Id
+          Email         = user.Email
+          FirstName     = user.FirstName
+          LastName      = user.LastName
+          PreferredName = user.PreferredName
+          Url           = defaultArg user.Url ""
+          AccessLevel   = string user.AccessLevel
+          CreatedOn     = webLog.LocalTime user.CreatedOn
+          LastSeenOn    = user.LastSeenOn |> Option.map webLog.LocalTime |> Option.toNullable }
 
 
 /// View model for editing categories
@@ -311,13 +305,12 @@ type EditCategoryModel = {
 } with
     
     /// Create an edit model from an existing category 
-    static member FromCategory (cat: Category) = {
-        CategoryId  = string cat.Id
-        Name        = cat.Name
-        Slug        = cat.Slug
-        Description = defaultArg cat.Description ""
-        ParentId    = cat.ParentId |> Option.map string |> Option.defaultValue ""
-    }
+    static member FromCategory (cat: Category) =
+        { CategoryId  = string cat.Id
+          Name        = cat.Name
+          Slug        = cat.Slug
+          Description = defaultArg cat.Description ""
+          ParentId    = cat.ParentId |> Option.map string |> Option.defaultValue "" }
     
     /// Is this a new category?
     member this.IsNew =
@@ -392,29 +385,28 @@ type EditCustomFeedModel = {
 } with
     
     /// An empty custom feed model
-    static member Empty = {
-        Id               = ""
-        SourceType       = "category"
-        SourceValue      = ""
-        Path             = ""
-        IsPodcast        = false
-        Title            = ""
-        Subtitle         = ""
-        ItemsInFeed      = 25
-        Summary          = ""
-        DisplayedAuthor  = ""
-        Email            = ""
-        ImageUrl         = ""
-        AppleCategory    = ""
-        AppleSubcategory = ""
-        Explicit         = "no"
-        DefaultMediaType = "audio/mpeg"
-        MediaBaseUrl     = ""
-        FundingUrl       = ""
-        FundingText      = ""
-        PodcastGuid      = ""
-        Medium           = ""
-    }
+    static member Empty =
+        { Id               = ""
+          SourceType       = "category"
+          SourceValue      = ""
+          Path             = ""
+          IsPodcast        = false
+          Title            = ""
+          Subtitle         = ""
+          ItemsInFeed      = 25
+          Summary          = ""
+          DisplayedAuthor  = ""
+          Email            = ""
+          ImageUrl         = ""
+          AppleCategory    = ""
+          AppleSubcategory = ""
+          Explicit         = "no"
+          DefaultMediaType = "audio/mpeg"
+          MediaBaseUrl     = ""
+          FundingUrl       = ""
+          FundingText      = ""
+          PodcastGuid      = ""
+          Medium           = "" }
     
     /// Create a model from a custom feed
     static member FromFeed (feed: CustomFeed) =
@@ -494,13 +486,12 @@ type EditMyInfoModel = {
 } with
     
     /// Create an edit model from a user
-    static member FromUser (user: WebLogUser) = {
-        FirstName          = user.FirstName
-        LastName           = user.LastName
-        PreferredName      = user.PreferredName
-        NewPassword        = ""
-        NewPasswordConfirm = ""
-    }
+    static member FromUser (user: WebLogUser) =
+        { FirstName          = user.FirstName
+          LastName           = user.LastName
+          PreferredName      = user.PreferredName
+          NewPassword        = ""
+          NewPasswordConfirm = "" }
 
 
 /// View model to edit a page
@@ -541,16 +532,15 @@ type EditPageModel = {
             | Some rev -> rev
             | None -> Revision.Empty
         let page = if page.Metadata |> List.isEmpty then { page with Metadata = [ MetaItem.Empty ] } else page
-        {   PageId            = string page.Id
-            Title             = page.Title
-            Permalink         = string page.Permalink
-            Template          = defaultArg page.Template ""
-            IsShownInPageList = page.IsInPageList
-            Source            = latest.Text.SourceType
-            Text              = latest.Text.Text
-            MetaNames         = page.Metadata |> List.map _.Name  |> Array.ofList
-            MetaValues        = page.Metadata |> List.map _.Value |> Array.ofList
-        }
+        { PageId            = string page.Id
+          Title             = page.Title
+          Permalink         = string page.Permalink
+          Template          = defaultArg page.Template ""
+          IsShownInPageList = page.IsInPageList
+          Source            = latest.Text.SourceType
+          Text              = latest.Text.Text
+          MetaNames         = page.Metadata |> List.map _.Name  |> Array.ofList
+          MetaValues        = page.Metadata |> List.map _.Value |> Array.ofList }
     
     /// Whether this is a new page
     member this.IsNew =
@@ -697,41 +687,40 @@ type EditPostModel = {
             | None -> Revision.Empty
         let post    = if post.Metadata |> List.isEmpty then { post with Metadata = [ MetaItem.Empty ] } else post
         let episode = defaultArg post.Episode Episode.Empty
-        {   PostId             = string post.Id
-            Title              = post.Title
-            Permalink          = string post.Permalink
-            Source             = latest.Text.SourceType
-            Text               = latest.Text.Text
-            Tags               = String.Join(", ", post.Tags)
-            Template           = defaultArg post.Template ""
-            CategoryIds        = post.CategoryIds |> List.map string |> Array.ofList
-            Status             = string post.Status
-            DoPublish          = false
-            MetaNames          = post.Metadata |> List.map _.Name  |> Array.ofList
-            MetaValues         = post.Metadata |> List.map _.Value |> Array.ofList
-            SetPublished       = false
-            PubOverride        = post.PublishedOn |> Option.map webLog.LocalTime |> Option.toNullable
-            SetUpdated         = false
-            IsEpisode          = Option.isSome post.Episode
-            Media              = episode.Media
-            Length             = episode.Length
-            Duration           = defaultArg (episode.FormatDuration()) ""
-            MediaType          = defaultArg episode.MediaType ""
-            ImageUrl           = defaultArg episode.ImageUrl ""
-            Subtitle           = defaultArg episode.Subtitle ""
-            Explicit           = defaultArg (episode.Explicit |> Option.map string) ""
-            ChapterFile        = defaultArg episode.ChapterFile ""
-            ChapterType        = defaultArg episode.ChapterType ""
-            ContainsWaypoints  = defaultArg episode.ChapterWaypoints false
-            TranscriptUrl      = defaultArg episode.TranscriptUrl ""
-            TranscriptType     = defaultArg episode.TranscriptType ""
-            TranscriptLang     = defaultArg episode.TranscriptLang ""
-            TranscriptCaptions = defaultArg episode.TranscriptCaptions false
-            SeasonNumber       = defaultArg episode.SeasonNumber 0
-            SeasonDescription  = defaultArg episode.SeasonDescription ""
-            EpisodeNumber      = defaultArg (episode.EpisodeNumber |> Option.map string) ""  
-            EpisodeDescription = defaultArg episode.EpisodeDescription ""
-        }
+        { PostId             = string post.Id
+          Title              = post.Title
+          Permalink          = string post.Permalink
+          Source             = latest.Text.SourceType
+          Text               = latest.Text.Text
+          Tags               = String.Join(", ", post.Tags)
+          Template           = defaultArg post.Template ""
+          CategoryIds        = post.CategoryIds |> List.map string |> Array.ofList
+          Status             = string post.Status
+          DoPublish          = false
+          MetaNames          = post.Metadata |> List.map _.Name  |> Array.ofList
+          MetaValues         = post.Metadata |> List.map _.Value |> Array.ofList
+          SetPublished       = false
+          PubOverride        = post.PublishedOn |> Option.map webLog.LocalTime |> Option.toNullable
+          SetUpdated         = false
+          IsEpisode          = Option.isSome post.Episode
+          Media              = episode.Media
+          Length             = episode.Length
+          Duration           = defaultArg (episode.FormatDuration()) ""
+          MediaType          = defaultArg episode.MediaType ""
+          ImageUrl           = defaultArg episode.ImageUrl ""
+          Subtitle           = defaultArg episode.Subtitle ""
+          Explicit           = defaultArg (episode.Explicit |> Option.map string) ""
+          ChapterFile        = defaultArg episode.ChapterFile ""
+          ChapterType        = defaultArg episode.ChapterType ""
+          ContainsWaypoints  = defaultArg episode.ChapterWaypoints false
+          TranscriptUrl      = defaultArg episode.TranscriptUrl ""
+          TranscriptType     = defaultArg episode.TranscriptType ""
+          TranscriptLang     = defaultArg episode.TranscriptLang ""
+          TranscriptCaptions = defaultArg episode.TranscriptCaptions false
+          SeasonNumber       = defaultArg episode.SeasonNumber 0
+          SeasonDescription  = defaultArg episode.SeasonDescription ""
+          EpisodeNumber      = defaultArg (episode.EpisodeNumber |> Option.map string) ""  
+          EpisodeDescription = defaultArg episode.EpisodeDescription "" }
     
     /// Whether this is a new post
     member this.IsNew =
@@ -821,20 +810,18 @@ type EditRedirectRuleModel = {
 } with
 
     /// Create a model from an existing rule
-    static member FromRule idx (rule: RedirectRule) = {
-        RuleId      = idx
-        From        = rule.From
-        To          = rule.To
-        IsRegex     = rule.IsRegex
-        InsertAtTop = false
-    }
+    static member FromRule idx (rule: RedirectRule) =
+        { RuleId      = idx
+          From        = rule.From
+          To          = rule.To
+          IsRegex     = rule.IsRegex
+          InsertAtTop = false }
     
     /// Update a rule with the values from this model
-    member this.ToRule() = {
-        From    = this.From
-        To      = this.To
-        IsRegex = this.IsRegex
-    }
+    member this.ToRule() =
+        { From    = this.From
+          To      = this.To
+          IsRegex = this.IsRegex }
 
 
 /// View model to edit RSS settings

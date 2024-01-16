@@ -831,6 +831,24 @@ let editPostModelTests = testList "EditPostModel" [
     ]
 ]
 
+/// Unit tests for the EditRedirectRuleModel type
+let editRedirectRuleModelTests = testList "EditRedirectRuleModel" [
+    test "FromRule succeeds" {
+        let model = EditRedirectRuleModel.FromRule 15 { From = "here"; To = "there"; IsRegex = true }
+        Expect.equal model.RuleId 15 "RuleId not filled properly"
+        Expect.equal model.From "here" "From not filled properly"
+        Expect.equal model.To "there" "To not filled properly"
+        Expect.isTrue model.IsRegex "IsRegex should have been set"
+        Expect.isFalse model.InsertAtTop "InsertAtTop should not have been set"
+    }
+    test "ToRule succeeds" {
+        let rule = { RuleId = 10; From = "me"; To = "you"; IsRegex = false; InsertAtTop = false }.ToRule()
+        Expect.equal rule.From "me" "From not filled properly"
+        Expect.equal rule.To "you" "To not filled properly"
+        Expect.isFalse rule.IsRegex "IsRegex should not have been set"
+    }
+]
+
 /// All tests in the Domain.ViewModels file
 let all = testList "ViewModels" [
     addBaseToRelativeUrlsTests
@@ -845,4 +863,5 @@ let all = testList "ViewModels" [
     editMyInfoModelTests
     editPageModelTests
     editPostModelTests
+    editRedirectRuleModelTests
 ]
