@@ -611,8 +611,8 @@ let editPostModelTests = testList "EditPostModel" [
                        EpisodeDescription = Some "Episode 322" } }
     testList "FromPost" [
         test "succeeds for empty post" {
-            let model = EditPostModel.FromPost WebLog.Empty { Post.Empty with Id = PostId "lalala" }
-            Expect.equal model.PostId "lalala" "PostId not filled properly"
+            let model = EditPostModel.FromPost WebLog.Empty { Post.Empty with Id = PostId "la-la-la" }
+            Expect.equal model.PostId "la-la-la" "PostId not filled properly"
             Expect.equal model.Title "" "Title not filled properly"
             Expect.equal model.Permalink "" "Permalink not filled properly"
             Expect.equal model.Source "HTML" "Source not filled properly"
@@ -849,6 +849,231 @@ let editRedirectRuleModelTests = testList "EditRedirectRuleModel" [
     }
 ]
 
+/// Unit tests for the EditRssModel type
+let editRssModelTests = testList "EditRssModel" [
+    testList "FromRssOptions" [
+        test "succeeds with minimal options" {
+            let model = EditRssModel.FromRssOptions RssOptions.Empty
+            Expect.isTrue model.IsFeedEnabled "IsFeedEnabled should have been set"
+            Expect.equal model.FeedName "feed.xml" "FeedName not filled properly"
+            Expect.equal model.ItemsInFeed 0 "ItemsInFeed not filled properly"
+            Expect.isTrue model.IsCategoryEnabled "IsCategoryEnabled should have been set"
+            Expect.isTrue model.IsTagEnabled "IsTagEnabled should have been set"
+            Expect.equal model.Copyright "" "Copyright not filled properly"
+        }
+        test "succeeds with full options" {
+            let model =
+                EditRssModel.FromRssOptions
+                    { RssOptions.Empty with
+                        IsFeedEnabled     = false
+                        FeedName          = "custom.xml"
+                        ItemsInFeed       = Some 82
+                        IsCategoryEnabled = false
+                        IsTagEnabled      = false
+                        Copyright         = Some "yep" }
+            Expect.isFalse model.IsFeedEnabled "IsFeedEnabled should not have been set"
+            Expect.equal model.FeedName "custom.xml" "FeedName not filled properly"
+            Expect.equal model.ItemsInFeed 82 "ItemsInFeed not filled properly"
+            Expect.isFalse model.IsCategoryEnabled "IsCategoryEnabled should not have been set"
+            Expect.isFalse model.IsTagEnabled "IsTagEnabled should not have been set"
+            Expect.equal model.Copyright "yep" "Copyright not filled properly"
+        }
+    ]
+    testList "UpdateOptions" [
+        test "succeeds with minimal options" {
+            let opts =
+                { IsFeedEnabled     = true
+                  FeedName          = "blah.xml"
+                  ItemsInFeed       = 0
+                  IsCategoryEnabled = true
+                  IsTagEnabled      = true
+                  Copyright         = "" }.UpdateOptions RssOptions.Empty
+            Expect.isTrue opts.IsFeedEnabled "IsFeedEnabled should have been set"
+            Expect.equal opts.FeedName "blah.xml" "FeedName not filled properly"
+            Expect.isNone opts.ItemsInFeed "ItemsInFeed should not have had a value"
+            Expect.isTrue opts.IsCategoryEnabled "IsCategoryEnabled should have been set"
+            Expect.isTrue opts.IsTagEnabled "IsTagEnabled should have been set"
+            Expect.isNone opts.Copyright "Copyright should not have had a value"
+        }
+        test "succeeds with full options" {
+            let opts =
+                { IsFeedEnabled     = false
+                  FeedName          = "again.xml"
+                  ItemsInFeed       = 22
+                  IsCategoryEnabled = false
+                  IsTagEnabled      = false
+                  Copyright         = "none" }.UpdateOptions RssOptions.Empty
+            Expect.isFalse opts.IsFeedEnabled "IsFeedEnabled should not have been set"
+            Expect.equal opts.FeedName "again.xml" "FeedName not filled properly"
+            Expect.equal opts.ItemsInFeed (Some 22) "ItemsInFeed not filled properly"
+            Expect.isFalse opts.IsCategoryEnabled "IsCategoryEnabled should not have been set"
+            Expect.isFalse opts.IsTagEnabled "IsTagEnabled should not have been set"
+            Expect.equal opts.Copyright (Some "none") "Copyright not filled properly"
+        }
+    ]
+]
+
+/// Unit tests for the EditTagMapModel type
+let editTagMapModelTests = testList "EditTagMapModel" [
+    test "FromMapping succeeds" {
+        let model =
+            EditTagMapModel.FromMapping
+                { Id = TagMapId "howdy"; Tag = "f#"; UrlValue = "f-sharp"; WebLogId = WebLogId "" }
+        Expect.equal model.Id "howdy" "Id not filled properly"
+        Expect.equal model.Tag "f#" "Tag not filled properly"
+        Expect.equal model.UrlValue "f-sharp" "UrlValue not filled properly"
+    }
+    testList "IsNew" [
+        test "succeeds when tag mapping is new" {
+            Expect.isTrue
+                (EditTagMapModel.FromMapping { TagMap.Empty with Id = TagMapId "new" }).IsNew
+                "IsNew should have been set"
+        }
+        test "succeeds when tag mapping is not new" {
+            Expect.isFalse
+                (EditTagMapModel.FromMapping { TagMap.Empty with Id = TagMapId "ancient" }).IsNew
+                "IsNew should not have been set"
+        }
+    ]
+]
+
+/// Unit tests for the EditUserModel type
+let editUserModelTests = testList "EditUserModel" [
+    testList "FromUser" [
+        test "succeeds when the user does not have a URL" {
+            let model =
+                EditUserModel.FromUser
+                    { WebLogUser.Empty with
+                        Id            = WebLogUserId "test"
+                        AccessLevel   = Editor
+                        Email         = "test@example.com"
+                        FirstName     = "Test"
+                        LastName      = "User"
+                        PreferredName = "Tester" }
+            Expect.equal model.Id "test" "Id not filled properly"
+            Expect.equal model.AccessLevel "Editor" "AccessLevel not filled properly"
+            Expect.equal model.Url "" "Url not filled properly"
+            Expect.equal model.Email "test@example.com" "Email not filled properly"
+            Expect.equal model.FirstName "Test" "FirstName not filled properly"
+            Expect.equal model.LastName "User" "LastName not filled properly"
+            Expect.equal model.PreferredName "Tester" "PreferredName not filled properly"
+            Expect.equal model.Password "" "Password not filled properly"
+            Expect.equal model.PasswordConfirm "" "PasswordConfirm not filled properly"
+        }
+        test "succeeds when the user has a URL" {
+            let model = EditUserModel.FromUser { WebLogUser.Empty with Url = Some "https://test.me" }
+            Expect.equal model.Url "https://test.me" "Url not filled properly"
+        }
+    ]
+    testList "IsNew" [
+        test "succeeds when the user is new" {
+            Expect.isTrue
+                (EditUserModel.FromUser { WebLogUser.Empty with Id = WebLogUserId "new" }).IsNew
+                "IsNew should have been set"
+        }
+        test "succeeds when the user is not new" {
+            Expect.isFalse
+                (EditUserModel.FromUser { WebLogUser.Empty with Id = WebLogUserId "not-new" }).IsNew
+                "IsNew should not have been set"
+        }
+    ]
+    testList "UpdateUser" [
+        let model =
+            { Id              = "test-user"
+              AccessLevel     = "WebLogAdmin"
+              Email           = "again@example.com" 
+              Url             = ""
+              FirstName       = "Another"
+              LastName        = "One"
+              PreferredName   = "Happy"
+              Password        = "my-password"
+              PasswordConfirm = "my-password" }
+        test "succeeds when user has no URL" {
+            let user = model.UpdateUser WebLogUser.Empty
+            Expect.equal user.AccessLevel WebLogAdmin "AccessLevel not filled properly"
+            Expect.equal user.Email "again@example.com" "Email not filled properly"
+            Expect.isNone user.Url "Url should not have had a value"
+            Expect.equal user.FirstName "Another" "FirstName not filled properly"
+            Expect.equal user.LastName "One" "LastName not filled properly"
+            Expect.equal user.PreferredName "Happy" "FirstName not filled properly"
+        }
+        test "succeeds when user has a URL" {
+            let user = { model with Url = "https://over.there" }.UpdateUser WebLogUser.Empty
+            Expect.equal user.Url (Some "https://over.there") "Url not filled properly"
+        }
+    ]
+]
+
+/// Unit tests for the ManagePermalinksModel type
+let managePermalinksModelTests = testList "ManagePermalinksModel" [
+    test "FromPage succeeds" {
+        let model =
+            ManagePermalinksModel.FromPage
+                { Page.Empty with
+                    Id              = PageId "links"
+                    Title           = "My Awesome Page"
+                    Permalink       = Permalink "2018/02/my-awesome-page.html"
+                    PriorPermalinks = [ Permalink "2018/02/my-awesome-pages.html"; Permalink "2018/02/oops.html" ] }
+        Expect.equal model.Id "links" "Id not filled properly"
+        Expect.equal model.Entity "page" "Entity not filled properly"
+        Expect.equal model.CurrentTitle "My Awesome Page" "CurrentTitle not filled properly"
+        Expect.equal model.CurrentPermalink "2018/02/my-awesome-page.html" "CurrentPermalink not filled properly"
+        Expect.equal model.Prior [| "2018/02/my-awesome-pages.html"; "2018/02/oops.html" |] "Prior not filled properly"
+    }
+    test "FromPost succeeds" {
+        let model =
+            ManagePermalinksModel.FromPost
+                { Post.Empty with
+                    Id              = PostId "test"
+                    Title           = "Errata"
+                    Permalink       = Permalink "2020/01/errata.html"
+                    PriorPermalinks = [ Permalink "2020/01/errors.html"; Permalink "2020/01/whoops.html" ] }
+        Expect.equal model.Id "test" "Id not filled properly"
+        Expect.equal model.Entity "post" "Entity not filled properly"
+        Expect.equal model.CurrentTitle "Errata" "CurrentTitle not filled properly"
+        Expect.equal model.CurrentPermalink "2020/01/errata.html" "CurrentPermalink not filled properly"
+        Expect.equal model.Prior [| "2020/01/errors.html"; "2020/01/whoops.html" |] "Prior not filled properly"
+    }
+]
+
+/// Unit tests for the ManageRevisionsModel type
+let manageRevisionsModelTests = testList "ManageRevisionsModel" [
+    test "FromPage succeeds" {
+        let revisions =
+            [ { AsOf = Noda.epoch + Duration.FromDays 24; Text = Html "<strong>wow</strong>" }
+              { AsOf = Noda.epoch + Duration.FromDays 20; Text = Html "<p>huh</p>" } ]
+        let model =
+            ManageRevisionsModel.FromPage
+                { WebLog.Empty with TimeZone = "Etc/GMT+1" }
+                { Page.Empty with Id = PageId "revs"; Title = "A Revised Page"; Revisions = revisions }
+        Expect.equal model.Id "revs" "Id not filled properly"
+        Expect.equal model.Entity "page" "Entity not filled properly"
+        Expect.equal model.CurrentTitle "A Revised Page" "CurrentTitle not filled properly"
+        Expect.equal model.Revisions.Length 2 "There should be two revisions"
+        Expect.equal
+            model.Revisions[0].AsOfLocal
+            ((revisions[0].AsOf - Duration.FromHours 1).ToDateTimeUtc())
+            "AsOfLocal not filled properly"
+    }
+    test "FromPost succeeds" {
+        let revisions =
+            [ { AsOf = Noda.epoch + Duration.FromDays 13; Text = Html "<p>again</p>" }
+              { AsOf = Noda.epoch + Duration.FromDays 12; Text = Html "<p>original</p>" } ]
+        let model =
+            ManageRevisionsModel.FromPost
+                { WebLog.Empty with TimeZone = "Etc/GMT-3" }
+                { Post.Empty with Id = PostId "altered"; Title = "Round Two"; Revisions = revisions }
+        Expect.equal model.Id "altered" "Id not filled properly"
+        Expect.equal model.Entity "post" "Entity not filled properly"
+        Expect.equal model.CurrentTitle "Round Two" "CurrentTitle not filled properly"
+        Expect.equal model.Revisions.Length 2 "There should be two revisions"
+        Expect.equal
+            model.Revisions[0].AsOfLocal
+            ((revisions[0].AsOf + Duration.FromHours 3).ToDateTimeUtc())
+            "AsOfLocal not filled properly"
+    }
+]
+
 /// All tests in the Domain.ViewModels file
 let all = testList "ViewModels" [
     addBaseToRelativeUrlsTests
@@ -864,4 +1089,9 @@ let all = testList "ViewModels" [
     editPageModelTests
     editPostModelTests
     editRedirectRuleModelTests
+    editRssModelTests
+    editTagMapModelTests
+    editUserModelTests
+    managePermalinksModelTests
+    manageRevisionsModelTests
 ]

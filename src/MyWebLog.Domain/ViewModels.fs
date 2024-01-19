@@ -847,14 +847,13 @@ type EditRssModel = {
 } with
     
     /// Create an edit model from a set of RSS options
-    static member FromRssOptions (rss: RssOptions) = {
-        IsFeedEnabled     = rss.IsFeedEnabled
-        FeedName          = rss.FeedName
-        ItemsInFeed       = defaultArg rss.ItemsInFeed 0
-        IsCategoryEnabled = rss.IsCategoryEnabled
-        IsTagEnabled      = rss.IsTagEnabled
-        Copyright         = defaultArg rss.Copyright ""
-    }
+    static member FromRssOptions (rss: RssOptions) =
+        { IsFeedEnabled     = rss.IsFeedEnabled
+          FeedName          = rss.FeedName
+          ItemsInFeed       = defaultArg rss.ItemsInFeed 0
+          IsCategoryEnabled = rss.IsCategoryEnabled
+          IsTagEnabled      = rss.IsTagEnabled
+          Copyright         = defaultArg rss.Copyright "" }
     
     /// Update RSS options from values in this model
     member this.UpdateOptions (rss: RssOptions) =
@@ -881,11 +880,10 @@ type EditTagMapModel = {
 } with
     
     /// Create an edit model from the tag mapping
-    static member FromMapping (tagMap: TagMap) : EditTagMapModel = {
-        Id       = string tagMap.Id
-        Tag      = tagMap.Tag
-        UrlValue = tagMap.UrlValue
-    }
+    static member FromMapping (tagMap: TagMap) : EditTagMapModel =
+        { Id       = string tagMap.Id
+          Tag      = tagMap.Tag
+          UrlValue = tagMap.UrlValue }
     
     /// Whether this is a new tag mapping
     member this.IsNew =
@@ -924,17 +922,16 @@ type EditUserModel = {
 } with
     
     /// Construct a user edit form from a web log user
-    static member FromUser (user: WebLogUser) = {
-        Id              = string user.Id
-        AccessLevel     = string user.AccessLevel
-        Url             = defaultArg user.Url ""
-        Email           = user.Email
-        FirstName       = user.FirstName
-        LastName        = user.LastName
-        PreferredName   = user.PreferredName
-        Password        = ""
-        PasswordConfirm = ""
-    }
+    static member FromUser (user: WebLogUser) =
+        { Id              = string user.Id
+          AccessLevel     = string user.AccessLevel
+          Url             = defaultArg user.Url ""
+          Email           = user.Email
+          FirstName       = user.FirstName
+          LastName        = user.LastName
+          PreferredName   = user.PreferredName
+          Password        = ""
+          PasswordConfirm = "" }
     
     /// Is this a new user?
     member this.IsNew =
@@ -989,22 +986,20 @@ type ManagePermalinksModel = {
 } with
     
     /// Create a permalink model from a page
-    static member FromPage (page: Page) = {
-        Id               = string page.Id
-        Entity           = "page"
-        CurrentTitle     = page.Title
-        CurrentPermalink = string page.Permalink
-        Prior            = page.PriorPermalinks |> List.map string |> Array.ofList
-    }
+    static member FromPage (page: Page) =
+        { Id               = string page.Id
+          Entity           = "page"
+          CurrentTitle     = page.Title
+          CurrentPermalink = string page.Permalink
+          Prior            = page.PriorPermalinks |> List.map string |> Array.ofList }
 
     /// Create a permalink model from a post
-    static member FromPost (post: Post) = {
-        Id               = string post.Id
-        Entity           = "post"
-        CurrentTitle     = post.Title
-        CurrentPermalink = string post.Permalink
-        Prior            = post.PriorPermalinks |> List.map string |> Array.ofList
-    }
+    static member FromPost (post: Post) =
+        { Id               = string post.Id
+          Entity           = "post"
+          CurrentTitle     = post.Title
+          CurrentPermalink = string post.Permalink
+          Prior            = post.PriorPermalinks |> List.map string |> Array.ofList }
 
 
 /// View model to manage revisions
@@ -1024,20 +1019,18 @@ type ManageRevisionsModel = {
 } with
     
     /// Create a revision model from a page
-    static member FromPage webLog (page: Page) = {
-        Id           = string page.Id
-        Entity       = "page"
-        CurrentTitle = page.Title
-        Revisions    = page.Revisions |> List.map (DisplayRevision.FromRevision webLog) |> Array.ofList
-    }
+    static member FromPage webLog (page: Page) =
+        { Id           = string page.Id
+          Entity       = "page"
+          CurrentTitle = page.Title
+          Revisions    = page.Revisions |> List.map (DisplayRevision.FromRevision webLog) |> Array.ofList }
 
     /// Create a revision model from a post
-    static member FromPost webLog (post: Post) = {
-        Id           = string post.Id
-        Entity       = "post"
-        CurrentTitle = post.Title
-        Revisions    = post.Revisions |> List.map (DisplayRevision.FromRevision webLog) |> Array.ofList
-    }
+    static member FromPost webLog (post: Post) =
+        { Id           = string post.Id
+          Entity       = "post"
+          CurrentTitle = post.Title
+          Revisions    = post.Revisions |> List.map (DisplayRevision.FromRevision webLog) |> Array.ofList }
 
 
 /// View model for posts in a list
@@ -1081,20 +1074,19 @@ type PostListItem = {
 } with
 
     /// Create a post list item from a post
-    static member FromPost (webLog: WebLog) (post: Post) = {
-        Id          = string post.Id
-        AuthorId    = string post.AuthorId
-        Status      = string post.Status
-        Title       = post.Title
-        Permalink   = string post.Permalink
-        PublishedOn = post.PublishedOn |> Option.map webLog.LocalTime |> Option.toNullable
-        UpdatedOn   = webLog.LocalTime post.UpdatedOn
-        Text        = addBaseToRelativeUrls webLog.ExtraPath post.Text
-        CategoryIds = post.CategoryIds |> List.map string
-        Tags        = post.Tags
-        Episode     = post.Episode
-        Metadata    = post.Metadata
-    }
+    static member FromPost (webLog: WebLog) (post: Post) =
+        { Id          = string post.Id
+          AuthorId    = string post.AuthorId
+          Status      = string post.Status
+          Title       = post.Title
+          Permalink   = string post.Permalink
+          PublishedOn = post.PublishedOn |> Option.map webLog.LocalTime |> Option.toNullable
+          UpdatedOn   = webLog.LocalTime post.UpdatedOn
+          Text        = addBaseToRelativeUrls webLog.ExtraPath post.Text
+          CategoryIds = post.CategoryIds |> List.map string
+          Tags        = post.Tags
+          Episode     = post.Episode
+          Metadata    = post.Metadata }
 
 
 /// View model for displaying posts
