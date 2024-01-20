@@ -49,7 +49,7 @@ type SQLiteWebLogUserData(conn: SqliteConnection, log: ILogger) =
     /// Find the names of users by their IDs for the given web log
     let findNames webLogId (userIds: WebLogUserId list) =
         log.LogTrace "WebLogUser.findNames"
-        let nameSql, nameParams = inClause "AND data ->> 'Id'" "id" string userIds 
+        let nameSql, nameParams = inClause $"AND data ->> '{nameof WebLogUser.Empty.Id}'" "id" string userIds 
         conn.customList
             $"{Document.Query.selectByWebLog Table.WebLogUser} {nameSql}"
             (webLogParam webLogId :: nameParams)

@@ -53,7 +53,7 @@ type SQLitePageData(conn: SqliteConnection, log: ILogger) =
     let countListed webLogId =
         log.LogTrace "Page.countListed"
         conn.customScalar
-            $"""{Document.Query.countByWebLog Table.Page} AND {Query.whereByField pgListName EQ "'true'"}"""
+            $"""{Document.Query.countByWebLog Table.Page} AND {Query.whereByField pgListName EQ "true"}"""
             [ webLogParam webLogId ]
             (toCount >> int)
     
@@ -116,7 +116,7 @@ type SQLitePageData(conn: SqliteConnection, log: ILogger) =
     let findListed webLogId =
         log.LogTrace "Page.findListed"
         conn.customList
-            $"""{Document.Query.selectByWebLog Table.Page} AND {Query.whereByField pgListName EQ "'true'"}
+            $"""{Document.Query.selectByWebLog Table.Page} AND {Query.whereByField pgListName EQ "true"}
                 ORDER BY LOWER({titleField})"""
             [ webLogParam webLogId ]
             (fun rdr -> { fromData<Page> rdr with Text = "" })
