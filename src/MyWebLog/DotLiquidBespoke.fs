@@ -83,13 +83,13 @@ type NavLinkFilter() =
         let extraPath = ctx.WebLog.ExtraPath
         let path = if extraPath = "" then "" else $"{extraPath[1..]}/"
         seq {
-            "<li class=\"nav-item\"><a class=\"nav-link"
+            "<li class=nav-item><a class=\"nav-link"
             if (string ctx.Environments[0].["current_page"]).StartsWith $"{path}{url}" then " active"
             "\" href=\""
             ctx.WebLog.RelativeUrl(Permalink url)
             "\">"
             text
-            "</a></li>"
+            "</a>"
         }
         |> String.concat ""
 
@@ -111,23 +111,23 @@ type PageHeadTag() =
         let getBool name =
             defaultArg (context.Environments[0].[name] |> Option.ofObj |> Option.map Convert.ToBoolean) false
         
-        result.WriteLine $"""<meta name="generator" content="{context.Environments[0].["generator"]}">"""
+        result.WriteLine $"""<meta name=generator content="{context.Environments[0].["generator"]}">"""
         
         // Theme assets
         if assetExists "style.css" webLog then
-            result.WriteLine $"""{s}<link rel="stylesheet" href="{ThemeAssetFilter.ThemeAsset(context, "style.css")}">"""
+            result.WriteLine $"""{s}<link rel=stylesheet href="{ThemeAssetFilter.ThemeAsset(context, "style.css")}">"""
         if assetExists "favicon.ico" webLog then
-            result.WriteLine $"""{s}<link rel="icon" href="{ThemeAssetFilter.ThemeAsset(context, "favicon.ico")}">"""
+            result.WriteLine $"""{s}<link rel=icon href="{ThemeAssetFilter.ThemeAsset(context, "favicon.ico")}">"""
         
         // RSS feeds and canonical URLs
         let feedLink title url =
             let escTitle = HttpUtility.HtmlAttributeEncode title
             let relUrl   = webLog.RelativeUrl(Permalink url)
-            $"""{s}<link rel="alternate" type="application/rss+xml" title="{escTitle}" href="{relUrl}">"""
+            $"""{s}<link rel=alternate type="application/rss+xml" title="{escTitle}" href="{relUrl}">"""
         
         if webLog.Rss.IsFeedEnabled && getBool "is_home" then
             result.WriteLine(feedLink webLog.Name webLog.Rss.FeedName)
-            result.WriteLine $"""{s}<link rel="canonical" href="{webLog.AbsoluteUrl Permalink.Empty}">"""
+            result.WriteLine $"""{s}<link rel=canonical href="{webLog.AbsoluteUrl Permalink.Empty}">"""
         
         if webLog.Rss.IsCategoryEnabled && getBool "is_category_home" then
             let slug = context.Environments[0].["slug"] :?> string
@@ -140,12 +140,12 @@ type PageHeadTag() =
         if getBool "is_post" then
             let post = context.Environments[0].["model"] :?> PostDisplay
             let url  = webLog.AbsoluteUrl (Permalink post.Posts[0].Permalink)
-            result.WriteLine $"""{s}<link rel="canonical" href="{url}">"""
+            result.WriteLine $"""{s}<link rel=canonical href="{url}">"""
         
         if getBool "is_page" then
             let page = context.Environments[0].["page"] :?> DisplayPage
             let url  = webLog.AbsoluteUrl (Permalink page.Permalink)
-            result.WriteLine $"""{s}<link rel="canonical" href="{url}">"""
+            result.WriteLine $"""{s}<link rel=canonical href="{url}">"""
 
 
 /// Create various items in the page header based on the state of the page being generated
@@ -191,10 +191,10 @@ type UserLinksTag() =
             """<ul class="navbar-nav flex-grow-1 justify-content-end">"""
             match Convert.ToBoolean context.Environments[0].["is_logged_on"] with
             | true ->
-                $"""<li class="nav-item"><a class="nav-link" href="{link "admin/dashboard"}">Dashboard</a></li>"""
-                $"""<li class="nav-item"><a class="nav-link" href="{link "user/log-off"}">Log Off</a></li>"""
+                $"""<li class=nav-item><a class=nav-link href="{link "admin/dashboard"}">Dashboard</a>"""
+                $"""<li class=nav-item><a class=nav-link href="{link "user/log-off"}">Log Off</a>"""
             | false ->
-                $"""<li class="nav-item"><a class="nav-link" href="{link "user/log-on"}">Log On</a></li>"""
+                $"""<li class=nav-item><a class=nav-link href="{link "user/log-on"}">Log On</a>"""
             "</ul>"
         }
         |> Seq.iter result.WriteLine

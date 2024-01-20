@@ -1,31 +1,31 @@
-<h2 class="my-3">{{ page_title }}</h2>
+<h2 class=my-3>{{ page_title }}</h2>
 <article>
-  <p class="mb-3">
+  <p class=mb-3>
     <a href="{{ "admin/settings" | relative_link }}">&laquo; Back to Settings</a>
   </p>
-  <div class="container">
-    <div class="row">
-      <div class="col">
+  <div class=container>
+    <div class=row>
+      <div class=col>
         <a href="{{ "admin/settings/redirect-rules/-1" | relative_link }}" class="btn btn-primary btn-sm mb-3"
-           hx-target="#redir_new">
+           hx-target=#redir_new>
           Add Redirect Rule
         </a>
       </div>
     </div>
-    <div class="row">
-      <div class="col">
+    <div class=row>
+      <div class=col>
         {%- assign redir_count = redirections | size -%}
         {% if redir_count > 0 -%}
-          <div class="container">
+          <div class=container>
             <div class="row mwl-table-heading">
-              <div class="col-5">From</div>
-              <div class="col-5">To</div>
+              <div class=col-5>From</div>
+              <div class=col-5>To</div>
               <div class="col-2 text-center">RegEx?</div>
             </div>
           </div>
-          <div class="row mwl-table-detail" id="redir_new"></div>
-          <form method="post" class="container" hx-target="body">
-            <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
+          <div class="row mwl-table-detail" id=redir_new></div>
+          <form method=post class=container hx-target=body>
+            <input type=hidden name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
             {% for redir in redirections -%}
               {%- assign redir_id = "redir_" | append: forloop.index0 -%}
               <div class="row mwl-table-detail" id="{{ redir_id }}">
@@ -38,39 +38,38 @@
                       Edit
                     </a>
                     {% unless forloop.first %}
-                      <span class="text-muted"> &bull; </span>
+                      <span class=text-muted> &bull; </span>
                       {%- assign move_up = redir_url | append: "/up" | relative_link -%}
                       <a href="{{ move_up }}" hx-post="{{ move_up }}">Move Up</a>
                     {% endunless %}
                     {% unless forloop.last %}
-                      <span class="text-muted"> &bull; </span>
+                      <span class=text-muted> &bull; </span>
                       {%- assign move_down = redir_url | append: "/down" | relative_link -%}
                       <a href="{{ move_down }}" hx-post="{{ move_down }}">Move Down</a>
                     {% endunless %}
-                    <span class="text-muted"> &bull; </span>
+                    <span class=text-muted> &bull; </span>
                     {%- assign del_url = redir_url | append: "/delete" | relative_link -%}
-                    <a href="{{ del_url }}" hx-post="{{ del_url }}" class="text-danger"
+                    <a href="{{ del_url }}" hx-post="{{ del_url }}" class=text-danger
                        hx-confirm="Are you sure you want to delete this redirect rule?">
                       Delete
                     </a>
                   </small>
                 </div>
-                <div class="col-5">{{ redir.to }}</div>
+                <div class=col-5>{{ redir.to }}</div>
                 <div class="col-2 text-center">{% if redir.is_regex %}Yes{% else %}No{% endif %}</div>
               </div>
             {%- endfor %}
           </form>
         {%- else -%}
-          <div id="redir_new">
-            <p class="text-muted text-center fst-italic">This web log has no redirect rules defined</p>
+          <div id=redir_new>
+            <p class="text-muted text-center fst-italic">This web log has no redirect rules defined
           </div>
         {%- endif %}
       </div>
     </div>
   </div>
   <p class="mt-3 text-muted fst-italic text-center">
-    This is an advanced feature; please
-    <a href="https://bitbadger.solutions/open-source/myweblog/advanced.html#redirect-rules"
-       target="_blank">read and understand the documentation on this feature</a> before adding rules.
-  </p>
+  This is an advanced feature; please
+  <a href=https://bitbadger.solutions/open-source/myweblog/advanced.html#redirect-rules
+     target=_blank>read and understand the documentation on this feature</a> before adding rules.
 </article>

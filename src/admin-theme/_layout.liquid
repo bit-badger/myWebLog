@@ -1,65 +1,60 @@
 <header>
   <nav class="navbar navbar-dark bg-dark navbar-expand-md justify-content-start px-2 position-fixed top-0 w-100">
-    <div class="container-fluid">
-      <a class="navbar-brand" href="{{ "" | relative_link }}" hx-boost="false">{{ web_log.name }}</a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarText"
-              aria-controls="navbarText" aria-expanded="false" aria-label="Toggle navigation">
-        <span class="navbar-toggler-icon"></span>
+    <div class=container-fluid>
+      <a class=navbar-brand href="{{ "" | relative_link }}" hx-boost=false>{{ web_log.name }}</a>
+      <button class=navbar-toggler type=button data-bs-toggle=collapse data-bs-target=#navbarText
+              aria-controls=navbarText aria-expanded=false aria-label="Toggle navigation">
+        <span class=navbar-toggler-icon></span>
       </button>
-      <div class="collapse navbar-collapse" id="navbarText">
+      <div class="collapse navbar-collapse" id=navbarText>
         {%- if is_logged_on %}
-          <ul class="navbar-nav">
-            {{ "admin/dashboard" | nav_link: "Dashboard" }}
-            {%- if is_author %}
-              {{ "admin/pages" | nav_link: "Pages" }}
-              {{ "admin/posts" | nav_link: "Posts" }}
-              {{ "admin/uploads" | nav_link: "Uploads" }}
-            {%- endif %}
-            {%- if is_web_log_admin %}
-              {{ "admin/categories" | nav_link: "Categories" }}
-              {{ "admin/settings" | nav_link: "Settings" }}
-            {%- endif %}
-            {%- if is_administrator %}
-              {{ "admin/administration" | nav_link: "Admin" }}
-            {%- endif %}
+          <ul class=navbar-nav>
+          {{ "admin/dashboard" | nav_link: "Dashboard" }}
+          {%- if is_author %}
+            {{ "admin/pages" | nav_link: "Pages" }}
+            {{ "admin/posts" | nav_link: "Posts" }}
+            {{ "admin/uploads" | nav_link: "Uploads" }}
+          {%- endif %}
+          {%- if is_web_log_admin %}
+            {{ "admin/categories" | nav_link: "Categories" }}
+            {{ "admin/settings" | nav_link: "Settings" }}
+          {%- endif %}
+          {%- if is_administrator %}
+            {{ "admin/administration" | nav_link: "Admin" }}
+          {%- endif %}
           </ul>
         {%- endif %}
         <ul class="navbar-nav flex-grow-1 justify-content-end">
-          {%- if is_logged_on %}
-            {{ "admin/my-info" | nav_link: "My Info" }}
-            <li class="nav-item">
-              <a class="nav-link" href="https://bitbadger.solutions/open-source/myweblog/#how-to-use-myweblog"
-                 target="_blank">
-                Docs
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="{{ "user/log-off" | relative_link }}" hx-boost="false">Log Off</a>
-            </li>
-          {%- else -%}
-            <li class="nav-item">
-              <a class="nav-link" href="https://bitbadger.solutions/open-source/myweblog/#how-to-use-myweblog"
-                 target="_blank">
-                Docs
-              </a>
-            </li>
-            {{ "user/log-on" | nav_link: "Log On" }}
-          {%- endif %}
+        {%- if is_logged_on %}
+          {{ "admin/my-info" | nav_link: "My Info" }}
+          <li class=nav-item>
+          <a class=nav-link href=https://bitbadger.solutions/open-source/myweblog/#how-to-use-myweblog target=_blank>
+            Docs
+          </a>
+          <li class=nav-item>
+          <a class=nav-link href="{{ "user/log-off" | relative_link }}" hx-boost=false>Log Off</a>
+        {%- else -%}
+          <li class=nav-item>
+          <a class=nav-link href=https://bitbadger.solutions/open-source/myweblog/#how-to-use-myweblog target=_blank>
+            Docs
+          </a>
+          {{ "user/log-on" | nav_link: "Log On" }}
+        {%- endif %}
         </ul>
       </div>
     </div>
   </nav>
 </header>
-<div id="toastHost" class="position-fixed top-0 w-100" aria-live="polite" aria-atomic="true">
-  <div id="toasts" class="toast-container position-absolute p-3 mt-5 top-0 end-0">
+<div id=toastHost class="position-fixed top-0 w-100" aria-live=polite aria-atomic=true>
+  <div id=toasts class="toast-container position-absolute p-3 mt-5 top-0 end-0">
     {% for msg in messages %}
-      <div class="toast" role="alert" aria-live="assertive" aria-atomic="true"
+      <div class=toast role=alert aria-live=assertive aria-atomic=true
       {%- unless msg.level == "success" %} data-bs-autohide="false"{% endunless %}>
         <div class="toast-header bg-{{ msg.level }}{% unless msg.level == "warning" %} text-white{% endunless %}">
           <strong class="me-auto text-uppercase">
             {% if msg.level == "danger" %}error{% else %}{{ msg.level}}{% endif %}
           </strong>
-          <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+          <button type=button class=btn-close data-bs-dismiss=toast aria-label=Close></button>
         </div>
         <div class="toast-body bg-{{ msg.level }} bg-opacity-25">
           {{ msg.message }}
@@ -73,13 +68,13 @@
   </div>
 </div>
 <main class="mx-3 mt-3">
-  <div class="load-overlay p-5" id="loadOverlay"><h1 class="p-3">Loading&hellip;</h1></div>
+  <div class="load-overlay p-5" id=loadOverlay><h1 class=p-3>Loading&hellip;</h1></div>
   {{ content }}
 </main>
 <footer class="position-fixed bottom-0 w-100">
   <div class="text-end text-white me-2">
     {%- assign version = generator | split: " " -%}
     <small class="me-1 align-baseline">v{{ version[1] }}</small>
-    <img src="{{ "themes/admin/logo-light.png" | relative_link }}" alt="myWebLog" width="120" height="34">
+    <img src="{{ "themes/admin/logo-light.png" | relative_link }}" alt=myWebLog width=120 height=34>
   </div>
 </footer>

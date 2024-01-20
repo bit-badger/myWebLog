@@ -1,84 +1,81 @@
-<div class="col-12">
-  <h5 class="my-3">{{ page_title }}</h5>
-  <form hx-post="{{ "admin/settings/user/save" | relative_link }}" method="post" class="container"
-        hx-target="#userList" hx-swap="outerHTML show:window:top">
-    <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
-    <input type="hidden" name="Id" value="{{ model.id }}">
-    <div class="row">
+<div class=col-12>
+  <h5 class=my-3>{{ page_title }}</h5>
+  <form hx-post="{{ "admin/settings/user/save" | relative_link }}" method=post class=container hx-target=#userList
+        hx-swap="outerHTML show:window:top">
+    <input type=hidden name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
+    <input type=hidden name=Id value="{{ model.id }}">
+    <div class=row>
       <div class="col-12 col-md-5 col-lg-3 col-xxl-2 offset-xxl-1 mb-3">
-        <div class="form-floating">
-          <select name="AccessLevel" id="accessLevel" class="form-control" required autofocus>
+        <div class=form-floating>
+          <select name=AccessLevel id=accessLevel class=form-control required autofocus>
             {%- for level in access_levels %}
               <option value="{{ level[0] }}"{% if model.access_level == level[0] %} selected{% endif %}>
                 {{ level[1] }}
               </option>
             {%- endfor %}
           </select>
-          <label for="accessLevel">Access Level</label>
+          <label for=accessLevel>Access Level</label>
         </div>
       </div>
       <div class="col-12 col-md-7 col-lg-4 col-xxl-3 mb-3">
-        <div class="form-floating">
-          <input type="email" name="Email" id="email" class="form-control" placeholder="E-mail" required
+        <div class=form-floating>
+          <input type=email name=Email id=email class=form-control placeholder=E-mail required
                  value="{{ model.email | escape }}">
-          <label for="email">E-mail Address</label>
+          <label for=email>E-mail Address</label>
         </div>
       </div>
       <div class="col-12 col-lg-5 mb-3">
-        <div class="form-floating">
-          <input type="text" name="Url" id="url" class="form-control" placeholder="URL"
-                 value="{{ model.url | escape }}">
-          <label for="url">User&rsquo;s Personal URL</label>
+        <div class=form-floating>
+          <input type=text name=Url id=url class=form-control placeholder=URL value="{{ model.url | escape }}">
+          <label for=url>User&rsquo;s Personal URL</label>
         </div>
       </div>
     </div>
     <div class="row mb-3">
       <div class="col-12 col-md-6 col-lg-4 col-xl-3 offset-xl-1 pb-3">
-        <div class="form-floating">
-          <input type="text" name="FirstName" id="firstName" class="form-control" placeholder="First" required
+        <div class=form-floating>
+          <input type=text name=FirstName id=firstName class=form-control placeholder=First required
                  value="{{ model.first_name | escape }}">
-          <label for="firstName">First Name</label>
+          <label for=firstName>First Name</label>
         </div>
       </div>
       <div class="col-12 col-md-6 col-lg-4 col-xl-3 pb-3">
-        <div class="form-floating">
-          <input type="text" name="LastName" id="lastName" class="form-control" placeholder="Last" required
+        <div class=form-floating>
+          <input type=text name=LastName id=lastName class=form-control placeholder=Last required
                  value="{{ model.last_name | escape }}">
-          <label for="lastName">Last Name</label>
+          <label for=lastName>Last Name</label>
         </div>
       </div>
       <div class="col-12 col-md-6 offset-md-3 col-lg-4 offset-lg-0 col-xl-3 offset-xl-1 pb-3">
-        <div class="form-floating">
-          <input type="text" name="PreferredName" id="preferredName" class="form-control"
-                 placeholder="Preferred" required value="{{ model.preferred_name | escape }}">
-          <label for="preferredName">Preferred Name</label>
+        <div class=form-floating>
+          <input type=text name=PreferredName id=preferredName class=form-control placeholder=Preferred required
+                 value="{{ model.preferred_name | escape }}">
+          <label for=preferredName>Preferred Name</label>
         </div>
       </div>
     </div>
     <div class="row mb-3">
       <div class="col-12 col-xl-10 offset-xl-1">
-        <fieldset class="p-2">
-          <legend class="ps-1">{% unless model.is_new %}Change {% endunless %}Password</legend>
+        <fieldset class=p-2>
+          <legend class=ps-1>{% unless model.is_new %}Change {% endunless %}Password</legend>
           {% unless model.is_new %}
-            <div class="row">
-              <div class="col">
-                <p class="form-text">Optional; leave blank not change the user&rsquo;s password</p>
-              </div>
+            <div class=row>
+              <div class=col><p class=form-text>Optional; leave blank not change the user&rsquo;s password</div>
             </div>
           {% endunless %}
-          <div class="row">
+          <div class=row>
             <div class="col-12 col-md-6 pb-3">
-              <div class="form-floating">
-                <input type="password" name="Password" id="password" class="form-control"
-                       placeholder="Password"{% if model.is_new %} required{% endif %}>
-                <label for="password">{% unless model.is_new %}New {% endunless %}Password</label>
+              <div class=form-floating>
+                <input type=password name=Password id=password class=form-control placeholder=Password
+                       {%- if model.is_new %} required{% endif %}>
+                <label for=password>{% unless model.is_new %}New {% endunless %}Password</label>
               </div>
             </div>
             <div class="col-12 col-md-6 pb-3">
-              <div class="form-floating">
-                <input type="password" name="PasswordConfirm" id="passwordConfirm" class="form-control"
-                       placeholder="Confirm"{% if model.is_new %} required{% endif %}>
-                <label for="passwordConfirm">Confirm{% unless model.is_new %} New{% endunless %} Password</label>
+              <div class=form-floating>
+                <input type=password name=PasswordConfirm id=passwordConfirm class=form-control placeholder=Confirm
+                       {%- if model.is_new %} required{% endif %}>
+                <label for=passwordConfirm>Confirm{% unless model.is_new %} New{% endunless %} Password</label>
               </div>
             </div>
           </div>
@@ -87,9 +84,9 @@
     </div>
     <div class="row mb-3">
       <div class="col text-center">
-        <button type="submit" class="btn btn-sm btn-primary">Save Changes</button>
+        <button type=submit class="btn btn-sm btn-primary">Save Changes</button>
         {% if model.is_new %}
-          <button type="button" class="btn btn-sm btn-secondary ms-3"
+          <button type=button class="btn btn-sm btn-secondary ms-3"
                   onclick="document.getElementById('user_new').innerHTML = ''">
             Cancel
           </button>

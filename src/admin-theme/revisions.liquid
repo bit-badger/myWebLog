@@ -1,27 +1,26 @@
-﻿<h2 class="my-3">{{ page_title }}</h2>
+﻿<h2 class=my-3>{{ page_title }}</h2>
 <article>
-  <form method="post" hx-target="body">
-    <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
-    <input type="hidden" name="id" value="{{ model.id }}">
+  <form method=post hx-target=body>
+    <input type=hidden name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
+    <input type=hidden name=Id value="{{ model.id }}">
     <div class="container mb-3">
-      <div class="row">
-        <div class="col">
+      <div class=row>
+        <div class=col>
           <p style="line-height:1.2rem;">
-            <strong>{{ model.current_title }}</strong><br>
-            <small class="text-muted">
-              <a href="{{ "admin/" | append: model.entity | append: "/" | append: model.id | append: "/edit" | relative_link }}">
-                &laquo; Back to Edit {{ model.entity | capitalize }}
-              </a>
-            </small>
-          </p>
+          <strong>{{ model.current_title }}</strong><br>
+          <small class=text-muted>
+            <a href="{{ "admin/" | append: model.entity | append: "/" | append: model.id | append: "/edit" | relative_link }}">
+              &laquo; Back to Edit {{ model.entity | capitalize }}
+            </a>
+          </small>
         </div>
       </div>
       {%- assign revision_count = model.revisions | size -%}
       {%- assign rev_url_base = "admin/" | append: model.entity | append: "/" | append: model.id | append: "/revision" -%}
       {%- if revision_count > 1 %}
         <div class="row mb-3">
-          <div class="col">
-            <button type="button" class="btn btn-sm btn-danger"
+          <div class=col>
+            <button type=button class="btn btn-sm btn-danger"
                     hx-post="{{ rev_url_base | append: "s/purge" | relative_link }}"
                     hx-confirm="This will remove all revisions but the current one; are you sure this is what you wish to do?">
               Delete All Prior Revisions
@@ -29,9 +28,7 @@
           </div>
         </div>
       {%- endif %}
-      <div class="row mwl-table-heading">
-        <div class="col">Revision</div>
-      </div>
+      <div class="row mwl-table-heading"><div class=col>Revision</div></div>
       {% for rev in model.revisions %}
         {%- assign as_of_string = rev.as_of | date: "o" -%}
         {%- assign as_of_id = "rev_" | append: as_of_string | replace: "\.", "_" | replace: ":", "-" -%}
@@ -50,17 +47,17 @@
                 <a href="{{ rev_url_prefix | append: "/preview" | relative_link }}" hx-target="#{{ as_of_id }}_preview">
                   Preview
                 </a>
-                <span class="text-muted"> &bull; </span>
+                <span class=text-muted> &bull; </span>
                 <a href="{{ rev_restore }}" hx-post="{{ rev_restore }}">Restore as Current</a>
-                <span class="text-muted"> &bull; </span>
-                <a href="{{ rev_delete }}" hx-post="{{ rev_delete }}" hx-target="#{{ as_of_id }}" hx-swap="outerHTML"
-                   class="text-danger">
+                <span class=text-muted> &bull; </span>
+                <a href="{{ rev_delete }}" hx-post="{{ rev_delete }}" hx-target="#{{ as_of_id }}" hx-swap=outerHTML
+                   class=text-danger>
                   Delete
                 </a>
               </small>
             {% endunless %}
           </div>
-          {% unless forloop.first %}<div id="{{ as_of_id }}_preview" class="col-12"></div>{% endunless %}
+          {% unless forloop.first %}<div id="{{ as_of_id }}_preview" class=col-12></div>{% endunless %}
         </div>
       {% endfor %}
     </div>

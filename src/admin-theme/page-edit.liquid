@@ -1,75 +1,75 @@
-<h2 class="my-3">{{ page_title }}</h2>
+<h2 class=my-3>{{ page_title }}</h2>
 <article>
   <form action="{{ "admin/page/save" | relative_link }}" method="post" hx-push-url="true">
-    <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
-    <input type="hidden" name="PageId" value="{{ model.page_id }}">
-    <div class="container">
+    <input type=hidden name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
+    <input type=hidden name=PageId value="{{ model.page_id }}">
+    <div class=container>
       <div class="row mb-3">
-        <div class="col-9">
+        <div class=col-9>
           {%- assign entity = "page" -%}
           {%- assign entity_id = model.page_id -%}
           {% include_template "_edit-common" %}
         </div>
-        <div class="col-3">
+        <div class=col-3>
           <div class="form-floating pb-3">
-            <select name="Template" id="template" class="form-control">
+            <select name=Template id=template class=form-control>
               {% for tmpl in templates -%}
-                <option value="{{ tmpl[0] }}"{% if model.template == tmpl[0] %} selected="selected"{% endif %}>
+                <option value="{{ tmpl[0] }}"{% if model.template == tmpl[0] %} selected{% endif %}>
                   {{ tmpl[1] }}
                 </option>
               {%- endfor %}
             </select>
-            <label for="template">Page Template</label>
+            <label for=template>Page Template</label>
           </div>
           <div class="form-check form-switch">
-            <input type="checkbox" name="IsShownInPageList" id="showList" class="form-check-input" value="true"
-                   {%- if model.is_shown_in_page_list %} checked="checked"{% endif %}>
-            <label for="showList" class="form-check-label">Show in Page List</label>
+            <input type=checkbox name=IsShownInPageList id=showList class=form-check-input value=true
+                   {%- if model.is_shown_in_page_list %} checked{% endif %}>
+            <label for=showList class=form-check-label>Show in Page List</label>
           </div>
         </div>
       </div>
       <div class="row mb-3">
-        <div class="col">
-          <button type="submit" class="btn btn-primary">Save Changes</button>
+        <div class=col>
+          <button type=submit class="btn btn-primary">Save Changes</button>
         </div>
       </div>
       <div class="row mb-3">
-        <div class="col">
+        <div class=col>
           <fieldset>
             <legend>
               Metadata
-              <button type="button" class="btn btn-sm btn-secondary" data-bs-toggle="collapse"
-                      data-bs-target="#metaItemContainer">
+              <button type=button class="btn btn-sm btn-secondary" data-bs-toggle=collapse
+                      data-bs-target=#metaItemContainer>
                 show
               </button>
             </legend>
-            <div id="metaItemContainer" class="collapse">
-              <div id="metaItems" class="container">
+            <div id=metaItemContainer class=collapse>
+              <div id=metaItems class=container>
                 {%- for meta in metadata %}
                   <div id="meta_{{ meta[0] }}" class="row mb-3">
                     <div class="col-1 text-center align-self-center">
-                      <button type="button" class="btn btn-sm btn-danger" onclick="Admin.removeMetaItem({{ meta[0] }})">
+                      <button type=button class="btn btn-sm btn-danger" onclick="Admin.removeMetaItem({{ meta[0] }})">
                         &minus;
                       </button>
                     </div>
-                    <div class="col-3">
-                      <div class="form-floating">
-                        <input type="text" name="MetaNames" id="metaNames_{{ meta[0] }}" class="form-control"
-                               placeholder="Name" value="{{ meta[1] }}">
+                    <div class=col-3>
+                      <div class=form-floating>
+                        <input type=text name=MetaNames id="metaNames_{{ meta[0] }}" class=form-control
+                               placeholder=Name value="{{ meta[1] }}">
                         <label for="metaNames_{{ meta[0] }}">Name</label>
                       </div>
                     </div>
-                    <div class="col-8">
-                      <div class="form-floating">
-                        <input type="text" name="MetaValues" id="metaValues_{{ meta[0] }}" class="form-control"
-                               placeholder="Value" value="{{ meta[2] }}">
+                    <div class=col-8>
+                      <div class=form-floating>
+                        <input type=text name=MetaValues id="metaValues_{{ meta[0] }}" class=form-control
+                               placeholder=Value value="{{ meta[2] }}">
                         <label for="metaValues_{{ meta[0] }}">Value</label>
                       </div>
                     </div>
                   </div>
                 {% endfor -%}
               </div>
-              <button type="button" class="btn btn-sm btn-secondary" onclick="Admin.addMetaItem()">Add an Item</button>
+              <button type=button class="btn btn-sm btn-secondary" onclick="Admin.addMetaItem()">Add an Item</button>
               <script>
                 document.addEventListener("DOMContentLoaded", () => Admin.setNextMetaIndex({{ metadata | size }}))
               </script>

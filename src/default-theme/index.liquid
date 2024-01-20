@@ -1,6 +1,6 @@
 ﻿{%- if is_category or is_tag %}
-  <h1 class="index-title">{{ page_title }}</h1>
-  {%- if subtitle %}<h4 class="text-muted">{{ subtitle }}</h4>{% endif -%}
+  <h1 class=index-title>{{ page_title }}</h1>
+  {%- if subtitle %}<h4 class=text-muted>{{ subtitle }}</h4>{% endif -%}
 {% endif %}
 {%- assign post_count = model.posts | size -%}
 {%- if post_count > 0 %}
@@ -13,48 +13,44 @@
           </a>
         </h1>
         <p>
-          Published on {{ post.published_on | date: "MMMM d, yyyy" }}
-          at {{ post.published_on | date: "h:mmtt" | downcase }}
-          by {{ model.authors | value: post.author_id }}
-        </p>
+        Published on {{ post.published_on | date: "MMMM d, yyyy" }}
+        at {{ post.published_on | date: "h:mmtt" | downcase }}
+        by {{ model.authors | value: post.author_id }}
         {{ post.text }}
         {%- assign category_count = post.category_ids | size -%}
         {%- assign tag_count = post.tags | size -%}
         {% if category_count > 0 or tag_count > 0 %}
           <footer>
             <p>
-              {%- if category_count > 0 -%}
-                Categorized under:
-                {% for cat in post.category_ids -%}
-                  {%- assign this_cat = categories | where: "Id", cat | first -%}
-                  {{ this_cat.name }}{% unless forloop.last %}, {% endunless %}
-                  {%- assign cat_names = this_cat.name | concat: cat_names -%}
-                {%- endfor -%}
-                {%- assign cat_names = "" -%}
-                <br>
-              {% endif -%}
-              {%- if tag_count > 0 %}
-                Tagged: {{ post.tags | join: ", " }}
-              {% endif -%}
-            </p>
+            {%- if category_count > 0 -%}
+              Categorized under:
+              {% for cat in post.category_ids -%}
+                {%- assign this_cat = categories | where: "Id", cat | first -%}
+                {{ this_cat.name }}{% unless forloop.last %}, {% endunless %}
+                {%- assign cat_names = this_cat.name | concat: cat_names -%}
+              {%- endfor -%}
+              {%- assign cat_names = "" -%}
+              <br>
+            {% endif -%}
+            {%- if tag_count > 0 %}
+              Tagged: {{ post.tags | join: ", " }}
+            {% endif -%}
           </footer>
         {% endif %}
         <hr>
       </article>
     {% endfor %}
   </section>
-  <nav aria-label="pagination">
+  <nav aria-label=pagination>
     <ul class="pagination justify-content-evenly mt-2">
-      {% if model.newer_link -%}
-        <li class="page-item"><a class="page-link" href="{{ model.newer_link.value }}">&laquo; Newer Posts</a></li>
-      {% endif %}
-      {% if model.older_link -%}
-        <li class="page-item"><a class="page-link" href="{{ model.older_link.value }}">Older Posts &raquo;</a></li>
-      {%- endif -%}
+    {% if model.newer_link -%}
+      <li class=page-item><a class=page-link href="{{ model.newer_link.value }}">&laquo; Newer Posts</a>
+    {% endif %}
+    {% if model.older_link -%}
+      <li class=page-item><a class=page-link href="{{ model.older_link.value }}">Older Posts &raquo;</a>
+    {%- endif -%}
     </ul>
   </nav>
 {%- else %}
-  <article>
-    <p class="text-center mt-3">No posts found</p>
-  </article>
+  <article><p class="text-center mt-3">No posts found</article>
 {%- endif %}

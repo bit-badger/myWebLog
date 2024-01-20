@@ -1,55 +1,55 @@
-<div id="catList" class="container">
-  <div class="row">
-    <div class="col">
+<div id=catList class=container>
+  <div class=row>
+    <div class=col>
       {%- assign cat_count = categories | size -%}
       {% if cat_count > 0 %}
         {%- assign cat_col  = "col-12 col-md-6 col-xl-5 col-xxl-4" -%}
         {%- assign desc_col = "col-12 col-md-6 col-xl-7 col-xxl-8" -%}
-        <div class="container">
+        <div class=container>
           <div class="row mwl-table-heading">
-            <div class="{{ cat_col }}">Category<span class="d-md-none">; Description</span></div>
+            <div class="{{ cat_col }}">Category<span class=d-md-none>; Description</span></div>
             <div class="{{ desc_col }} d-none d-md-inline-block">Description</div>
           </div>
         </div>
-        <form method="post" class="container" hx-target="#catList" hx-swap="outerHTML show:window:top">
-          <input type="hidden" name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
+        <form method=post class=container hx-target=#catList hx-swap="outerHTML show:window:top">
+          <input type=hidden name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
           <div class="row mwl-table-detail" id="cat_new"></div>
           {% for cat in categories -%}
             <div class="row mwl-table-detail" id="cat_{{ cat.id }}">
               <div class="{{ cat_col }} no-wrap">
                 {%- if cat.parent_names %}
-                  <small class="text-muted">{% for name in cat.parent_names %}{{ name }} &rang; {% endfor %}</small>
+                  <small class=text-muted>{% for name in cat.parent_names %}{{ name }} &rang; {% endfor %}</small>
                 {%- endif %}
                 {{ cat.name }}<br>
                 <small>
                   {%- assign cat_url_base = "admin/category/" | append: cat.id -%}
                   {%- if cat.post_count > 0 %}
-                    <a href="{{ cat | category_link }}" target="_blank">
+                    <a href="{{ cat | category_link }}" target=_blank>
                       View {{ cat.post_count }} Post{% unless cat.post_count == 1 %}s{% endunless -%}
                     </a>
-                    <span class="text-muted"> &bull; </span>
+                    <span class=text-muted> &bull; </span>
                   {%- endif %}
                   <a href="{{ cat_url_base | append: "/edit" | relative_link }}" hx-target="#cat_{{ cat.id }}"
                      hx-swap="innerHTML show:#cat_{{ cat.id }}:top">
                     Edit
                   </a>
-                  <span class="text-muted"> &bull; </span>
+                  <span class=text-muted> &bull; </span>
                   {%- assign cat_del_link = cat_url_base | append: "/delete" | relative_link -%}
-                  <a href="{{ cat_del_link }}" hx-post="{{ cat_del_link }}" class="text-danger"
+                  <a href="{{ cat_del_link }}" hx-post="{{ cat_del_link }}" class=text-danger
                      hx-confirm="Are you sure you want to delete the category &ldquo;{{ cat.name }}&rdquo;? This action cannot be undone.">
                     Delete
                   </a>
                 </small>
               </div>
               <div class="{{ desc_col }}">
-                {%- if cat.description %}{{ cat.description.value }}{% else %}<em class="text-muted">none</em>{% endif %}
+                {%- if cat.description %}{{ cat.description.value }}{% else %}<em class=text-muted>none</em>{% endif %}
               </div>
             </div>
           {%- endfor %}
         </form>
       {%- else -%}
-        <div id="cat_new">
-          <p class="text-muted fst-italic text-center">This web log has no categores defined</p>
+        <div id=cat_new>
+          <p class="text-muted fst-italic text-center">This web log has no categories defined</p>
         </div>
       {%- endif %}
     </div>
