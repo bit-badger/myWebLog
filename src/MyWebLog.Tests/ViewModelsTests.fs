@@ -1074,6 +1074,147 @@ let manageRevisionsModelTests = testList "ManageRevisionsModel" [
     }
 ]
 
+/// Unit tests for the PostListItem type
+let postListItemTests = testList "PostListItem" [
+    testList "FromPost" [
+        test "succeeds for a draft post" {
+            let post =
+                { Post.Empty with
+                    Id        = PostId "draft-post"
+                    AuthorId  = WebLogUserId "myself"
+                    Title     = "Not Ready for Prime Time"
+                    Permalink = Permalink "2021/draft.html"
+                    UpdatedOn = Noda.epoch + Duration.FromHours 8
+                    Text      = "<h1>WIP</h1>" }
+            let model = PostListItem.FromPost { WebLog.Empty with TimeZone = "Etc/GMT-1" } post
+            Expect.equal model.Id "draft-post" "Id not filled properly"
+            Expect.equal model.AuthorId "myself" "AuthorId not filled properly"
+            Expect.equal model.Status "Draft" "Status not filled properly"
+            Expect.equal model.Title "Not Ready for Prime Time" "Title not filled properly"
+            Expect.equal model.Permalink "2021/draft.html" "Permalink not filled properly"
+            Expect.isFalse model.PublishedOn.HasValue "PublishedOn should not have had a value"
+            Expect.equal
+                model.UpdatedOn ((Noda.epoch + Duration.FromHours 9).ToDateTimeUtc()) "UpdatedOn not filled properly"
+            Expect.equal model.Text "<h1>WIP</h1>" "Text not filled properly"
+            Expect.isEmpty model.CategoryIds "There should have been no category IDs"
+            Expect.isEmpty model.Tags "There should have been no tags"
+            Expect.isNone model.Episode "There should not have been an episode"
+            Expect.isEmpty model.Metadata "There should have been no metadata"
+        }
+        test "succeeds for a published post in a non-root domain" {
+            let post =
+                { Post.Empty with
+                    Id          = PostId "full-post"
+                    AuthorId    = WebLogUserId "me"
+                    Status      = Published 
+                    Title       = "Finished Product"
+                    Permalink   = Permalink "2021/post.html"
+                    PublishedOn = Some (Noda.epoch + Duration.FromHours 12) 
+                    UpdatedOn   = Noda.epoch + Duration.FromHours 13
+                    Text        = """<a href="/other-post.html">Click</a>"""
+                    CategoryIds = [ CategoryId "z"; CategoryId "y" ]
+                    Tags        = [ "test"; "unit" ]
+                    Episode     = Some { Episode.Empty with Media = "test.mp3" }
+                    Metadata    = [ { Name = "MyMeta"; Value = "MyValue" } ] }
+            let model =
+                PostListItem.FromPost { WebLog.Empty with UrlBase = "https://u.t/w"; TimeZone = "Etc/GMT+1" } post
+            Expect.equal model.Id "full-post" "Id not filled properly"
+            Expect.equal model.AuthorId "me" "AuthorId not filled properly"
+            Expect.equal model.Status "Published" "Status not filled properly"
+            Expect.equal model.Title "Finished Product" "Title not filled properly"
+            Expect.equal model.Permalink "2021/post.html" "Permalink not filled properly"
+            Expect.isTrue model.PublishedOn.HasValue "PublishedOn should not have had a value"
+            Expect.equal
+                model.PublishedOn.Value
+                ((Noda.epoch + Duration.FromHours 11).ToDateTimeUtc())
+                "PublishedOn not filled properly"
+            Expect.equal
+                model.UpdatedOn ((Noda.epoch + Duration.FromHours 12).ToDateTimeUtc()) "UpdatedOn not filled properly"
+            Expect.equal model.Text """<a href="/w/other-post.html">Click</a>""" "Text not filled properly"
+            Expect.equal model.CategoryIds [ "z"; "y" ] "CategoryIds not filled properly"
+            Expect.equal model.Tags [ "test"; "unit" ] "Tags not filled properly"
+            Expect.isSome model.Episode "There should have been an episode"
+            Expect.equal model.Episode.Value.Media "test.mp3" "Episode not filled properly"
+            Expect.equal model.Metadata.Length 1 "There should have been 1 metadata item"
+            Expect.equal model.Metadata[0].Name "MyMeta" "Metadata not filled properly"
+        }
+    ]
+]
+
+/// Unit tests for the SettingModel type
+let settingsModelTests = testList "SettingsModel" [
+    testList "FromWebLog" [
+        test "succeeds with no subtitle" {
+            let model =
+                SettingsModel.FromWebLog
+                    { WebLog.Empty with
+                        Name         = "The Web Log"
+                        Slug         = "the-web-log"
+                        DefaultPage  = "this-one"
+                        PostsPerPage = 18
+                        TimeZone     = "America/Denver"
+                        ThemeId      = ThemeId "my-theme"
+                        AutoHtmx     = true }
+            Expect.equal model.Name "The Web Log" "Name not filled properly"
+            Expect.equal model.Slug "the-web-log" "Slug not filled properly"
+            Expect.equal model.Subtitle "" "Subtitle not filled properly"
+            Expect.equal model.DefaultPage "this-one" "DefaultPage not filled properly"
+            Expect.equal model.PostsPerPage 18 "PostsPerPage not filled properly"
+            Expect.equal model.TimeZone "America/Denver" "TimeZone not filled properly"
+            Expect.equal model.ThemeId "my-theme" "ThemeId not filled properly"
+            Expect.isTrue model.AutoHtmx "AutoHtmx should have been set"
+            Expect.equal model.Uploads "Database" "Uploads not filled properly"
+        }
+        test "succeeds with a subtitle" {
+            let model = SettingsModel.FromWebLog { WebLog.Empty with Subtitle = Some "sub here!" }
+            Expect.equal model.Subtitle "sub here!" "Subtitle not filled properly"
+        }
+    ]
+    testList "Update" [
+        test "succeeds with no subtitle" {
+            let webLog =
+                { Name         = "Interesting"
+                  Slug         = "some-stuff"
+                  Subtitle     = ""
+                  DefaultPage  = "that-one"
+                  PostsPerPage = 8
+                  TimeZone     = "America/Chicago"
+                  ThemeId      = "test-theme"
+                  AutoHtmx     = true
+                  Uploads      = "Disk" }.Update WebLog.Empty
+            Expect.equal webLog.Name "Interesting" "Name not filled properly"
+            Expect.equal webLog.Slug "some-stuff" "Slug not filled properly"
+            Expect.isNone webLog.Subtitle "Subtitle should not have had a value"
+            Expect.equal webLog.DefaultPage "that-one" "DefaultPage not filled properly"
+            Expect.equal webLog.PostsPerPage 8 "PostsPerPage not filled properly"
+            Expect.equal webLog.TimeZone "America/Chicago" "TimeZone not filled properly"
+            Expect.equal webLog.ThemeId (ThemeId "test-theme") "ThemeId not filled properly"
+            Expect.isTrue webLog.AutoHtmx "AutoHtmx should have been set"
+            Expect.equal webLog.Uploads Disk "Uploads not filled properly"
+        }
+        test "succeeds with a subtitle" {
+            let webLog = { SettingsModel.FromWebLog WebLog.Empty with Subtitle = "Sub" }.Update WebLog.Empty
+            Expect.equal webLog.Subtitle (Some "Sub") "Subtitle should have had a value"
+        }
+    ]
+]
+
+/// Unit tests for the UserMessage type
+let userMessageTests = testList "UserMessage" [
+    test "Success succeeds" {
+        Expect.equal UserMessage.Success.Level "success" "Level incorrect"
+    }
+    test "Info succeeds" {
+        Expect.equal UserMessage.Info.Level "primary" "Level incorrect"
+    }
+    test "Warning succeeds" {
+        Expect.equal UserMessage.Warning.Level "warning" "Level incorrect"
+    }
+    test "Error succeeds" {
+        Expect.equal UserMessage.Error.Level "danger" "Level incorrect"
+    }
+]
+
 /// All tests in the Domain.ViewModels file
 let all = testList "ViewModels" [
     addBaseToRelativeUrlsTests
@@ -1094,4 +1235,7 @@ let all = testList "ViewModels" [
     editUserModelTests
     managePermalinksModelTests
     manageRevisionsModelTests
+    postListItemTests
+    settingsModelTests
+    userMessageTests
 ]

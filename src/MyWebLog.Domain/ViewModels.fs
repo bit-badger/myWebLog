@@ -1146,17 +1146,16 @@ type SettingsModel = {
 } with
     
     /// Create a settings model from a web log
-    static member FromWebLog(webLog: WebLog) = {
-        Name         = webLog.Name
-        Slug         = webLog.Slug
-        Subtitle     = defaultArg webLog.Subtitle ""
-        DefaultPage  = webLog.DefaultPage
-        PostsPerPage = webLog.PostsPerPage
-        TimeZone     = webLog.TimeZone
-        ThemeId      = string webLog.ThemeId
-        AutoHtmx     = webLog.AutoHtmx
-        Uploads      = string webLog.Uploads
-    }
+    static member FromWebLog(webLog: WebLog) =
+        { Name         = webLog.Name
+          Slug         = webLog.Slug
+          Subtitle     = defaultArg webLog.Subtitle ""
+          DefaultPage  = webLog.DefaultPage
+          PostsPerPage = webLog.PostsPerPage
+          TimeZone     = webLog.TimeZone
+          ThemeId      = string webLog.ThemeId
+          AutoHtmx     = webLog.AutoHtmx
+          Uploads      = string webLog.Uploads }
     
     /// Update a web log with settings from the form
     member this.Update(webLog: WebLog) =

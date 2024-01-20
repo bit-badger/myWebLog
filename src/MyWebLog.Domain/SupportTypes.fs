@@ -256,27 +256,26 @@ type Episode = {
 } with
     
     /// An empty episode
-    static member Empty = {
-        Media              = ""
-        Length             = 0L
-        Duration           = None
-        MediaType          = None
-        ImageUrl           = None
-        Subtitle           = None
-        Explicit           = None
-        Chapters           = None
-        ChapterFile        = None
-        ChapterType        = None
-        ChapterWaypoints   = None 
-        TranscriptUrl      = None
-        TranscriptType     = None
-        TranscriptLang     = None
-        TranscriptCaptions = None
-        SeasonNumber       = None
-        SeasonDescription  = None
-        EpisodeNumber      = None
-        EpisodeDescription = None
-    }
+    static member Empty =
+        { Media              = ""
+          Length             = 0L
+          Duration           = None
+          MediaType          = None
+          ImageUrl           = None
+          Subtitle           = None
+          Explicit           = None
+          Chapters           = None
+          ChapterFile        = None
+          ChapterType        = None
+          ChapterWaypoints   = None 
+          TranscriptUrl      = None
+          TranscriptType     = None
+          TranscriptLang     = None
+          TranscriptCaptions = None
+          SeasonNumber       = None
+          SeasonDescription  = None
+          EpisodeNumber      = None
+          EpisodeDescription = None }
     
     /// Format a duration for an episode
     member this.FormatDuration() =
@@ -460,11 +459,8 @@ type RedirectRule = {
 } with
     
     /// An empty redirect rule
-    static member Empty = {
-        From    = ""
-        To      = ""
-        IsRegex = false
-    }
+    static member Empty =
+        { From = ""; To = ""; IsRegex = false }
 
 
 /// An identifier for a custom feed
@@ -557,24 +553,23 @@ type PodcastOptions = {
 } with
     
     /// A default set of podcast options
-    static member Empty = {
-        Title            = ""
-        Subtitle         = None
-        ItemsInFeed      = 0
-        Summary          = ""
-        DisplayedAuthor  = ""
-        Email            = ""
-        ImageUrl         = Permalink.Empty
-        AppleCategory    = ""
-        AppleSubcategory = None
-        Explicit         = No
-        DefaultMediaType = None
-        MediaBaseUrl     = None
-        PodcastGuid      = None
-        FundingUrl       = None
-        FundingText      = None
-        Medium           = None 
-    }
+    static member Empty =
+        { Title            = ""
+          Subtitle         = None
+          ItemsInFeed      = 0
+          Summary          = ""
+          DisplayedAuthor  = ""
+          Email            = ""
+          ImageUrl         = Permalink.Empty
+          AppleCategory    = ""
+          AppleSubcategory = None
+          Explicit         = No
+          DefaultMediaType = None
+          MediaBaseUrl     = None
+          PodcastGuid      = None
+          FundingUrl       = None
+          FundingText      = None
+          Medium           = None }
 
 
 /// A custom feed
@@ -594,12 +589,11 @@ type CustomFeed = {
 } with
     
     /// An empty custom feed
-    static member Empty = {
-        Id      = CustomFeedId.Empty
-        Source  = Category CategoryId.Empty
-        Path    = Permalink.Empty
-        Podcast = None
-    }
+    static member Empty =
+        { Id      = CustomFeedId.Empty
+          Source  = Category CategoryId.Empty
+          Path    = Permalink.Empty
+          Podcast = None }
 
 
 /// Really Simple Syndication (RSS) options for this web log
@@ -628,15 +622,14 @@ type RssOptions = {
 } with
     
     /// An empty set of RSS options
-    static member Empty = {
-        IsFeedEnabled     = true
-        FeedName          = "feed.xml"
-        ItemsInFeed       = None
-        IsCategoryEnabled = true
-        IsTagEnabled      = true
-        Copyright         = None
-        CustomFeeds       = []
-    }
+    static member Empty =
+        { IsFeedEnabled     = true
+          FeedName          = "feed.xml"
+          ItemsInFeed       = None
+          IsCategoryEnabled = true
+          IsTagEnabled      = true
+          Copyright         = None
+          CustomFeeds       = [] }
 
 
 /// An identifier for a tag mapping

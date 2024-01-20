@@ -26,14 +26,13 @@ type Category = {
 } with
     
     /// An empty category
-    static member Empty = {
-        Id          = CategoryId.Empty
-        WebLogId    = WebLogId.Empty
-        Name        = ""
-        Slug        = ""
-        Description = None
-        ParentId    = None
-    }
+    static member Empty =
+        { Id          = CategoryId.Empty
+          WebLogId    = WebLogId.Empty
+          Name        = ""
+          Slug        = ""
+          Description = None
+          ParentId    = None }
 
 
 /// A comment on a post
@@ -68,17 +67,16 @@ type Comment = {
 } with
     
     /// An empty comment
-    static member Empty = {
-        Id          = CommentId.Empty
-        PostId      = PostId.Empty
-        InReplyToId = None
-        Name        = ""
-        Email       = ""
-        Url         = None
-        Status      = Pending
-        PostedOn    = Noda.epoch
-        Text        = ""
-    }
+    static member Empty =
+        { Id          = CommentId.Empty
+          PostId      = PostId.Empty
+          InReplyToId = None
+          Name        = ""
+          Email       = ""
+          Url         = None
+          Status      = Pending
+          PostedOn    = Noda.epoch
+          Text        = "" }
 
 
 /// A page (text not associated with a date/time)
@@ -125,21 +123,20 @@ type Page = {
 } with
     
     /// An empty page
-    static member Empty = {
-        Id              = PageId.Empty
-        WebLogId        = WebLogId.Empty
-        AuthorId        = WebLogUserId.Empty
-        Title           = ""
-        Permalink       = Permalink.Empty
-        PublishedOn     = Noda.epoch
-        UpdatedOn       = Noda.epoch
-        IsInPageList    = false
-        Template        = None
-        Text            = ""
-        Metadata        = []
-        PriorPermalinks = []
-        Revisions       = []
-    }
+    static member Empty =
+        { Id              = PageId.Empty
+          WebLogId        = WebLogId.Empty
+          AuthorId        = WebLogUserId.Empty
+          Title           = ""
+          Permalink       = Permalink.Empty
+          PublishedOn     = Noda.epoch
+          UpdatedOn       = Noda.epoch
+          IsInPageList    = false
+          Template        = None
+          Text            = ""
+          Metadata        = []
+          PriorPermalinks = []
+          Revisions       = [] }
 
 
 /// A web log post
@@ -195,24 +192,23 @@ type Post = {
 } with
     
     /// An empty post
-    static member Empty = {
-        Id              = PostId.Empty
-        WebLogId        = WebLogId.Empty
-        AuthorId        = WebLogUserId.Empty
-        Status          = Draft
-        Title           = ""
-        Permalink       = Permalink.Empty
-        PublishedOn     = None
-        UpdatedOn       = Noda.epoch
-        Text            = ""
-        Template        = None
-        CategoryIds     = []
-        Tags            = []
-        Episode         = None
-        Metadata        = []
-        PriorPermalinks = []
-        Revisions       = []
-    }
+    static member Empty =
+        { Id              = PostId.Empty
+          WebLogId        = WebLogId.Empty
+          AuthorId        = WebLogUserId.Empty
+          Status          = Draft
+          Title           = ""
+          Permalink       = Permalink.Empty
+          PublishedOn     = None
+          UpdatedOn       = Noda.epoch
+          Text            = ""
+          Template        = None
+          CategoryIds     = []
+          Tags            = []
+          Episode         = None
+          Metadata        = []
+          PriorPermalinks = []
+          Revisions       = [] }
 
 
 /// A mapping between a tag and its URL value, used to translate restricted characters (ex. "#1" -> "number-1")
@@ -232,12 +228,8 @@ type TagMap = {
 } with
     
     /// An empty tag mapping
-    static member Empty = {
-        Id       = TagMapId.Empty
-        WebLogId = WebLogId.Empty
-        Tag      = ""
-        UrlValue = ""
-    }
+    static member Empty =
+        { Id = TagMapId.Empty; WebLogId = WebLogId.Empty; Tag = ""; UrlValue = "" }
 
 
 /// A theme
@@ -257,12 +249,8 @@ type Theme = {
 } with
     
     /// An empty theme
-    static member Empty = {
-        Id        = ThemeId.Empty
-        Name      = ""
-        Version   = ""
-        Templates = []
-    }
+    static member Empty =
+        { Id = ThemeId.Empty; Name = ""; Version = ""; Templates = [] }
 
 
 /// A theme asset (a file served as part of a theme, at /themes/[theme]/[asset-path])
@@ -279,11 +267,8 @@ type ThemeAsset = {
 } with
     
     /// An empty theme asset
-    static member Empty = {
-        Id        = ThemeAssetId.Empty
-        UpdatedOn = Noda.epoch
-        Data      = [||]
-    }
+    static member Empty =
+        { Id = ThemeAssetId.Empty; UpdatedOn = Noda.epoch; Data = [||] }
 
 
 /// An uploaded file
@@ -306,13 +291,8 @@ type Upload = {
 } with
     
     /// An empty upload
-    static member Empty = {
-        Id        = UploadId.Empty
-        WebLogId  = WebLogId.Empty
-        Path      = Permalink.Empty
-        UpdatedOn = Noda.epoch
-        Data      = [||]
-    }
+    static member Empty =
+        { Id = UploadId.Empty; WebLogId = WebLogId.Empty; Path = Permalink.Empty; UpdatedOn = Noda.epoch; Data = [||] }
 
 
 open Newtonsoft.Json
@@ -361,21 +341,20 @@ type WebLog = {
 } with
     
     /// An empty web log
-    static member Empty = {
-        Id            = WebLogId.Empty
-        Name          = ""
-        Slug          = ""
-        Subtitle      = None
-        DefaultPage   = ""
-        PostsPerPage  = 10
-        ThemeId       = ThemeId "default"
-        UrlBase       = ""
-        TimeZone      = ""
-        Rss           = RssOptions.Empty
-        AutoHtmx      = false
-        Uploads       = Database
-        RedirectRules = []
-    }
+    static member Empty =
+        { Id            = WebLogId.Empty
+          Name          = ""
+          Slug          = ""
+          Subtitle      = None
+          DefaultPage   = ""
+          PostsPerPage  = 10
+          ThemeId       = ThemeId "default"
+          UrlBase       = ""
+          TimeZone      = ""
+          Rss           = RssOptions.Empty
+          AutoHtmx      = false
+          Uploads       = Database
+          RedirectRules = [] }
     
     /// Any extra path where this web log is hosted (blank if web log is hosted at the root of the domain)
     [<JsonIgnore>]
@@ -441,19 +420,18 @@ type WebLogUser = {
 } with
     
     /// An empty web log user
-    static member Empty = {
-        Id            = WebLogUserId.Empty
-        WebLogId      = WebLogId.Empty
-        Email         = ""
-        FirstName     = ""
-        LastName      = ""
-        PreferredName = ""
-        PasswordHash  = ""
-        Url           = None
-        AccessLevel   = Author
-        CreatedOn     = Noda.epoch
-        LastSeenOn    = None
-    }
+    static member Empty =
+        { Id            = WebLogUserId.Empty
+          WebLogId      = WebLogId.Empty
+          Email         = ""
+          FirstName     = ""
+          LastName      = ""
+          PreferredName = ""
+          PasswordHash  = ""
+          Url           = None
+          AccessLevel   = Author
+          CreatedOn     = Noda.epoch
+          LastSeenOn    = None }
     
     /// Get the user's displayed name
     [<JsonIgnore>]
