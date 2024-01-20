@@ -205,12 +205,13 @@ type DisplayTheme = {
     
     /// Create a display theme from a theme
     static member FromTheme inUseFunc (theme: Theme) =
+        let fileName = if string theme.Id = "default" then "default-theme.zip" else $"./themes/{theme.Id}-theme.zip"
         { Id            = string theme.Id
           Name          = theme.Name
           Version       = theme.Version
           TemplateCount = List.length theme.Templates
           IsInUse       = inUseFunc theme.Id
-          IsOnDisk      = File.Exists $"{theme.Id}-theme.zip" }
+          IsOnDisk      = File.Exists fileName }
 
 
 /// Information about an uploaded file used for display

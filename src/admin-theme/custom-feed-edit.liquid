@@ -28,7 +28,7 @@
               <div class="col py-3 d-flex align-self-center justify-content-center">
                 <div class="form-check form-switch">
                   <input type=checkbox name=IsPodcast id=isPodcast class=form-check-input value=true
-                         {%- if model.is_podcast %} checked {% endif %}onclick="Admin.checkPodcast()">
+                         {%- if model.is_podcast %} checked{% endif %} onclick="Admin.checkPodcast()">
                   <label for=isPodcast class=form-check-label>This Is a Podcast Feed</label>
                 </div>
               </div>
@@ -42,7 +42,7 @@
               <div class="col-1 d-flex justify-content-end pb-3">
                 <div class="form-check form-check-inline me-0">
                   <input type=radio name=SourceType id=sourceTypeCat class=form-check-input value=category
-                         {%- unless typ == "tag" %} checked {% endunless -%}onclick="Admin.customFeedBy('category')">
+                         {%- unless typ == "tag" %} checked{% endunless %} onclick="Admin.customFeedBy('category')">
                   <label for=sourceTypeCat class="form-check-label d-none">Category</label>
                 </div>
               </div>
@@ -67,14 +67,14 @@
               <div class="col-1 d-flex justify-content-end pb-3">
                 <div class="form-check form-check-inline me-0">
                   <input type=radio name=SourceType id=sourceTypeTag class=form-check-input value=tag
-                         {%- if typ == "tag" %} checked {% endif %}onclick="Admin.customFeedBy('tag')">
+                         {%- if typ == "tag" %} checked{% endif %} onclick="Admin.customFeedBy('tag')">
                   <label for="sourceTypeTag" class="form-check-label d-none">Tag</label>
                 </div>
               </div>
               <div class="col-11 pb-3">
                 <div class=form-floating>
                   <input type=text name=SourceValue id=sourceValueTag class=form-control placeholder=Tag
-                         {%- unless typ == "tag" %} disabled {% endunless %}required
+                         {%- unless typ == "tag" %} disabled{% endunless %} required
                          {%- if typ == "tag" %} value="{{ model.source_value }}"{% endif %}>
                   <label for=sourceValueTag>Tag</label>
                 </div>

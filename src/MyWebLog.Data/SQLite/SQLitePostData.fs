@@ -145,7 +145,7 @@ type SQLitePostData(conn: SqliteConnection, log: ILogger) =
         let tagSql, tagParams = inJsonArray Table.Post (nameof Post.Empty.Tags) "tag" [ tag ]
         conn.customList
             $"{publishedPostByWebLog} AND {tagSql}
-               ORDER BY p.published_on DESC
+               ORDER BY {publishField} DESC
                LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"
             (webLogParam webLogId :: tagParams)
             fromData<Post>

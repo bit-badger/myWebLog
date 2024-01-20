@@ -175,8 +175,9 @@ let displayThemeTests = testList "DisplayTheme.FromTheme" [
         Expect.isTrue model.IsInUse "IsInUse should have been set"
         Expect.isFalse model.IsOnDisk "IsOnDisk should not have been set"
     }
-    test "succeeds when the theme is not in use as is on disk" {
-        let file = File.Create "another-theme.zip"
+    test "succeeds when a non-default theme is not in use and is on disk" {
+        let dir  = Directory.CreateDirectory "themes"
+        let file = File.Create "./themes/another-theme.zip"
         try
             let model = DisplayTheme.FromTheme (fun _ -> false) { theme with Id = ThemeId "another" }
             Expect.isFalse model.IsInUse "IsInUse should not have been set"
@@ -184,7 +185,19 @@ let displayThemeTests = testList "DisplayTheme.FromTheme" [
         finally
            file.Close()
            file.Dispose()
-           File.Delete "another-theme.zip"
+           File.Delete "./themes/another-theme.zip"
+           dir.Delete()
+    }
+    test "succeeds when the default theme is on disk" {
+        let file = File.Create "./default-theme.zip"
+        try
+            Expect.isTrue
+                (DisplayTheme.FromTheme (fun _ -> false) { theme with Id = ThemeId "default" }).IsOnDisk
+                "IsOnDisk should have been set"
+        finally
+           file.Close()
+           file.Dispose()
+           File.Delete "./default-theme.zip"
     }
 ]
 
