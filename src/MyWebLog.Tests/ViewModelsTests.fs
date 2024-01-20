@@ -8,16 +8,27 @@ open NodaTime
 
 /// Unit tests for the addBaseToRelativeUrls helper function
 let addBaseToRelativeUrlsTests = testList "PublicHelpers.addBaseToRelativeUrls" [
-    test "succeeds when there is no extra URL path" {
-        let testText = """<a href="/somewhere-else.html">Howdy></a>"""
+    test "succeeds for quoted URLs when there is no extra URL path" {
+        let testText = """<a href="/somewhere-else.html"><img src="/howdy.png"></a>"""
         let modified = addBaseToRelativeUrls "" testText
         Expect.equal modified testText "The text should not have been modified"
     }
-    test "succeeds with an extra URL path" {
+    test "succeeds for quoted URLs with an extra URL path" {
         let testText =
-            """<a href="/my-link.htm"><img src="/pretty-picture.jpg"></a><a href="https://example.com>link</a>"""
+            """<a href="/my-link.htm"><img src="/pretty-picture.jpg"></a><a href="https://example.com">link</a>"""
         let expected =
-            """<a href="/a/b/my-link.htm"><img src="/a/b/pretty-picture.jpg"></a><a href="https://example.com>link</a>"""
+            """<a href="/a/b/my-link.htm"><img src="/a/b/pretty-picture.jpg"></a><a href="https://example.com">link</a>"""
+        Expect.equal (addBaseToRelativeUrls "/a/b" testText) expected "Relative URLs not modified correctly"
+    }
+    test "succeeds for unquoted URLs when there is no extra URL path" {
+        let testText = "<a href=/over-here.html><img src=/arrow.gif></a>"
+        let modified = addBaseToRelativeUrls "" testText
+        Expect.equal modified testText "The text should not have been modified"
+    }
+    test "succeeds for unquoted URLs with an extra URL path" {
+        let testText = "<a href=/my-link.htm><img src=/pretty-picture.jpg></a><a href=https://example.com>link</a>"
+        let expected =
+            "<a href=/a/b/my-link.htm><img src=/a/b/pretty-picture.jpg></a><a href=https://example.com>link</a>"
         Expect.equal (addBaseToRelativeUrls "/a/b" testText) expected "Relative URLs not modified correctly"
     }
 ]

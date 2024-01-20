@@ -21,7 +21,9 @@ module PublicHelpers =
     /// post text
     let addBaseToRelativeUrls extra (text: string) =
         if extra = "" then text
-        else text.Replace("href=\"/", $"href=\"{extra}/").Replace("src=\"/", $"src=\"{extra}/")
+        else
+            text.Replace("href=\"/", $"href=\"{extra}/").Replace("href=/", $"href={extra}/")
+                .Replace("src=\"/", $"src=\"{extra}/").Replace("src=/", $"src={extra}/")
 
 
 /// The model used to display the admin dashboard
