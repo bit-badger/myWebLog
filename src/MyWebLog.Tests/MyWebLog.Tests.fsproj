@@ -8,7 +8,9 @@
     <Compile Include="SupportTypesTests.fs" />
     <Compile Include="DataTypesTests.fs" />
     <Compile Include="ViewModelsTests.fs" />
+    <Compile Include="ConvertersTests.fs" />
     <Compile Include="Program.fs" />
+    <Content Include="root-weblog.json" />
   </ItemGroup>
 
   <ItemGroup>
