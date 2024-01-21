@@ -42,7 +42,13 @@
 		<Compile Include="Postgres\PostgresUploadData.fs" />
 		<Compile Include="Postgres\PostgresWebLogData.fs" />
 		<Compile Include="Postgres\PostgresWebLogUserData.fs" />
-    <Compile Include="PostgresData.fs" />
+		<Compile Include="PostgresData.fs" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+			<_Parameter1>MyWebLog.Tests</_Parameter1>
+		</AssemblyAttribute>
 	</ItemGroup>
 
 </Project>

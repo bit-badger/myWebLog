@@ -1,6 +1,7 @@
 module ConvertersTests
 
 open Expecto
+open Microsoft.FSharpLu.Json
 open MyWebLog
 open MyWebLog.Converters.Json
 open Newtonsoft.Json
@@ -243,6 +244,35 @@ let webLogUserIdConverterTests = testList "WebLogUserIdConverter" [
     }
 ]
 
+open NodaTime.Serialization.JsonNet
+
+/// Unit tests for the Json.configure function
+let configureTests = test "Json.configure succeeds" {
+    let has typ (converter: JsonConverter) = converter.GetType() = typ
+    let ser = configure (JsonSerializer.Create())
+    Expect.hasCountOf ser.Converters 1u (has typeof<CategoryIdConverter>) "Category ID converter not found"
+    Expect.hasCountOf ser.Converters 1u (has typeof<CommentIdConverter>) "Comment ID converter not found"
+    Expect.hasCountOf ser.Converters 1u (has typeof<CommentStatusConverter>) "Comment status converter not found"
+    Expect.hasCountOf ser.Converters 1u (has typeof<CustomFeedIdConverter>) "Custom feed ID converter not found"
+    Expect.hasCountOf ser.Converters 1u (has typeof<CustomFeedSourceConverter>) "Custom feed source converter not found"
+    Expect.hasCountOf ser.Converters 1u (has typeof<ExplicitRatingConverter>) "Explicit rating converter not found"
+    Expect.hasCountOf ser.Converters 1u (has typeof<MarkupTextConverter>) "Markup text converter not found"
+    Expect.hasCountOf ser.Converters 1u (has typeof<PermalinkConverter>) "Permalink converter not found"
+    Expect.hasCountOf ser.Converters 1u (has typeof<PageIdConverter>) "Page ID converter not found"
+    Expect.hasCountOf ser.Converters 1u (has typeof<PodcastMediumConverter>) "Podcast medium converter not found"
+    Expect.hasCountOf ser.Converters 1u (has typeof<PostIdConverter>) "Post ID converter not found"
+    Expect.hasCountOf ser.Converters 1u (has typeof<TagMapIdConverter>) "Tag map ID converter not found"
+    Expect.hasCountOf ser.Converters 1u (has typeof<ThemeAssetIdConverter>) "Theme asset ID converter not found"
+    Expect.hasCountOf ser.Converters 1u (has typeof<ThemeIdConverter>) "Theme ID converter not found"
+    Expect.hasCountOf ser.Converters 1u (has typeof<UploadIdConverter>) "Upload ID converter not found"
+    Expect.hasCountOf ser.Converters 1u (has typeof<WebLogIdConverter>) "Web log ID converter not found"
+    Expect.hasCountOf ser.Converters 1u (has typeof<WebLogUserIdConverter>) "Web log user ID converter not found"
+    Expect.hasCountOf ser.Converters 1u (has typeof<CompactUnionJsonConverter>) "F# type converter not found"
+    Expect.hasCountOf ser.Converters 1u (has (NodaConverters.InstantConverter.GetType())) "NodaTime converter not found"
+    Expect.equal ser.NullValueHandling NullValueHandling.Ignore "Null handling set incorrectly"
+    Expect.equal ser.MissingMemberHandling MissingMemberHandling.Ignore "Missing member handling set incorrectly"
+}
+
 /// All tests for the Data.Converters file
 let all = testList "Converters" [
     categoryIdConverterTests
@@ -262,4 +292,5 @@ let all = testList "Converters" [
     uploadIdConverterTests
     webLogIdConverterTests
     webLogUserIdConverterTests
+    configureTests
 ]

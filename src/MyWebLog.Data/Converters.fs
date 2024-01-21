@@ -135,24 +135,24 @@ module Json =
     /// Configure a serializer to use these converters
     let configure (ser : JsonSerializer) =
         // Our converters
-        [   CategoryIdConverter() :> JsonConverter
-            CommentIdConverter()
-            CommentStatusConverter()
-            CustomFeedIdConverter()
-            CustomFeedSourceConverter()
-            ExplicitRatingConverter()
-            MarkupTextConverter()
-            PermalinkConverter()
-            PageIdConverter()
-            PodcastMediumConverter()
-            PostIdConverter()
-            TagMapIdConverter()
-            ThemeAssetIdConverter()
-            ThemeIdConverter()
-            UploadIdConverter()
-            WebLogIdConverter()
-            WebLogUserIdConverter()
-        ] |> List.iter ser.Converters.Add
+        [ CategoryIdConverter() :> JsonConverter
+          CommentIdConverter()
+          CommentStatusConverter()
+          CustomFeedIdConverter()
+          CustomFeedSourceConverter()
+          ExplicitRatingConverter()
+          MarkupTextConverter()
+          PermalinkConverter()
+          PageIdConverter()
+          PodcastMediumConverter()
+          PostIdConverter()
+          TagMapIdConverter()
+          ThemeAssetIdConverter()
+          ThemeIdConverter()
+          UploadIdConverter()
+          WebLogIdConverter()
+          WebLogUserIdConverter() ]
+        |> List.iter ser.Converters.Add
         // NodaTime
         let _ = ser.ConfigureForNodaTime DateTimeZoneProviders.Tzdb
         // Handles DUs with no associated data, as well as option fields
