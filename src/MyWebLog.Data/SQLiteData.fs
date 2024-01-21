@@ -1,5 +1,6 @@
 namespace MyWebLog.Data
 
+open System
 open System.Threading.Tasks
 open BitBadger.Documents
 open BitBadger.Documents.Sqlite
@@ -221,8 +222,7 @@ type SQLiteData(conn: SqliteConnection, log: ILogger<SQLiteData>, ser: JsonSeria
                       TranscriptCaptions = Map.tryBoolean  "transcript_captions" epRdr
                       SeasonNumber       = Map.tryInt      "season_number"       epRdr
                       SeasonDescription  = Map.tryString   "season_description"  epRdr
-                      EpisodeNumber      = Map.tryString   "episode_number"      epRdr
-                                           |> Option.map System.Double.Parse
+                      EpisodeNumber      = Map.tryString   "episode_number"      epRdr |> Option.map Double.Parse
                       EpisodeDescription = Map.tryString   "episode_description" epRdr }
             } |> List.ofSeq
         epRdr.Close()
@@ -235,8 +235,8 @@ type SQLiteData(conn: SqliteConnection, log: ILogger<SQLiteData>, ser: JsonSeria
             cmd.Parameters.Clear())
         
         logStep "Migrating dates/times"
-        let inst (dt: System.DateTime) =
-            System.DateTime(dt.Ticks, System.DateTimeKind.Utc)
+        let inst (dt: DateTime) =
+            DateTime(dt.Ticks, DateTimeKind.Utc)
             |> (Instant.FromDateTimeUtc >> Noda.toSecondsPrecision)
         // page.updated_on, page.published_on
         cmd.CommandText <- "SELECT id, updated_on, published_on FROM page"

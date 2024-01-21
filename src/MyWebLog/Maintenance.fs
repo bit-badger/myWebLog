@@ -395,7 +395,7 @@ module Backup =
     }
     
     /// Decide whether to restore a backup
-    let private restoreBackup fileName newUrlBase promptForOverwrite data = task {
+    let internal restoreBackup fileName newUrlBase promptForOverwrite data = task {
         
         let serializer = getSerializer false
         use stream     = new FileStream(fileName, FileMode.Open)
