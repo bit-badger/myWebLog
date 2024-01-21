@@ -5,15 +5,15 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="SupportTypesTests.fs" />
-    <Compile Include="DataTypesTests.fs" />
-    <Compile Include="ViewModelsTests.fs" />
-    <Compile Include="ConvertersTests.fs" />
-    <Compile Include="UtilsTests.fs" />
-    <Compile Include="CategoryDataTests.fs" />
-    <Compile Include="SQLiteDataTests.fs" />
+    <Compile Include="Domain\SupportTypesTests.fs" />
+    <Compile Include="Domain\DataTypesTests.fs" />
+    <Compile Include="Domain\ViewModelsTests.fs" />
+    <Compile Include="Data\ConvertersTests.fs" />
+    <Compile Include="Data\UtilsTests.fs" />
+    <Compile Include="Data\CategoryDataTests.fs" />
+    <Compile Include="Data\SQLiteDataTests.fs" />
     <Compile Include="Program.fs" />
-    <Content Include="root-weblog.json" />
+    <None Include="root-weblog.json" />
   </ItemGroup>
 
   <ItemGroup>
