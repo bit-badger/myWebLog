@@ -313,7 +313,7 @@ module Backup =
         displayStats $"{fileName} (for <>NAME<>) contains:" webLog archive
     }
     
-    let private doRestore archive newUrlBase (data: IData) = task {
+    let private doRestore archive newUrlBase isInteractive (data: IData) = task {
         let! restore = task {
             match! data.WebLog.FindById archive.WebLog.Id with
             | Some webLog when defaultArg newUrlBase webLog.UrlBase = webLog.UrlBase ->
@@ -357,45 +357,46 @@ module Backup =
         }
         
         // Restore theme and assets (one at a time, as assets can be large)
-        printfn ""
-        printfn "- Importing theme..."
+        if isInteractive then
+            printfn ""
+            printfn "- Importing theme..."
         do! data.Theme.Save restore.Theme
         restore.Assets
         |> List.iter (EncodedAsset.toAsset >> data.ThemeAsset.Save >> Async.AwaitTask >> Async.RunSynchronously)
         
         // Restore web log data
         
-        printfn "- Restoring web log..."
+        if isInteractive then printfn "- Restoring web log..."
         // v2.0 backups will not have redirect rules; fix that if restoring to v2.1 or later
         let webLog =
             if isNull (box restore.WebLog.RedirectRules) then { restore.WebLog with RedirectRules = [] }
             else restore.WebLog
         do! data.WebLog.Add webLog
         
-        printfn "- Restoring users..."
+        if isInteractive then printfn "- Restoring users..."
         do! data.WebLogUser.Restore restore.Users
         
-        printfn "- Restoring categories and tag mappings..."
+        if isInteractive then printfn "- Restoring categories and tag mappings..."
         if not (List.isEmpty restore.TagMappings) then do! data.TagMap.Restore   restore.TagMappings
         if not (List.isEmpty restore.Categories)  then do! data.Category.Restore restore.Categories
         
-        printfn "- Restoring pages..."
+        if isInteractive then printfn "- Restoring pages..."
         if not (List.isEmpty restore.Pages) then do! data.Page.Restore restore.Pages
         
-        printfn "- Restoring posts..."
+        if isInteractive then printfn "- Restoring posts..."
         if not (List.isEmpty restore.Posts) then do! data.Post.Restore restore.Posts
         
         // TODO: comments not yet implemented
         
-        printfn "- Restoring uploads..."
+        if isInteractive then printfn "- Restoring uploads..."
         if not (List.isEmpty restore.Uploads) then
             do! data.Upload.Restore (restore.Uploads |> List.map EncodedUpload.toUpload)
         
-        displayStats "Restored for <>NAME<>:" restore.WebLog restore
+        if isInteractive then displayStats "Restored for <>NAME<>:" restore.WebLog restore
     }
     
     /// Decide whether to restore a backup
-    let internal restoreBackup fileName newUrlBase promptForOverwrite data = task {
+    let internal restoreBackup fileName newUrlBase promptForOverwrite isInteractive data = task {
         
         let serializer = getSerializer false
         use stream     = new FileStream(fileName, FileMode.Open)
@@ -413,7 +414,7 @@ module Backup =
             doOverwrite <- not (Console.ReadKey().Key = ConsoleKey.N)
         
         if doOverwrite then
-            do! doRestore archive newUrlBase data
+            do! doRestore archive newUrlBase isInteractive data
         else
             printfn $"{archive.WebLog.Name} backup restoration canceled"
     }
@@ -445,7 +446,7 @@ module Backup =
         if args.Length = 2 || args.Length = 3 then
             let data       = sp.GetRequiredService<IData>()
             let newUrlBase = if args.Length = 3 then Some args[2] else None
-            do! restoreBackup args[1] newUrlBase (args[0] <> "do-restore") data
+            do! restoreBackup args[1] newUrlBase (args[0] <> "do-restore") true data
         else
             eprintfn "Usage: myWebLog restore [backup-file-name] [*url-base]"
             eprintfn "         * optional - will restore to original URL base if omitted"

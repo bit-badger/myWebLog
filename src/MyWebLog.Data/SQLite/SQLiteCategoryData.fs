@@ -80,13 +80,21 @@ type SQLiteCategoryData(conn: SqliteConnection, ser: JsonSerializer, log: ILogge
         | Some cat ->
             // Reassign any children to the category's parent category
             let! children = conn.countByField Table.Category parentIdField EQ (string catId)
-            if children > 0 then
-                do! conn.patchByField Table.Category parentIdField EQ (string catId) {| ParentId = cat.ParentId |}
+            if children > 0L then
+                match cat.ParentId with
+                | Some _ ->
+                    do! conn.patchByField Table.Category parentIdField EQ (string catId) {| ParentId = cat.ParentId |}
+                | None ->
+                    do! conn.customNonQuery
+                            $"""UPDATE {Table.Category}
+                                   SET data = json_remove(data, '$.ParentId')
+                                 WHERE {Query.whereByField parentIdField EQ "@field"}"""
+                            [ fieldParam (string catId) ]
             // Delete the category off all posts where it is assigned, and the category itself
             let catIdField = nameof Post.Empty.CategoryIds
             let! posts =
                 conn.customList
-                    $"SELECT data ->> '{Post.Empty.Id}', data -> '{catIdField}'
+                    $"SELECT data ->> '{nameof Post.Empty.Id}', data -> '{catIdField}'
                         FROM {Table.Post}
                        WHERE {Document.Query.whereByWebLog}
                          AND EXISTS
