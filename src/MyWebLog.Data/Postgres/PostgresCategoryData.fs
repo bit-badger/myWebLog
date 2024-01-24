@@ -81,15 +81,26 @@ type PostgresCategoryData(log: ILogger) =
             let! children = Find.byContains<Category> Table.Category {| ParentId = catId |}
             let hasChildren = not (List.isEmpty children)
             if hasChildren then
-                let! _ =
-                    Configuration.dataSource ()
-                    |> Sql.fromDataSource
-                    |> Sql.executeTransactionAsync
-                        [ Query.Patch.byId Table.Category,
-                          children
-                          |> List.map (fun child ->
-                              [ idParam child.Id; jsonParam "@data" {| ParentId = cat.ParentId |} ]) ]
-                ()
+                if cat.ParentId.IsSome then
+                    let! _ =
+                        Configuration.dataSource ()
+                        |> Sql.fromDataSource
+                        |> Sql.executeTransactionAsync
+                            [ Query.Patch.byId Table.Category,
+                              children
+                              |> List.map (fun child ->
+                                  [ idParam child.Id; jsonParam "@data" {| ParentId = cat.ParentId |} ]) ]
+                    ()
+                else
+                    let! _ =
+                        Configuration.dataSource ()
+                        |> Sql.fromDataSource
+                        |> Sql.executeTransactionAsync
+                            [ Query.RemoveFields.byId Table.Category,
+                              children
+                              |> List.map (fun child ->
+                                  [ idParam child.Id; fieldNameParam [ nameof Category.Empty.ParentId ] ]) ]
+                    ()
             // Delete the category off all posts where it is assigned
             let! posts =
                 Custom.list

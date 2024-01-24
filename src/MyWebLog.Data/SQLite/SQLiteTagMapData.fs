@@ -28,10 +28,10 @@ type SQLiteTagMapData(conn: SqliteConnection, log: ILogger) =
     /// Find a tag mapping by its URL value for the given web log
     let findByUrlValue (urlValue: string) webLogId =
         log.LogTrace "TagMap.findByUrlValue"
+        let urlParam = Field.EQ (nameof TagMap.Empty.UrlValue) urlValue
         conn.customSingle
-            $"""{Document.Query.selectByWebLog Table.TagMap}
-                  AND {Query.whereByField (nameof TagMap.Empty.UrlValue) EQ "@urlValue"}"""
-            [ webLogParam webLogId; SqliteParameter("@urlValue", urlValue) ]
+            $"""{Document.Query.selectByWebLog Table.TagMap} AND {Query.whereByField urlParam "@urlValue"}"""
+            (addFieldParam "@urlValue" urlParam [ webLogParam webLogId ])
             fromData<TagMap>
     
     /// Get all tag mappings for the given web log

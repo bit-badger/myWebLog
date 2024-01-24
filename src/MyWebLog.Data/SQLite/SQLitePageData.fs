@@ -53,7 +53,7 @@ type SQLitePageData(conn: SqliteConnection, log: ILogger) =
     let countListed webLogId =
         log.LogTrace "Page.countListed"
         conn.customScalar
-            $"""{Document.Query.countByWebLog Table.Page} AND {Query.whereByField pgListName EQ "true"}"""
+            $"""{Document.Query.countByWebLog Table.Page} AND {Query.whereByField (Field.EQ pgListName "") "true"}"""
             [ webLogParam webLogId ]
             (toCount >> int)
     
@@ -88,9 +88,10 @@ type SQLitePageData(conn: SqliteConnection, log: ILogger) =
     /// Find a page by its permalink for the given web log
     let findByPermalink (permalink: Permalink) webLogId =
         log.LogTrace "Page.findByPermalink"
+        let linkParam = Field.EQ linkName (string permalink)
         conn.customSingle
-            $"""{Document.Query.selectByWebLog Table.Page} AND {Query.whereByField linkName EQ "@link"}"""
-            [ webLogParam webLogId; SqliteParameter("@link", string permalink) ]
+            $"""{Document.Query.selectByWebLog Table.Page} AND {Query.whereByField linkParam "@link"}"""
+            (addFieldParam "@link" linkParam [ webLogParam webLogId ])
             fromData<Page>
     
     /// Find the current permalink within a set of potential prior permalinks for the given web log
@@ -116,7 +117,7 @@ type SQLitePageData(conn: SqliteConnection, log: ILogger) =
     let findListed webLogId =
         log.LogTrace "Page.findListed"
         conn.customList
-            $"""{Document.Query.selectByWebLog Table.Page} AND {Query.whereByField pgListName EQ "true"}
+            $"""{Document.Query.selectByWebLog Table.Page} AND {Query.whereByField (Field.EQ pgListName "") "true"}
                 ORDER BY LOWER({titleField})"""
             [ webLogParam webLogId ]
             (fun rdr -> { fromData<Page> rdr with Text = "" })

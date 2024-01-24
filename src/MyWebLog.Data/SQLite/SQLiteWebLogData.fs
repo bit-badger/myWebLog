@@ -23,25 +23,25 @@ type SQLiteWebLogData(conn: SqliteConnection, log: ILogger) =
     /// Delete a web log by its ID
     let delete webLogId =
         log.LogTrace "WebLog.delete"
-        let subQuery table =
-            $"""(SELECT data ->> 'Id' FROM {table} WHERE {Query.whereByField "WebLogId" EQ "@webLogId"}"""
+        let webLogMatches = Query.whereByField (Field.EQ "WebLogId" "") "@webLogId"
+        let subQuery table = $"(SELECT data ->> 'Id' FROM {table} WHERE {webLogMatches}"
         Custom.nonQuery
             $"""DELETE FROM {Table.PostComment}  WHERE data ->> 'PostId' IN {subQuery Table.Post};
                 DELETE FROM {Table.PostRevision} WHERE post_id           IN {subQuery Table.Post};
                 DELETE FROM {Table.PageRevision} WHERE page_id           IN {subQuery Table.Page};
-                DELETE FROM {Table.Post}         WHERE {Query.whereByField "WebLogId" EQ "@webLogId"};
-                DELETE FROM {Table.Page}         WHERE {Query.whereByField "WebLogId" EQ "@webLogId"};
-                DELETE FROM {Table.Category}     WHERE {Query.whereByField "WebLogId" EQ "@webLogId"};
-                DELETE FROM {Table.TagMap}       WHERE {Query.whereByField "WebLogId" EQ "@webLogId"};
+                DELETE FROM {Table.Post}         WHERE {webLogMatches};
+                DELETE FROM {Table.Page}         WHERE {webLogMatches};
+                DELETE FROM {Table.Category}     WHERE {webLogMatches};
+                DELETE FROM {Table.TagMap}       WHERE {webLogMatches};
                 DELETE FROM {Table.Upload}       WHERE web_log_id = @webLogId;
-                DELETE FROM {Table.WebLogUser}   WHERE {Query.whereByField "WebLogId" EQ "@webLogId"};
+                DELETE FROM {Table.WebLogUser}   WHERE {webLogMatches};
                 DELETE FROM {Table.WebLog}       WHERE {Query.whereById "@webLogId"}"""
             [ webLogParam webLogId ]
     
     /// Find a web log by its host (URL base)
     let findByHost (url: string) =
         log.LogTrace "WebLog.findByHost"
-        conn.findFirstByField<WebLog> Table.WebLog (nameof WebLog.Empty.UrlBase) EQ url
+        conn.findFirstByField<WebLog> Table.WebLog (Field.EQ (nameof WebLog.Empty.UrlBase) url)
     
     /// Find a web log by its ID
     let findById webLogId =

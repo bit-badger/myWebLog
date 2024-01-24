@@ -53,7 +53,7 @@ type SQLiteCategoryData(conn: SqliteConnection, ser: JsonSerializer, log: ILogge
                     SELECT COUNT(DISTINCT data ->> '{nameof Post.Empty.Id}')
                       FROM {Table.Post}
                      WHERE {Document.Query.whereByWebLog}
-                       AND {Query.whereByField (nameof Post.Empty.Status) EQ $"'{string Published}'"}
+                       AND {Query.whereByField (Field.EQ (nameof Post.Empty.Status) "") $"'{string Published}'"}
                        AND {catSql}"""
                 let! postCount = conn.customScalar query (webLogParam webLogId :: catParams) toCount
                 return it.Id, int postCount
@@ -79,17 +79,12 @@ type SQLiteCategoryData(conn: SqliteConnection, ser: JsonSerializer, log: ILogge
         match! findById catId webLogId with
         | Some cat ->
             // Reassign any children to the category's parent category
-            let! children = conn.countByField Table.Category parentIdField EQ (string catId)
+            let! children = conn.countByField Table.Category (Field.EQ parentIdField (string catId))
             if children > 0L then
+                let parent = Field.EQ parentIdField (string catId)
                 match cat.ParentId with
-                | Some _ ->
-                    do! conn.patchByField Table.Category parentIdField EQ (string catId) {| ParentId = cat.ParentId |}
-                | None ->
-                    do! conn.customNonQuery
-                            $"""UPDATE {Table.Category}
-                                   SET data = json_remove(data, '$.ParentId')
-                                 WHERE {Query.whereByField parentIdField EQ "@field"}"""
-                            [ fieldParam (string catId) ]
+                | Some _ -> do! conn.patchByField Table.Category parent {| ParentId = cat.ParentId |}
+                | None -> do! conn.removeFieldsByField Table.Category parent [ parentIdField ]
             // Delete the category off all posts where it is assigned, and the category itself
             let catIdField = nameof Post.Empty.CategoryIds
             let! posts =

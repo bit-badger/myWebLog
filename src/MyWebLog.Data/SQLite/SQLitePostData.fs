@@ -34,7 +34,8 @@ type SQLitePostData(conn: SqliteConnection, log: ILogger) =
     let postByWebLog = Document.Query.selectByWebLog Table.Post
     
     /// The SELECT statement to retrieve published posts with a web log ID parameter
-    let publishedPostByWebLog = $"""{postByWebLog} AND {Query.whereByField statName EQ $"'{string Published}'"}"""
+    let publishedPostByWebLog =
+        $"""{postByWebLog} AND {Query.whereByField (Field.EQ statName "") $"'{string Published}'"}"""
     
     /// Update a post's revisions
     let updatePostRevisions (postId: PostId) oldRevs newRevs =
@@ -46,9 +47,10 @@ type SQLitePostData(conn: SqliteConnection, log: ILogger) =
     /// Count posts in a status for the given web log
     let countByStatus (status: PostStatus) webLogId =
         log.LogTrace "Post.countByStatus"
+        let statParam = Field.EQ statName (string status)
         conn.customScalar
-            $"""{Document.Query.countByWebLog Table.Post} AND {Query.whereByField statName EQ "@status"}"""
-            [ webLogParam webLogId; SqliteParameter("@status", string status) ]
+            $"""{Document.Query.countByWebLog Table.Post} AND {Query.whereByField statParam "@status"}"""
+            (addFieldParam "@status" statParam [ webLogParam webLogId ])
             (toCount >> int)
     
     /// Find a post by its ID for the given web log (excluding revisions)
@@ -59,9 +61,10 @@ type SQLitePostData(conn: SqliteConnection, log: ILogger) =
     /// Find a post by its permalink for the given web log (excluding revisions)
     let findByPermalink (permalink: Permalink) webLogId =
         log.LogTrace "Post.findByPermalink"
+        let linkParam = Field.EQ linkName (string permalink)
         conn.customSingle
-            $"""{Document.Query.selectByWebLog Table.Post} AND {Query.whereByField linkName EQ "@link"}"""
-            [ webLogParam webLogId; SqliteParameter("@link", string permalink) ]
+            $"""{Document.Query.selectByWebLog Table.Post} AND {Query.whereByField linkParam "@link"}"""
+            (addFieldParam "@link" linkParam [ webLogParam webLogId ])
             fromData<Post>
     
     /// Find a complete post by its ID for the given web log
@@ -82,7 +85,7 @@ type SQLitePostData(conn: SqliteConnection, log: ILogger) =
             do! conn.customNonQuery
                     $"""DELETE FROM {Table.PostRevision} WHERE post_id = @id;
                         DELETE FROM {Table.PostComment}
-                         WHERE {Query.whereByField (nameof Comment.Empty.PostId) EQ "@id"};
+                         WHERE {Query.whereByField (Field.EQ (nameof Comment.Empty.PostId) "") "@id"};
                         {Query.Delete.byId Table.Post}"""
                     [ idParam postId ]
             return true

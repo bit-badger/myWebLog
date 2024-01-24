@@ -26,8 +26,8 @@
     <PackageReference Include="BitBadger.AspNetCore.CanonicalDomains" Version="1.0.0" />
     <PackageReference Include="DotLiquid" Version="2.2.692" />
     <PackageReference Include="Giraffe" Version="6.2.0" />
-    <PackageReference Include="Giraffe.Htmx" Version="1.9.4" />
-    <PackageReference Include="Giraffe.ViewEngine.Htmx" Version="1.9.4" />
+    <PackageReference Include="Giraffe.Htmx" Version="1.9.10" />
+    <PackageReference Include="Giraffe.ViewEngine.Htmx" Version="1.9.10" />
     <PackageReference Include="NeoSmart.Caching.Sqlite" Version="6.1.0" />
     <PackageReference Include="RethinkDB.DistributedCache" Version="1.0.0-rc1" />
     <PackageReference Include="System.ServiceModel.Syndication" Version="7.0.0" />

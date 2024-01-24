@@ -239,7 +239,7 @@ module Document =
         
         /// Fragment to add a web log ID condition to a WHERE clause (parameter @webLogId)
         let whereByWebLog =
-            Query.whereByField "WebLogId" EQ "@webLogId"
+            Query.whereByField (Field.EQ "WebLogId" "") "@webLogId"
         
         /// A SELECT query to count documents for a given web log ID
         let countByWebLog table =
@@ -255,7 +255,7 @@ module Document =
     
     /// Count documents for the given web log ID
     let countByWebLog table (webLogId: WebLogId) conn = backgroundTask {
-        let! count = Count.byField table "WebLogId" EQ (string webLogId) conn
+        let! count = Count.byField table (Field.EQ "WebLogId" (string webLogId)) conn
         return int count
     }
     
@@ -265,7 +265,7 @@ module Document =
     
     /// Find documents for the given web log
     let findByWebLog<'TDoc> table (webLogId: WebLogId) conn =
-        Find.byField<'TDoc> table "WebLogId" EQ (string webLogId) conn
+        Find.byField<'TDoc> table (Field.EQ "WebLogId" (string webLogId)) conn
 
 
 /// Functions to support revisions

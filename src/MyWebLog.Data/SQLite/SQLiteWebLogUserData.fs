@@ -20,8 +20,8 @@ type SQLiteWebLogUserData(conn: SqliteConnection, log: ILogger) =
         log.LogTrace "WebLogUser.delete"
         match! findById userId webLogId with
         | Some _ ->
-            let! pageCount = conn.countByField Table.Page (nameof Page.Empty.AuthorId) EQ (string userId)
-            let! postCount = conn.countByField Table.Post (nameof Post.Empty.AuthorId) EQ (string userId)
+            let! pageCount = conn.countByField Table.Page (Field.EQ (nameof Page.Empty.AuthorId) (string userId))
+            let! postCount = conn.countByField Table.Post (Field.EQ (nameof Post.Empty.AuthorId) (string userId))
             if pageCount + postCount > 0 then
                 return Error "User has pages or posts; cannot delete"
             else
@@ -33,10 +33,11 @@ type SQLiteWebLogUserData(conn: SqliteConnection, log: ILogger) =
     /// Find a user by their e-mail address for the given web log
     let findByEmail (email: string) webLogId =
         log.LogTrace "WebLogUser.findByEmail"
+        let emailParam = Field.EQ (nameof WebLogUser.Empty.Email) email
         conn.customSingle
             $"""{Document.Query.selectByWebLog Table.WebLogUser}
-                  AND {Query.whereByField (nameof WebLogUser.Empty.Email) EQ "@email"}"""
-            [ webLogParam webLogId; sqlParam "@email" email ]
+                  AND {Query.whereByField emailParam "@email"}"""
+            (addFieldParam "@email" emailParam [ webLogParam webLogId ])
             fromData<WebLogUser>
     
     /// Get all users for the given web log
