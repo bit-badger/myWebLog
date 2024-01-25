@@ -18,7 +18,11 @@ type PostgresCategoryData(log: ILogger) =
     /// Count all top-level categories for the given web log
     let countTopLevel webLogId =
         log.LogTrace "Category.countTopLevel"
-        Count.byContains Table.Category {| webLogDoc webLogId with ParentId = None |}
+        Custom.scalar
+            $"""{Query.Count.byContains Table.Category}
+                  AND {Query.whereByField (Field.NEX (nameof Category.Empty.ParentId)) ""}"""
+            [ webLogContains webLogId ]
+            toCount
     
     /// Retrieve all categories for the given web log in a DotLiquid-friendly format
     let findAllForView webLogId = backgroundTask {
@@ -81,26 +85,21 @@ type PostgresCategoryData(log: ILogger) =
             let! children = Find.byContains<Category> Table.Category {| ParentId = catId |}
             let hasChildren = not (List.isEmpty children)
             if hasChildren then
-                if cat.ParentId.IsSome then
-                    let! _ =
-                        Configuration.dataSource ()
-                        |> Sql.fromDataSource
-                        |> Sql.executeTransactionAsync
-                            [ Query.Patch.byId Table.Category,
-                              children
-                              |> List.map (fun child ->
-                                  [ idParam child.Id; jsonParam "@data" {| ParentId = cat.ParentId |} ]) ]
-                    ()
-                else
-                    let! _ =
-                        Configuration.dataSource ()
-                        |> Sql.fromDataSource
-                        |> Sql.executeTransactionAsync
-                            [ Query.RemoveFields.byId Table.Category,
-                              children
-                              |> List.map (fun child ->
-                                  [ idParam child.Id; fieldNameParam [ nameof Category.Empty.ParentId ] ]) ]
-                    ()
+                let childQuery, childParams =
+                    if cat.ParentId.IsSome then
+                        Query.Patch.byId Table.Category,
+                        children
+                        |> List.map (fun child -> [ idParam child.Id; jsonParam "@data" {| ParentId = cat.ParentId |} ])
+                    else
+                        Query.RemoveFields.byId Table.Category,
+                        children
+                        |> List.map (fun child ->
+                            [ idParam child.Id; fieldNameParam [ nameof Category.Empty.ParentId ] ])
+                let! _ =
+                    Configuration.dataSource ()
+                    |> Sql.fromDataSource
+                    |> Sql.executeTransactionAsync [ childQuery, childParams ]
+                ()
             // Delete the category off all posts where it is assigned
             let! posts =
                 Custom.list

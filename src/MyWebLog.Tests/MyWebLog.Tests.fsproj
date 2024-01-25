@@ -12,12 +12,14 @@
     <Compile Include="Data\UtilsTests.fs" />
     <Compile Include="Data\CategoryDataTests.fs" />
     <Compile Include="Data\SQLiteDataTests.fs" />
+    <Compile Include="Data\PostgresDataTests.fs" />
     <Compile Include="Program.fs" />
     <None Include="root-weblog.json" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Expecto" Version="10.1.0" />
+    <PackageReference Include="ThrowawayDb.Postgres" Version="1.4.0" />
   </ItemGroup>
 
   <ItemGroup>
