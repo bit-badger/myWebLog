@@ -10,7 +10,6 @@ let rootId = WebLogId "uSitJEuD3UyzWC9jgOHc8g"
 /// The ID of the Favorites category
 let favoritesId = CategoryId "S5JflPsJ9EG7gA2LD4m92A"
 
-/// Tests for the Add method
 let ``Add succeeds`` (data: IData) = task {
     let category =
         { Category.Empty with Id = CategoryId "added-cat"; WebLogId = WebLogId "test"; Name = "Added"; Slug = "added" }

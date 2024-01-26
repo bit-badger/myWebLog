@@ -11,6 +11,7 @@
     <Compile Include="Data\ConvertersTests.fs" />
     <Compile Include="Data\UtilsTests.fs" />
     <Compile Include="Data\CategoryDataTests.fs" />
+    <Compile Include="Data\PageDataTests.fs" />
     <Compile Include="Data\SQLiteDataTests.fs" />
     <Compile Include="Data\PostgresDataTests.fs" />
     <Compile Include="Program.fs" />

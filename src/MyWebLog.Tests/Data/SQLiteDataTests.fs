@@ -141,6 +141,14 @@ let categoryTests = testList "Category" [
     ]
 ]
 
+/// Integration tests for the Page implementation in SQLite
+let pageTests = testList "Page" [
+    testTask "Add succeeds" {
+        let data = mkData ()
+        try do! PageDataTests.``Add succeeds`` data
+        finally dispose data
+    }
+]
 
 /// Delete the SQLite database
 let environmentCleanUp = test "Clean Up" {
@@ -153,5 +161,6 @@ let all =
     testList "SQLiteData"
         [ environmentSetUp
           categoryTests
+          pageTests
           environmentCleanUp ]
     |> testSequenced

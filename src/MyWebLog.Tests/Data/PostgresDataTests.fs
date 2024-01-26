@@ -38,7 +38,7 @@ let environmentSetUp = testTask "creating database" {
     do! freshEnvironment ()
 }
 
-/// Integration tests for the Category implementation in SQLite
+/// Integration tests for the Category implementation in PostgreSQL
 let categoryTests = testList "Category" [
     testTask "Add succeeds" {
         do! CategoryDataTests.``Add succeeds`` (mkData ())
@@ -100,6 +100,13 @@ let categoryTests = testList "Category" [
     ]
 ]
 
+/// Integration tests for the Page implementation in PostgreSQL
+let pageTests = testList "Page" [
+    testTask "Add succeeds" {
+        do! PageDataTests.``Add succeeds`` (mkData ())
+    }
+]
+
 /// Drop the throwaway PostgreSQL database
 let environmentCleanUp = test "Clean Up" {
     if db.IsSome then db.Value.Dispose()
@@ -110,5 +117,6 @@ let all =
     testList "PostgresData"
         [ environmentSetUp
           categoryTests
+          pageTests
           environmentCleanUp ]
     |> testSequenced
