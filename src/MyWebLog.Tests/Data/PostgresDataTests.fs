@@ -105,6 +105,9 @@ let pageTests = testList "Page" [
     testTask "Add succeeds" {
         do! PageDataTests.``Add succeeds`` (mkData ())
     }
+    testTask "All succeeds" {
+        do! PageDataTests.``All succeeds`` (mkData ())
+    }
 ]
 
 /// Drop the throwaway PostgreSQL database

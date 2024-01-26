@@ -5,6 +5,9 @@ open MyWebLog
 open MyWebLog.Data
 open NodaTime
 
+/// The ID of the root web log
+let rootId = WebLogId "uSitJEuD3UyzWC9jgOHc8g"
+
 let ``Add succeeds`` (data: IData) = task {
     let page =
         { Id              = PageId "added-page"
@@ -42,4 +45,11 @@ let ``Add succeeds`` (data: IData) = task {
     Expect.hasLength pg.Revisions 1 "There should have been one revision"
     Expect.equal pg.Revisions[0].AsOf page.Revisions[0].AsOf "Revision as of not saved properly"
     Expect.equal pg.Revisions[0].Text page.Revisions[0].Text "Revision text not saved properly"
+}
+
+let ``All succeeds`` (data: IData) = task {
+    let! pages = data.Page.All rootId
+    Expect.hasLength pages 2 "There should have been 4 pages retrieved"
+    Expect.isEmpty pages[0].Revisions "Page 0 should have had no revisions"
+    Expect.isEmpty pages[1].Revisions "Page 1 should have had no revisions"
 }

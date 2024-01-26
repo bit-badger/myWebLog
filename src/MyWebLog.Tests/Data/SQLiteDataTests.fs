@@ -148,6 +148,11 @@ let pageTests = testList "Page" [
         try do! PageDataTests.``Add succeeds`` data
         finally dispose data
     }
+    testTask "All succeeds" {
+        let data = mkData ()
+        try do! PageDataTests.``All succeeds`` data
+        finally dispose data
+    }
 ]
 
 /// Delete the SQLite database

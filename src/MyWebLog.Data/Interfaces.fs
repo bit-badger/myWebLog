@@ -54,7 +54,7 @@ type IPageData =
     /// Add a page
     abstract member Add : Page -> Task<unit>
     
-    /// Get all pages for the web log (excluding meta items, text, revisions, and prior permalinks)
+    /// Get all pages for the web log (excluding revisions)
     abstract member All : WebLogId -> Task<Page list>
     
     /// Count all pages for the given web log
