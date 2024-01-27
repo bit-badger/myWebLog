@@ -279,7 +279,7 @@ type RethinkDbData(conn: Net.IConnection, config: DataConfig, log: ILogger<Rethi
                 member _.CountTopLevel webLogId = rethink<int> {
                     withTable Table.Category
                     getAll [ webLogId ] (nameof Category.Empty.WebLogId)
-                    filter (nameof Category.Empty.ParentId) None
+                    filter (nameof Category.Empty.ParentId) None (Default FilterDefaultHandling.Return)
                     count
                     result; withRetryDefault conn
                 }
@@ -361,7 +361,9 @@ type RethinkDbData(conn: Net.IConnection, config: DataConfig, log: ILogger<Rethi
                             getAll [ webLogId ] (nameof Post.Empty.WebLogId)
                             filter (fun row -> row[nameof Post.Empty.CategoryIds].Contains catId :> obj)
                             update (fun row ->
-                                {| CategoryIds = r.Array(row[nameof Post.Empty.CategoryIds]).Remove catId |} :> obj)
+                                {| CategoryIds =
+                                        row[nameof Post.Empty.CategoryIds].CoerceTo("array")
+                                            .SetDifference(r.Array(catId)) |} :> obj)
                             write; withRetryDefault; ignoreResult conn 
                         }
                         // Delete the category itself
@@ -408,10 +410,10 @@ type RethinkDbData(conn: Net.IConnection, config: DataConfig, log: ILogger<Rethi
                 member _.All webLogId = rethink<Page list> {
                     withTable Table.Page
                     getAll [ webLogId ] (nameof Page.Empty.WebLogId)
-                    without [ nameof Page.Empty.Text
-                              nameof Page.Empty.Metadata
-                              nameof Page.Empty.Revisions
-                              nameof Page.Empty.PriorPermalinks ]
+                    merge (r.HashMap(nameof Page.Empty.Text, "")
+                               .With(nameof Page.Empty.Metadata, [||])
+                               .With(nameof Page.Empty.Revisions, [||])
+                               .With(nameof Page.Empty.PriorPermalinks, [||]))
                     orderByFunc (fun row -> row[nameof Page.Empty.Title].Downcase() :> obj)
                     result; withRetryDefault conn
                 }

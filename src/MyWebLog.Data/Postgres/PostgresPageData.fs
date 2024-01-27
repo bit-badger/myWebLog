@@ -35,13 +35,13 @@ type PostgresPageData(log: ILogger) =
     
     // IMPLEMENTATION FUNCTIONS
     
-    /// Get all pages for a web log (without text or revisions)
+    /// Get all pages for a web log (without text, metadata, revisions, or prior permalinks)
     let all webLogId =
         log.LogTrace "Page.all"
         Custom.list
             $"{selectWithCriteria Table.Page} ORDER BY LOWER(data ->> '{nameof Page.Empty.Title}')"
             [ webLogContains webLogId ]
-            fromData<Page>
+            (fun row -> { fromData<Page> row with Text = ""; Metadata = []; PriorPermalinks = [] }) 
     
     /// Count all pages for the given web log
     let countAll webLogId =

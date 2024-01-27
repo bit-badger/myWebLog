@@ -13,7 +13,8 @@ open Newtonsoft.Json
 let ser = Json.configure (JsonSerializer.CreateDefault())
 
 /// The test database name
-let dbName = "test-db.db"
+let dbName =
+    RethinkDbTests.env "SQLITE_DB" "test-db.db"
 
 /// Create a SQLiteData instance for testing
 let mkData () =
@@ -151,6 +152,16 @@ let pageTests = testList "Page" [
     testTask "All succeeds" {
         let data = mkData ()
         try do! PageDataTests.``All succeeds`` data
+        finally dispose data
+    }
+    testTask "CountAll succeeds" {
+        let data = mkData ()
+        try do! PageDataTests.``CountAll succeeds`` data
+        finally dispose data
+    }
+    testTask "CountListed succeeds" {
+        let data = mkData ()
+        try do! PageDataTests.``CountListed succeeds`` data
         finally dispose data
     }
 ]

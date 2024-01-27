@@ -49,7 +49,20 @@ let ``Add succeeds`` (data: IData) = task {
 
 let ``All succeeds`` (data: IData) = task {
     let! pages = data.Page.All rootId
-    Expect.hasLength pages 2 "There should have been 4 pages retrieved"
-    Expect.isEmpty pages[0].Revisions "Page 0 should have had no revisions"
-    Expect.isEmpty pages[1].Revisions "Page 1 should have had no revisions"
+    Expect.hasLength pages 2 "There should have been 2 pages retrieved"
+    pages |> List.iteri (fun idx pg ->
+        Expect.equal pg.Text "" $"Page {idx} should have had no text"
+        Expect.isEmpty pg.Metadata $"Page {idx} should have had no metadata"
+        Expect.isEmpty pg.Revisions $"Page {idx} should have had no revisions"
+        Expect.isEmpty pg.PriorPermalinks $"Page {idx} should have had no prior permalinks")
+}
+
+let ``CountAll succeeds`` (data: IData) = task {
+    let! pages = data.Page.CountAll rootId
+    Expect.equal pages 2 "There should have been 2 pages counted"
+}
+
+let ``CountListed succeeds`` (data: IData) = task {
+    let! pages = data.Page.CountListed rootId
+    Expect.equal pages 1 "There should have been 1 page in the page list"
 }

@@ -1,5 +1,6 @@
 module PostgresDataTests
 
+open System
 open BitBadger.Documents
 open Expecto
 open Microsoft.Extensions.Logging.Abstractions
@@ -20,10 +21,26 @@ let mutable db: ThrowawayDatabase option = None
 let mkData () =
     PostgresData(NullLogger<PostgresData>(), ser) :> IData
 
+/// The host for the PostgreSQL test database (defaults to localhost)
+let testHost =
+    RethinkDbTests.env "PG_HOST" "localhost"
+
+/// The database name for the PostgreSQL test database (defaults to postgres)
+let testDb =
+    RethinkDbTests.env "PG_DB" "postgres"
+
+/// The user ID for the PostgreSQL test database (defaults to postgres)
+let testUser =
+    RethinkDbTests.env "PG_USER" "postgres"
+
+/// The password for the PostgreSQL test database (defaults to postgres)
+let testPw =
+    RethinkDbTests.env "PG_PW" "postgres"
+
 /// Create a fresh environment from the root backup
 let freshEnvironment () = task {
     if Option.isSome db then db.Value.Dispose()
-    db <- Some (ThrowawayDatabase.Create "Host=localhost;Database=postgres;User ID=postgres;Password=postgres")
+    db <- Some (ThrowawayDatabase.Create $"Host={testHost};Database={testDb};User ID={testUser};Password={testPw}")
     let source = NpgsqlDataSourceBuilder db.Value.ConnectionString
     let _ = source.UseNodaTime()
     Postgres.Configuration.useDataSource (source.Build())
@@ -107,6 +124,12 @@ let pageTests = testList "Page" [
     }
     testTask "All succeeds" {
         do! PageDataTests.``All succeeds`` (mkData ())
+    }
+    testTask "CountAll succeeds" {
+        do! PageDataTests.``CountAll succeeds`` (mkData ())
+    }
+    testTask "CountListed succeeds" {
+        do! PageDataTests.``CountListed succeeds`` (mkData ())
     }
 ]
 

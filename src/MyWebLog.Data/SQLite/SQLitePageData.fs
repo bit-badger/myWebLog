@@ -36,13 +36,13 @@ type SQLitePageData(conn: SqliteConnection, log: ILogger) =
     
     // IMPLEMENTATION FUNCTIONS
     
-    /// Get all pages for a web log (without text or revisions)
+    /// Get all pages for a web log (without text, metadata, revisions, or prior permalinks)
     let all webLogId =
         log.LogTrace "Page.all"
         conn.customList
             $"{Query.selectFromTable Table.Page} WHERE {Document.Query.whereByWebLog} ORDER BY LOWER({titleField})"
             [ webLogParam webLogId ]
-            (fun rdr -> { fromData<Page> rdr with Text = "" })
+            (fun rdr -> { fromData<Page> rdr with Text = ""; Metadata = []; PriorPermalinks = [] })
     
     /// Count all pages for the given web log
     let countAll webLogId =
