@@ -141,6 +141,25 @@ let pageTests = testList "Page" [
             do! PageDataTests.``FindById succeeds when a page is not found (bad page ID)`` data.Value
         }
     ]
+    testList "FindByPermalink" [
+        testTask "succeeds when a page is found" {
+            do! PageDataTests.``FindByPermalink succeeds when a page is found`` data.Value
+        }
+        testTask "succeeds when a page is not found (incorrect weblog)" {
+            do! PageDataTests.``FindByPermalink succeeds when a page is not found (incorrect weblog)`` data.Value
+        }
+        testTask "succeeds when a page is not found (no such permalink)" {
+            do! PageDataTests.``FindByPermalink succeeds when a page is not found (no such permalink)`` data.Value
+        }
+    ]
+    testList "FindCurrentPermalink" [
+        testTask "succeeds when a page is found" {
+            do! PageDataTests.``FindCurrentPermalink succeeds when a page is found`` data.Value
+        }
+        testTask "succeeds when a page is not found" {
+            do! PageDataTests.``FindCurrentPermalink succeeds when a page is not found`` data.Value
+        }
+    ]
     testList "FindFullById" [
         testTask "succeeds when a page is found" {
             do! PageDataTests.``FindFullById succeeds when a page is found`` data.Value

@@ -85,9 +85,8 @@ let ``FindById succeeds when a page is found`` (data: IData) = task {
     Expect.equal pg.AuthorId (WebLogUserId "5EM2rimH9kONpmd2zQkiVA") "Author ID is incorrect"
     Expect.equal pg.Title "Page Title" "Title is incorrect"
     Expect.equal pg.Permalink (Permalink "a-cool-page.html") "Permalink is incorrect"
-    Expect.equal
-        pg.PublishedOn (Instant.FromDateTimeOffset(DateTimeOffset.Parse "2024-01-20T22:14:28Z")) "Published On is incorrect"
-    Expect.equal pg.UpdatedOn (Instant.FromDateTimeOffset(DateTimeOffset.Parse "2024-01-20T22:14:28Z")) "Updated On is incorrect"
+    Expect.equal pg.PublishedOn coolPagePublished "Published On is incorrect"
+    Expect.equal pg.UpdatedOn coolPagePublished "Updated On is incorrect"
     Expect.isFalse pg.IsInPageList "Is in page list flag should not have been set"
     Expect.equal pg.Text "<h1 id=\"a-cool-page\">A Cool Page</h1>\n<p>It really is cool!</p>\n" "Text is incorrect"
     Expect.hasLength pg.Metadata 2 "There should be 2 metadata items on this page"
@@ -108,6 +107,35 @@ let ``FindById succeeds when a page is not found (bad page ID)`` (data: IData) =
     let! page = data.Page.FindById (PageId "missing") rootId
     Expect.isNone page "The page should not have been retrieved"
 }
+
+let ``FindByPermalink succeeds when a page is found`` (data: IData) = task {
+    let! page = data.Page.FindByPermalink (Permalink "a-cool-page.html") rootId
+    Expect.isSome page "A page should have been returned"
+    let pg = page.Value
+    Expect.equal pg.Id coolPageId "The wrong page was retrieved"
+}
+
+let ``FindByPermalink succeeds when a page is not found (incorrect weblog)`` (data: IData) = task {
+    let! page = data.Page.FindByPermalink (Permalink "a-cool-page.html") (WebLogId "wrong")
+    Expect.isNone page "The page should not have been retrieved"
+}
+
+let ``FindByPermalink succeeds when a page is not found (no such permalink)`` (data: IData) = task {
+    let! page = data.Page.FindByPermalink (Permalink "1970/no-www-then.html") rootId
+    Expect.isNone page "The page should not have been retrieved"
+}
+
+let ``FindCurrentPermalink succeeds when a page is found`` (data: IData) = task {
+    let! link = data.Page.FindCurrentPermalink [ Permalink "a-cool-pg.html"; Permalink "a-cool-pg.html/" ] rootId
+    Expect.isSome link "A permalink should have been returned"
+    Expect.equal link (Some (Permalink "a-cool-page.html")) "The wrong permalink was retrieved"
+}
+
+let ``FindCurrentPermalink succeeds when a page is not found`` (data: IData) = task {
+    let! link = data.Page.FindCurrentPermalink [ Permalink "blah/"; Permalink "blah" ] rootId
+    Expect.isNone link "A permalink should not have been returned"
+}
+
 
 let ``FindFullById succeeds when a page is found`` (data: IData) = task {
     let! page = data.Page.FindFullById coolPageId rootId

@@ -127,7 +127,7 @@ type RethinkDbData(conn: Net.IConnection, config: DataConfig, log: ILogger<Rethi
                 log.LogInformation $"Creating index {table}.{priorIdx}..."
                 do! rethink {
                     withTable table
-                    indexCreate priorIdx (fun row -> row[priorIdx].Downcase() :> obj) [ Multi ]
+                    indexCreate priorIdx [ Multi ]
                     write; withRetryOnce; ignoreResult conn
                 }
         // Post needs indexes by category and tag (used for counting and retrieving posts)
