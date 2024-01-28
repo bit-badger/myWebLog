@@ -57,15 +57,18 @@ type SQLitePageData(conn: SqliteConnection, log: ILogger) =
             [ webLogParam webLogId ]
             (toCount >> int)
     
-    /// Find a page by its ID (without revisions)
-    let findById pageId webLogId =
+    /// Find a page by its ID (without revisions and prior permalinks)
+    let findById pageId webLogId = backgroundTask {
         log.LogTrace "Page.findById"
-        Document.findByIdAndWebLog<PageId, Page> Table.Page pageId webLogId conn
+        match! Document.findByIdAndWebLog<PageId, Page> Table.Page pageId webLogId conn with
+        | Some page -> return Some { page with PriorPermalinks = [] }
+        | None -> return None
+    }
     
     /// Find a complete page by its ID
     let findFullById pageId webLogId = backgroundTask {
         log.LogTrace "Page.findFullById"
-        match! findById pageId webLogId with
+        match! Document.findByIdAndWebLog<PageId, Page> Table.Page pageId webLogId conn with
         | Some page ->
             let! page = appendPageRevisions page
             return Some page

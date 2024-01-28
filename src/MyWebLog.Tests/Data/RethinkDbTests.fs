@@ -130,6 +130,25 @@ let pageTests = testList "Page" [
     testTask "CountListed succeeds" {
         do! PageDataTests.``CountListed succeeds`` data.Value
     }
+    testList "FindById" [
+        testTask "succeeds when a page is found" {
+            do! PageDataTests.``FindById succeeds when a page is found`` data.Value
+        }
+        testTask "succeeds when a page is not found (incorrect weblog)" {
+            do! PageDataTests.``FindById succeeds when a page is not found (incorrect weblog)`` data.Value
+        }
+        testTask "succeeds when a page is not found (bad page ID)" {
+            do! PageDataTests.``FindById succeeds when a page is not found (bad page ID)`` data.Value
+        }
+    ]
+    testList "FindFullById" [
+        testTask "succeeds when a page is found" {
+            do! PageDataTests.``FindFullById succeeds when a page is found`` data.Value
+        }
+        testTask "succeeds when a page is not found" {
+            do! PageDataTests.``FindFullById succeeds when a page is not found`` data.Value
+        }
+    ]
 ]
 
 /// Drop the throwaway RethinkDB database

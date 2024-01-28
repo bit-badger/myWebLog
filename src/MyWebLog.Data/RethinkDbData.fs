@@ -444,20 +444,27 @@ type RethinkDbData(conn: Net.IConnection, config: DataConfig, log: ILogger<Rethi
                     return result.Deleted > 0UL
                 }
                 
-                member _.FindById pageId webLogId =
-                    rethink<Page> {
-                        withTable Table.Page
-                        get pageId
-                        without [ nameof Page.Empty.PriorPermalinks; nameof Page.Empty.Revisions ]
-                        resultOption; withRetryOptionDefault
-                    }
-                    |> verifyWebLog webLogId (fun it -> it.WebLogId) <| conn
+                member _.FindById pageId webLogId = backgroundTask {
+                    let! page =
+                        rethink<Page list> {
+                            withTable Table.Page
+                            getAll [ pageId ]
+                            without [ nameof Page.Empty.PriorPermalinks; nameof Page.Empty.Revisions ]
+                            result; withRetryDefault
+                        }
+                        |> tryFirst <| conn
+                    return
+                        page
+                        |> Option.filter (fun pg -> pg.WebLogId = webLogId)
+                        |> Option.map (fun pg -> { pg with Revisions = []; PriorPermalinks = [] })
+                }
 
                 member _.FindByPermalink permalink webLogId =
                     rethink<Page list> {
                         withTable Table.Page
                         getAll [ [| webLogId :> obj; permalink |] ] (nameof Page.Empty.Permalink)
-                        without [ nameof Page.Empty.PriorPermalinks; nameof Page.Empty.Revisions ]
+                        merge (r.HashMap(nameof Page.Empty.PriorPermalinks, [||])
+                                   .With(nameof Page.Empty.Revisions, [||]))
                         limit 1
                         result; withRetryDefault
                     }
@@ -474,7 +481,7 @@ type RethinkDbData(conn: Net.IConnection, config: DataConfig, log: ILogger<Rethi
                             result; withRetryDefault
                         }
                         |> tryFirst) conn
-                    return result |> Option.map (fun pg -> pg.Permalink)
+                    return result |> Option.map _.Permalink
                 }
                 
                 member _.FindFullById pageId webLogId =
@@ -483,7 +490,7 @@ type RethinkDbData(conn: Net.IConnection, config: DataConfig, log: ILogger<Rethi
                         get pageId
                         resultOption; withRetryOptionDefault
                     }
-                    |> verifyWebLog webLogId (fun it -> it.WebLogId) <| conn
+                    |> verifyWebLog webLogId _.WebLogId <| conn
                 
                 member _.FindFullByWebLog webLogId = rethink<Page> {
                     withTable Table.Page

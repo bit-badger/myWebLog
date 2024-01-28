@@ -164,6 +164,35 @@ let pageTests = testList "Page" [
         try do! PageDataTests.``CountListed succeeds`` data
         finally dispose data
     }
+    testList "FindById" [
+        testTask "succeeds when a page is found" {
+            let data = mkData ()
+            try do! PageDataTests.``FindById succeeds when a page is found`` data
+            finally dispose data
+        }
+        testTask "succeeds when a page is not found (incorrect weblog)" {
+            let data = mkData ()
+            try do! PageDataTests.``FindById succeeds when a page is not found (incorrect weblog)`` data
+            finally dispose data
+        }
+        testTask "succeeds when a page is not found (bad page ID)" {
+            let data = mkData ()
+            try do! PageDataTests.``FindById succeeds when a page is not found (bad page ID)`` data
+            finally dispose data
+        }
+    ]
+    testList "FindFullById" [
+        testTask "succeeds when a page is found" {
+            let data = mkData ()
+            try do! PageDataTests.``FindFullById succeeds when a page is found`` data
+            finally dispose data
+        }
+        testTask "succeeds when a page is not found" {
+            let data = mkData ()
+            try do! PageDataTests.``FindFullById succeeds when a page is not found`` data
+            finally dispose data
+        }
+    ]
 ]
 
 /// Delete the SQLite database

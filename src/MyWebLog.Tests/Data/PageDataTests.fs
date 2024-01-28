@@ -1,5 +1,6 @@
 module PageDataTests
 
+open System
 open Expecto
 open MyWebLog
 open MyWebLog.Data
@@ -7,6 +8,12 @@ open NodaTime
 
 /// The ID of the root web log
 let rootId = WebLogId "uSitJEuD3UyzWC9jgOHc8g"
+
+/// The ID of the "A cool page" page
+let coolPageId = PageId "hgc_BLEZ50SoAWLuPNISvA"
+
+/// The published and updated time of the "A cool page" page
+let coolPagePublished = Instant.FromDateTimeOffset(DateTimeOffset.Parse "2024-01-20T22:14:28Z")
 
 let ``Add succeeds`` (data: IData) = task {
     let page =
@@ -55,6 +62,8 @@ let ``All succeeds`` (data: IData) = task {
         Expect.isEmpty pg.Metadata $"Page {idx} should have had no metadata"
         Expect.isEmpty pg.Revisions $"Page {idx} should have had no revisions"
         Expect.isEmpty pg.PriorPermalinks $"Page {idx} should have had no prior permalinks")
+    let! others = data.Page.All (WebLogId "not-there")
+    Expect.isEmpty others "There should not be pages retrieved"
 }
 
 let ``CountAll succeeds`` (data: IData) = task {
@@ -65,4 +74,55 @@ let ``CountAll succeeds`` (data: IData) = task {
 let ``CountListed succeeds`` (data: IData) = task {
     let! pages = data.Page.CountListed rootId
     Expect.equal pages 1 "There should have been 1 page in the page list"
+}
+
+let ``FindById succeeds when a page is found`` (data: IData) = task {
+    let! page = data.Page.FindById coolPageId rootId
+    Expect.isSome page "A page should have been returned"
+    let pg = page.Value
+    Expect.equal pg.Id coolPageId "The wrong page was retrieved"
+    Expect.equal pg.WebLogId rootId "The page's web log did not match the called parameter"
+    Expect.equal pg.AuthorId (WebLogUserId "5EM2rimH9kONpmd2zQkiVA") "Author ID is incorrect"
+    Expect.equal pg.Title "Page Title" "Title is incorrect"
+    Expect.equal pg.Permalink (Permalink "a-cool-page.html") "Permalink is incorrect"
+    Expect.equal
+        pg.PublishedOn (Instant.FromDateTimeOffset(DateTimeOffset.Parse "2024-01-20T22:14:28Z")) "Published On is incorrect"
+    Expect.equal pg.UpdatedOn (Instant.FromDateTimeOffset(DateTimeOffset.Parse "2024-01-20T22:14:28Z")) "Updated On is incorrect"
+    Expect.isFalse pg.IsInPageList "Is in page list flag should not have been set"
+    Expect.equal pg.Text "<h1 id=\"a-cool-page\">A Cool Page</h1>\n<p>It really is cool!</p>\n" "Text is incorrect"
+    Expect.hasLength pg.Metadata 2 "There should be 2 metadata items on this page"
+    Expect.equal pg.Metadata[0].Name "Cool" "Meta item 0 name is incorrect"
+    Expect.equal pg.Metadata[0].Value "true" "Meta item 0 value is incorrect"
+    Expect.equal pg.Metadata[1].Name "Warm" "Meta item 1 name is incorrect"
+    Expect.equal pg.Metadata[1].Value "false" "Meta item 1 value is incorrect"
+    Expect.isEmpty pg.Revisions "Revisions should not have been retrieved"
+    Expect.isEmpty pg.PriorPermalinks "Prior permalinks should not have been retrieved"
+}
+
+let ``FindById succeeds when a page is not found (incorrect weblog)`` (data: IData) = task {
+    let! page = data.Page.FindById coolPageId (WebLogId "wrong")
+    Expect.isNone page "The page should not have been retrieved"
+}
+
+let ``FindById succeeds when a page is not found (bad page ID)`` (data: IData) = task {
+    let! page = data.Page.FindById (PageId "missing") rootId
+    Expect.isNone page "The page should not have been retrieved"
+}
+
+let ``FindFullById succeeds when a page is found`` (data: IData) = task {
+    let! page = data.Page.FindFullById coolPageId rootId
+    Expect.isSome page "A page should have been returned"
+    let pg = page.Value
+    Expect.equal pg.Id coolPageId "The wrong page was retrieved"
+    Expect.equal pg.WebLogId rootId "The page's web log did not match the called parameter"
+    Expect.hasLength pg.Revisions 1 "There should be 1 revision"
+    Expect.equal pg.Revisions[0].AsOf coolPagePublished "Revision 0 as-of is incorrect"
+    Expect.equal pg.Revisions[0].Text (Markdown "# A Cool Page\n\nIt really is cool!") "Revision 0 text is incorrect"
+    Expect.hasLength pg.PriorPermalinks 1 "There should be 1 prior permalink"
+    Expect.equal pg.PriorPermalinks[0] (Permalink "a-cool-pg.html") "Prior permalink 0 is incorrect"
+}
+
+let ``FindFullById succeeds when a page is not found`` (data: IData) = task {
+    let! page = data.Page.FindFullById (PageId "not-there") rootId
+    Expect.isNone page "A page should not have been retrieved"
 }

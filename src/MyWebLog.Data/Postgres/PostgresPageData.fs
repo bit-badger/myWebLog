@@ -53,15 +53,18 @@ type PostgresPageData(log: ILogger) =
         log.LogTrace "Page.countListed"
         Count.byContains Table.Page {| webLogDoc webLogId with IsInPageList = true |}
     
-    /// Find a page by its ID (without revisions)
-    let findById pageId webLogId =
+    /// Find a page by its ID (without revisions or prior permalinks)
+    let findById pageId webLogId = backgroundTask {
         log.LogTrace "Page.findById"
-        Document.findByIdAndWebLog<PageId, Page> Table.Page pageId webLogId
+        match! Document.findByIdAndWebLog<PageId, Page> Table.Page pageId webLogId with
+        | Some page -> return Some { page with PriorPermalinks = [] }
+        | None -> return None
+    }
     
     /// Find a complete page by its ID
     let findFullById pageId webLogId = backgroundTask {
         log.LogTrace "Page.findFullById"
-        match! findById pageId webLogId with
+        match! Document.findByIdAndWebLog<PageId, Page> Table.Page pageId webLogId with
         | Some page ->
             let! withMore = appendPageRevisions page
             return Some withMore
