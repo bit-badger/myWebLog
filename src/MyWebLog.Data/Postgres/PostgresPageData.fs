@@ -35,6 +35,14 @@ type PostgresPageData(log: ILogger) =
     
     // IMPLEMENTATION FUNCTIONS
     
+    /// Add a page
+    let add (page: Page) = backgroundTask {
+        log.LogTrace "Page.add"
+        do! insert Table.Page { page with Revisions = [] }
+        do! updatePageRevisions page.Id [] page.Revisions
+        ()
+    }
+    
     /// Get all pages for a web log (without text, metadata, revisions, or prior permalinks)
     let all webLogId =
         log.LogTrace "Page.all"
@@ -134,7 +142,7 @@ type PostgresPageData(log: ILogger) =
                ORDER BY LOWER(data->>'{nameof Page.Empty.Title}')
                LIMIT @pageSize OFFSET @toSkip"
             [ webLogContains webLogId; "@pageSize", Sql.int 26; "@toSkip", Sql.int ((pageNbr - 1) * 25) ]
-            fromData<Page>
+            (fun row -> { fromData<Page> row with Metadata = []; PriorPermalinks = [] })
     
     /// Restore pages from a backup
     let restore (pages: Page list) = backgroundTask {
@@ -151,12 +159,14 @@ type PostgresPageData(log: ILogger) =
         ()
     }
     
-    /// Save a page
-    let save (page: Page) = backgroundTask {
-        log.LogTrace "Page.save"
-        let! oldPage = findFullById page.Id page.WebLogId
-        do! save Table.Page { page with Revisions = [] }
-        do! updatePageRevisions page.Id (match oldPage with Some p -> p.Revisions | None -> []) page.Revisions
+    /// Update a page
+    let update (page: Page) = backgroundTask {
+        log.LogTrace "Page.update"
+        match! findFullById page.Id page.WebLogId with
+        | Some oldPage ->
+            do! Update.byId Table.Page page.Id { page with Revisions = [] }
+            do! updatePageRevisions page.Id oldPage.Revisions page.Revisions
+        | None -> ()
         ()
     }
     
@@ -171,7 +181,7 @@ type PostgresPageData(log: ILogger) =
     }
     
     interface IPageData with
-        member _.Add page = save page
+        member _.Add page = add page
         member _.All webLogId = all webLogId
         member _.CountAll webLogId = countAll webLogId
         member _.CountListed webLogId = countListed webLogId
@@ -184,5 +194,5 @@ type PostgresPageData(log: ILogger) =
         member _.FindListed webLogId = findListed webLogId
         member _.FindPageOfPages webLogId pageNbr = findPageOfPages webLogId pageNbr
         member _.Restore pages = restore pages
-        member _.Update page = save page
+        member _.Update page = update page
         member _.UpdatePriorPermalinks pageId webLogId permalinks = updatePriorPermalinks pageId webLogId permalinks

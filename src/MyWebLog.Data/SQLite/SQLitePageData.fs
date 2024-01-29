@@ -36,6 +36,13 @@ type SQLitePageData(conn: SqliteConnection, log: ILogger) =
     
     // IMPLEMENTATION FUNCTIONS
     
+    /// Add a page
+    let add (page: Page) = backgroundTask {
+        log.LogTrace "Page.add"
+        do! conn.insert Table.Page { page with Revisions = [] } 
+        do! updatePageRevisions page.Id [] page.Revisions
+    }
+    
     /// Get all pages for a web log (without text, metadata, revisions, or prior permalinks)
     let all webLogId =
         log.LogTrace "Page.all"
@@ -133,18 +140,20 @@ type SQLitePageData(conn: SqliteConnection, log: ILogger) =
             [ webLogParam webLogId; SqliteParameter("@pageSize", 26); SqliteParameter("@toSkip", (pageNbr - 1) * 25) ]
             fromData<Page>
     
-    /// Save a page
-    let save (page: Page) = backgroundTask {
+    /// Update a page
+    let update (page: Page) = backgroundTask {
         log.LogTrace "Page.update"
-        let! oldPage = findFullById page.Id page.WebLogId
-        do! conn.save Table.Page { page with Revisions = [] } 
-        do! updatePageRevisions page.Id (match oldPage with Some p -> p.Revisions | None -> []) page.Revisions
+        match! findFullById page.Id page.WebLogId with
+        | Some oldPage ->
+            do! conn.updateById Table.Page page.Id { page with Revisions = [] } 
+            do! updatePageRevisions page.Id oldPage.Revisions page.Revisions
+        | None -> ()
     }
     
     /// Restore pages from a backup
     let restore pages = backgroundTask {
         log.LogTrace "Page.restore"
-        for page in pages do do! save page
+        for page in pages do do! add page
     }
     
     /// Update a page's prior permalinks
@@ -158,7 +167,7 @@ type SQLitePageData(conn: SqliteConnection, log: ILogger) =
     }
     
     interface IPageData with
-        member _.Add page = save page
+        member _.Add page = add page
         member _.All webLogId = all webLogId
         member _.CountAll webLogId = countAll webLogId
         member _.CountListed webLogId = countListed webLogId
@@ -171,5 +180,5 @@ type SQLitePageData(conn: SqliteConnection, log: ILogger) =
         member _.FindListed webLogId = findListed webLogId
         member _.FindPageOfPages webLogId pageNbr = findPageOfPages webLogId pageNbr
         member _.Restore pages = restore pages
-        member _.Update page = save page
+        member _.Update page = update page
         member _.UpdatePriorPermalinks pageId webLogId permalinks = updatePriorPermalinks pageId webLogId permalinks

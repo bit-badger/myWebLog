@@ -512,9 +512,9 @@ type RethinkDbData(conn: Net.IConnection, config: DataConfig, log: ILogger<Rethi
                 member _.FindPageOfPages webLogId pageNbr = rethink<Page list> {
                     withTable Table.Page
                     getAll [ webLogId ] (nameof Page.Empty.WebLogId)
-                    without [ nameof Page.Empty.Metadata
-                              nameof Page.Empty.PriorPermalinks
-                              nameof Page.Empty.Revisions ]
+                    merge (r.HashMap(nameof Page.Empty.Metadata, [||])
+                               .With(nameof Page.Empty.PriorPermalinks, [||])
+                               .With(nameof Page.Empty.Revisions, [||]))
                     orderByFunc (fun row -> row[nameof Page.Empty.Title].Downcase())
                     skip ((pageNbr - 1) * 25)
                     limit 25

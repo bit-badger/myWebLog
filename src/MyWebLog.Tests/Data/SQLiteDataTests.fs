@@ -246,6 +246,18 @@ let pageTests = testList "Page" [
             finally dispose data
         }
     ]
+    testList "Update" [
+        testTask "succeeds when the page exists" {
+            let data = mkData ()
+            try do! PageDataTests.``Update succeeds when the page exists`` data
+            finally dispose data
+        }
+        testTask "succeeds when the page does not exist" {
+            let data = mkData ()
+            try do! PageDataTests.``Update succeeds when the page does not exist`` data
+            finally dispose data
+        }
+    ]
 ]
 
 /// Delete the SQLite database

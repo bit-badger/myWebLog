@@ -184,6 +184,22 @@ let pageTests = testList "Page" [
             do! PageDataTests.``FindListed succeeds when pages are not found`` data.Value
         }
     ]
+    testList "FindPageOfPages" [
+        testTask "succeeds when pages are found" {
+            do! PageDataTests.``FindPageOfPages succeeds when pages are found`` data.Value
+        }
+        testTask "succeeds when a pages are not found" {
+            do! PageDataTests.``FindPageOfPages succeeds when pages are not found`` data.Value
+        }
+    ]
+    testList "Update" [
+        testTask "succeeds when the page exists" {
+            do! PageDataTests.``Update succeeds when the page exists`` data.Value
+        }
+        testTask "succeeds when the page does not exist" {
+            do! PageDataTests.``Update succeeds when the page does not exist`` data.Value
+        }
+    ]
 ]
 
 /// Drop the throwaway RethinkDB database

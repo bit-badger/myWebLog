@@ -186,3 +186,60 @@ let ``FindListed succeeds when pages are not found`` (data: IData) = task {
     let! pages = data.Page.FindListed (WebLogId "none")
     Expect.isEmpty pages "No pages should have been retrieved"
 }
+
+let ``FindPageOfPages succeeds when pages are found`` (data: IData) = task {
+    let! pages = data.Page.FindPageOfPages rootId 1
+    Expect.hasLength pages 2 "There should have been 2 page returned"
+    Expect.equal pages[0].Id coolPageId "Pages not sorted correctly"
+    pages |> List.iteri (fun idx pg ->
+        Expect.notEqual pg.Text "" $"Text for page {idx} should have been retrieved"
+        Expect.isEmpty pg.Metadata $"Metadata for page {idx} should not have been retrieved"
+        Expect.isEmpty pg.PriorPermalinks $"Prior permalinks for page {idx} should not have been retrieved"
+        Expect.isEmpty pg.Revisions $"Revisions for page {idx} should not have been retrieved")
+}
+
+let ``FindPageOfPages succeeds when pages are not found`` (data: IData) = task {
+    let! pages = data.Page.FindPageOfPages rootId 2
+    Expect.isEmpty pages "No pages should have been retrieved"
+}
+
+let ``Update succeeds when the page exists`` (data: IData) = task {
+    let! page = data.Page.FindFullById coolPageId rootId
+    Expect.isSome page "A page should have been returned"
+    do! data.Page.Update
+            { page.Value with
+                Title           = "This Is Neat"
+                Permalink       = Permalink "neat-page.html"
+                UpdatedOn       = page.Value.PublishedOn + Duration.FromHours 5
+                IsInPageList    = true
+                Text            = "<p>I have been updated"
+                Metadata        = [ List.head page.Value.Metadata ]
+                PriorPermalinks = [ Permalink "a-cool-page.html" ]
+                Revisions       =
+                    { AsOf = page.Value.PublishedOn + Duration.FromHours 5; Text = Html "<p>I have been updated" }
+                        :: page.Value.Revisions }
+    let! updated = data.Page.FindFullById coolPageId rootId
+    Expect.isSome updated "The updated page should have been returned"
+    let pg = updated.Value
+    Expect.equal pg.Title "This Is Neat" "Title is incorrect"
+    Expect.equal pg.Permalink (Permalink "neat-page.html") "Permalink is incorrect"
+    Expect.equal pg.PublishedOn coolPagePublished "Published On is incorrect"
+    Expect.equal pg.UpdatedOn (coolPagePublished + Duration.FromHours 5) "Updated On is incorrect"
+    Expect.isTrue pg.IsInPageList "Is in page list flag should have been set"
+    Expect.equal pg.Text "<p>I have been updated" "Text is incorrect"
+    Expect.hasLength pg.Metadata 1 "There should be 1 metadata item on this page"
+    Expect.equal pg.Metadata[0].Name "Cool" "Meta item 0 name is incorrect"
+    Expect.equal pg.Metadata[0].Value "true" "Meta item 0 value is incorrect"
+    Expect.equal pg.PriorPermalinks [ Permalink "a-cool-page.html" ] "Prior permalinks are incorrect"
+    Expect.hasLength pg.Revisions 2 "There should be 2 revisions"
+    Expect.equal pg.Revisions[0].AsOf (coolPagePublished + Duration.FromHours 5) "As Of for revision 0 incorrect"
+    Expect.equal pg.Revisions[0].Text (Html "<p>I have been updated") "Text for revision 0 is incorrect"
+    Expect.equal pg.Revisions[1].AsOf coolPagePublished "As Of for revision 1 is incorrect"
+}
+
+let ``Update succeeds when the page does not exist`` (data: IData) = task {
+    let pageId = PageId "missing-page"
+    do! data.Page.Update { Page.Empty with Id = pageId; WebLogId = rootId }
+    let! page = data.Page.FindById pageId rootId
+    Expect.isNone page "A page should not have been retrieved"
+}
