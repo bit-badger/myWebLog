@@ -169,6 +169,22 @@ let pageTests = testList "Page" [
             do! PageDataTests.``FindFullById succeeds when a page is not found`` (mkData ())
         }
     ]
+    testList "FindFullByWebLog" [
+        testTask "succeeds when pages are found" {
+            do! PageDataTests.``FindFullByWebLog succeeds when pages are found`` (mkData ())
+        }
+        testTask "succeeds when a pages are not found" {
+            do! PageDataTests.``FindFullByWebLog succeeds when pages are not found`` (mkData ())
+        }
+    ]
+    testList "FindListed" [
+        testTask "succeeds when pages are found" {
+            do! PageDataTests.``FindListed succeeds when pages are found`` (mkData ())
+        }
+        testTask "succeeds when a pages are not found" {
+            do! PageDataTests.``FindListed succeeds when pages are not found`` (mkData ())
+        }
+    ]
 ]
 
 /// Drop the throwaway PostgreSQL database

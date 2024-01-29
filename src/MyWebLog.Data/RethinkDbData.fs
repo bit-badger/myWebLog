@@ -502,7 +502,9 @@ type RethinkDbData(conn: Net.IConnection, config: DataConfig, log: ILogger<Rethi
                     withTable Table.Page
                     getAll [ webLogId ] (nameof Page.Empty.WebLogId)
                     filter [ nameof Page.Empty.IsInPageList, true :> obj ]
-                    without [ nameof Page.Empty.Text; nameof Page.Empty.PriorPermalinks; nameof Page.Empty.Revisions ]
+                    merge (r.HashMap(nameof Page.Empty.Text, "")
+                               .With(nameof Page.Empty.PriorPermalinks, [||])
+                               .With(nameof Page.Empty.Revisions, [||]))
                     orderBy (nameof Page.Empty.Title)
                     result; withRetryDefault conn
                 }

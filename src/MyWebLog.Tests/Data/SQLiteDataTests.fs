@@ -222,6 +222,30 @@ let pageTests = testList "Page" [
             finally dispose data
         }
     ]
+    testList "FindFullByWebLog" [
+        testTask "succeeds when pages are found" {
+            let data = mkData ()
+            try do! PageDataTests.``FindFullByWebLog succeeds when pages are found`` data
+            finally dispose data
+        }
+        testTask "succeeds when a pages are not found" {
+            let data = mkData ()
+            try do! PageDataTests.``FindFullByWebLog succeeds when pages are not found`` data
+            finally dispose data
+        }
+    ]
+    testList "FindListed" [
+        testTask "succeeds when pages are found" {
+            let data = mkData ()
+            try do! PageDataTests.``FindListed succeeds when pages are found`` data
+            finally dispose data
+        }
+        testTask "succeeds when a pages are not found" {
+            let data = mkData ()
+            try do! PageDataTests.``FindListed succeeds when pages are not found`` data
+            finally dispose data
+        }
+    ]
 ]
 
 /// Delete the SQLite database

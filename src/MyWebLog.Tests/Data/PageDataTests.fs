@@ -15,6 +15,9 @@ let coolPageId = PageId "hgc_BLEZ50SoAWLuPNISvA"
 /// The published and updated time of the "A cool page" page
 let coolPagePublished = Instant.FromDateTimeOffset(DateTimeOffset.Parse "2024-01-20T22:14:28Z")
 
+/// The ID of the "Yet Another Page" page
+let otherPageId = PageId "KouRjvSmm0Wz6TMD8xf67A"
+
 let ``Add succeeds`` (data: IData) = task {
     let page =
         { Id              = PageId "added-page"
@@ -136,7 +139,6 @@ let ``FindCurrentPermalink succeeds when a page is not found`` (data: IData) = t
     Expect.isNone link "A permalink should not have been returned"
 }
 
-
 let ``FindFullById succeeds when a page is found`` (data: IData) = task {
     let! page = data.Page.FindFullById coolPageId rootId
     Expect.isSome page "A page should have been returned"
@@ -153,4 +155,34 @@ let ``FindFullById succeeds when a page is found`` (data: IData) = task {
 let ``FindFullById succeeds when a page is not found`` (data: IData) = task {
     let! page = data.Page.FindFullById (PageId "not-there") rootId
     Expect.isNone page "A page should not have been retrieved"
+}
+
+let ``FindFullByWebLog succeeds when pages are found`` (data: IData) = task {
+    let! pages = data.Page.FindFullByWebLog rootId
+    Expect.hasLength pages 2 "There should have been 2 pages returned"
+    pages |> List.iter (fun pg ->
+        Expect.contains [ coolPageId; otherPageId ] pg.Id $"Page ID {pg.Id} unexpected"
+        if pg.Id = coolPageId then
+            Expect.isNonEmpty pg.Metadata "Metadata should have been retrieved"
+            Expect.isNonEmpty pg.PriorPermalinks "Prior permalinks should have been retrieved"
+        Expect.isNonEmpty pg.Revisions "Revisions should have been retrieved")
+}
+
+let ``FindFullByWebLog succeeds when pages are not found`` (data: IData) = task {
+    let! pages = data.Page.FindFullByWebLog (WebLogId "does-not-exist")
+    Expect.isEmpty pages "No pages should have been retrieved"
+}
+
+let ``FindListed succeeds when pages are found`` (data: IData) = task {
+    let! pages = data.Page.FindListed rootId
+    Expect.hasLength pages 1 "There should have been 1 page returned"
+    Expect.equal pages[0].Id otherPageId "An unexpected page was returned"
+    Expect.equal pages[0].Text "" "Text should not have been returned"
+    Expect.isEmpty pages[0].PriorPermalinks "Prior permalinks should not have been retrieved"
+    Expect.isEmpty pages[0].Revisions "Revisions should not have been retrieved"
+}
+
+let ``FindListed succeeds when pages are not found`` (data: IData) = task {
+    let! pages = data.Page.FindListed (WebLogId "none")
+    Expect.isEmpty pages "No pages should have been retrieved"
 }

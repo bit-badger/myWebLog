@@ -85,7 +85,7 @@ type IPageData =
     abstract member FindListed : WebLogId -> Task<Page list>
     
     /// Find a page of pages (displayed in admin section) (excluding meta items, revisions and prior permalinks)
-    abstract member FindPageOfPages : WebLogId -> pageNbr : int -> Task<Page list>
+    abstract member FindPageOfPages : WebLogId -> pageNbr: int -> Task<Page list>
     
     /// Restore pages from a backup
     abstract member Restore : Page list -> Task<unit>
@@ -126,20 +126,20 @@ type IPostData =
     
     /// Find posts to be displayed on a category list page (excluding revisions and prior permalinks)
     abstract member FindPageOfCategorizedPosts :
-        WebLogId -> CategoryId list -> pageNbr : int -> postsPerPage : int -> Task<Post list>
+        WebLogId -> CategoryId list -> pageNbr: int -> postsPerPage: int -> Task<Post list>
     
     /// Find posts to be displayed on an admin page (excluding revisions and prior permalinks)
-    abstract member FindPageOfPosts : WebLogId -> pageNbr : int -> postsPerPage : int -> Task<Post list>
+    abstract member FindPageOfPosts : WebLogId -> pageNbr: int -> postsPerPage: int -> Task<Post list>
     
     /// Find posts to be displayed on a page (excluding revisions and prior permalinks)
-    abstract member FindPageOfPublishedPosts : WebLogId -> pageNbr : int -> postsPerPage : int -> Task<Post list>
+    abstract member FindPageOfPublishedPosts : WebLogId -> pageNbr: int -> postsPerPage: int -> Task<Post list>
     
     /// Find posts to be displayed on a tag list page (excluding revisions and prior permalinks)
     abstract member FindPageOfTaggedPosts :
-        WebLogId -> tag : string -> pageNbr : int -> postsPerPage : int -> Task<Post list>
+        WebLogId -> tag : string -> pageNbr: int -> postsPerPage: int -> Task<Post list>
     
     /// Find the next older and newer post for the given published date/time (excluding revisions and prior permalinks)
-    abstract member FindSurroundingPosts : WebLogId -> publishedOn : Instant -> Task<Post option * Post option>
+    abstract member FindSurroundingPosts : WebLogId -> publishedOn: Instant -> Task<Post option * Post option>
     
     /// Restore posts from a backup
     abstract member Restore : Post list -> Task<unit>
