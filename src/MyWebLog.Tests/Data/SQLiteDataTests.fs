@@ -258,6 +258,30 @@ let pageTests = testList "Page" [
             finally dispose data
         }
     ]
+    testList "UpdatePriorPermalinks" [
+        testTask "succeeds when the page exists" {
+            let data = mkData ()
+            try do! PageDataTests.``UpdatePriorPermalinks succeeds when the page exists`` data
+            finally dispose data
+        }
+        testTask "succeeds when the page does not exist" {
+            let data = mkData ()
+            try do! PageDataTests.``UpdatePriorPermalinks succeeds when the page does not exist`` data
+            finally dispose data
+        }
+    ]
+    testList "Delete" [
+        testTask "succeeds when a page is deleted" {
+            let data = mkData ()
+            try do! PageDataTests.``Delete succeeds when a page is deleted`` data
+            finally dispose data
+        }
+        testTask "succeeds when a page is not deleted" {
+            let data = mkData ()
+            try do! PageDataTests.``Delete succeeds when a page is not deleted`` data
+            finally dispose data
+        }
+    ]
 ]
 
 /// Delete the SQLite database

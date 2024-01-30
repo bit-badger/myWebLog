@@ -200,6 +200,22 @@ let pageTests = testList "Page" [
             do! PageDataTests.``Update succeeds when the page does not exist`` data.Value
         }
     ]
+    testList "UpdatePriorPermalinks" [
+        testTask "succeeds when the page exists" {
+            do! PageDataTests.``UpdatePriorPermalinks succeeds when the page exists`` data.Value
+        }
+        testTask "succeeds when the page does not exist" {
+            do! PageDataTests.``UpdatePriorPermalinks succeeds when the page does not exist`` data.Value
+        }
+    ]
+    testList "Delete" [
+        testTask "succeeds when a page is deleted" {
+            do! PageDataTests.``Delete succeeds when a page is deleted`` data.Value
+        }
+        testTask "succeeds when a page is not deleted" {
+            do! PageDataTests.``Delete succeeds when a page is not deleted`` data.Value
+        }
+    ]
 ]
 
 /// Drop the throwaway RethinkDB database

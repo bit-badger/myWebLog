@@ -201,6 +201,22 @@ let pageTests = testList "Page" [
             do! PageDataTests.``Update succeeds when the page does not exist`` (mkData ())
         }
     ]
+    testList "UpdatePriorPermalinks" [
+        testTask "succeeds when the page exists" {
+            do! PageDataTests.``UpdatePriorPermalinks succeeds when the page exists`` (mkData ())
+        }
+        testTask "succeeds when the page does not exist" {
+            do! PageDataTests.``UpdatePriorPermalinks succeeds when the page does not exist`` (mkData ())
+        }
+    ]
+    testList "Delete" [
+        testTask "succeeds when a page is deleted" {
+            do! PageDataTests.``Delete succeeds when a page is deleted`` (mkData ())
+        }
+        testTask "succeeds when a page is not deleted" {
+            do! PageDataTests.``Delete succeeds when a page is not deleted`` (mkData ())
+        }
+    ]
 ]
 
 /// Drop the throwaway PostgreSQL database

@@ -243,3 +243,29 @@ let ``Update succeeds when the page does not exist`` (data: IData) = task {
     let! page = data.Page.FindById pageId rootId
     Expect.isNone page "A page should not have been retrieved"
 }
+
+let ``UpdatePriorPermalinks succeeds when the page exists`` (data: IData) = task {
+    let links = [ Permalink "link-1.html"; Permalink "link-1.aspx"; Permalink "link-3.php" ]
+    let! found = data.Page.UpdatePriorPermalinks otherPageId rootId links
+    Expect.isTrue found "The permalinks should have been updated"
+    let! page = data.Page.FindFullById otherPageId rootId
+    Expect.isSome page "The page should have been found"
+    Expect.equal page.Value.PriorPermalinks links "The prior permalinks were not correct"
+}
+
+let ``UpdatePriorPermalinks succeeds when the page does not exist`` (data: IData) = task {
+    let! found =
+        data.Page.UpdatePriorPermalinks (PageId "no-page") WebLogId.Empty
+            [ Permalink "link-1.html"; Permalink "link-1.aspx"; Permalink "link-3.php" ]
+    Expect.isFalse found "The permalinks should not have been updated"
+}
+
+let ``Delete succeeds when a page is deleted`` (data: IData) = task {
+    let! deleted = data.Page.Delete coolPageId rootId
+    Expect.isTrue deleted "The page should have been deleted"
+}
+
+let ``Delete succeeds when a page is not deleted`` (data: IData) = task {
+    let! deleted = data.Page.Delete coolPageId rootId // this was deleted above
+    Expect.isFalse deleted "A page should not have been deleted"
+}
