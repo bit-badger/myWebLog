@@ -314,7 +314,7 @@ type MarkupText =
 
 
 /// An item of metadata
-[<CLIMutable; NoComparison; NoEquality>]
+[<CLIMutable>]
 type MetaItem = {
     /// The name of the metadata value
     Name: string
@@ -329,7 +329,7 @@ type MetaItem = {
 
 
 /// A revision of a page or post
-[<CLIMutable; NoComparison; NoEquality>]
+[<CLIMutable>]
 type Revision = {
     /// When this revision was saved
     AsOf: Instant

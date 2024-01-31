@@ -1,3 +1,6 @@
+/// <summary>
+/// Integration tests for <see cref="IPageData" /> implementations
+/// </summary> 
 module PageDataTests
 
 open System

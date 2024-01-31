@@ -1,3 +1,6 @@
+/// <summary>
+/// Integration tests for <see cref="ICategoryData" /> implementations
+/// </summary> 
 module CategoryDataTests
 
 open Expecto

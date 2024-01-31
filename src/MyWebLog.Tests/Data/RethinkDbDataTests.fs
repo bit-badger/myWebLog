@@ -1,4 +1,4 @@
-module RethinkDbTests
+module RethinkDbDataTests
 
 open System
 open Expecto
@@ -218,6 +218,15 @@ let pageTests = testList "Page" [
     ]
 ]
 
+/// Integration tests for the Post implementation in RethinkDB
+let postTests = testList "Post" [
+    testTask "Add succeeds" {
+        // We'll need the root website categories restored for these tests
+        do! freshEnvironment ()
+        do! PostDataTests.``Add succeeds`` data.Value
+    }
+]
+
 /// Drop the throwaway RethinkDB database
 let environmentCleanUp = testTask "Clean Up" {
     do! disposeData ()
@@ -229,5 +238,6 @@ let all =
         [ environmentSetUp
           categoryTests
           pageTests
+          postTests
           environmentCleanUp ]
     |> testSequenced

@@ -23,19 +23,19 @@ let mkData () =
 
 /// The host for the PostgreSQL test database (defaults to localhost)
 let testHost =
-    RethinkDbTests.env "PG_HOST" "localhost"
+    RethinkDbDataTests.env "PG_HOST" "localhost"
 
 /// The database name for the PostgreSQL test database (defaults to postgres)
 let testDb =
-    RethinkDbTests.env "PG_DB" "postgres"
+    RethinkDbDataTests.env "PG_DB" "postgres"
 
 /// The user ID for the PostgreSQL test database (defaults to postgres)
 let testUser =
-    RethinkDbTests.env "PG_USER" "postgres"
+    RethinkDbDataTests.env "PG_USER" "postgres"
 
 /// The password for the PostgreSQL test database (defaults to postgres)
 let testPw =
-    RethinkDbTests.env "PG_PW" "postgres"
+    RethinkDbDataTests.env "PG_PW" "postgres"
 
 /// Create a fresh environment from the root backup
 let freshEnvironment () = task {
@@ -219,6 +219,15 @@ let pageTests = testList "Page" [
     ]
 ]
 
+/// Integration tests for the Post implementation in PostgreSQL
+let postTests = testList "Post" [
+    testTask "Add succeeds" {
+        // We'll need the root website categories restored for these tests
+        do! freshEnvironment ()
+        do! PostDataTests.``Add succeeds`` (mkData ())
+    }
+]
+
 /// Drop the throwaway PostgreSQL database
 let environmentCleanUp = test "Clean Up" {
     if db.IsSome then db.Value.Dispose()
@@ -230,5 +239,6 @@ let all =
         [ environmentSetUp
           categoryTests
           pageTests
+          postTests
           environmentCleanUp ]
     |> testSequenced

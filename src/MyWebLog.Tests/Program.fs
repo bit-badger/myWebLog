@@ -5,7 +5,7 @@ let allTests = testList "MyWebLog" [
     testList "Data" [
         ConvertersTests.all
         UtilsTests.all
-        RethinkDbTests.all
+        RethinkDbDataTests.all
         SQLiteDataTests.all
         PostgresDataTests.all
     ]

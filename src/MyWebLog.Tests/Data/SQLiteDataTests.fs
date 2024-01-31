@@ -14,7 +14,7 @@ let ser = Json.configure (JsonSerializer.CreateDefault())
 
 /// The test database name
 let dbName =
-    RethinkDbTests.env "SQLITE_DB" "test-db.db"
+    RethinkDbDataTests.env "SQLITE_DB" "test-db.db"
 
 /// Create a SQLiteData instance for testing
 let mkData () =
@@ -30,13 +30,17 @@ let dispose (data: IData) =
 let freshEnvironment (data: IData option) = task {
     let env =
         match data with
-        | Some d -> d
+        | Some d ->
+            System.Console.WriteLine "Existing data"
+            d
         | None ->
+            System.Console.WriteLine $"No data; deleting {dbName}"
             File.Delete dbName
             mkData ()
     do! env.StartUp()
     // This exercises Restore for all implementations; all tests are dependent on it working as expected
     do! Maintenance.Backup.restoreBackup "root-weblog.json" None false false env
+    return env
 }
 
 /// Set up the environment for the SQLite tests
@@ -284,6 +288,16 @@ let pageTests = testList "Page" [
     ]
 ]
 
+/// Integration tests for the Post implementation in SQLite
+let postTests = testList "Post" [
+    testTask "Add succeeds" {
+        // We'll need the root website categories restored for these tests
+        let! data = freshEnvironment None
+        try do! PostDataTests.``Add succeeds`` data
+        finally dispose data
+    }
+]
+
 /// Delete the SQLite database
 let environmentCleanUp = test "Clean Up" {
     File.Delete dbName
@@ -296,5 +310,6 @@ let all =
         [ environmentSetUp
           categoryTests
           pageTests
+          postTests
           environmentCleanUp ]
     |> testSequenced
