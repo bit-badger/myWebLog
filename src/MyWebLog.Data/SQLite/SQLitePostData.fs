@@ -54,9 +54,12 @@ type SQLitePostData(conn: SqliteConnection, log: ILogger) =
             (toCount >> int)
     
     /// Find a post by its ID for the given web log (excluding revisions)
-    let findById postId webLogId =
+    let findById postId webLogId = backgroundTask {
         log.LogTrace "Post.findById"
-        Document.findByIdAndWebLog<PostId, Post> Table.Post postId webLogId conn
+        match! Document.findByIdAndWebLog<PostId, Post> Table.Post postId webLogId conn with
+        | Some post -> return Some { post with PriorPermalinks = [] }
+        | None -> return None
+    }
     
     /// Find a post by its permalink for the given web log (excluding revisions)
     let findByPermalink (permalink: Permalink) webLogId =
@@ -65,12 +68,12 @@ type SQLitePostData(conn: SqliteConnection, log: ILogger) =
         conn.customSingle
             $"""{Document.Query.selectByWebLog Table.Post} AND {Query.whereByField linkParam "@link"}"""
             (addFieldParam "@link" linkParam [ webLogParam webLogId ])
-            fromData<Post>
+            (fun rdr -> { fromData<Post> rdr with PriorPermalinks = [] })
     
     /// Find a complete post by its ID for the given web log
     let findFullById postId webLogId = backgroundTask {
         log.LogTrace "Post.findFullById"
-        match! findById postId webLogId with
+        match! Document.findByIdAndWebLog<PostId, Post> Table.Post postId webLogId conn with
         | Some post ->
             let! post = appendPostRevisions post
             return Some post

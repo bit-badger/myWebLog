@@ -178,6 +178,7 @@ type RethinkDbData(conn: Net.IConnection, config: DataConfig, log: ILogger<Rethi
                         [| row[nameof WebLogUser.Empty.WebLogId]; row[nameof WebLogUser.Empty.Email] |] :> obj)
                     write; withRetryOnce; ignoreResult conn
                 }
+        do! rethink { withTable table; indexWait; result; withRetryDefault; ignoreResult conn }
     }
     
     /// The batch size for restoration methods
@@ -589,20 +590,27 @@ type RethinkDbData(conn: Net.IConnection, config: DataConfig, log: ILogger<Rethi
                     return result.Deleted > 0UL
                 }
                 
-                member _.FindById postId webLogId =
-                    rethink<Post> {
-                        withTable Table.Post
-                        get postId
-                        without [ nameof Post.Empty.PriorPermalinks; nameof Post.Empty.Revisions ]
-                        resultOption; withRetryOptionDefault
-                    }
-                    |> verifyWebLog webLogId _.WebLogId <| conn
+                member _.FindById postId webLogId = backgroundTask {
+                    let! post =
+                        rethink<Post list> {
+                            withTable Table.Post
+                            getAll [ postId ]
+                            without [ nameof Post.Empty.PriorPermalinks; nameof Post.Empty.Revisions ]
+                            result; withRetryDefault
+                        }
+                        |> tryFirst <| conn
+                    return
+                        post
+                        |> Option.filter (fun p -> p.WebLogId = webLogId)
+                        |> Option.map (fun p -> { p with Revisions = []; PriorPermalinks = [] })
+                }
                 
                 member _.FindByPermalink permalink webLogId =
                     rethink<Post list> {
                         withTable Table.Post
                         getAll [ [| webLogId :> obj; permalink |] ] (nameof Post.Empty.Permalink)
-                        without [ nameof Post.Empty.PriorPermalinks; nameof Post.Empty.Revisions ]
+                        merge (r.HashMap(nameof Post.Empty.PriorPermalinks, [||])
+                                   .With(nameof Post.Empty.Revisions, [||]))
                         limit 1
                         result; withRetryDefault
                     }

@@ -1,7 +1,7 @@
 module SQLiteDataTests
 
 open System.IO
-open BitBadger.Documents
+open BitBadger.Documents.Sqlite
 open Expecto
 open Microsoft.Extensions.Logging.Abstractions
 open MyWebLog
@@ -18,9 +18,23 @@ let dbName =
 
 /// Create a SQLiteData instance for testing
 let mkData () =
-    Sqlite.Configuration.useConnectionString $"Data Source=./{dbName}"
-    let conn = Sqlite.Configuration.dbConn ()
+    Configuration.useConnectionString $"Data Source=./{dbName}"
+    let conn = Configuration.dbConn ()
     SQLiteData(conn, NullLogger<SQLiteData>(), ser) :> IData
+
+// /// Create a SQLiteData instance for testing
+// let mkTraceData () =
+//     Sqlite.Configuration.useConnectionString $"Data Source=./{dbName}"
+//     let conn = Sqlite.Configuration.dbConn ()
+//     let myLogger = 
+//         LoggerFactory
+//             .Create(fun builder -> 
+//                 builder
+//                     .AddSimpleConsole()
+//                     .SetMinimumLevel(LogLevel.Trace) 
+//                     |> ignore)
+//             .CreateLogger<SQLiteData>()
+//     SQLiteData(conn, myLogger, ser) :> IData
 
 /// Dispose the connection associated with the SQLiteData instance
 let dispose (data: IData) =
@@ -28,15 +42,20 @@ let dispose (data: IData) =
 
 /// Create a fresh environment from the root backup
 let freshEnvironment (data: IData option) = task {
-    let env =
+    let! env = task {
         match data with
         | Some d ->
-            System.Console.WriteLine "Existing data"
-            d
+            return d
         | None ->
-            System.Console.WriteLine $"No data; deleting {dbName}"
-            File.Delete dbName
-            mkData ()
+            let d = mkData ()
+            // Thank you, kind Internet stranger... https://stackoverflow.com/a/548297
+            do! (d :?> SQLiteData).Conn.customNonQuery
+                    "PRAGMA writable_schema = 1;
+                     DELETE FROM sqlite_master WHERE type IN ('table', 'index');
+                     PRAGMA writable_schema = 0;
+                     VACUUM" []
+            return d
+        }
     do! env.StartUp()
     // This exercises Restore for all implementations; all tests are dependent on it working as expected
     do! Maintenance.Backup.restoreBackup "root-weblog.json" None false false env
@@ -296,6 +315,57 @@ let postTests = testList "Post" [
         try do! PostDataTests.``Add succeeds`` data
         finally dispose data
     }
+    testTask "CountPostsByStatus succeeds" {
+        let data = mkData ()
+        try do! PostDataTests.``CountByStatus succeeds`` data
+        finally dispose data
+    }
+    testList "FindById" [
+        testTask "succeeds when a post is found" {
+            let data = mkData ()
+            try do! PostDataTests.``FindById succeeds when a post is found`` data
+            finally dispose data
+        }
+        testTask "succeeds when a post is not found (incorrect weblog)" {
+            let data = mkData ()
+            try do! PostDataTests.``FindById succeeds when a post is not found (incorrect weblog)`` data
+            finally dispose data
+        }
+        testTask "succeeds when a post is not found (bad post ID)" {
+            let data = mkData ()
+            try do! PostDataTests.``FindById succeeds when a post is not found (bad post ID)`` data
+            finally dispose data
+        }
+    ]
+    testList "FindByPermalink" [
+        testTask "succeeds when a post is found" {
+            let data = mkData ()
+            try do! PostDataTests.``FindByPermalink succeeds when a post is found`` data
+            finally dispose data
+        }
+        testTask "succeeds when a post is not found (incorrect weblog)" {
+            let data = mkData ()
+            try do! PostDataTests.``FindByPermalink succeeds when a post is not found (incorrect weblog)`` data
+            finally dispose data
+        }
+        testTask "succeeds when a post is not found (no such permalink)" {
+            let data = mkData ()
+            try do! PostDataTests.``FindByPermalink succeeds when a post is not found (no such permalink)`` data
+            finally dispose data
+        }
+    ]
+    testList "FindCurrentPermalink" [
+        testTask "succeeds when a post is found" {
+            let data = mkData ()
+            try do! PostDataTests.``FindCurrentPermalink succeeds when a post is found`` data
+            finally dispose data
+        }
+        testTask "succeeds when a post is not found" {
+            let data = mkData ()
+            try do! PostDataTests.``FindCurrentPermalink succeeds when a post is not found`` data
+            finally dispose data
+        }
+    ]
 ]
 
 /// Delete the SQLite database

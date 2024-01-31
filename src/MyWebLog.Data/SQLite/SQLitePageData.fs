@@ -102,7 +102,7 @@ type SQLitePageData(conn: SqliteConnection, log: ILogger) =
         conn.customSingle
             $"""{Document.Query.selectByWebLog Table.Page} AND {Query.whereByField linkParam "@link"}"""
             (addFieldParam "@link" linkParam [ webLogParam webLogId ])
-            fromData<Page>
+            (fun rdr -> { fromData<Page> rdr with PriorPermalinks = [] })
     
     /// Find the current permalink within a set of potential prior permalinks for the given web log
     let findCurrentPermalink (permalinks: Permalink list) webLogId =

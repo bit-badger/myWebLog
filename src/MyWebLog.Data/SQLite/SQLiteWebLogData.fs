@@ -24,7 +24,7 @@ type SQLiteWebLogData(conn: SqliteConnection, log: ILogger) =
     let delete webLogId =
         log.LogTrace "WebLog.delete"
         let webLogMatches = Query.whereByField (Field.EQ "WebLogId" "") "@webLogId"
-        let subQuery table = $"(SELECT data ->> 'Id' FROM {table} WHERE {webLogMatches}"
+        let subQuery table = $"(SELECT data ->> 'Id' FROM {table} WHERE {webLogMatches})"
         Custom.nonQuery
             $"""DELETE FROM {Table.PostComment}  WHERE data ->> 'PostId' IN {subQuery Table.Post};
                 DELETE FROM {Table.PostRevision} WHERE post_id           IN {subQuery Table.Post};

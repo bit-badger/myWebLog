@@ -272,7 +272,9 @@
           "Value": "Low"
         }
       ],
-      "PriorPermalinks": [],
+      "PriorPermalinks": [
+        "2024/ep-1.html"
+      ],
       "Revisions": [
         {
           "AsOf": "2024-01-20T22:24:01Z",

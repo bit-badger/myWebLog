@@ -94,10 +94,13 @@ type PostgresPageData(log: ILogger) =
     }
     
     /// Find a page by its permalink for the given web log
-    let findByPermalink (permalink: Permalink) webLogId =
+    let findByPermalink (permalink: Permalink) webLogId = backgroundTask {
         log.LogTrace "Page.findByPermalink"
-        Find.byContains<Page> Table.Page {| webLogDoc webLogId with Permalink = permalink |}
-        |> tryHead
+        let! page =
+            Find.byContains<Page> Table.Page {| webLogDoc webLogId with Permalink = permalink |}
+            |> tryHead
+        return page |> Option.map (fun pg -> { pg with PriorPermalinks = [] })
+    }
     
     /// Find the current permalink within a set of potential prior permalinks for the given web log
     let findCurrentPermalink (permalinks: Permalink list) webLogId = backgroundTask {

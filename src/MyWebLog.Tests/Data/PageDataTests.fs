@@ -50,14 +50,9 @@ let ``Add succeeds`` (data: IData) = task {
     Expect.equal pg.IsInPageList page.IsInPageList "Is in page list flag not saved properly"
     Expect.equal pg.Template page.Template "Template not saved properly"
     Expect.equal pg.Text page.Text "Text not saved properly"
-    Expect.hasLength pg.Metadata 1 "There should have been one meta item properly"
-    Expect.equal pg.Metadata[0].Name page.Metadata[0].Name "Metadata name not saved properly"
-    Expect.equal pg.Metadata[0].Value page.Metadata[0].Value "Metadata value not saved properly"
-    Expect.hasLength pg.PriorPermalinks 1 "There should have been one prior permalink"
-    Expect.equal pg.PriorPermalinks[0] page.PriorPermalinks[0] "Prior permalink not saved properly"
-    Expect.hasLength pg.Revisions 1 "There should have been one revision"
-    Expect.equal pg.Revisions[0].AsOf page.Revisions[0].AsOf "Revision as of not saved properly"
-    Expect.equal pg.Revisions[0].Text page.Revisions[0].Text "Revision text not saved properly"
+    Expect.equal pg.Metadata page.Metadata "Metadata not saved properly"
+    Expect.equal pg.PriorPermalinks page.PriorPermalinks "Prior permalinks not saved properly"
+    Expect.equal pg.Revisions page.Revisions "Revisions not saved properly"
 }
 
 let ``All succeeds`` (data: IData) = task {
@@ -95,11 +90,8 @@ let ``FindById succeeds when a page is found`` (data: IData) = task {
     Expect.equal pg.UpdatedOn coolPagePublished "Updated On is incorrect"
     Expect.isFalse pg.IsInPageList "Is in page list flag should not have been set"
     Expect.equal pg.Text "<h1 id=\"a-cool-page\">A Cool Page</h1>\n<p>It really is cool!</p>\n" "Text is incorrect"
-    Expect.hasLength pg.Metadata 2 "There should be 2 metadata items on this page"
-    Expect.equal pg.Metadata[0].Name "Cool" "Meta item 0 name is incorrect"
-    Expect.equal pg.Metadata[0].Value "true" "Meta item 0 value is incorrect"
-    Expect.equal pg.Metadata[1].Name "Warm" "Meta item 1 name is incorrect"
-    Expect.equal pg.Metadata[1].Value "false" "Meta item 1 value is incorrect"
+    Expect.equal
+        pg.Metadata [ { Name = "Cool"; Value = "true" }; { Name = "Warm"; Value = "false" } ] "Metadata is incorrect"
     Expect.isEmpty pg.Revisions "Revisions should not have been retrieved"
     Expect.isEmpty pg.PriorPermalinks "Prior permalinks should not have been retrieved"
 }
@@ -119,6 +111,8 @@ let ``FindByPermalink succeeds when a page is found`` (data: IData) = task {
     Expect.isSome page "A page should have been returned"
     let pg = page.Value
     Expect.equal pg.Id coolPageId "The wrong page was retrieved"
+    Expect.isEmpty pg.Revisions "Revisions should not have been retrieved"
+    Expect.isEmpty pg.PriorPermalinks "Prior permalinks should not have been retrieved"
 }
 
 let ``FindByPermalink succeeds when a page is not found (incorrect weblog)`` (data: IData) = task {
@@ -148,11 +142,11 @@ let ``FindFullById succeeds when a page is found`` (data: IData) = task {
     let pg = page.Value
     Expect.equal pg.Id coolPageId "The wrong page was retrieved"
     Expect.equal pg.WebLogId rootId "The page's web log did not match the called parameter"
-    Expect.hasLength pg.Revisions 1 "There should be 1 revision"
-    Expect.equal pg.Revisions[0].AsOf coolPagePublished "Revision 0 as-of is incorrect"
-    Expect.equal pg.Revisions[0].Text (Markdown "# A Cool Page\n\nIt really is cool!") "Revision 0 text is incorrect"
-    Expect.hasLength pg.PriorPermalinks 1 "There should be 1 prior permalink"
-    Expect.equal pg.PriorPermalinks[0] (Permalink "a-cool-pg.html") "Prior permalink 0 is incorrect"
+    Expect.equal
+        pg.Revisions
+        [ { AsOf = coolPagePublished; Text = Markdown "# A Cool Page\n\nIt really is cool!" } ]
+        "Revisions are incorrect"
+    Expect.equal pg.PriorPermalinks [ Permalink "a-cool-pg.html" ] "Prior permalinks are incorrect"
 }
 
 let ``FindFullById succeeds when a page is not found`` (data: IData) = task {
@@ -230,14 +224,13 @@ let ``Update succeeds when the page exists`` (data: IData) = task {
     Expect.equal pg.UpdatedOn (coolPagePublished + Duration.FromHours 5) "Updated On is incorrect"
     Expect.isTrue pg.IsInPageList "Is in page list flag should have been set"
     Expect.equal pg.Text "<p>I have been updated" "Text is incorrect"
-    Expect.hasLength pg.Metadata 1 "There should be 1 metadata item on this page"
-    Expect.equal pg.Metadata[0].Name "Cool" "Meta item 0 name is incorrect"
-    Expect.equal pg.Metadata[0].Value "true" "Meta item 0 value is incorrect"
+    Expect.equal pg.Metadata [ { Name = "Cool"; Value = "true" } ] "Metadata is incorrect"
     Expect.equal pg.PriorPermalinks [ Permalink "a-cool-page.html" ] "Prior permalinks are incorrect"
-    Expect.hasLength pg.Revisions 2 "There should be 2 revisions"
-    Expect.equal pg.Revisions[0].AsOf (coolPagePublished + Duration.FromHours 5) "As Of for revision 0 incorrect"
-    Expect.equal pg.Revisions[0].Text (Html "<p>I have been updated") "Text for revision 0 is incorrect"
-    Expect.equal pg.Revisions[1].AsOf coolPagePublished "As Of for revision 1 is incorrect"
+    Expect.equal
+        pg.Revisions
+        [ { AsOf = coolPagePublished + Duration.FromHours 5; Text = Html "<p>I have been updated" }
+          { AsOf = coolPagePublished; Text = Markdown "# A Cool Page\n\nIt really is cool!" } ]
+        "Revisions are incorrect"
 }
 
 let ``Update succeeds when the page does not exist`` (data: IData) = task {

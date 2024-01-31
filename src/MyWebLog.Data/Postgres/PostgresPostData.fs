@@ -42,9 +42,12 @@ type PostgresPostData(log: ILogger) =
         Count.byContains Table.Post {| webLogDoc webLogId with Status = status |}
     
     /// Find a post by its ID for the given web log (excluding revisions)
-    let findById postId webLogId =
+    let findById postId webLogId = backgroundTask {
         log.LogTrace "Post.findById"
-        Document.findByIdAndWebLog<PostId, Post> Table.Post postId webLogId
+        match! Document.findByIdAndWebLog<PostId, Post> Table.Post postId webLogId with
+        | Some post -> return Some { post with PriorPermalinks = [] }
+        | None -> return None
+    }
     
     /// Find a post by its permalink for the given web log (excluding revisions)
     let findByPermalink (permalink: Permalink) webLogId =
@@ -52,12 +55,12 @@ type PostgresPostData(log: ILogger) =
         Custom.single
             (selectWithCriteria Table.Post)
             [ jsonParam "@criteria" {| webLogDoc webLogId with Permalink = permalink |} ]
-            fromData<Post>
+            (fun row -> { fromData<Post> row with PriorPermalinks = [] })
     
     /// Find a complete post by its ID for the given web log
     let findFullById postId webLogId = backgroundTask {
         log.LogTrace "Post.findFullById"
-        match! findById postId webLogId with
+        match! Document.findByIdAndWebLog<PostId, Post> Table.Post postId webLogId with
         | Some post ->
             let! withRevisions = appendPostRevisions post
             return Some withRevisions

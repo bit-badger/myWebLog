@@ -226,6 +226,39 @@ let postTests = testList "Post" [
         do! freshEnvironment ()
         do! PostDataTests.``Add succeeds`` (mkData ())
     }
+    testTask "CountByStatus succeeds" {
+        do! PostDataTests.``CountByStatus succeeds`` (mkData ())
+    }
+    testList "FindById" [
+        testTask "succeeds when a post is found" {
+            do! PostDataTests.``FindById succeeds when a post is found`` (mkData ())
+        }
+        testTask "succeeds when a post is not found (incorrect weblog)" {
+            do! PostDataTests.``FindById succeeds when a post is not found (incorrect weblog)`` (mkData ())
+        }
+        testTask "succeeds when a post is not found (bad post ID)" {
+            do! PostDataTests.``FindById succeeds when a post is not found (bad post ID)`` (mkData ())
+        }
+    ]
+    testList "FindByPermalink" [
+        testTask "succeeds when a post is found" {
+            do! PostDataTests.``FindByPermalink succeeds when a post is found`` (mkData ())
+        }
+        testTask "succeeds when a post is not found (incorrect weblog)" {
+            do! PostDataTests.``FindByPermalink succeeds when a post is not found (incorrect weblog)`` (mkData ())
+        }
+        testTask "succeeds when a post is not found (no such permalink)" {
+            do! PostDataTests.``FindByPermalink succeeds when a post is not found (no such permalink)`` (mkData ())
+        }
+    ]
+    testList "FindCurrentPermalink" [
+        testTask "succeeds when a post is found" {
+            do! PostDataTests.``FindCurrentPermalink succeeds when a post is found`` (mkData ())
+        }
+        testTask "succeeds when a post is not found" {
+            do! PostDataTests.``FindCurrentPermalink succeeds when a post is not found`` (mkData ())
+        }
+    ]
 ]
 
 /// Drop the throwaway PostgreSQL database
