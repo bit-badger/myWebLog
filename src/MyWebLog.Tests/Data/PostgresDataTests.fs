@@ -259,6 +259,22 @@ let postTests = testList "Post" [
             do! PostDataTests.``FindCurrentPermalink succeeds when a post is not found`` (mkData ())
         }
     ]
+    testList "FindFullById" [
+        testTask "succeeds when a post is found" {
+            do! PostDataTests.``FindFullById succeeds when a post is found`` (mkData ())
+        }
+        testTask "succeeds when a post is not found" {
+            do! PostDataTests.``FindFullById succeeds when a post is not found`` (mkData ())
+        }
+    ]
+    testList "FindFullByWebLog" [
+        testTask "succeeds when posts are found" {
+            do! PostDataTests.``FindFullByWebLog succeeds when posts are found`` (mkData ())
+        }
+        testTask "succeeds when a posts are not found" {
+            do! PostDataTests.``FindFullByWebLog succeeds when posts are not found`` (mkData ())
+        }
+    ]
 ]
 
 /// Drop the throwaway PostgreSQL database

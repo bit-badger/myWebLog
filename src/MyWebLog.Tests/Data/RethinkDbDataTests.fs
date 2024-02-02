@@ -258,6 +258,22 @@ let postTests = testList "Post" [
             do! PostDataTests.``FindCurrentPermalink succeeds when a post is not found`` data.Value
         }
     ]
+    testList "FindFullById" [
+        testTask "succeeds when a post is found" {
+            do! PostDataTests.``FindFullById succeeds when a post is found`` data.Value
+        }
+        testTask "succeeds when a post is not found" {
+            do! PostDataTests.``FindFullById succeeds when a post is not found`` data.Value
+        }
+    ]
+    testList "FindFullByWebLog" [
+        testTask "succeeds when posts are found" {
+            do! PostDataTests.``FindFullByWebLog succeeds when posts are found`` data.Value
+        }
+        testTask "succeeds when a posts are not found" {
+            do! PostDataTests.``FindFullByWebLog succeeds when posts are not found`` data.Value
+        }
+    ]
 ]
 
 /// Drop the throwaway RethinkDB database

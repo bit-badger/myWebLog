@@ -18,6 +18,15 @@ let episode1 = PostId "osxMfWGlAkyugUbJ1-xD1g"
 /// The published instant for episode 1
 let episode1Published = Instant.FromDateTimeOffset(DateTimeOffset.Parse "2024-01-20T22:24:01Z")
 
+/// The ID of podcast episode 2
+let episode2 = PostId "l4_Eh4aFO06SqqJjOymNzA"
+
+/// The ID of "Something May Happen" post
+let something = PostId "QweKbWQiOkqqrjEdgP9wwg"
+
+/// The ID of "Test Post 1" post
+let testPost1 = PostId "RCsCU2puYEmkpzotoi8p4g"
+
 let ``Add succeeds`` (data: IData) = task {
     let post =
         { Id              = PostId "a-new-post"
@@ -142,4 +151,39 @@ let ``FindCurrentPermalink succeeds when a post is found`` (data: IData) = task 
 let ``FindCurrentPermalink succeeds when a post is not found`` (data: IData) = task {
     let! link = data.Post.FindCurrentPermalink [ Permalink "oops/"; Permalink "oops" ] rootId
     Expect.isNone link "A permalink should not have been returned"
+}
+
+let ``FindFullById succeeds when a post is found`` (data: IData) = task {
+    let! post = data.Post.FindFullById episode1 rootId
+    Expect.isSome post "A post should have been returned"
+    let it = post.Value
+    Expect.equal it.Id episode1 "The wrong post was retrieved"
+    Expect.equal it.WebLogId rootId "The post's web log did not match the called parameter"
+    Expect.equal
+        it.Revisions
+        [ { AsOf = episode1Published; Text = Html "<p>It's the launch of my new podcast - y'all come listen!" } ]
+        "Revisions are incorrect"
+    Expect.equal it.PriorPermalinks [ Permalink "2024/ep-1.html" ] "Prior permalinks are incorrect"
+}
+
+let ``FindFullById succeeds when a post is not found`` (data: IData) = task {
+    let! post = data.Post.FindFullById (PostId "no-post") rootId
+    Expect.isNone post "A page should not have been retrieved"
+}
+
+let ``FindFullByWebLog succeeds when posts are found`` (data: IData) = task {
+    let! posts = data.Post.FindFullByWebLog rootId
+    Expect.hasLength posts 4 "There should have been 4 posts returned"
+    let allPosts = [ testPost1; episode1; episode2; something ]
+    posts |> List.iter (fun it ->
+        Expect.contains allPosts it.Id $"Post ID {it.Id} unexpected"
+        if it.Id = episode1 then
+            Expect.isNonEmpty it.Metadata "Metadata should have been retrieved"
+            Expect.isNonEmpty it.PriorPermalinks "Prior permalinks should have been retrieved"
+        Expect.isNonEmpty it.Revisions "Revisions should have been retrieved")
+}
+
+let ``FindFullByWebLog succeeds when posts are not found`` (data: IData) = task {
+    let! posts = data.Post.FindFullByWebLog (WebLogId "nonexistent")
+    Expect.isEmpty posts "No posts should have been retrieved"
 }
