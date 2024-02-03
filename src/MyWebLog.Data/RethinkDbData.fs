@@ -649,7 +649,8 @@ type RethinkDbData(conn: Net.IConnection, config: DataConfig, log: ILogger<Rethi
                     getAll (objList categoryIds) (nameof Post.Empty.CategoryIds)
                     filter [ nameof Post.Empty.WebLogId, webLogId :> obj
                              nameof Post.Empty.Status,   Published ]
-                    without [ nameof Post.Empty.PriorPermalinks; nameof Post.Empty.Revisions ]
+                    merge (r.HashMap(nameof Post.Empty.PriorPermalinks, [||])
+                               .With(nameof Post.Empty.Revisions, [||]))
                     distinct
                     orderByDescending (nameof Post.Empty.PublishedOn)
                     skip ((pageNbr - 1) * postsPerPage)
@@ -660,7 +661,9 @@ type RethinkDbData(conn: Net.IConnection, config: DataConfig, log: ILogger<Rethi
                 member _.FindPageOfPosts webLogId pageNbr postsPerPage = rethink<Post list> {
                     withTable Table.Post
                     getAll [ webLogId ] (nameof Post.Empty.WebLogId)
-                    without [ nameof Post.Empty.PriorPermalinks; nameof Post.Empty.Revisions ]
+                    merge (r.HashMap(nameof Post.Empty.Text, "")
+                               .With(nameof Post.Empty.PriorPermalinks, [||])
+                               .With(nameof Post.Empty.Revisions, [||]))
                     orderByFuncDescending (fun row ->
                         row[nameof Post.Empty.PublishedOn].Default_(nameof Post.Empty.UpdatedOn) :> obj)
                     skip ((pageNbr - 1) * postsPerPage)
@@ -672,7 +675,8 @@ type RethinkDbData(conn: Net.IConnection, config: DataConfig, log: ILogger<Rethi
                     withTable Table.Post
                     getAll [ webLogId ] (nameof Post.Empty.WebLogId)
                     filter (nameof Post.Empty.Status) Published
-                    without [ nameof Post.Empty.PriorPermalinks; nameof Post.Empty.Revisions ]
+                    merge (r.HashMap(nameof Post.Empty.PriorPermalinks, [||])
+                               .With(nameof Post.Empty.Revisions, [||]))
                     orderByDescending (nameof Post.Empty.PublishedOn)
                     skip ((pageNbr - 1) * postsPerPage)
                     limit (postsPerPage + 1)
@@ -684,7 +688,8 @@ type RethinkDbData(conn: Net.IConnection, config: DataConfig, log: ILogger<Rethi
                     getAll [ tag ] (nameof Post.Empty.Tags)
                     filter [ nameof Post.Empty.WebLogId, webLogId :> obj
                              nameof Post.Empty.Status,   Published ]
-                    without [ nameof Post.Empty.PriorPermalinks; nameof Post.Empty.Revisions ]
+                    merge (r.HashMap(nameof Post.Empty.PriorPermalinks, [||])
+                               .With(nameof Post.Empty.Revisions, [||]))
                     orderByDescending (nameof Post.Empty.PublishedOn)
                     skip ((pageNbr - 1) * postsPerPage)
                     limit (postsPerPage + 1)
@@ -697,7 +702,8 @@ type RethinkDbData(conn: Net.IConnection, config: DataConfig, log: ILogger<Rethi
                             withTable Table.Post
                             getAll [ webLogId ] (nameof Post.Empty.WebLogId)
                             filter (fun row -> row[nameof Post.Empty.PublishedOn].Lt publishedOn :> obj)
-                            without [ nameof Post.Empty.PriorPermalinks; nameof Post.Empty.Revisions ]
+                            merge (r.HashMap(nameof Post.Empty.PriorPermalinks, [||])
+                                       .With(nameof Post.Empty.Revisions, [||]))
                             orderByDescending (nameof Post.Empty.PublishedOn)
                             limit 1
                             result; withRetryDefault
@@ -708,7 +714,8 @@ type RethinkDbData(conn: Net.IConnection, config: DataConfig, log: ILogger<Rethi
                             withTable Table.Post
                             getAll [ webLogId ] (nameof Post.Empty.WebLogId)
                             filter (fun row -> row[nameof Post.Empty.PublishedOn].Gt publishedOn :> obj)
-                            without [ nameof Post.Empty.PriorPermalinks; nameof Post.Empty.Revisions ]
+                            merge (r.HashMap(nameof Post.Empty.PriorPermalinks, [||])
+                                       .With(nameof Post.Empty.Revisions, [||]))
                             orderBy (nameof Post.Empty.PublishedOn)
                             limit 1
                             result; withRetryDefault
@@ -726,22 +733,20 @@ type RethinkDbData(conn: Net.IConnection, config: DataConfig, log: ILogger<Rethi
                         }
                 }
                 
-                member _.Update post = rethink {
-                    withTable Table.Post
-                    get post.Id
-                    replace post
-                    write; withRetryDefault; ignoreResult conn
+                member this.Update post = backgroundTask {
+                    match! this.FindById post.Id post.WebLogId with
+                    | Some _ ->
+                        do! rethink {
+                            withTable Table.Post
+                            get post.Id
+                            replace post
+                            write; withRetryDefault; ignoreResult conn
+                        }
+                    | None -> ()
                 }
 
-                member _.UpdatePriorPermalinks postId webLogId permalinks = backgroundTask {
-                    match! (
-                        rethink<Post> {
-                            withTable Table.Post
-                            get postId
-                            without [ nameof Post.Empty.Revisions; nameof Post.Empty.PriorPermalinks ]
-                            resultOption; withRetryOptionDefault
-                        }
-                        |> verifyWebLog webLogId (_.WebLogId)) conn with
+                member this.UpdatePriorPermalinks postId webLogId permalinks = backgroundTask {
+                    match! this.FindById postId webLogId with
                     | Some _ ->
                         do! rethink {
                             withTable Table.Post

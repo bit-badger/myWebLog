@@ -5,7 +5,7 @@ open BitBadger.Documents.Postgres
 open Microsoft.Extensions.Logging
 open MyWebLog
 open MyWebLog.Data
-open NodaTime.Text
+open NodaTime
 open Npgsql.FSharp
 
 /// PostgreSQL myWebLog post data implementation
@@ -20,9 +20,13 @@ type PostgresPostData(log: ILogger) =
         return { post with Revisions = revisions }
     }
     
-    /// Return a post with no revisions or text
+    /// Return a post with no revisions or prior permalinks
+    let postWithoutLinks row =
+        { fromData<Post> row with PriorPermalinks = [] }
+    
+    /// Return a post with no revisions, prior permalinks, or text
     let postWithoutText row =
-        { fromData<Post> row with Text = "" }
+        { postWithoutLinks row with Text = "" }
     
     /// Update a post's revisions
     let updatePostRevisions (postId: PostId) oldRevs newRevs =
@@ -35,6 +39,13 @@ type PostgresPostData(log: ILogger) =
         Document.existsByWebLog Table.Post postId webLogId
     
     // IMPLEMENTATION FUNCTIONS
+    
+    /// Add a post
+    let add (post : Post) = backgroundTask {
+        log.LogTrace "Post.add"
+        do! insert Table.Post { post with Revisions = [] }
+        do! updatePostRevisions post.Id [] post.Revisions
+    }
     
     /// Count posts in a status for the given web log
     let countByStatus (status: PostStatus) webLogId =
@@ -55,7 +66,7 @@ type PostgresPostData(log: ILogger) =
         Custom.single
             (selectWithCriteria Table.Post)
             [ jsonParam "@criteria" {| webLogDoc webLogId with Permalink = permalink |} ]
-            (fun row -> { fromData<Post> row with PriorPermalinks = [] })
+            postWithoutLinks
     
     /// Find a complete post by its ID for the given web log
     let findFullById postId webLogId = backgroundTask {
@@ -118,7 +129,7 @@ type PostgresPostData(log: ILogger) =
                ORDER BY data ->> '{nameof Post.Empty.PublishedOn}' DESC
                LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"
             [ jsonParam "@criteria" {| webLogDoc webLogId with Status = Published |}; catParam ]
-            fromData<Post>
+            postWithoutLinks
     
     /// Get a page of posts for the given web log (excludes text and revisions)
     let findPageOfPosts webLogId pageNbr postsPerPage =
@@ -139,7 +150,7 @@ type PostgresPostData(log: ILogger) =
                ORDER BY data ->> '{nameof Post.Empty.PublishedOn}' DESC
                LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"
             [ jsonParam "@criteria" {| webLogDoc webLogId with Status = Published |} ]
-            fromData<Post>
+            postWithoutLinks
     
     /// Get a page of tagged posts for the given web log (excludes revisions and prior permalinks)
     let findPageOfTaggedPosts webLogId (tag: string) pageNbr postsPerPage =
@@ -150,40 +161,32 @@ type PostgresPostData(log: ILogger) =
                ORDER BY data ->> '{nameof Post.Empty.PublishedOn}' DESC
                LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"
             [ jsonParam "@criteria" {| webLogDoc webLogId with Status = Published |}; jsonParam "@tag" [| tag |] ]
-            fromData<Post>
+            postWithoutLinks
     
     /// Find the next newest and oldest post from a publish date for the given web log
-    let findSurroundingPosts webLogId publishedOn = backgroundTask {
+    let findSurroundingPosts webLogId (publishedOn: Instant) = backgroundTask {
         log.LogTrace "Post.findSurroundingPosts"
         let queryParams () =
             [ jsonParam "@criteria" {| webLogDoc webLogId with Status = Published |}
-              "@publishedOn", Sql.string ((InstantPattern.General.Format publishedOn)[..19]) ]
-        let pubField = nameof Post.Empty.PublishedOn
-        let! older =
-            Custom.list
-                $"{selectWithCriteria Table.Post}
-                     AND SUBSTR(data ->> '{pubField}', 1, 19) < @publishedOn
-                   ORDER BY data ->> '{pubField}' DESC
-                   LIMIT 1"
-                (queryParams ())
-                fromData<Post>
-        let! newer =
-            Custom.list
-                $"{selectWithCriteria Table.Post}
-                     AND SUBSTR(data ->> '{pubField}', 1, 19) > @publishedOn
-                   ORDER BY data ->> '{pubField}'
-                   LIMIT 1"
-                (queryParams ())
-                fromData<Post>
+              "@publishedOn", Sql.timestamptz (publishedOn.ToDateTimeOffset()) ]
+        let query op direction =
+            $"{selectWithCriteria Table.Post}
+                 AND (data ->> '{nameof Post.Empty.PublishedOn}')::timestamp with time zone %s{op} @publishedOn
+               ORDER BY data ->> '{nameof Post.Empty.PublishedOn}' %s{direction}
+               LIMIT 1"
+        let! older = Custom.list (query "<" "DESC") (queryParams ()) postWithoutLinks
+        let! newer = Custom.list (query ">" "")     (queryParams ()) postWithoutLinks
         return List.tryHead older, List.tryHead newer
     }
     
-    /// Save a post
-    let save (post : Post) = backgroundTask {
+    /// Update a post
+    let update (post : Post) = backgroundTask {
         log.LogTrace "Post.save"
-        let! oldPost = findFullById post.Id post.WebLogId
-        do! save Table.Post { post with Revisions = [] }
-        do! updatePostRevisions post.Id (match oldPost with Some p -> p.Revisions | None -> []) post.Revisions
+        match! findFullById post.Id post.WebLogId with
+        | Some oldPost ->
+            do! Update.byId Table.Post post.Id { post with Revisions = [] }
+            do! updatePostRevisions post.Id oldPost.Revisions post.Revisions
+        | None -> ()
     }
     
     /// Restore posts from a backup
@@ -212,7 +215,7 @@ type PostgresPostData(log: ILogger) =
     }
     
     interface IPostData with
-        member _.Add post = save post
+        member _.Add post = add post
         member _.CountByStatus status webLogId = countByStatus status webLogId
         member _.Delete postId webLogId = delete postId webLogId
         member _.FindById postId webLogId = findById postId webLogId
@@ -229,5 +232,5 @@ type PostgresPostData(log: ILogger) =
             findPageOfTaggedPosts webLogId tag pageNbr postsPerPage
         member _.FindSurroundingPosts webLogId publishedOn = findSurroundingPosts webLogId publishedOn
         member _.Restore posts = restore posts
-        member _.Update post = save post
+        member _.Update post = update post
         member _.UpdatePriorPermalinks postId webLogId permalinks = updatePriorPermalinks postId webLogId permalinks

@@ -274,6 +274,88 @@ let postTests = testList "Post" [
             do! PostDataTests.``FindFullByWebLog succeeds when posts are not found`` data.Value
         }
     ]
+    testList "FindPageOfCategorizedPosts" [
+        testTask "succeeds when posts are found" {
+            do! PostDataTests.``FindPageOfCategorizedPosts succeeds when posts are found`` data.Value
+        }
+        testTask "succeeds when finding a too-high page number" {
+            do! PostDataTests.``FindPageOfCategorizedPosts succeeds when finding a too-high page number`` data.Value
+        }
+        testTask "succeeds when a category has no posts" {
+            do! PostDataTests.``FindPageOfCategorizedPosts succeeds when a category has no posts`` data.Value
+        }
+    ]
+    testList "FindPageOfPosts" [
+        testTask "succeeds when posts are found" {
+            do! PostDataTests.``FindPageOfPosts succeeds when posts are found`` data.Value
+        }
+        testTask "succeeds when finding a too-high page number" {
+            do! PostDataTests.``FindPageOfPosts succeeds when finding a too-high page number`` data.Value
+        }
+        testTask "succeeds when there are no posts" {
+            do! PostDataTests.``FindPageOfPosts succeeds when there are no posts`` data.Value
+        }
+    ]
+    testList "FindPageOfPublishedPosts" [
+        testTask "succeeds when posts are found" {
+            do! PostDataTests.``FindPageOfPublishedPosts succeeds when posts are found`` data.Value
+        }
+        testTask "succeeds when finding a too-high page number" {
+            do! PostDataTests.``FindPageOfPublishedPosts succeeds when finding a too-high page number`` data.Value
+        }
+        testTask "succeeds when there are no posts" {
+            do! PostDataTests.``FindPageOfPublishedPosts succeeds when there are no posts`` data.Value
+        }
+    ]
+    testList "FindPageOfTaggedPosts" [
+        testTask "succeeds when posts are found" {
+            do! PostDataTests.``FindPageOfTaggedPosts succeeds when posts are found`` data.Value
+        }
+        testTask "succeeds when posts are found (excluding drafts)" {
+            do! PostDataTests.``FindPageOfTaggedPosts succeeds when posts are found (excluding drafts)`` data.Value
+        }
+        testTask "succeeds when finding a too-high page number" {
+            do! PostDataTests.``FindPageOfTaggedPosts succeeds when finding a too-high page number`` data.Value
+        }
+        testTask "succeeds when there are no posts" {
+            do! PostDataTests.``FindPageOfTaggedPosts succeeds when there are no posts`` data.Value
+        }
+    ]
+    testList "FindSurroundingPosts" [
+        testTask "succeeds when there is no next newer post" {
+            do! PostDataTests.``FindSurroundingPosts succeeds when there is no next newer post`` data.Value
+        }
+        testTask "succeeds when there is no next older post" {
+            do! PostDataTests.``FindSurroundingPosts succeeds when there is no next older post`` data.Value
+        }
+        testTask "succeeds when older and newer exist" {
+            do! PostDataTests.``FindSurroundingPosts succeeds when older and newer exist`` data.Value
+        }
+    ]
+    testList "Update" [
+        testTask "succeeds when the post exists" {
+            do! PostDataTests.``Update succeeds when the post exists`` data.Value
+        }
+        testTask "succeeds when the post does not exist" {
+            do! PostDataTests.``Update succeeds when the post does not exist`` data.Value
+        }
+    ]
+    testList "UpdatePriorPermalinks" [
+        testTask "succeeds when the post exists" {
+            do! PostDataTests.``UpdatePriorPermalinks succeeds when the post exists`` data.Value
+        }
+        testTask "succeeds when the post does not exist" {
+            do! PostDataTests.``UpdatePriorPermalinks succeeds when the post does not exist`` data.Value
+        }
+    ]
+    testList "Delete" [
+        testTask "succeeds when a post is deleted" {
+            do! PostDataTests.``Delete succeeds when a post is deleted`` data.Value
+        }
+        testTask "succeeds when a post is not deleted" {
+            do! PostDataTests.``Delete succeeds when a post is not deleted`` data.Value
+        }
+    ]
 ]
 
 /// Drop the throwaway RethinkDB database

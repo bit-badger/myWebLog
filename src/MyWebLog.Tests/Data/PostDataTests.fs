@@ -24,8 +24,30 @@ let episode2 = PostId "l4_Eh4aFO06SqqJjOymNzA"
 /// The ID of "Something May Happen" post
 let something = PostId "QweKbWQiOkqqrjEdgP9wwg"
 
+/// The published instant for "Something May Happen" post
+let somethingPublished = Instant.FromDateTimeOffset(DateTimeOffset.Parse "2024-01-20T22:32:59Z")
+
+/// The ID of "An Incomplete Thought" post
+let incomplete = PostId "VweKbWQiOkqqrjEdgP9wwg"
+
 /// The ID of "Test Post 1" post
 let testPost1 = PostId "RCsCU2puYEmkpzotoi8p4g"
+
+/// The published instant for "Test Post 1" post
+let testPost1Published = Instant.FromDateTimeOffset(DateTimeOffset.Parse "2024-01-20T22:17:29Z")
+
+/// The category IDs for "Spitball" (parent) and "Moonshot"
+let testCatIds = [ CategoryId "jw6N69YtTEWVHAO33jHU-w"; CategoryId "ScVpyu1e7UiP7bDdge3ZEw" ]
+
+/// Ensure that a list of posts has text for each post
+let ensureHasText (posts: Post list) =
+    for post in posts do Expect.isNotEmpty post.Text $"Text should not be blank (post ID {post.Id})"
+
+/// Ensure that a list of posts has no revisions or prior permalinks
+let ensureEmpty posts =
+    for post in posts do
+        Expect.isEmpty post.Revisions $"There should have been no revisions (post ID {post.Id})"
+        Expect.isEmpty post.PriorPermalinks $"There should have been no prior permalinks (post ID {post.Id})"
 
 let ``Add succeeds`` (data: IData) = task {
     let post =
@@ -109,8 +131,7 @@ let ``FindById succeeds when a post is found`` (data: IData) = task {
         it.Metadata
         [ { Name = "Density"; Value = "Non-existent" }; { Name = "Intensity"; Value = "Low" } ]
         "Metadata is incorrect"
-    Expect.isEmpty it.PriorPermalinks "Prior permalinks should have been empty"
-    Expect.isEmpty it.Revisions "Revisions should have been empty"
+    ensureEmpty [ it ]
 }
 
 let ``FindById succeeds when a post is not found (incorrect weblog)`` (data: IData) = task {
@@ -128,8 +149,7 @@ let ``FindByPermalink succeeds when a post is found`` (data: IData) = task {
     Expect.isSome post "A post should have been returned"
     let it = post.Value
     Expect.equal it.Id episode1 "The wrong post was retrieved"
-    Expect.isEmpty it.PriorPermalinks "Prior permalinks should have been empty"
-    Expect.isEmpty it.Revisions "Revisions should have been empty"
+    ensureEmpty [ it ]
 }
 
 let ``FindByPermalink succeeds when a post is not found (incorrect weblog)`` (data: IData) = task {
@@ -173,8 +193,8 @@ let ``FindFullById succeeds when a post is not found`` (data: IData) = task {
 
 let ``FindFullByWebLog succeeds when posts are found`` (data: IData) = task {
     let! posts = data.Post.FindFullByWebLog rootId
-    Expect.hasLength posts 4 "There should have been 4 posts returned"
-    let allPosts = [ testPost1; episode1; episode2; something ]
+    Expect.hasLength posts 5 "There should have been 5 posts returned"
+    let allPosts = [ testPost1; episode1; episode2; something; incomplete ]
     posts |> List.iter (fun it ->
         Expect.contains allPosts it.Id $"Post ID {it.Id} unexpected"
         if it.Id = episode1 then
@@ -186,4 +206,226 @@ let ``FindFullByWebLog succeeds when posts are found`` (data: IData) = task {
 let ``FindFullByWebLog succeeds when posts are not found`` (data: IData) = task {
     let! posts = data.Post.FindFullByWebLog (WebLogId "nonexistent")
     Expect.isEmpty posts "No posts should have been retrieved"
+}
+
+let ``FindPageOfCategorizedPosts succeeds when posts are found`` (data: IData) = task {
+    let! posts = data.Post.FindPageOfCategorizedPosts rootId testCatIds 1 1
+    Expect.hasLength posts 2 "There should be 2 posts returned"
+    Expect.equal posts[0].Id something "The wrong post was returned for page 1"
+    ensureEmpty posts
+    let! posts = data.Post.FindPageOfCategorizedPosts rootId testCatIds 2 1
+    Expect.hasLength posts 1 "There should be 1 post returned"
+    Expect.equal posts[0].Id testPost1 "The wrong post was returned for page 2"
+    ensureEmpty posts
+}
+
+let ``FindPageOfCategorizedPosts succeeds when finding a too-high page number`` (data: IData) = task {
+    let! posts = data.Post.FindPageOfCategorizedPosts rootId testCatIds 17 2
+    Expect.hasLength posts 0 "There should have been no posts returned (not enough posts)"
+}
+
+let ``FindPageOfCategorizedPosts succeeds when a category has no posts`` (data: IData) = task {
+    let! posts = data.Post.FindPageOfCategorizedPosts rootId [ CategoryId "nope" ] 1 1
+    Expect.hasLength posts 0 "There should have been no posts returned (none match)"
+}
+
+let ``FindPageOfPosts succeeds when posts are found`` (data: IData) = task {
+    let ensureNoText (posts: Post list) =
+        for post in posts do Expect.equal post.Text "" $"There should be no text (post ID {post.Id})"
+    let! posts = data.Post.FindPageOfPosts rootId 1 2
+    Expect.hasLength posts 3 "There should have been 3 posts returned for page 1"
+    Expect.equal posts[0].Id incomplete "Page 1, post 1 is incorrect"
+    Expect.equal posts[1].Id something "Page 1, post 2 is incorrect"
+    Expect.equal posts[2].Id episode2 "Page 1, post 3 is incorrect"
+    ensureNoText posts
+    ensureEmpty posts
+    let! posts = data.Post.FindPageOfPosts rootId 2 2
+    Expect.hasLength posts 3 "There should have been 3 posts returned for page 2"
+    Expect.equal posts[0].Id episode2 "Page 2, post 1 is incorrect"
+    Expect.equal posts[1].Id episode1 "Page 2, post 2 is incorrect"
+    Expect.equal posts[2].Id testPost1 "Page 2, post 3 is incorrect"
+    ensureNoText posts
+    ensureEmpty posts
+    let! posts = data.Post.FindPageOfPosts rootId 3 2
+    Expect.hasLength posts 1 "There should have been 1 post returned for page 3"
+    Expect.equal posts[0].Id testPost1 "Page 3, post 1 is incorrect"
+    ensureNoText posts
+    ensureEmpty posts
+}
+
+let ``FindPageOfPosts succeeds when finding a too-high page number`` (data: IData) = task {
+    let! posts = data.Post.FindPageOfPosts rootId 88 3
+    Expect.isEmpty posts "There should have been no posts returned (not enough posts)"
+}
+
+let ``FindPageOfPosts succeeds when there are no posts`` (data: IData) = task {
+    let! posts = data.Post.FindPageOfPosts (WebLogId "no-posts") 1 25
+    Expect.isEmpty posts "There should have been no posts returned (no posts)"
+}
+
+let ``FindPageOfPublishedPosts succeeds when posts are found`` (data: IData) = task {
+    let! posts = data.Post.FindPageOfPublishedPosts rootId 1 3
+    Expect.hasLength posts 4 "There should have been 4 posts returned for page 1"
+    Expect.equal posts[0].Id something "Page 1, post 1 is incorrect"
+    Expect.equal posts[1].Id episode2 "Page 1, post 2 is incorrect"
+    Expect.equal posts[2].Id episode1 "Page 1, post 3 is incorrect"
+    Expect.equal posts[3].Id testPost1 "Page 1, post 4 is incorrect"
+    ensureHasText posts
+    ensureEmpty posts
+    let! posts = data.Post.FindPageOfPublishedPosts rootId 2 2
+    Expect.hasLength posts 2 "There should have been 2 posts returned for page 2"
+    Expect.equal posts[0].Id episode1 "Page 2, post 1 is incorrect"
+    Expect.equal posts[1].Id testPost1 "Page 2, post 2 is incorrect"
+    ensureHasText posts
+    ensureEmpty posts
+}
+
+let ``FindPageOfPublishedPosts succeeds when finding a too-high page number`` (data: IData) = task {
+    let! posts = data.Post.FindPageOfPublishedPosts rootId 7 22
+    Expect.isEmpty posts "There should have been no posts returned (not enough posts)"
+}
+
+let ``FindPageOfPublishedPosts succeeds when there are no posts`` (data: IData) = task {
+    let! posts = data.Post.FindPageOfPublishedPosts (WebLogId "empty") 1 8
+    Expect.isEmpty posts "There should have been no posts returned (no posts)"
+}
+
+let ``FindPageOfTaggedPosts succeeds when posts are found`` (data: IData) = task {
+    let! posts = data.Post.FindPageOfTaggedPosts rootId "f#" 1 1
+    Expect.hasLength posts 2 "There should have been 2 posts returned"
+    Expect.equal posts[0].Id something "Page 1, post 1 is incorrect"
+    Expect.equal posts[1].Id testPost1 "Page 1, post 2 is incorrect"
+    ensureHasText posts
+    ensureEmpty posts
+    let! posts = data.Post.FindPageOfTaggedPosts rootId "f#" 2 1
+    Expect.hasLength posts 1 "There should have been 1 posts returned"
+    Expect.equal posts[0].Id testPost1 "Page 2, post 1 is incorrect"
+    ensureHasText posts
+    ensureEmpty posts
+}
+
+let ``FindPageOfTaggedPosts succeeds when posts are found (excluding drafts)`` (data: IData) = task {
+    let! posts = data.Post.FindPageOfTaggedPosts rootId "speculation" 1 10
+    Expect.hasLength posts 1 "There should have been 1 post returned"
+    Expect.equal posts[0].Id something "Post 1 is incorrect"
+    ensureHasText posts
+    ensureEmpty posts
+}
+
+let ``FindPageOfTaggedPosts succeeds when finding a too-high page number`` (data: IData) = task {
+    let! posts = data.Post.FindPageOfTaggedPosts rootId "f#" 436 18
+    Expect.isEmpty posts "There should have been no posts returned (not enough posts)"
+}
+
+let ``FindPageOfTaggedPosts succeeds when there are no posts`` (data: IData) = task {
+    let! posts = data.Post.FindPageOfTaggedPosts rootId "non-existent-tag" 1 8
+    Expect.isEmpty posts "There should have been no posts returned (no posts)"
+}
+
+let ``FindSurroundingPosts succeeds when there is no next newer post`` (data: IData) = task {
+    let! older, newer = data.Post.FindSurroundingPosts rootId somethingPublished
+    Expect.isSome older "There should have been an older post"
+    Expect.equal older.Value.Id episode2 "The next older post is incorrect"
+    ensureHasText [ older.Value ]
+    ensureEmpty [ older.Value ]
+    Expect.isNone newer "There should not have been a newer post"
+}
+
+let ``FindSurroundingPosts succeeds when there is no next older post`` (data: IData) = task {
+    let! older, newer = data.Post.FindSurroundingPosts rootId testPost1Published
+    Expect.isNone older "There should not have been an older post"
+    Expect.isSome newer "There should have been a newer post"
+    Expect.equal newer.Value.Id episode1 "The next newer post is incorrect"
+    ensureHasText [ newer.Value ]
+    ensureEmpty [ newer.Value ]
+}
+
+let ``FindSurroundingPosts succeeds when older and newer exist`` (data: IData) = task {
+    let! older, newer = data.Post.FindSurroundingPosts rootId episode1Published
+    Expect.isSome older "There should have been an older post"
+    Expect.equal older.Value.Id testPost1 "The next older post is incorrect"
+    Expect.isSome newer "There should have been a newer post"
+    Expect.equal newer.Value.Id episode2 "The next newer post is incorrect"
+    ensureHasText [ older.Value; newer.Value ]
+    ensureEmpty [ older.Value; newer.Value ]
+}
+
+let ``Update succeeds when the post exists`` (data: IData) = task {
+    let! before = data.Post.FindFullById (PostId "a-new-post") (WebLogId "test")
+    Expect.isSome before "The post to be updated should have been found"
+    do! data.Post.Update
+            { before.Value with
+                AuthorId        = WebLogUserId "someone-else"
+                Status          = Draft
+                Title           = "An Updated Test Post"
+                Permalink       = Permalink "2021/updated-post.html"
+                PublishedOn     = None
+                UpdatedOn       = Noda.epoch + Duration.FromDays 4
+                Template        = Some "other"
+                Text            = "<p>Updated text here"
+                CategoryIds     = [ CategoryId "c"; CategoryId "d"; CategoryId "e" ]
+                Tags            = [ "alpha"; "beta"; "nu"; "zeta" ]
+                Episode         = None
+                Metadata        = [ { Name = "Howdy"; Value = "Pardner" } ]
+                PriorPermalinks = Permalink "2020/test-post.html" :: before.Value.PriorPermalinks
+                Revisions       =
+                    { AsOf = Noda.epoch + Duration.FromDays 4; Text = Html "<p>Updated text here" }
+                        :: before.Value.Revisions }
+    let! after = data.Post.FindFullById (PostId "a-new-post") (WebLogId "test")
+    Expect.isSome after "The updated post should have been found"
+    let post = after.Value
+    Expect.equal post.AuthorId (WebLogUserId "someone-else") "Updated author is incorrect"
+    Expect.equal post.Status Draft "Updated status is incorrect"
+    Expect.equal post.Title "An Updated Test Post" "Updated title is incorrect"
+    Expect.equal post.Permalink (Permalink "2021/updated-post.html") "Updated permalink is incorrect"
+    Expect.isNone post.PublishedOn "Updated post should not have had a published-on date/time"
+    Expect.equal post.UpdatedOn (Noda.epoch + Duration.FromDays 4) "Updated updated-on date/time is incorrect"
+    Expect.equal post.Template (Some "other") "Updated template is incorrect"
+    Expect.equal post.Text "<p>Updated text here" "Updated text is incorrect"
+    Expect.equal
+        post.CategoryIds [ CategoryId "c"; CategoryId "d"; CategoryId "e" ] "Updated category IDs are incorrect"
+    Expect.equal post.Tags [ "alpha"; "beta"; "nu"; "zeta" ] "Updated tags are incorrect"
+    Expect.isNone post.Episode "Update episode is incorrect"
+    Expect.equal post.Metadata [ { Name = "Howdy"; Value = "Pardner" } ] "Updated metadata is incorrect"
+    Expect.equal
+        post.PriorPermalinks
+        [ Permalink "2020/test-post.html"; Permalink "2020/test-post-a.html" ]
+        "Updated prior permalinks are incorrect"
+    Expect.equal
+        post.Revisions
+        [ { AsOf = Noda.epoch + Duration.FromDays 4; Text = Html "<p>Updated text here" }
+          { AsOf = Noda.epoch + Duration.FromMinutes 1L; Text = Html "<p>Test text here" } ]
+        "Updated revisions are incorrect"
+}
+
+let ``Update succeeds when the post does not exist`` (data: IData) = task {
+    let postId = PostId "lost-post"
+    do! data.Post.Update { Post.Empty with Id = postId; WebLogId = rootId }
+    let! post = data.Post.FindById postId rootId
+    Expect.isNone post "A post should not have been retrieved"
+}
+
+let ``UpdatePriorPermalinks succeeds when the post exists`` (data: IData) = task {
+    let links = [ Permalink "2024/ep-1.html"; Permalink "2023/ep-1.html" ]
+    let! found = data.Post.UpdatePriorPermalinks episode1 rootId links
+    Expect.isTrue found "The permalinks should have been updated"
+    let! post = data.Post.FindFullById episode1 rootId
+    Expect.isSome post "The post should have been found"
+    Expect.equal post.Value.PriorPermalinks links "The prior permalinks were not correct"
+}
+
+let ``UpdatePriorPermalinks succeeds when the post does not exist`` (data: IData) = task {
+    let! found =
+        data.Post.UpdatePriorPermalinks (PostId "silence") WebLogId.Empty [ Permalink "a.html"; Permalink "b.html" ]
+    Expect.isFalse found "The permalinks should not have been updated"
+}
+
+let ``Delete succeeds when a post is deleted`` (data: IData) = task {
+    let! deleted = data.Post.Delete episode2 rootId
+    Expect.isTrue deleted "The post should have been deleted"
+}
+
+let ``Delete succeeds when a post is not deleted`` (data: IData) = task {
+    let! deleted = data.Post.Delete episode2 rootId // this was deleted above
+    Expect.isFalse deleted "A post should not have been deleted"
 }

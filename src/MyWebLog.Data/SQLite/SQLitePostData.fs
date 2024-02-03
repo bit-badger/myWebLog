@@ -33,6 +33,14 @@ type SQLitePostData(conn: SqliteConnection, log: ILogger) =
     /// The SELECT statement to retrieve posts with a web log ID parameter
     let postByWebLog = Document.Query.selectByWebLog Table.Post
     
+    /// Return a post with no revisions or prior permalinks
+    let postWithoutLinks rdr =
+        { fromData<Post> rdr with PriorPermalinks = [] }
+    
+    /// Return a post with no revisions, prior permalinks, or text
+    let postWithoutText rdr =
+        { postWithoutLinks rdr with Text = "" }
+    
     /// The SELECT statement to retrieve published posts with a web log ID parameter
     let publishedPostByWebLog =
         $"""{postByWebLog} AND {Query.whereByField (Field.EQ statName "") $"'{string Published}'"}"""
@@ -43,6 +51,13 @@ type SQLitePostData(conn: SqliteConnection, log: ILogger) =
         Revisions.update Table.PostRevision Table.Post postId oldRevs newRevs conn
     
     // IMPLEMENTATION FUNCTIONS
+    
+    /// Add a post
+    let add (post: Post) = backgroundTask {
+        log.LogTrace "Post.add"
+        do! conn.insert Table.Post { post with Revisions = [] }
+        do! updatePostRevisions post.Id [] post.Revisions
+    }
     
     /// Count posts in a status for the given web log
     let countByStatus (status: PostStatus) webLogId =
@@ -68,7 +83,7 @@ type SQLitePostData(conn: SqliteConnection, log: ILogger) =
         conn.customSingle
             $"""{Document.Query.selectByWebLog Table.Post} AND {Query.whereByField linkParam "@link"}"""
             (addFieldParam "@link" linkParam [ webLogParam webLogId ])
-            (fun rdr -> { fromData<Post> rdr with PriorPermalinks = [] })
+            postWithoutLinks
     
     /// Find a complete post by its ID for the given web log
     let findFullById postId webLogId = backgroundTask {
@@ -123,7 +138,7 @@ type SQLitePostData(conn: SqliteConnection, log: ILogger) =
                ORDER BY {publishField} DESC
                LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"
             (webLogParam webLogId :: catParams)
-            fromData<Post>
+            postWithoutLinks
     
     /// Get a page of posts for the given web log (excludes text and revisions)
     let findPageOfPosts webLogId pageNbr postsPerPage =
@@ -133,7 +148,7 @@ type SQLitePostData(conn: SqliteConnection, log: ILogger) =
                ORDER BY {publishField} DESC NULLS FIRST, data ->> '{nameof Post.Empty.UpdatedOn}'
                LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"
             [ webLogParam webLogId ]
-            (fun rdr -> { fromData<Post> rdr with Text = "" })
+            postWithoutText
     
     /// Get a page of published posts for the given web log (excludes revisions)
     let findPageOfPublishedPosts webLogId pageNbr postsPerPage =
@@ -143,7 +158,7 @@ type SQLitePostData(conn: SqliteConnection, log: ILogger) =
                ORDER BY {publishField} DESC
                LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"
             [ webLogParam webLogId ]
-            fromData<Post>
+            postWithoutLinks
     
     /// Get a page of tagged posts for the given web log (excludes revisions)
     let findPageOfTaggedPosts webLogId (tag : string) pageNbr postsPerPage =
@@ -154,7 +169,7 @@ type SQLitePostData(conn: SqliteConnection, log: ILogger) =
                ORDER BY {publishField} DESC
                LIMIT {postsPerPage + 1} OFFSET {(pageNbr - 1) * postsPerPage}"
             (webLogParam webLogId :: tagParams)
-            fromData<Post>
+            postWithoutLinks
     
     /// Find the next newest and oldest post from a publish date for the given web log
     let findSurroundingPosts webLogId (publishedOn : Instant) = backgroundTask {
@@ -163,27 +178,29 @@ type SQLitePostData(conn: SqliteConnection, log: ILogger) =
             conn.customSingle
                 $"{publishedPostByWebLog} AND {publishField} < @publishedOn ORDER BY {publishField} DESC LIMIT 1"
                 [ webLogParam webLogId; SqliteParameter("@publishedOn", instantParam publishedOn) ]
-                fromData<Post>
+                postWithoutLinks
         let! newer =
             conn.customSingle
                 $"{publishedPostByWebLog} AND {publishField} > @publishedOn ORDER BY {publishField} LIMIT 1"
                 [ webLogParam webLogId; SqliteParameter("@publishedOn", instantParam publishedOn) ]
-                fromData<Post>
+                postWithoutLinks
         return older, newer
     }
     
-    /// Save a post
-    let save (post: Post) = backgroundTask {
-        log.LogTrace "Post.save"
-        let! oldPost = findFullById post.Id post.WebLogId
-        do! conn.save Table.Post { post with Revisions = [] }
-        do! updatePostRevisions post.Id (match oldPost with Some p -> p.Revisions | None -> []) post.Revisions
+    /// Update a post
+    let update (post: Post) = backgroundTask {
+        log.LogTrace "Post.update"
+        match! findFullById post.Id post.WebLogId with
+        | Some oldPost ->
+            do! conn.updateById Table.Post post.Id { post with Revisions = [] }
+            do! updatePostRevisions post.Id oldPost.Revisions post.Revisions
+        | None -> ()
     }
     
     /// Restore posts from a backup
     let restore posts = backgroundTask {
         log.LogTrace "Post.restore"
-        for post in posts do do! save post
+        for post in posts do do! add post
     }
     
     /// Update prior permalinks for a post
@@ -196,7 +213,7 @@ type SQLitePostData(conn: SqliteConnection, log: ILogger) =
     }
     
     interface IPostData with
-        member _.Add post = save post
+        member _.Add post = add post
         member _.CountByStatus status webLogId = countByStatus status webLogId
         member _.Delete postId webLogId = delete postId webLogId
         member _.FindById postId webLogId = findById postId webLogId
@@ -213,5 +230,5 @@ type SQLitePostData(conn: SqliteConnection, log: ILogger) =
             findPageOfTaggedPosts webLogId tag pageNbr postsPerPage
         member _.FindSurroundingPosts webLogId publishedOn = findSurroundingPosts webLogId publishedOn
         member _.Restore posts = restore posts
-        member _.Update post = save post
+        member _.Update post = update post
         member _.UpdatePriorPermalinks postId webLogId permalinks = updatePriorPermalinks postId webLogId permalinks

@@ -333,11 +333,37 @@
         "speculation"
       ],
       "Metadata": [],
-      "PriorPermalinks": [],
+      "PriorPermalinks": [
+        "2024/some-thing.html"
+      ],
       "Revisions": [
         {
           "AsOf": "2024-01-20T22:32:59Z",
           "Text": "HTML: <h2>Hmm</h2>"
+        }
+      ]
+    },
+    {
+      "Id": "VweKbWQiOkqqrjEdgP9wwg",
+      "WebLogId": "uSitJEuD3UyzWC9jgOHc8g",
+      "AuthorId": "5EM2rimH9kONpmd2zQkiVA",
+      "Status": "Draft",
+      "Title": "An Incomplete Thought",
+      "Permalink": "2024/still-cooking.html",
+      "UpdatedOn": "2024-01-24T22:35:00Z",
+      "Text": "<p>Think think think",
+      "CategoryIds": [
+        "jw6N69YtTEWVHAO33jHU-w"
+      ],
+      "Tags": [
+        "speculation"
+      ],
+      "Metadata": [],
+      "PriorPermalinks": [],
+      "Revisions": [
+        {
+          "AsOf": "2024-01-24T22:35:00Z",
+          "Text": "HTML: <p>Think think think"
         }
       ]
     }

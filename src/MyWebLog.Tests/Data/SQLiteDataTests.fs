@@ -390,6 +390,132 @@ let postTests = testList "Post" [
             finally dispose data
         }
     ]
+    testList "FindPageOfCategorizedPosts" [
+        testTask "succeeds when posts are found" {
+            let data = mkData ()
+            try do! PostDataTests.``FindPageOfCategorizedPosts succeeds when posts are found`` data
+            finally dispose data
+        }
+        testTask "succeeds when finding a too-high page number" {
+            let data = mkData ()
+            try do! PostDataTests.``FindPageOfCategorizedPosts succeeds when finding a too-high page number`` data
+            finally dispose data
+        }
+        testTask "succeeds when a category has no posts" {
+            let data = mkData ()
+            try do! PostDataTests.``FindPageOfCategorizedPosts succeeds when a category has no posts`` data
+            finally dispose data
+        }
+    ]
+    testList "FindPageOfPosts" [
+        testTask "succeeds when posts are found" {
+            let data = mkData ()
+            try do! PostDataTests.``FindPageOfPosts succeeds when posts are found`` data
+            finally dispose data
+        }
+        testTask "succeeds when finding a too-high page number" {
+            let data = mkData ()
+            try do! PostDataTests.``FindPageOfPosts succeeds when finding a too-high page number`` data
+            finally dispose data
+        }
+        testTask "succeeds when there are no posts" {
+            let data = mkData ()
+            try do! PostDataTests.``FindPageOfPosts succeeds when there are no posts`` data
+            finally dispose data
+        }
+    ]
+    testList "FindPageOfPublishedPosts" [
+        testTask "succeeds when posts are found" {
+            let data = mkData ()
+            try do! PostDataTests.``FindPageOfPublishedPosts succeeds when posts are found`` data
+            finally dispose data
+        }
+        testTask "succeeds when finding a too-high page number" {
+            let data = mkData ()
+            try do! PostDataTests.``FindPageOfPublishedPosts succeeds when finding a too-high page number`` data
+            finally dispose data
+        }
+        testTask "succeeds when there are no posts" {
+            let data = mkData ()
+            try do! PostDataTests.``FindPageOfPublishedPosts succeeds when there are no posts`` data
+            finally dispose data
+        }
+    ]
+    testList "FindPageOfTaggedPosts" [
+        testTask "succeeds when posts are found" {
+            let data = mkData ()
+            try do! PostDataTests.``FindPageOfTaggedPosts succeeds when posts are found`` data
+            finally dispose data
+        }
+        testTask "succeeds when posts are found (excluding drafts)" {
+            let data = mkData ()
+            try do! PostDataTests.``FindPageOfTaggedPosts succeeds when posts are found (excluding drafts)`` data
+            finally dispose data
+        }
+        testTask "succeeds when finding a too-high page number" {
+            let data = mkData ()
+            try do! PostDataTests.``FindPageOfTaggedPosts succeeds when finding a too-high page number`` data
+            finally dispose data
+        }
+        testTask "succeeds when there are no posts" {
+            let data = mkData ()
+            try do! PostDataTests.``FindPageOfTaggedPosts succeeds when there are no posts`` data
+            finally dispose data
+        }
+    ]
+    testList "FindSurroundingPosts" [
+        testTask "succeeds when there is no next newer post" {
+            let data = mkData ()
+            try do! PostDataTests.``FindSurroundingPosts succeeds when there is no next newer post`` data
+            finally dispose data
+        }
+        testTask "succeeds when there is no next older post" {
+            let data = mkData ()
+            try do! PostDataTests.``FindSurroundingPosts succeeds when there is no next older post`` data
+            finally dispose data
+        }
+        testTask "succeeds when older and newer exist" {
+            let data = mkData ()
+            try do! PostDataTests.``FindSurroundingPosts succeeds when older and newer exist`` data
+            finally dispose data
+        }
+    ]
+    testList "Update" [
+        testTask "succeeds when the post exists" {
+            let data = mkData ()
+            try do! PostDataTests.``Update succeeds when the post exists`` data
+            finally dispose data
+        }
+        testTask "succeeds when the post does not exist" {
+            let data = mkData ()
+            try do! PostDataTests.``Update succeeds when the post does not exist`` data
+            finally dispose data
+        }
+    ]
+    testList "UpdatePriorPermalinks" [
+        testTask "succeeds when the post exists" {
+            let data = mkData ()
+            try do! PostDataTests.``UpdatePriorPermalinks succeeds when the post exists`` data
+            finally dispose data
+        }
+        testTask "succeeds when the post does not exist" {
+            let data = mkData ()
+            try do! PostDataTests.``UpdatePriorPermalinks succeeds when the post does not exist`` data
+            finally dispose data
+        }
+    ]
+    testList "Delete" [
+        testTask "succeeds when a post is deleted" {
+            let data = mkData ()
+            try do! PostDataTests.``Delete succeeds when a post is deleted`` data
+            finally dispose data
+        }
+        testTask "succeeds when a post is not deleted" {
+            let data = mkData ()
+            try do! PostDataTests.``Delete succeeds when a post is not deleted`` data
+            finally dispose data
+        }
+    ]
 ]
 
 /// Delete the SQLite database

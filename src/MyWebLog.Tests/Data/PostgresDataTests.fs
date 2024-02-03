@@ -1,6 +1,5 @@
 module PostgresDataTests
 
-open System
 open BitBadger.Documents
 open Expecto
 open Microsoft.Extensions.Logging.Abstractions
@@ -273,6 +272,88 @@ let postTests = testList "Post" [
         }
         testTask "succeeds when a posts are not found" {
             do! PostDataTests.``FindFullByWebLog succeeds when posts are not found`` (mkData ())
+        }
+    ]
+    testList "FindPageOfCategorizedPosts" [
+        testTask "succeeds when posts are found" {
+            do! PostDataTests.``FindPageOfCategorizedPosts succeeds when posts are found`` (mkData ())
+        }
+        testTask "succeeds when finding a too-high page number" {
+            do! PostDataTests.``FindPageOfCategorizedPosts succeeds when finding a too-high page number`` (mkData ())
+        }
+        testTask "succeeds when a category has no posts" {
+            do! PostDataTests.``FindPageOfCategorizedPosts succeeds when a category has no posts`` (mkData ())
+        }
+    ]
+    testList "FindPageOfPosts" [
+        testTask "succeeds when posts are found" {
+            do! PostDataTests.``FindPageOfPosts succeeds when posts are found`` (mkData ())
+        }
+        testTask "succeeds when finding a too-high page number" {
+            do! PostDataTests.``FindPageOfPosts succeeds when finding a too-high page number`` (mkData ())
+        }
+        testTask "succeeds when there are no posts" {
+            do! PostDataTests.``FindPageOfPosts succeeds when there are no posts`` (mkData ())
+        }
+    ]
+    testList "FindPageOfPublishedPosts" [
+        testTask "succeeds when posts are found" {
+            do! PostDataTests.``FindPageOfPublishedPosts succeeds when posts are found`` (mkData ())
+        }
+        testTask "succeeds when finding a too-high page number" {
+            do! PostDataTests.``FindPageOfPublishedPosts succeeds when finding a too-high page number`` (mkData ())
+        }
+        testTask "succeeds when there are no posts" {
+            do! PostDataTests.``FindPageOfPublishedPosts succeeds when there are no posts`` (mkData ())
+        }
+    ]
+    testList "FindPageOfTaggedPosts" [
+        testTask "succeeds when posts are found" {
+            do! PostDataTests.``FindPageOfTaggedPosts succeeds when posts are found`` (mkData ())
+        }
+        testTask "succeeds when posts are found (excluding drafts)" {
+            do! PostDataTests.``FindPageOfTaggedPosts succeeds when posts are found (excluding drafts)`` (mkData ())
+        }
+        testTask "succeeds when finding a too-high page number" {
+            do! PostDataTests.``FindPageOfTaggedPosts succeeds when finding a too-high page number`` (mkData ())
+        }
+        testTask "succeeds when there are no posts" {
+            do! PostDataTests.``FindPageOfTaggedPosts succeeds when there are no posts`` (mkData ())
+        }
+    ]
+    testList "FindSurroundingPosts" [
+        testTask "succeeds when there is no next newer post" {
+            do! PostDataTests.``FindSurroundingPosts succeeds when there is no next newer post`` (mkData ())
+        }
+        testTask "succeeds when there is no next older post" {
+            do! PostDataTests.``FindSurroundingPosts succeeds when there is no next older post`` (mkData ())
+        }
+        testTask "succeeds when older and newer exist" {
+            do! PostDataTests.``FindSurroundingPosts succeeds when older and newer exist`` (mkData ())
+        }
+    ]
+    testList "Update" [
+        testTask "succeeds when the post exists" {
+            do! PostDataTests.``Update succeeds when the post exists`` (mkData ())
+        }
+        testTask "succeeds when the post does not exist" {
+            do! PostDataTests.``Update succeeds when the post does not exist`` (mkData ())
+        }
+    ]
+    testList "UpdatePriorPermalinks" [
+        testTask "succeeds when the post exists" {
+            do! PostDataTests.``UpdatePriorPermalinks succeeds when the post exists`` (mkData ())
+        }
+        testTask "succeeds when the post does not exist" {
+            do! PostDataTests.``UpdatePriorPermalinks succeeds when the post does not exist`` (mkData ())
+        }
+    ]
+    testList "Delete" [
+        testTask "succeeds when a post is deleted" {
+            do! PostDataTests.``Delete succeeds when a post is deleted`` (mkData ())
+        }
+        testTask "succeeds when a post is not deleted" {
+            do! PostDataTests.``Delete succeeds when a post is not deleted`` (mkData ())
         }
     ]
 ]

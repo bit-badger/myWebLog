@@ -128,7 +128,7 @@ type IPostData =
     abstract member FindPageOfCategorizedPosts :
         WebLogId -> CategoryId list -> pageNbr: int -> postsPerPage: int -> Task<Post list>
     
-    /// Find posts to be displayed on an admin page (excluding revisions and prior permalinks)
+    /// Find posts to be displayed on an admin page (excluding text, revisions, and prior permalinks)
     abstract member FindPageOfPosts : WebLogId -> pageNbr: int -> postsPerPage: int -> Task<Post list>
     
     /// Find posts to be displayed on a page (excluding revisions and prior permalinks)
