@@ -358,6 +358,64 @@ let postTests = testList "Post" [
     ]
 ]
 
+let tagMapTests = testList "TagMap" [
+    testList "FindById" [
+        testTask "succeeds when a tag mapping is found" {
+            do! TagMapDataTests.``FindById succeeds when a tag mapping is found`` data.Value
+        }
+        testTask "succeeds when a tag mapping is not found (incorrect weblog)" {
+            do! TagMapDataTests.``FindById succeeds when a tag mapping is not found (incorrect weblog)`` data.Value
+        }
+        testTask "succeeds when a tag mapping is not found (bad tag map ID)" {
+            do! TagMapDataTests.``FindById succeeds when a tag mapping is not found (bad tag map ID)`` data.Value
+        }
+    ]
+    testList "FindByUrlValue" [
+        testTask "succeeds when a tag mapping is found" {
+            do! TagMapDataTests.``FindByUrlValue succeeds when a tag mapping is found`` data.Value
+        }
+        testTask "succeeds when a tag mapping is not found (incorrect weblog)" {
+            do! TagMapDataTests.``FindByUrlValue succeeds when a tag mapping is not found (incorrect weblog)``
+                    data.Value
+        }
+        testTask "succeeds when a tag mapping is not found (no such value)" {
+            do! TagMapDataTests.``FindByUrlValue succeeds when a tag mapping is not found (no such value)`` data.Value
+        }
+    ]
+    testList "FindByWebLog" [
+        testTask "succeeds when tag mappings are found" {
+            do! TagMapDataTests.``FindByWebLog succeeds when tag mappings are found`` data.Value
+        }
+        testTask "succeeds when no tag mappings are found" {
+            do! TagMapDataTests.``FindByWebLog succeeds when no tag mappings are found`` data.Value
+        }
+    ]
+    testList "FindMappingForTags" [
+        testTask "succeeds when mappings exist" {
+            do! TagMapDataTests.``FindMappingForTags succeeds when mappings exist`` data.Value
+        }
+        testTask "succeeds when no mappings exist" {
+            do! TagMapDataTests.``FindMappingForTags succeeds when no mappings exist`` data.Value
+        }
+    ]
+    testList "Save" [
+        testTask "succeeds when adding a tag mapping" {
+            do! TagMapDataTests.``Save succeeds when adding a tag mapping`` data.Value
+        }
+        testTask "succeeds when updating a tag mapping" {
+            do! TagMapDataTests.``Save succeeds when updating a tag mapping`` data.Value
+        }
+    ]
+    testList "Delete" [
+        testTask "succeeds when a tag mapping is deleted" {
+            do! TagMapDataTests.``Delete succeeds when a tag mapping is deleted`` data.Value
+        }
+        testTask "succeeds when a tag mapping is not deleted" {
+            do! TagMapDataTests.``Delete succeeds when a tag mapping is not deleted`` data.Value
+        }
+    ]
+]
+
 /// Drop the throwaway RethinkDB database
 let environmentCleanUp = testTask "Clean Up" {
     do! disposeData ()
@@ -370,5 +428,6 @@ let all =
           categoryTests
           pageTests
           postTests
+          tagMapTests
           environmentCleanUp ]
     |> testSequenced

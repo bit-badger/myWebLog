@@ -518,6 +518,91 @@ let postTests = testList "Post" [
     ]
 ]
 
+let tagMapTests = testList "TagMap" [
+    testList "FindById" [
+        testTask "succeeds when a tag mapping is found" {
+            let data = mkData ()
+            try do! TagMapDataTests.``FindById succeeds when a tag mapping is found`` data
+            finally dispose data
+        }
+        testTask "succeeds when a tag mapping is not found (incorrect weblog)" {
+            let data = mkData ()
+            try do! TagMapDataTests.``FindById succeeds when a tag mapping is not found (incorrect weblog)`` data
+            finally dispose data
+        }
+        testTask "succeeds when a tag mapping is not found (bad tag map ID)" {
+            let data = mkData ()
+            try do! TagMapDataTests.``FindById succeeds when a tag mapping is not found (bad tag map ID)`` data
+            finally dispose data
+        }
+    ]
+    testList "FindByUrlValue" [
+        testTask "succeeds when a tag mapping is found" {
+            let data = mkData ()
+            try do! TagMapDataTests.``FindByUrlValue succeeds when a tag mapping is found`` data
+            finally dispose data
+        }
+        testTask "succeeds when a tag mapping is not found (incorrect weblog)" {
+            let data = mkData ()
+            try do! TagMapDataTests.``FindByUrlValue succeeds when a tag mapping is not found (incorrect weblog)`` data
+            finally dispose data
+        }
+        testTask "succeeds when a tag mapping is not found (no such value)" {
+            let data = mkData ()
+            try do! TagMapDataTests.``FindByUrlValue succeeds when a tag mapping is not found (no such value)`` data
+            finally dispose data
+        }
+    ]
+    testList "FindByWebLog" [
+        testTask "succeeds when tag mappings are found" {
+            let data = mkData ()
+            try do! TagMapDataTests.``FindByWebLog succeeds when tag mappings are found`` data
+            finally dispose data
+        }
+        testTask "succeeds when no tag mappings are found" {
+            let data = mkData ()
+            try do! TagMapDataTests.``FindByWebLog succeeds when no tag mappings are found`` data
+            finally dispose data
+        }
+    ]
+    testList "FindMappingForTags" [
+        testTask "succeeds when mappings exist" {
+            let data = mkData ()
+            try do! TagMapDataTests.``FindMappingForTags succeeds when mappings exist`` data
+            finally dispose data
+        }
+        testTask "succeeds when no mappings exist" {
+            let data = mkData ()
+            try do! TagMapDataTests.``FindMappingForTags succeeds when no mappings exist`` data
+            finally dispose data
+        }
+    ]
+    testList "Save" [
+        testTask "succeeds when adding a tag mapping" {
+            let data = mkData ()
+            try do! TagMapDataTests.``Save succeeds when adding a tag mapping`` data
+            finally dispose data
+        }
+        testTask "succeeds when updating a tag mapping" {
+            let data = mkData ()
+            try do! TagMapDataTests.``Save succeeds when updating a tag mapping`` data
+            finally dispose data
+        }
+    ]
+    testList "Delete" [
+        testTask "succeeds when a tag mapping is deleted" {
+            let data = mkData ()
+            try do! TagMapDataTests.``Delete succeeds when a tag mapping is deleted`` data
+            finally dispose data
+        }
+        testTask "succeeds when a tag mapping is not deleted" {
+            let data = mkData ()
+            try do! TagMapDataTests.``Delete succeeds when a tag mapping is not deleted`` data
+            finally dispose data
+        }
+    ]
+]
+
 /// Delete the SQLite database
 let environmentCleanUp = test "Clean Up" {
     File.Delete dbName
@@ -531,5 +616,6 @@ let all =
           categoryTests
           pageTests
           postTests
+          tagMapTests
           environmentCleanUp ]
     |> testSequenced
