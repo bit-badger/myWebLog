@@ -11,33 +11,33 @@ open Npgsql
 open ThrowawayDb.Postgres
 
 /// JSON serializer 
-let ser = Json.configure (JsonSerializer.CreateDefault())
+let private ser = Json.configure (JsonSerializer.CreateDefault())
 
 /// The throwaway database (deleted when disposed)
-let mutable db: ThrowawayDatabase option = None
+let mutable private db: ThrowawayDatabase option = None
 
 /// Create a PostgresData instance for testing
-let mkData () =
+let private mkData () =
     PostgresData(NullLogger<PostgresData>(), ser) :> IData
 
 /// The host for the PostgreSQL test database (defaults to localhost)
-let testHost =
+let private testHost =
     RethinkDbDataTests.env "PG_HOST" "localhost"
 
 /// The database name for the PostgreSQL test database (defaults to postgres)
-let testDb =
+let private testDb =
     RethinkDbDataTests.env "PG_DB" "postgres"
 
 /// The user ID for the PostgreSQL test database (defaults to postgres)
-let testUser =
+let private testUser =
     RethinkDbDataTests.env "PG_USER" "postgres"
 
 /// The password for the PostgreSQL test database (defaults to postgres)
-let testPw =
+let private testPw =
     RethinkDbDataTests.env "PG_PW" "postgres"
 
 /// Create a fresh environment from the root backup
-let freshEnvironment () = task {
+let private freshEnvironment () = task {
     if Option.isSome db then db.Value.Dispose()
     db <- Some (ThrowawayDatabase.Create $"Host={testHost};Database={testDb};User ID={testUser};Password={testPw}")
     let source = NpgsqlDataSourceBuilder db.Value.ConnectionString
@@ -50,12 +50,12 @@ let freshEnvironment () = task {
 }
 
 /// Set up the environment for the PostgreSQL tests
-let environmentSetUp = testTask "creating database" {
+let private environmentSetUp = testTask "creating database" {
     do! freshEnvironment ()
 }
 
 /// Integration tests for the Category implementation in PostgreSQL
-let categoryTests = testList "Category" [
+let private categoryTests = testList "Category" [
     testTask "Add succeeds" {
         do! CategoryDataTests.``Add succeeds`` (mkData ())
     }
@@ -117,7 +117,7 @@ let categoryTests = testList "Category" [
 ]
 
 /// Integration tests for the Page implementation in PostgreSQL
-let pageTests = testList "Page" [
+let private pageTests = testList "Page" [
     testTask "Add succeeds" {
         do! PageDataTests.``Add succeeds`` (mkData ())
     }
@@ -219,7 +219,7 @@ let pageTests = testList "Page" [
 ]
 
 /// Integration tests for the Post implementation in PostgreSQL
-let postTests = testList "Post" [
+let private postTests = testList "Post" [
     testTask "Add succeeds" {
         // We'll need the root website categories restored for these tests
         do! freshEnvironment ()
@@ -358,7 +358,7 @@ let postTests = testList "Post" [
     ]
 ]
 
-let tagMapTests = testList "TagMap" [
+let private tagMapTests = testList "TagMap" [
     testList "FindById" [
         testTask "succeeds when a tag mapping is found" {
             do! TagMapDataTests.``FindById succeeds when a tag mapping is found`` (mkData ())
@@ -416,7 +416,7 @@ let tagMapTests = testList "TagMap" [
     ]
 ]
 
-let themeTests = testList "Theme" [
+let private themeTests = testList "Theme" [
     testTask "All succeeds" {
         do! ThemeDataTests.``All succeeds`` (mkData ())
     }
@@ -462,7 +462,7 @@ let themeTests = testList "Theme" [
     ]
 ]
 
-let themeAssetTests = testList "ThemeAsset" [
+let private themeAssetTests = testList "ThemeAsset" [
     testList "Save" [
         testTask "succeeds when adding an asset" {
             do! ThemeDataTests.Asset.``Save succeeds when adding an asset`` (mkData ())
@@ -508,8 +508,49 @@ let themeAssetTests = testList "ThemeAsset" [
     ]
 ]
 
+let private uploadTests = testList "Upload" [
+    testTask "Add succeeds" {
+        do! UploadDataTests.``Add succeeds`` (mkData ())
+    }
+    testList "FindByPath" [
+        testTask "succeeds when an upload is found" {
+            do! UploadDataTests.``FindByPath succeeds when an upload is found`` (mkData ())
+        }
+        testTask "succeeds when an upload is not found (incorrect weblog)" {
+            do! UploadDataTests.``FindByPath succeeds when an upload is not found (incorrect weblog)`` (mkData ())
+        }
+        testTask "succeeds when an upload is not found (bad path)" {
+            do! UploadDataTests.``FindByPath succeeds when an upload is not found (bad path)`` (mkData ())
+        }
+    ]
+    testList "FindByWebLog" [
+        testTask "succeeds when uploads exist" {
+            do! UploadDataTests.``FindByWebLog succeeds when uploads exist`` (mkData ())
+        }
+        testTask "succeeds when no uploads exist" {
+            do! UploadDataTests.``FindByWebLog succeeds when no uploads exist`` (mkData ())
+        }
+    ]
+    testList "FindByWebLogWithData" [
+        testTask "succeeds when uploads exist" {
+            do! UploadDataTests.``FindByWebLogWithData succeeds when uploads exist`` (mkData ())
+        }
+        testTask "succeeds when no uploads exist" {
+            do! UploadDataTests.``FindByWebLogWithData succeeds when no uploads exist`` (mkData ())
+        }
+    ]
+    testList "Delete" [
+        testTask "succeeds when an upload is deleted" {
+            do! UploadDataTests.``Delete succeeds when an upload is deleted`` (mkData ())
+        }
+        testTask "succeeds when an upload is not deleted" {
+            do! UploadDataTests.``Delete succeeds when an upload is not deleted`` (mkData ())
+        }
+    ]
+]
+
 /// Drop the throwaway PostgreSQL database
-let environmentCleanUp = test "Clean Up" {
+let private environmentCleanUp = test "Clean Up" {
     if db.IsSome then db.Value.Dispose()
 } 
 
@@ -523,5 +564,6 @@ let all =
           tagMapTests
           themeTests
           themeAssetTests
+          uploadTests
           environmentCleanUp ]
     |> testSequenced

@@ -1,6 +1,5 @@
 ﻿namespace MyWebLog.Data.Postgres
 
-open BitBadger.Documents
 open BitBadger.Documents.Postgres
 open Microsoft.Extensions.Logging
 open MyWebLog
@@ -41,7 +40,7 @@ type PostgresUploadData(log: ILogger) =
                 (webLogIdParam webLogId :: idParam)
                 (fun row -> row.string "path")
         if Option.isSome path then
-            do! Custom.nonQuery (Query.Delete.byId Table.Upload) idParam
+            do! Custom.nonQuery $"DELETE FROM {Table.Upload} WHERE id = @id" idParam
             return Ok path.Value
         else return Error $"Upload ID {uploadId} not found"
     }

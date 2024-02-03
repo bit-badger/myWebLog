@@ -10,20 +10,20 @@ open MyWebLog.Data
 open Newtonsoft.Json
 
 /// JSON serializer 
-let ser = Json.configure (JsonSerializer.CreateDefault())
+let private ser = Json.configure (JsonSerializer.CreateDefault())
 
 /// The test database name
-let dbName =
+let private dbName =
     RethinkDbDataTests.env "SQLITE_DB" "test-db.db"
 
 /// Create a SQLiteData instance for testing
-let mkData () =
+let private mkData () =
     Configuration.useConnectionString $"Data Source=./{dbName}"
     let conn = Configuration.dbConn ()
     SQLiteData(conn, NullLogger<SQLiteData>(), ser) :> IData
 
 // /// Create a SQLiteData instance for testing
-// let mkTraceData () =
+// let private mkTraceData () =
 //     Sqlite.Configuration.useConnectionString $"Data Source=./{dbName}"
 //     let conn = Sqlite.Configuration.dbConn ()
 //     let myLogger = 
@@ -37,11 +37,11 @@ let mkData () =
 //     SQLiteData(conn, myLogger, ser) :> IData
 
 /// Dispose the connection associated with the SQLiteData instance
-let dispose (data: IData) =
+let private dispose (data: IData) =
     (data :?> SQLiteData).Conn.Dispose()
 
 /// Create a fresh environment from the root backup
-let freshEnvironment (data: IData option) = task {
+let private freshEnvironment (data: IData option) = task {
     let! env = task {
         match data with
         | Some d ->
@@ -63,7 +63,7 @@ let freshEnvironment (data: IData option) = task {
 }
 
 /// Set up the environment for the SQLite tests
-let environmentSetUp = testList "Environment" [
+let private environmentSetUp = testList "Environment" [
     testTask "creating database" {
         let data = mkData ()
         try do! freshEnvironment (Some data)
@@ -72,7 +72,7 @@ let environmentSetUp = testList "Environment" [
 ]
 
 /// Integration tests for the Category implementation in SQLite
-let categoryTests = testList "Category" [
+let private categoryTests = testList "Category" [
     testTask "Add succeeds" {
         let data = mkData ()
         try do! CategoryDataTests.``Add succeeds`` data
@@ -166,7 +166,7 @@ let categoryTests = testList "Category" [
 ]
 
 /// Integration tests for the Page implementation in SQLite
-let pageTests = testList "Page" [
+let private pageTests = testList "Page" [
     testTask "Add succeeds" {
         let data = mkData ()
         try do! PageDataTests.``Add succeeds`` data
@@ -320,7 +320,7 @@ let pageTests = testList "Page" [
 ]
 
 /// Integration tests for the Post implementation in SQLite
-let postTests = testList "Post" [
+let private postTests = testList "Post" [
     testTask "Add succeeds" {
         // We'll need the root website categories restored for these tests
         let! data = freshEnvironment None
@@ -530,7 +530,7 @@ let postTests = testList "Post" [
     ]
 ]
 
-let tagMapTests = testList "TagMap" [
+let private tagMapTests = testList "TagMap" [
     testList "FindById" [
         testTask "succeeds when a tag mapping is found" {
             let data = mkData ()
@@ -615,7 +615,7 @@ let tagMapTests = testList "TagMap" [
     ]
 ]
 
-let themeTests = testList "Theme" [
+let private themeTests = testList "Theme" [
     testTask "All succeeds" {
         let data = mkData ()
         try do! ThemeDataTests.``All succeeds`` data
@@ -683,7 +683,7 @@ let themeTests = testList "Theme" [
     ]
 ]
 
-let themeAssetTests = testList "ThemeAsset" [
+let private themeAssetTests = testList "ThemeAsset" [
     testList "Save" [
         testTask "succeeds when adding an asset" {
             let data = mkData ()
@@ -751,8 +751,69 @@ let themeAssetTests = testList "ThemeAsset" [
     ]
 ]
 
+let private uploadTests = testList "Upload" [
+    testTask "Add succeeds" {
+        let data = mkData ()
+        try do! UploadDataTests.``Add succeeds`` data
+        finally dispose data
+    }
+    testList "FindByPath" [
+        testTask "succeeds when an upload is found" {
+            let data = mkData ()
+            try do! UploadDataTests.``FindByPath succeeds when an upload is found`` data
+            finally dispose data
+        }
+        testTask "succeeds when an upload is not found (incorrect weblog)" {
+            let data = mkData ()
+            try do! UploadDataTests.``FindByPath succeeds when an upload is not found (incorrect weblog)`` data
+            finally dispose data
+        }
+        testTask "succeeds when an upload is not found (bad path)" {
+            let data = mkData ()
+            try do! UploadDataTests.``FindByPath succeeds when an upload is not found (bad path)`` data
+            finally dispose data
+        }
+    ]
+    testList "FindByWebLog" [
+        testTask "succeeds when uploads exist" {
+            let data = mkData ()
+            try do! UploadDataTests.``FindByWebLog succeeds when uploads exist`` data
+            finally dispose data
+        }
+        testTask "succeeds when no uploads exist" {
+            let data = mkData ()
+            try do! UploadDataTests.``FindByWebLog succeeds when no uploads exist`` data
+            finally dispose data
+        }
+    ]
+    testList "FindByWebLogWithData" [
+        testTask "succeeds when uploads exist" {
+            let data = mkData ()
+            try do! UploadDataTests.``FindByWebLogWithData succeeds when uploads exist`` data
+            finally dispose data
+        }
+        testTask "succeeds when no uploads exist" {
+            let data = mkData ()
+            try do! UploadDataTests.``FindByWebLogWithData succeeds when no uploads exist`` data
+            finally dispose data
+        }
+    ]
+    testList "Delete" [
+        testTask "succeeds when an upload is deleted" {
+            let data = mkData ()
+            try do! UploadDataTests.``Delete succeeds when an upload is deleted`` data
+            finally dispose data
+        }
+        testTask "succeeds when an upload is not deleted" {
+            let data = mkData ()
+            try do! UploadDataTests.``Delete succeeds when an upload is not deleted`` data
+            finally dispose data
+        }
+    ]
+]
+
 /// Delete the SQLite database
-let environmentCleanUp = test "Clean Up" {
+let private environmentCleanUp = test "Clean Up" {
     File.Delete dbName
     Expect.isFalse (File.Exists dbName) "The test SQLite database should have been deleted"
 } 
@@ -767,5 +828,6 @@ let all =
           tagMapTests
           themeTests
           themeAssetTests
+          uploadTests
           environmentCleanUp ]
     |> testSequenced

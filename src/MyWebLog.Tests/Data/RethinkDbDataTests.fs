@@ -18,14 +18,14 @@ let env name value =
 
 
 /// The data configuration for the test database
-let dataCfg =
+let private dataCfg =
     DataConfig.FromUri (env "RETHINK_URI" "rethinkdb://172.17.0.2/mwl_test")
 
 /// The active data instance to use for testing
-let mutable data: IData option = None
+let mutable private data: IData option = None
 
 /// Dispose the existing data
-let disposeData () = task {
+let private disposeData () = task {
     if data.IsSome then
         let conn = (data.Value :?> RethinkDbData).Conn
         do! rethink { dbDrop dataCfg.Database; write; withRetryOnce; ignoreResult conn }
@@ -34,13 +34,13 @@ let disposeData () = task {
 }
 
 /// Create a new data implementation instance
-let newData () =
+let private newData () =
     let log  = NullLogger<RethinkDbData>()
     let conn = dataCfg.CreateConnection log
     RethinkDbData(conn, dataCfg, log)
 
 /// Create a fresh environment from the root backup
-let freshEnvironment () = task {
+let private freshEnvironment () = task {
     do! disposeData ()
     data <- Some (newData ())
     do! data.Value.StartUp()
@@ -49,13 +49,13 @@ let freshEnvironment () = task {
 }
 
 /// Set up the environment for the RethinkDB tests
-let environmentSetUp = testTask "creating database" {
+let private environmentSetUp = testTask "creating database" {
     let _ = Json.configure Converter.Serializer
     do! freshEnvironment ()
 }
 
 /// Integration tests for the Category implementation in RethinkDB
-let categoryTests = testList "Category" [
+let private categoryTests = testList "Category" [
     testTask "Add succeeds" {
         do! CategoryDataTests.``Add succeeds`` data.Value
     }
@@ -117,7 +117,7 @@ let categoryTests = testList "Category" [
 ]
 
 /// Integration tests for the Page implementation in RethinkDB
-let pageTests = testList "Page" [
+let private pageTests = testList "Page" [
     testTask "Add succeeds" {
         do! PageDataTests.``Add succeeds`` data.Value
     }
@@ -219,7 +219,7 @@ let pageTests = testList "Page" [
 ]
 
 /// Integration tests for the Post implementation in RethinkDB
-let postTests = testList "Post" [
+let private postTests = testList "Post" [
     testTask "Add succeeds" {
         // We'll need the root website categories restored for these tests
         do! freshEnvironment ()
@@ -358,7 +358,7 @@ let postTests = testList "Post" [
     ]
 ]
 
-let tagMapTests = testList "TagMap" [
+let private tagMapTests = testList "TagMap" [
     testList "FindById" [
         testTask "succeeds when a tag mapping is found" {
             do! TagMapDataTests.``FindById succeeds when a tag mapping is found`` data.Value
@@ -416,7 +416,7 @@ let tagMapTests = testList "TagMap" [
     ]
 ]
 
-let themeTests = testList "Theme" [
+let private themeTests = testList "Theme" [
     testTask "All succeeds" {
         do! ThemeDataTests.``All succeeds`` data.Value
     }
@@ -462,7 +462,7 @@ let themeTests = testList "Theme" [
     ]
 ]
 
-let themeAssetTests = testList "ThemeAsset" [
+let private themeAssetTests = testList "ThemeAsset" [
     testList "Save" [
         testTask "succeeds when adding an asset" {
             do! ThemeDataTests.Asset.``Save succeeds when adding an asset`` data.Value
@@ -508,8 +508,49 @@ let themeAssetTests = testList "ThemeAsset" [
     ]
 ]
 
+let private uploadTests = testList "Upload" [
+    testTask "Add succeeds" {
+        do! UploadDataTests.``Add succeeds`` data.Value
+    }
+    testList "FindByPath" [
+        testTask "succeeds when an upload is found" {
+            do! UploadDataTests.``FindByPath succeeds when an upload is found`` data.Value
+        }
+        testTask "succeeds when an upload is not found (incorrect weblog)" {
+            do! UploadDataTests.``FindByPath succeeds when an upload is not found (incorrect weblog)`` data.Value
+        }
+        testTask "succeeds when an upload is not found (bad path)" {
+            do! UploadDataTests.``FindByPath succeeds when an upload is not found (bad path)`` data.Value
+        }
+    ]
+    testList "FindByWebLog" [
+        testTask "succeeds when uploads exist" {
+            do! UploadDataTests.``FindByWebLog succeeds when uploads exist`` data.Value
+        }
+        testTask "succeeds when no uploads exist" {
+            do! UploadDataTests.``FindByWebLog succeeds when no uploads exist`` data.Value
+        }
+    ]
+    testList "FindByWebLogWithData" [
+        testTask "succeeds when uploads exist" {
+            do! UploadDataTests.``FindByWebLogWithData succeeds when uploads exist`` data.Value
+        }
+        testTask "succeeds when no uploads exist" {
+            do! UploadDataTests.``FindByWebLogWithData succeeds when no uploads exist`` data.Value
+        }
+    ]
+    testList "Delete" [
+        testTask "succeeds when an upload is deleted" {
+            do! UploadDataTests.``Delete succeeds when an upload is deleted`` data.Value
+        }
+        testTask "succeeds when an upload is not deleted" {
+            do! UploadDataTests.``Delete succeeds when an upload is not deleted`` data.Value
+        }
+    ]
+]
+
 /// Drop the throwaway RethinkDB database
-let environmentCleanUp = testTask "Clean Up" {
+let private environmentCleanUp = testTask "Clean Up" {
     do! disposeData ()
 }
 
@@ -523,5 +564,6 @@ let all =
           tagMapTests
           themeTests
           themeAssetTests
+          uploadTests
           environmentCleanUp ]
     |> testSequenced
