@@ -462,6 +462,52 @@ let themeTests = testList "Theme" [
     ]
 ]
 
+let themeAssetTests = testList "ThemeAsset" [
+    testList "Save" [
+        testTask "succeeds when adding an asset" {
+            do! ThemeDataTests.Asset.``Save succeeds when adding an asset`` (mkData ())
+        }
+        testTask "succeeds when updating an asset" {
+            do! ThemeDataTests.Asset.``Save succeeds when updating an asset`` (mkData ())
+        }
+    ]
+    testTask "All succeeds" {
+        do! ThemeDataTests.Asset.``All succeeds`` (mkData ())
+    }
+    testList "FindById" [
+        testTask "succeeds when an asset is found" {
+            do! ThemeDataTests.Asset.``FindById succeeds when an asset is found`` (mkData ())
+        }
+        testTask "succeeds when an asset is not found" {
+            do! ThemeDataTests.Asset.``FindById succeeds when an asset is not found`` (mkData ())
+        }
+    ]
+    testList "FindByTheme" [
+        testTask "succeeds when assets exist" {
+            do! ThemeDataTests.Asset.``FindByTheme succeeds when assets exist`` (mkData ())
+        }
+        testTask "succeeds when assets do not exist" {
+            do! ThemeDataTests.Asset.``FindByTheme succeeds when assets do not exist`` (mkData ())
+        }
+    ]
+    testList "FindByThemeWithData" [
+        testTask "succeeds when assets exist" {
+            do! ThemeDataTests.Asset.``FindByThemeWithData succeeds when assets exist`` (mkData ())
+        }
+        testTask "succeeds when assets do not exist" {
+            do! ThemeDataTests.Asset.``FindByThemeWithData succeeds when assets do not exist`` (mkData ())
+        }
+    ]
+    testList "DeleteByTheme" [
+        testTask "succeeds when assets are deleted" {
+            do! ThemeDataTests.Asset.``DeleteByTheme succeeds when assets are deleted`` (mkData ())
+        }
+        testTask "succeeds when no assets are deleted" {
+            do! ThemeDataTests.Asset.``DeleteByTheme succeeds when no assets are deleted`` (mkData ())
+        }
+    ]
+]
+
 /// Drop the throwaway PostgreSQL database
 let environmentCleanUp = test "Clean Up" {
     if db.IsSome then db.Value.Dispose()
@@ -476,5 +522,6 @@ let all =
           postTests
           tagMapTests
           themeTests
+          themeAssetTests
           environmentCleanUp ]
     |> testSequenced

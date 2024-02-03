@@ -683,6 +683,74 @@ let themeTests = testList "Theme" [
     ]
 ]
 
+let themeAssetTests = testList "ThemeAsset" [
+    testList "Save" [
+        testTask "succeeds when adding an asset" {
+            let data = mkData ()
+            try do! ThemeDataTests.Asset.``Save succeeds when adding an asset`` data
+            finally dispose data
+        }
+        testTask "succeeds when updating an asset" {
+            let data = mkData ()
+            try do! ThemeDataTests.Asset.``Save succeeds when updating an asset`` data
+            finally dispose data
+        }
+    ]
+    testTask "All succeeds" {
+        let data = mkData ()
+        try do! ThemeDataTests.Asset.``All succeeds`` data
+        finally dispose data
+    }
+    testList "FindById" [
+        testTask "succeeds when an asset is found" {
+            let data = mkData ()
+            try do! ThemeDataTests.Asset.``FindById succeeds when an asset is found`` data
+            finally dispose data
+        }
+        testTask "succeeds when an asset is not found" {
+            let data = mkData ()
+            try do! ThemeDataTests.Asset.``FindById succeeds when an asset is not found`` data
+            finally dispose data
+        }
+    ]
+    testList "FindByTheme" [
+        testTask "succeeds when assets exist" {
+            let data = mkData ()
+            try do! ThemeDataTests.Asset.``FindByTheme succeeds when assets exist`` data
+            finally dispose data
+        }
+        testTask "succeeds when assets do not exist" {
+            let data = mkData ()
+            try do! ThemeDataTests.Asset.``FindByTheme succeeds when assets do not exist`` data
+            finally dispose data
+        }
+    ]
+    testList "FindByThemeWithData" [
+        testTask "succeeds when assets exist" {
+            let data = mkData ()
+            try do! ThemeDataTests.Asset.``FindByThemeWithData succeeds when assets exist`` data
+            finally dispose data
+        }
+        testTask "succeeds when assets do not exist" {
+            let data = mkData ()
+            try do! ThemeDataTests.Asset.``FindByThemeWithData succeeds when assets do not exist`` data
+            finally dispose data
+        }
+    ]
+    testList "DeleteByTheme" [
+        testTask "succeeds when assets are deleted" {
+            let data = mkData ()
+            try do! ThemeDataTests.Asset.``DeleteByTheme succeeds when assets are deleted`` data
+            finally dispose data
+        }
+        testTask "succeeds when no assets are deleted" {
+            let data = mkData ()
+            try do! ThemeDataTests.Asset.``DeleteByTheme succeeds when no assets are deleted`` data
+            finally dispose data
+        }
+    ]
+]
+
 /// Delete the SQLite database
 let environmentCleanUp = test "Clean Up" {
     File.Delete dbName
@@ -698,5 +766,6 @@ let all =
           postTests
           tagMapTests
           themeTests
+          themeAssetTests
           environmentCleanUp ]
     |> testSequenced

@@ -462,6 +462,52 @@ let themeTests = testList "Theme" [
     ]
 ]
 
+let themeAssetTests = testList "ThemeAsset" [
+    testList "Save" [
+        testTask "succeeds when adding an asset" {
+            do! ThemeDataTests.Asset.``Save succeeds when adding an asset`` data.Value
+        }
+        testTask "succeeds when updating an asset" {
+            do! ThemeDataTests.Asset.``Save succeeds when updating an asset`` data.Value
+        }
+    ]
+    testTask "All succeeds" {
+        do! ThemeDataTests.Asset.``All succeeds`` data.Value
+    }
+    testList "FindById" [
+        testTask "succeeds when an asset is found" {
+            do! ThemeDataTests.Asset.``FindById succeeds when an asset is found`` data.Value
+        }
+        testTask "succeeds when an asset is not found" {
+            do! ThemeDataTests.Asset.``FindById succeeds when an asset is not found`` data.Value
+        }
+    ]
+    testList "FindByTheme" [
+        testTask "succeeds when assets exist" {
+            do! ThemeDataTests.Asset.``FindByTheme succeeds when assets exist`` data.Value
+        }
+        testTask "succeeds when assets do not exist" {
+            do! ThemeDataTests.Asset.``FindByTheme succeeds when assets do not exist`` data.Value
+        }
+    ]
+    testList "FindByThemeWithData" [
+        testTask "succeeds when assets exist" {
+            do! ThemeDataTests.Asset.``FindByThemeWithData succeeds when assets exist`` data.Value
+        }
+        testTask "succeeds when assets do not exist" {
+            do! ThemeDataTests.Asset.``FindByThemeWithData succeeds when assets do not exist`` data.Value
+        }
+    ]
+    testList "DeleteByTheme" [
+        testTask "succeeds when assets are deleted" {
+            do! ThemeDataTests.Asset.``DeleteByTheme succeeds when assets are deleted`` data.Value
+        }
+        testTask "succeeds when no assets are deleted" {
+            do! ThemeDataTests.Asset.``DeleteByTheme succeeds when no assets are deleted`` data.Value
+        }
+    ]
+]
+
 /// Drop the throwaway RethinkDB database
 let environmentCleanUp = testTask "Clean Up" {
     do! disposeData ()
@@ -476,5 +522,6 @@ let all =
           postTests
           tagMapTests
           themeTests
+          themeAssetTests
           environmentCleanUp ]
     |> testSequenced

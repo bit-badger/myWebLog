@@ -184,6 +184,9 @@ type RethinkDbData(conn: Net.IConnection, config: DataConfig, log: ILogger<Rethi
     /// The batch size for restoration methods
     let restoreBatchSize = 100
     
+    /// A value to use when files need to be retrieved without their data
+    let emptyFile = r.Binary(Array.Empty<byte>())
+    
     /// Delete assets for the given theme ID
     let deleteAssetsByTheme themeId = rethink {
         withTable Table.ThemeAsset
@@ -876,7 +879,7 @@ type RethinkDbData(conn: Net.IConnection, config: DataConfig, log: ILogger<Rethi
                 
                 member _.All () = rethink<ThemeAsset list> {
                     withTable Table.ThemeAsset
-                    without [ nameof ThemeAsset.Empty.Data ]
+                    merge (r.HashMap(nameof ThemeAsset.Empty.Data, emptyFile))
                     result; withRetryDefault conn
                 }
                 
@@ -891,7 +894,7 @@ type RethinkDbData(conn: Net.IConnection, config: DataConfig, log: ILogger<Rethi
                 member _.FindByTheme themeId = rethink<ThemeAsset list> {
                     withTable Table.ThemeAsset
                     filter (matchAssetByThemeId themeId)
-                    without [ nameof ThemeAsset.Empty.Data ]
+                    merge (r.HashMap(nameof ThemeAsset.Empty.Data, emptyFile))
                     result; withRetryDefault conn
                 }
                 
@@ -950,7 +953,7 @@ type RethinkDbData(conn: Net.IConnection, config: DataConfig, log: ILogger<Rethi
                     withTable Table.Upload
                     between [| webLogId :> obj; r.Minval() |] [| webLogId :> obj; r.Maxval() |]
                             [ Index Index.WebLogAndPath ]
-                    without [ nameof Upload.Empty.Data ]
+                    merge (r.HashMap(nameof Upload.Empty.Data, emptyFile))
                     resultCursor; withRetryCursorDefault; toList conn
                 }
                 
