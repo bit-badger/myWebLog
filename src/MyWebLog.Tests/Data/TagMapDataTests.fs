@@ -8,13 +8,13 @@ open MyWebLog
 open MyWebLog.Data
 
 /// The ID of the root web log
-let rootId = CategoryDataTests.rootId
+let private rootId = CategoryDataTests.rootId
 
 /// The ID of the f# tag
-let fSharpId = TagMapId "Icm027noqE-rPHKZA98vAw"
+let private fSharpId = TagMapId "Icm027noqE-rPHKZA98vAw"
 
 /// The ID of the ghoti tag
-let fishId = TagMapId "GdryXh-S0kGsNBs2RIacGA"
+let private fishId = TagMapId "GdryXh-S0kGsNBs2RIacGA"
 
 let ``FindById succeeds when a tag mapping is found`` (data: IData) = task {
     let! tagMap = data.TagMap.FindById fSharpId rootId

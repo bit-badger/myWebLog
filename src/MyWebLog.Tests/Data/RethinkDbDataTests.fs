@@ -416,6 +416,52 @@ let tagMapTests = testList "TagMap" [
     ]
 ]
 
+let themeTests = testList "Theme" [
+    testTask "All succeeds" {
+        do! ThemeDataTests.``All succeeds`` data.Value
+    }
+    testList "Exists" [
+        testTask "succeeds when the theme exists" {
+            do! ThemeDataTests.``Exists succeeds when the theme exists`` data.Value
+        }
+        testTask "succeeds when the theme does not exist" {
+            do! ThemeDataTests.``Exists succeeds when the theme does not exist`` data.Value
+        }
+    ]
+    testList "FindById" [
+        testTask "succeeds when the theme exists" {
+            do! ThemeDataTests.``FindById succeeds when the theme exists`` data.Value
+        }
+        testTask "succeeds when the theme does not exist" {
+            do! ThemeDataTests.``FindById succeeds when the theme does not exist`` data.Value
+        }
+    ]
+    testList "FindByIdWithoutText" [
+        testTask "succeeds when the theme exists" {
+            do! ThemeDataTests.``FindByIdWithoutText succeeds when the theme exists`` data.Value
+        }
+        testTask "succeeds when the theme does not exist" {
+            do! ThemeDataTests.``FindByIdWithoutText succeeds when the theme does not exist`` data.Value
+        }
+    ]
+    testList "Save" [
+        testTask "succeeds when adding a theme" {
+            do! ThemeDataTests.``Save succeeds when adding a theme`` data.Value
+        }
+        testTask "succeeds when updating a theme" {
+            do! ThemeDataTests.``Save succeeds when updating a theme`` data.Value
+        }
+    ]
+    testList "Delete" [
+        testTask "succeeds when a theme is deleted" {
+            do! ThemeDataTests.``Delete succeeds when a theme is deleted`` data.Value
+        }
+        testTask "succeeds when a theme is not deleted" {
+            do! ThemeDataTests.``Delete succeeds when a theme is not deleted`` data.Value
+        }
+    ]
+]
+
 /// Drop the throwaway RethinkDB database
 let environmentCleanUp = testTask "Clean Up" {
     do! disposeData ()
@@ -429,5 +475,6 @@ let all =
           pageTests
           postTests
           tagMapTests
+          themeTests
           environmentCleanUp ]
     |> testSequenced

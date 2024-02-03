@@ -29,6 +29,10 @@ type SQLitePageData(conn: SqliteConnection, log: ILogger) =
         return { page with Revisions = revisions }
     }
     
+    /// Create a page with no prior permalinks
+    let pageWithoutLinks rdr =
+        { fromData<Page> rdr with PriorPermalinks = [] }
+    
     /// Update a page's revisions
     let updatePageRevisions (pageId: PageId) oldRevs newRevs =
         log.LogTrace "Page.updatePageRevisions"
@@ -102,7 +106,7 @@ type SQLitePageData(conn: SqliteConnection, log: ILogger) =
         conn.customSingle
             $"""{Document.Query.selectByWebLog Table.Page} AND {Query.whereByField linkParam "@link"}"""
             (addFieldParam "@link" linkParam [ webLogParam webLogId ])
-            (fun rdr -> { fromData<Page> rdr with PriorPermalinks = [] })
+            pageWithoutLinks
     
     /// Find the current permalink within a set of potential prior permalinks for the given web log
     let findCurrentPermalink (permalinks: Permalink list) webLogId =
@@ -138,7 +142,7 @@ type SQLitePageData(conn: SqliteConnection, log: ILogger) =
         conn.customList
             $"{Document.Query.selectByWebLog Table.Page} ORDER BY LOWER({titleField}) LIMIT @pageSize OFFSET @toSkip"
             [ webLogParam webLogId; SqliteParameter("@pageSize", 26); SqliteParameter("@toSkip", (pageNbr - 1) * 25) ]
-            fromData<Page>
+            (fun rdr -> { pageWithoutLinks rdr with Metadata = [] })
     
     /// Update a page
     let update (page: Page) = backgroundTask {

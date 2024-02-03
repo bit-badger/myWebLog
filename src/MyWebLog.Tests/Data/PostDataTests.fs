@@ -10,41 +10,41 @@ open MyWebLog.Data
 open NodaTime
 
 /// The ID of the root web log
-let rootId = WebLogId "uSitJEuD3UyzWC9jgOHc8g"
+let private rootId = CategoryDataTests.rootId
 
 /// The ID of podcast episode 1
-let episode1 = PostId "osxMfWGlAkyugUbJ1-xD1g"
+let private episode1 = PostId "osxMfWGlAkyugUbJ1-xD1g"
 
 /// The published instant for episode 1
-let episode1Published = Instant.FromDateTimeOffset(DateTimeOffset.Parse "2024-01-20T22:24:01Z")
+let private episode1Published = Instant.FromDateTimeOffset(DateTimeOffset.Parse "2024-01-20T22:24:01Z")
 
 /// The ID of podcast episode 2
-let episode2 = PostId "l4_Eh4aFO06SqqJjOymNzA"
+let private episode2 = PostId "l4_Eh4aFO06SqqJjOymNzA"
 
 /// The ID of "Something May Happen" post
-let something = PostId "QweKbWQiOkqqrjEdgP9wwg"
+let private something = PostId "QweKbWQiOkqqrjEdgP9wwg"
 
 /// The published instant for "Something May Happen" post
-let somethingPublished = Instant.FromDateTimeOffset(DateTimeOffset.Parse "2024-01-20T22:32:59Z")
+let private somethingPublished = Instant.FromDateTimeOffset(DateTimeOffset.Parse "2024-01-20T22:32:59Z")
 
 /// The ID of "An Incomplete Thought" post
-let incomplete = PostId "VweKbWQiOkqqrjEdgP9wwg"
+let private incomplete = PostId "VweKbWQiOkqqrjEdgP9wwg"
 
 /// The ID of "Test Post 1" post
-let testPost1 = PostId "RCsCU2puYEmkpzotoi8p4g"
+let private testPost1 = PostId "RCsCU2puYEmkpzotoi8p4g"
 
 /// The published instant for "Test Post 1" post
-let testPost1Published = Instant.FromDateTimeOffset(DateTimeOffset.Parse "2024-01-20T22:17:29Z")
+let private testPost1Published = Instant.FromDateTimeOffset(DateTimeOffset.Parse "2024-01-20T22:17:29Z")
 
 /// The category IDs for "Spitball" (parent) and "Moonshot"
-let testCatIds = [ CategoryId "jw6N69YtTEWVHAO33jHU-w"; CategoryId "ScVpyu1e7UiP7bDdge3ZEw" ]
+let private testCatIds = [ CategoryId "jw6N69YtTEWVHAO33jHU-w"; CategoryId "ScVpyu1e7UiP7bDdge3ZEw" ]
 
 /// Ensure that a list of posts has text for each post
-let ensureHasText (posts: Post list) =
+let private ensureHasText (posts: Post list) =
     for post in posts do Expect.isNotEmpty post.Text $"Text should not be blank (post ID {post.Id})"
 
 /// Ensure that a list of posts has no revisions or prior permalinks
-let ensureEmpty posts =
+let private ensureEmpty posts =
     for post in posts do
         Expect.isEmpty post.Revisions $"There should have been no revisions (post ID {post.Id})"
         Expect.isEmpty post.PriorPermalinks $"There should have been no prior permalinks (post ID {post.Id})"

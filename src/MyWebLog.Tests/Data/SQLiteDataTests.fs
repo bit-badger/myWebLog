@@ -269,6 +269,18 @@ let pageTests = testList "Page" [
             finally dispose data
         }
     ]
+    testList "FindPageOfPages" [
+        testTask "succeeds when pages are found" {
+            let data = mkData ()
+            try do! PageDataTests.``FindPageOfPages succeeds when pages are found`` data
+            finally dispose data
+        }
+        testTask "succeeds when a pages are not found" {
+            let data = mkData ()
+            try do! PageDataTests.``FindPageOfPages succeeds when pages are not found`` data
+            finally dispose data
+        }
+    ]
     testList "Update" [
         testTask "succeeds when the page exists" {
             let data = mkData ()
@@ -603,6 +615,74 @@ let tagMapTests = testList "TagMap" [
     ]
 ]
 
+let themeTests = testList "Theme" [
+    testTask "All succeeds" {
+        let data = mkData ()
+        try do! ThemeDataTests.``All succeeds`` data
+        finally dispose data
+    }
+    testList "Exists" [
+        testTask "succeeds when the theme exists" {
+            let data = mkData ()
+            try do! ThemeDataTests.``Exists succeeds when the theme exists`` data
+            finally dispose data
+        }
+        testTask "succeeds when the theme does not exist" {
+            let data = mkData ()
+            try do! ThemeDataTests.``Exists succeeds when the theme does not exist`` data
+            finally dispose data
+        }
+    ]
+    testList "FindById" [
+        testTask "succeeds when the theme exists" {
+            let data = mkData ()
+            try do! ThemeDataTests.``FindById succeeds when the theme exists`` data
+            finally dispose data
+        }
+        testTask "succeeds when the theme does not exist" {
+            let data = mkData ()
+            try do! ThemeDataTests.``FindById succeeds when the theme does not exist`` data
+            finally dispose data
+        }
+    ]
+    testList "FindByIdWithoutText" [
+        testTask "succeeds when the theme exists" {
+            let data = mkData ()
+            try do! ThemeDataTests.``FindByIdWithoutText succeeds when the theme exists`` data
+            finally dispose data
+        }
+        testTask "succeeds when the theme does not exist" {
+            let data = mkData ()
+            try do! ThemeDataTests.``FindByIdWithoutText succeeds when the theme does not exist`` data
+            finally dispose data
+        }
+    ]
+    testList "Save" [
+        testTask "succeeds when adding a theme" {
+            let data = mkData ()
+            try do! ThemeDataTests.``Save succeeds when adding a theme`` data
+            finally dispose data
+        }
+        testTask "succeeds when updating a theme" {
+            let data = mkData ()
+            try do! ThemeDataTests.``Save succeeds when updating a theme`` data
+            finally dispose data
+        }
+    ]
+    testList "Delete" [
+        testTask "succeeds when a theme is deleted" {
+            let data = mkData ()
+            try do! ThemeDataTests.``Delete succeeds when a theme is deleted`` data
+            finally dispose data
+        }
+        testTask "succeeds when a theme is not deleted" {
+            let data = mkData ()
+            try do! ThemeDataTests.``Delete succeeds when a theme is not deleted`` data
+            finally dispose data
+        }
+    ]
+]
+
 /// Delete the SQLite database
 let environmentCleanUp = test "Clean Up" {
     File.Delete dbName
@@ -617,5 +697,6 @@ let all =
           pageTests
           postTests
           tagMapTests
+          themeTests
           environmentCleanUp ]
     |> testSequenced

@@ -10,16 +10,16 @@ open MyWebLog.Data
 open NodaTime
 
 /// The ID of the root web log
-let rootId = WebLogId "uSitJEuD3UyzWC9jgOHc8g"
+let private rootId = CategoryDataTests.rootId
 
 /// The ID of the "A cool page" page
-let coolPageId = PageId "hgc_BLEZ50SoAWLuPNISvA"
+let private coolPageId = PageId "hgc_BLEZ50SoAWLuPNISvA"
 
 /// The published and updated time of the "A cool page" page
-let coolPagePublished = Instant.FromDateTimeOffset(DateTimeOffset.Parse "2024-01-20T22:14:28Z")
+let private coolPagePublished = Instant.FromDateTimeOffset(DateTimeOffset.Parse "2024-01-20T22:14:28Z")
 
 /// The ID of the "Yet Another Page" page
-let otherPageId = PageId "KouRjvSmm0Wz6TMD8xf67A"
+let private otherPageId = PageId "KouRjvSmm0Wz6TMD8xf67A"
 
 let ``Add succeeds`` (data: IData) = task {
     let page =

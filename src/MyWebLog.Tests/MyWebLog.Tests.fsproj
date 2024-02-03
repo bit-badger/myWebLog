@@ -14,6 +14,7 @@
     <Compile Include="Data\PageDataTests.fs" />
     <Compile Include="Data\PostDataTests.fs" />
     <Compile Include="Data\TagMapDataTests.fs" />
+    <Compile Include="Data\ThemeDataTests.fs" />
     <Compile Include="Data\RethinkDbDataTests.fs" />
     <Compile Include="Data\SQLiteDataTests.fs" />
     <Compile Include="Data\PostgresDataTests.fs" />

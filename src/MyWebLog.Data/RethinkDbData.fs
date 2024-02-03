@@ -101,7 +101,7 @@ type RethinkDbData(conn: Net.IConnection, config: DataConfig, log: ILogger<Rethi
     
     /// Function to exclude template text from themes
     let withoutTemplateText (row: Ast.ReqlExpr) : obj =
-        {|  Templates = row[nameof Theme.Empty.Templates].Without [| nameof ThemeTemplate.Empty.Text |] |}
+        {|  Templates = row[nameof Theme.Empty.Templates].Merge(r.HashMap(nameof ThemeTemplate.Empty.Text, "")) |}
         
     /// Ensure field indexes exist, as well as special indexes for selected tables
     let ensureIndexes table fields = backgroundTask {
@@ -445,20 +445,16 @@ type RethinkDbData(conn: Net.IConnection, config: DataConfig, log: ILogger<Rethi
                     return result.Deleted > 0UL
                 }
                 
-                member _.FindById pageId webLogId = backgroundTask {
-                    let! page =
-                        rethink<Page list> {
-                            withTable Table.Page
-                            getAll [ pageId ]
-                            without [ nameof Page.Empty.PriorPermalinks; nameof Page.Empty.Revisions ]
-                            result; withRetryDefault
-                        }
-                        |> tryFirst <| conn
-                    return
-                        page
-                        |> Option.filter (fun pg -> pg.WebLogId = webLogId)
-                        |> Option.map (fun pg -> { pg with Revisions = []; PriorPermalinks = [] })
-                }
+                member _.FindById pageId webLogId =
+                    rethink<Page list> {
+                        withTable Table.Page
+                        getAll [ pageId ]
+                        filter (nameof Page.Empty.WebLogId) webLogId
+                        merge (r.HashMap(nameof Page.Empty.PriorPermalinks, [||])
+                                   .With(nameof Page.Empty.Revisions, [||]))
+                        result; withRetryDefault
+                    }
+                    |> tryFirst <| conn
 
                 member _.FindByPermalink permalink webLogId =
                     rethink<Page list> {
@@ -590,20 +586,16 @@ type RethinkDbData(conn: Net.IConnection, config: DataConfig, log: ILogger<Rethi
                     return result.Deleted > 0UL
                 }
                 
-                member _.FindById postId webLogId = backgroundTask {
-                    let! post =
-                        rethink<Post list> {
-                            withTable Table.Post
-                            getAll [ postId ]
-                            without [ nameof Post.Empty.PriorPermalinks; nameof Post.Empty.Revisions ]
-                            result; withRetryDefault
-                        }
-                        |> tryFirst <| conn
-                    return
-                        post
-                        |> Option.filter (fun p -> p.WebLogId = webLogId)
-                        |> Option.map (fun p -> { p with Revisions = []; PriorPermalinks = [] })
-                }
+                member _.FindById postId webLogId =
+                    rethink<Post list> {
+                        withTable Table.Post
+                        getAll [ postId ]
+                        filter (nameof Post.Empty.WebLogId) webLogId
+                        merge (r.HashMap(nameof Post.Empty.PriorPermalinks, [||])
+                                   .With(nameof Post.Empty.Revisions, [||]))
+                        result; withRetryDefault
+                    }
+                    |> tryFirst <| conn
                 
                 member _.FindByPermalink permalink webLogId =
                     rethink<Post list> {
@@ -848,12 +840,14 @@ type RethinkDbData(conn: Net.IConnection, config: DataConfig, log: ILogger<Rethi
                     resultOption; withRetryOptionDefault conn
                 }
                 
-                member _.FindByIdWithoutText themeId = rethink<Theme> {
-                    withTable Table.Theme
-                    get themeId
-                    merge withoutTemplateText
-                    resultOption; withRetryOptionDefault conn
-                }
+                member _.FindByIdWithoutText themeId =
+                    rethink<Theme list> {
+                        withTable Table.Theme
+                        getAll [ themeId ]
+                        merge withoutTemplateText
+                        result; withRetryDefault
+                    }
+                    |> tryFirst <| conn
                 
                 member this.Delete themeId = backgroundTask {
                     match! this.FindByIdWithoutText themeId with

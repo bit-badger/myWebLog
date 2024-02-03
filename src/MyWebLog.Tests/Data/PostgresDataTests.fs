@@ -416,6 +416,52 @@ let tagMapTests = testList "TagMap" [
     ]
 ]
 
+let themeTests = testList "Theme" [
+    testTask "All succeeds" {
+        do! ThemeDataTests.``All succeeds`` (mkData ())
+    }
+    testList "Exists" [
+        testTask "succeeds when the theme exists" {
+            do! ThemeDataTests.``Exists succeeds when the theme exists`` (mkData ())
+        }
+        testTask "succeeds when the theme does not exist" {
+            do! ThemeDataTests.``Exists succeeds when the theme does not exist`` (mkData ())
+        }
+    ]
+    testList "FindById" [
+        testTask "succeeds when the theme exists" {
+            do! ThemeDataTests.``FindById succeeds when the theme exists`` (mkData ())
+        }
+        testTask "succeeds when the theme does not exist" {
+            do! ThemeDataTests.``FindById succeeds when the theme does not exist`` (mkData ())
+        }
+    ]
+    testList "FindByIdWithoutText" [
+        testTask "succeeds when the theme exists" {
+            do! ThemeDataTests.``FindByIdWithoutText succeeds when the theme exists`` (mkData ())
+        }
+        testTask "succeeds when the theme does not exist" {
+            do! ThemeDataTests.``FindByIdWithoutText succeeds when the theme does not exist`` (mkData ())
+        }
+    ]
+    testList "Save" [
+        testTask "succeeds when adding a theme" {
+            do! ThemeDataTests.``Save succeeds when adding a theme`` (mkData ())
+        }
+        testTask "succeeds when updating a theme" {
+            do! ThemeDataTests.``Save succeeds when updating a theme`` (mkData ())
+        }
+    ]
+    testList "Delete" [
+        testTask "succeeds when a theme is deleted" {
+            do! ThemeDataTests.``Delete succeeds when a theme is deleted`` (mkData ())
+        }
+        testTask "succeeds when a theme is not deleted" {
+            do! ThemeDataTests.``Delete succeeds when a theme is not deleted`` (mkData ())
+        }
+    ]
+]
+
 /// Drop the throwaway PostgreSQL database
 let environmentCleanUp = test "Clean Up" {
     if db.IsSome then db.Value.Dispose()
@@ -429,5 +475,6 @@ let all =
           pageTests
           postTests
           tagMapTests
+          themeTests
           environmentCleanUp ]
     |> testSequenced

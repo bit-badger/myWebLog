@@ -18,7 +18,9 @@ type PostgresThemeData(log: ILogger) =
     let all () =
         log.LogTrace "Theme.all"
         Custom.list
-            $"{Query.selectFromTable Table.Theme} WHERE data ->> '{nameof Theme.Empty.Id}' <> 'admin' ORDER BY id"
+            $"{Query.selectFromTable Table.Theme}
+               WHERE data ->> '{nameof Theme.Empty.Id}' <> 'admin'
+               ORDER BY data ->> '{nameof Theme.Empty.Id}'"
             []
             withoutTemplateText
     
