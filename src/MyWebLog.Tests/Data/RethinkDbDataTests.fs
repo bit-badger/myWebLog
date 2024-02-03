@@ -549,6 +549,34 @@ let private uploadTests = testList "Upload" [
     ]
 ]
 
+let private webLogUserTests = testList "WebLogUser" [
+    testTask "Add succeeds" {
+        do! WebLogUserDataTests.``Add succeeds`` data.Value
+    }
+    testList "FindByEmail" [
+        testTask "succeeds when a user is found" {
+            do! WebLogUserDataTests.``FindByEmail succeeds when a user is found`` data.Value
+        }
+        testTask "succeeds when a user is not found (incorrect weblog)" {
+            do! WebLogUserDataTests.``FindByEmail succeeds when a user is not found (incorrect weblog)`` data.Value
+        }
+        testTask "succeeds when a user is not found (bad email)" {
+            do! WebLogUserDataTests.``FindByEmail succeeds when a user is not found (bad email)`` data.Value
+        }
+    ]
+    testList "FindById" [
+        testTask "succeeds when a user is found" {
+            do! WebLogUserDataTests.``FindById succeeds when a user is found`` data.Value
+        }
+        testTask "succeeds when a user is not found (incorrect weblog)" {
+            do! WebLogUserDataTests.``FindById succeeds when a user is not found (incorrect weblog)`` data.Value
+        }
+        testTask "succeeds when a user is not found (bad ID)" {
+            do! WebLogUserDataTests.``FindById succeeds when a user is not found (bad ID)`` data.Value
+        }
+    ]
+]
+
 /// Drop the throwaway RethinkDB database
 let private environmentCleanUp = testTask "Clean Up" {
     do! disposeData ()
@@ -565,5 +593,6 @@ let all =
           themeTests
           themeAssetTests
           uploadTests
+          webLogUserTests
           environmentCleanUp ]
     |> testSequenced

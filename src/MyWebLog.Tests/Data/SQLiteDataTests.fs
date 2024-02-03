@@ -812,6 +812,48 @@ let private uploadTests = testList "Upload" [
     ]
 ]
 
+let private webLogUserTests = testList "WebLogUser" [
+    testTask "Add succeeds" {
+        let data = mkData ()
+        try do! WebLogUserDataTests.``Add succeeds`` data
+        finally dispose data
+    }
+    testList "FindByEmail" [
+        testTask "succeeds when a user is found" {
+            let data = mkData ()
+            try do! WebLogUserDataTests.``FindByEmail succeeds when a user is found`` data
+            finally dispose data
+        }
+        testTask "succeeds when a user is not found (incorrect weblog)" {
+            let data = mkData ()
+            try do! WebLogUserDataTests.``FindByEmail succeeds when a user is not found (incorrect weblog)`` data
+            finally dispose data
+        }
+        testTask "succeeds when a user is not found (bad email)" {
+            let data = mkData ()
+            try do! WebLogUserDataTests.``FindByEmail succeeds when a user is not found (bad email)`` data
+            finally dispose data
+        }
+    ]
+    testList "FindById" [
+        testTask "succeeds when a user is found" {
+            let data = mkData ()
+            try do! WebLogUserDataTests.``FindById succeeds when a user is found`` data
+            finally dispose data
+        }
+        testTask "succeeds when a user is not found (incorrect weblog)" {
+            let data = mkData ()
+            try do! WebLogUserDataTests.``FindById succeeds when a user is not found (incorrect weblog)`` data
+            finally dispose data
+        }
+        testTask "succeeds when a user is not found (bad ID)" {
+            let data = mkData ()
+            try do! WebLogUserDataTests.``FindById succeeds when a user is not found (bad ID)`` data
+            finally dispose data
+        }
+    ]
+]
+
 /// Delete the SQLite database
 let private environmentCleanUp = test "Clean Up" {
     File.Delete dbName
@@ -829,5 +871,6 @@ let all =
           themeTests
           themeAssetTests
           uploadTests
+          webLogUserTests
           environmentCleanUp ]
     |> testSequenced

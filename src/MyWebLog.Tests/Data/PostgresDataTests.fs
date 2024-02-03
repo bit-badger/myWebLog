@@ -549,6 +549,34 @@ let private uploadTests = testList "Upload" [
     ]
 ]
 
+let private webLogUserTests = testList "WebLogUser" [
+    testTask "Add succeeds" {
+        do! WebLogUserDataTests.``Add succeeds`` (mkData ())
+    }
+    testList "FindByEmail" [
+        testTask "succeeds when a user is found" {
+            do! WebLogUserDataTests.``FindByEmail succeeds when a user is found`` (mkData ())
+        }
+        testTask "succeeds when a user is not found (incorrect weblog)" {
+            do! WebLogUserDataTests.``FindByEmail succeeds when a user is not found (incorrect weblog)`` (mkData ())
+        }
+        testTask "succeeds when a user is not found (bad email)" {
+            do! WebLogUserDataTests.``FindByEmail succeeds when a user is not found (bad email)`` (mkData ())
+        }
+    ]
+    testList "FindById" [
+        testTask "succeeds when a user is found" {
+            do! WebLogUserDataTests.``FindById succeeds when a user is found`` (mkData ())
+        }
+        testTask "succeeds when a user is not found (incorrect weblog)" {
+            do! WebLogUserDataTests.``FindById succeeds when a user is not found (incorrect weblog)`` (mkData ())
+        }
+        testTask "succeeds when a user is not found (bad ID)" {
+            do! WebLogUserDataTests.``FindById succeeds when a user is not found (bad ID)`` (mkData ())
+        }
+    ]
+]
+
 /// Drop the throwaway PostgreSQL database
 let private environmentCleanUp = test "Clean Up" {
     if db.IsSome then db.Value.Dispose()
@@ -565,5 +593,6 @@ let all =
           themeTests
           themeAssetTests
           uploadTests
+          webLogUserTests
           environmentCleanUp ]
     |> testSequenced
