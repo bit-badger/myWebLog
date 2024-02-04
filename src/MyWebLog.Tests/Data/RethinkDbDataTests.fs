@@ -625,6 +625,63 @@ let private webLogUserTests = testList "WebLogUser" [
     ]
 ]
 
+let private webLogTests = testList "WebLog" [
+    testTask "Add succeeds" {
+        do! WebLogDataTests.``Add succeeds`` data.Value
+    }
+    testTask "All succeeds" {
+        do! WebLogDataTests.``All succeeds`` data.Value
+    }
+    testList "FindByHost" [
+        testTask "succeeds when a web log is found" {
+            do! WebLogDataTests.``FindByHost succeeds when a web log is found`` data.Value
+        }
+        testTask "succeeds when a web log is not found" {
+            do! WebLogDataTests.``FindByHost succeeds when a web log is not found`` data.Value
+        }
+    ]
+    testList "FindById" [
+        testTask "succeeds when a web log is found" {
+            do! WebLogDataTests.``FindById succeeds when a web log is found`` data.Value
+        }
+        testTask "succeeds when a web log is not found" {
+            do! WebLogDataTests.``FindById succeeds when a web log is not found`` data.Value
+        }
+    ]
+    testList "UpdateRedirectRules" [
+        testTask "succeeds when the web log exists" {
+            do! WebLogDataTests.``UpdateRedirectRules succeeds when the web log exists`` data.Value
+        }
+        testTask "succeeds when the web log does not exist" {
+            do! WebLogDataTests.``UpdateRedirectRules succeeds when the web log does not exist`` data.Value
+        }
+    ]
+    testList "UpdateRssOptions" [
+        testTask "succeeds when the web log exists" {
+            do! WebLogDataTests.``UpdateRssOptions succeeds when the web log exists`` data.Value
+        }
+        testTask "succeeds when the web log does not exist" {
+            do! WebLogDataTests.``UpdateRssOptions succeeds when the web log does not exist`` data.Value
+        }
+    ]
+    testList "UpdateSettings" [
+        testTask "succeeds when the web log exists" {
+            do! WebLogDataTests.``UpdateSettings succeeds when the web log exists`` data.Value
+        }
+        testTask "succeeds when the web log does not exist" {
+            do! WebLogDataTests.``UpdateSettings succeeds when the web log does not exist`` data.Value
+        }
+    ]
+    testList "Delete" [
+        testTask "succeeds when the web log exists" {
+            do! WebLogDataTests.``Delete succeeds when the web log exists`` data.Value
+        }
+        testTask "succeeds when the web log does not exist" {
+            do! WebLogDataTests.``Delete succeeds when the web log does not exist`` data.Value
+        }
+    ]
+]
+
 /// Drop the throwaway RethinkDB database
 let private environmentCleanUp = testTask "Clean Up" {
     do! disposeData ()
@@ -642,5 +699,6 @@ let all =
           themeAssetTests
           uploadTests
           webLogUserTests
+          webLogTests
           environmentCleanUp ]
     |> testSequenced

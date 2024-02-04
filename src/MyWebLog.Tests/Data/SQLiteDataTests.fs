@@ -308,7 +308,14 @@ let private pageTests = testList "Page" [
     testList "Delete" [
         testTask "succeeds when a page is deleted" {
             let data = mkData ()
-            try do! PageDataTests.``Delete succeeds when a page is deleted`` data
+            try
+                do! PageDataTests.``Delete succeeds when a page is deleted`` data
+                let! revisions =
+                    (data :?> SQLiteData).Conn.customScalar
+                        "SELECT COUNT(*) AS it FROM page_revision WHERE page_id = @id"
+                        [ idParam PageDataTests.coolPageId ]
+                        toCount
+                Expect.equal revisions 0L "All revisions for the page should have been deleted"
             finally dispose data
         }
         testTask "succeeds when a page is not deleted" {
@@ -519,7 +526,14 @@ let private postTests = testList "Post" [
     testList "Delete" [
         testTask "succeeds when a post is deleted" {
             let data = mkData ()
-            try do! PostDataTests.``Delete succeeds when a post is deleted`` data
+            try
+                do! PostDataTests.``Delete succeeds when a post is deleted`` data
+                let! revisions =
+                    (data :?> SQLiteData).Conn.customScalar
+                        "SELECT COUNT(*) AS it FROM post_revision WHERE post_id = @id"
+                        [ idParam PostDataTests.episode2 ]
+                        toCount
+                Expect.equal revisions 0L "All revisions for the post should have been deleted"
             finally dispose data
         }
         testTask "succeeds when a post is not deleted" {
@@ -925,6 +939,98 @@ let private webLogUserTests = testList "WebLogUser" [
     ]
 ]
 
+let private webLogTests = testList "WebLog" [
+    testTask "Add succeeds" {
+        let data = mkData ()
+        try do! WebLogDataTests.``Add succeeds`` data
+        finally dispose data
+    }
+    testTask "All succeeds" {
+        let data = mkData ()
+        try do! WebLogDataTests.``All succeeds`` data
+        finally dispose data
+    }
+    testList "FindByHost" [
+        testTask "succeeds when a web log is found" {
+            let data = mkData ()
+            try do! WebLogDataTests.``FindByHost succeeds when a web log is found`` data
+            finally dispose data
+        }
+        testTask "succeeds when a web log is not found" {
+            let data = mkData ()
+            try do! WebLogDataTests.``FindByHost succeeds when a web log is not found`` data
+            finally dispose data
+        }
+    ]
+    testList "FindById" [
+        testTask "succeeds when a web log is found" {
+            let data = mkData ()
+            try do! WebLogDataTests.``FindById succeeds when a web log is found`` data
+            finally dispose data
+        }
+        testTask "succeeds when a web log is not found" {
+            let data = mkData ()
+            try do! WebLogDataTests.``FindById succeeds when a web log is not found`` data
+            finally dispose data
+        }
+    ]
+    testList "UpdateRedirectRules" [
+        testTask "succeeds when the web log exists" {
+            let data = mkData ()
+            try do! WebLogDataTests.``UpdateRedirectRules succeeds when the web log exists`` data
+            finally dispose data
+        }
+        testTask "succeeds when the web log does not exist" {
+            let data = mkData ()
+            try do! WebLogDataTests.``UpdateRedirectRules succeeds when the web log does not exist`` data
+            finally dispose data
+        }
+    ]
+    testList "UpdateRssOptions" [
+        testTask "succeeds when the web log exists" {
+            let data = mkData ()
+            try do! WebLogDataTests.``UpdateRssOptions succeeds when the web log exists`` data
+            finally dispose data
+        }
+        testTask "succeeds when the web log does not exist" {
+            let data = mkData ()
+            try do! WebLogDataTests.``UpdateRssOptions succeeds when the web log does not exist`` data
+            finally dispose data
+        }
+    ]
+    testList "UpdateSettings" [
+        testTask "succeeds when the web log exists" {
+            let data = mkData ()
+            try do! WebLogDataTests.``UpdateSettings succeeds when the web log exists`` data
+            finally dispose data
+        }
+        testTask "succeeds when the web log does not exist" {
+            let data = mkData ()
+            try do! WebLogDataTests.``UpdateSettings succeeds when the web log does not exist`` data
+            finally dispose data
+        }
+    ]
+    testList "Delete" [
+        testTask "succeeds when the web log exists" {
+            let data = mkData ()
+            try
+                do! WebLogDataTests.``Delete succeeds when the web log exists`` data
+                let! revisions =
+                    (data :?> SQLiteData).Conn.customScalar
+                        "SELECT (SELECT COUNT(*) FROM page_revision) + (SELECT COUNT(*) FROM post_revision) AS it"
+                        []
+                        toCount
+                Expect.equal revisions 0L "All revisions should be deleted"
+            finally dispose data
+        }
+        testTask "succeeds when the web log does not exist" {
+            let data = mkData ()
+            try do! WebLogDataTests.``Delete succeeds when the web log does not exist`` data
+            finally dispose data
+        }
+    ]
+]
+
 /// Delete the SQLite database
 let private environmentCleanUp = test "Clean Up" {
     File.Delete dbName
@@ -943,5 +1049,6 @@ let all =
           themeAssetTests
           uploadTests
           webLogUserTests
+          webLogTests
           environmentCleanUp ]
     |> testSequenced

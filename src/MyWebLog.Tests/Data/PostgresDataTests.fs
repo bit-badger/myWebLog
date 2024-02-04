@@ -1,6 +1,6 @@
 module PostgresDataTests
 
-open BitBadger.Documents
+open BitBadger.Documents.Postgres
 open Expecto
 open Microsoft.Extensions.Logging.Abstractions
 open MyWebLog
@@ -42,7 +42,7 @@ let private freshEnvironment () = task {
     db <- Some (ThrowawayDatabase.Create $"Host={testHost};Database={testDb};User ID={testUser};Password={testPw}")
     let source = NpgsqlDataSourceBuilder db.Value.ConnectionString
     let _ = source.UseNodaTime()
-    Postgres.Configuration.useDataSource (source.Build())
+    Configuration.useDataSource (source.Build())
     let env = mkData ()
     do! env.StartUp()
     // This exercises Restore for all implementations; all tests are dependent on it working as expected
@@ -211,6 +211,12 @@ let private pageTests = testList "Page" [
     testList "Delete" [
         testTask "succeeds when a page is deleted" {
             do! PageDataTests.``Delete succeeds when a page is deleted`` (mkData ())
+            let! revisions =
+                Custom.scalar
+                    "SELECT COUNT(*) AS it FROM page_revision WHERE page_id = @id"
+                    [ idParam PageDataTests.coolPageId ]
+                    toCount
+            Expect.equal revisions 0 "All revisions for the page should have been deleted"
         }
         testTask "succeeds when a page is not deleted" {
             do! PageDataTests.``Delete succeeds when a page is not deleted`` (mkData ())
@@ -351,6 +357,12 @@ let private postTests = testList "Post" [
     testList "Delete" [
         testTask "succeeds when a post is deleted" {
             do! PostDataTests.``Delete succeeds when a post is deleted`` (mkData ())
+            let! revisions =
+                Custom.scalar
+                    "SELECT COUNT(*) AS it FROM post_revision WHERE post_id = @id"
+                    [ idParam PostDataTests.episode2 ]
+                    toCount
+            Expect.equal revisions 0 "All revisions for the post should have been deleted"
         }
         testTask "succeeds when a post is not deleted" {
             do! PostDataTests.``Delete succeeds when a post is not deleted`` (mkData ())
@@ -625,6 +637,69 @@ let private webLogUserTests = testList "WebLogUser" [
     ]
 ]
 
+let private webLogTests = testList "WebLog" [
+    testTask "Add succeeds" {
+        do! WebLogDataTests.``Add succeeds`` (mkData ())
+    }
+    testTask "All succeeds" {
+        do! WebLogDataTests.``All succeeds`` (mkData ())
+    }
+    testList "FindByHost" [
+        testTask "succeeds when a web log is found" {
+            do! WebLogDataTests.``FindByHost succeeds when a web log is found`` (mkData ())
+        }
+        testTask "succeeds when a web log is not found" {
+            do! WebLogDataTests.``FindByHost succeeds when a web log is not found`` (mkData ())
+        }
+    ]
+    testList "FindById" [
+        testTask "succeeds when a web log is found" {
+            do! WebLogDataTests.``FindById succeeds when a web log is found`` (mkData ())
+        }
+        testTask "succeeds when a web log is not found" {
+            do! WebLogDataTests.``FindById succeeds when a web log is not found`` (mkData ())
+        }
+    ]
+    testList "UpdateRedirectRules" [
+        testTask "succeeds when the web log exists" {
+            do! WebLogDataTests.``UpdateRedirectRules succeeds when the web log exists`` (mkData ())
+        }
+        testTask "succeeds when the web log does not exist" {
+            do! WebLogDataTests.``UpdateRedirectRules succeeds when the web log does not exist`` (mkData ())
+        }
+    ]
+    testList "UpdateRssOptions" [
+        testTask "succeeds when the web log exists" {
+            do! WebLogDataTests.``UpdateRssOptions succeeds when the web log exists`` (mkData ())
+        }
+        testTask "succeeds when the web log does not exist" {
+            do! WebLogDataTests.``UpdateRssOptions succeeds when the web log does not exist`` (mkData ())
+        }
+    ]
+    testList "UpdateSettings" [
+        testTask "succeeds when the web log exists" {
+            do! WebLogDataTests.``UpdateSettings succeeds when the web log exists`` (mkData ())
+        }
+        testTask "succeeds when the web log does not exist" {
+            do! WebLogDataTests.``UpdateSettings succeeds when the web log does not exist`` (mkData ())
+        }
+    ]
+    testList "Delete" [
+        testTask "succeeds when the web log exists" {
+            do! WebLogDataTests.``Delete succeeds when the web log exists`` (mkData ())
+            let! revisions =
+                Custom.scalar
+                    "SELECT (SELECT COUNT(*) FROM page_revision) + (SELECT COUNT(*) FROM post_revision) AS it"
+                    []
+                    toCount
+            Expect.equal revisions 0 "All revisions should be deleted"
+        }
+        testTask "succeeds when the web log does not exist" {
+            do! WebLogDataTests.``Delete succeeds when the web log does not exist`` (mkData ())
+        }
+    ]
+]
+
 /// Drop the throwaway PostgreSQL database
 let private environmentCleanUp = test "Clean Up" {
     if db.IsSome then db.Value.Dispose()
@@ -642,5 +717,6 @@ let all =
           themeAssetTests
           uploadTests
           webLogUserTests
+          webLogTests
           environmentCleanUp ]
     |> testSequenced

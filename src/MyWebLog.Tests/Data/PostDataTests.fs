@@ -19,7 +19,7 @@ let private episode1 = PostId "osxMfWGlAkyugUbJ1-xD1g"
 let private episode1Published = Instant.FromDateTimeOffset(DateTimeOffset.Parse "2024-01-20T22:24:01Z")
 
 /// The ID of podcast episode 2
-let private episode2 = PostId "l4_Eh4aFO06SqqJjOymNzA"
+let episode2 = PostId "l4_Eh4aFO06SqqJjOymNzA"
 
 /// The ID of "Something May Happen" post
 let private something = PostId "QweKbWQiOkqqrjEdgP9wwg"

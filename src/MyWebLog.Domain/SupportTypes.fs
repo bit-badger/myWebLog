@@ -446,7 +446,7 @@ type PostId =
 
 
 /// A redirection for a previously valid URL
-[<CLIMutable; NoComparison; NoEquality>]
+[<CLIMutable>]
 type RedirectRule = {
     /// The From string or pattern
     From: string

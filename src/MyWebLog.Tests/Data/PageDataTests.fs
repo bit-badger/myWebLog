@@ -13,7 +13,7 @@ open NodaTime
 let private rootId = CategoryDataTests.rootId
 
 /// The ID of the "A cool page" page
-let private coolPageId = PageId "hgc_BLEZ50SoAWLuPNISvA"
+let coolPageId = PageId "hgc_BLEZ50SoAWLuPNISvA"
 
 /// The published and updated time of the "A cool page" page
 let private coolPagePublished = Instant.FromDateTimeOffset(DateTimeOffset.Parse "2024-01-20T22:14:28Z")
