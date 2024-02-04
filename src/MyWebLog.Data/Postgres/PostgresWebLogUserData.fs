@@ -10,6 +10,11 @@ open Npgsql.FSharp
 /// PostgreSQL myWebLog user data implementation
 type PostgresWebLogUserData(log: ILogger) =
     
+    /// Add a user
+    let add (user: WebLogUser) =
+        log.LogTrace "WebLogUser.add"
+        insert Table.WebLogUser user
+    
     /// Find a user by their ID for the given web log
     let findById userId webLogId =
         log.LogTrace "WebLogUser.findById"
@@ -52,7 +57,7 @@ type PostgresWebLogUserData(log: ILogger) =
     /// Find the names of users by their IDs for the given web log
     let findNames webLogId (userIds: WebLogUserId list) = backgroundTask {
         log.LogTrace "WebLogUser.findNames"
-        let idSql, idParams = inClause "AND id" "id" userIds
+        let idSql, idParams = inClause $"AND data ->> '{nameof WebLogUser.Empty.Id}'" "id" userIds
         let! users =
             Custom.list
                 $"{selectWithCriteria Table.WebLogUser} {idSql}"
@@ -80,13 +85,13 @@ type PostgresWebLogUserData(log: ILogger) =
         | false -> ()
     }
     
-    /// Save a user
-    let save (user: WebLogUser) =
-        log.LogTrace "WebLogUser.save"
-        save Table.WebLogUser user
+    /// Update a user
+    let update (user: WebLogUser) =
+        log.LogTrace "WebLogUser.update"
+        Update.byId Table.WebLogUser user.Id user
     
     interface IWebLogUserData with
-        member _.Add user = save user
+        member _.Add user = add user
         member _.Delete userId webLogId = delete userId webLogId
         member _.FindByEmail email webLogId = findByEmail email webLogId
         member _.FindById userId webLogId = findById userId webLogId
@@ -94,4 +99,4 @@ type PostgresWebLogUserData(log: ILogger) =
         member _.FindNames webLogId userIds = findNames webLogId userIds
         member _.Restore users = restore users
         member _.SetLastSeen userId webLogId = setLastSeen userId webLogId
-        member _.Update user = save user
+        member _.Update user = update user

@@ -10,6 +10,11 @@ open MyWebLog.Data
 /// SQLite myWebLog user data implementation
 type SQLiteWebLogUserData(conn: SqliteConnection, log: ILogger) =
     
+    /// Add a user
+    let add user =
+        log.LogTrace "WebLogUser.add"
+        conn.insert<WebLogUser> Table.WebLogUser user
+    
     /// Find a user by their ID for the given web log
     let findById userId webLogId =
         log.LogTrace "WebLogUser.findById"
@@ -58,15 +63,10 @@ type SQLiteWebLogUserData(conn: SqliteConnection, log: ILogger) =
                 let user = fromData<WebLogUser> rdr
                 { Name = string user.Id; Value = user.DisplayName })
     
-    /// Save a user
-    let save user =
-        log.LogTrace "WebLogUser.update"
-        conn.save<WebLogUser> Table.WebLogUser user
-    
     /// Restore users from a backup
     let restore users = backgroundTask {
         log.LogTrace "WebLogUser.restore"
-        for user in users do do! save user
+        for user in users do do! add user
     }
     
     /// Set a user's last seen date/time to now
@@ -77,8 +77,13 @@ type SQLiteWebLogUserData(conn: SqliteConnection, log: ILogger) =
         | None -> ()
     }
     
+    /// Update a user
+    let update (user: WebLogUser) =
+        log.LogTrace "WebLogUser.update"
+        conn.updateById Table.WebLogUser user.Id user
+    
     interface IWebLogUserData with
-        member _.Add user = save user
+        member _.Add user = add user
         member _.Delete userId webLogId = delete userId webLogId
         member _.FindByEmail email webLogId = findByEmail email webLogId
         member _.FindById userId webLogId = findById userId webLogId
@@ -86,4 +91,4 @@ type SQLiteWebLogUserData(conn: SqliteConnection, log: ILogger) =
         member _.FindNames webLogId userIds = findNames webLogId userIds
         member _.Restore users = restore users
         member _.SetLastSeen userId webLogId = setLastSeen userId webLogId
-        member _.Update user = save user
+        member _.Update user = update user

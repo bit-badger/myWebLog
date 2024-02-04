@@ -551,6 +551,8 @@ let private uploadTests = testList "Upload" [
 
 let private webLogUserTests = testList "WebLogUser" [
     testTask "Add succeeds" {
+        // This restore ensures all the posts and pages exist
+        do! freshEnvironment ()
         do! WebLogUserDataTests.``Add succeeds`` data.Value
     }
     testList "FindByEmail" [
@@ -573,6 +575,52 @@ let private webLogUserTests = testList "WebLogUser" [
         }
         testTask "succeeds when a user is not found (bad ID)" {
             do! WebLogUserDataTests.``FindById succeeds when a user is not found (bad ID)`` data.Value
+        }
+    ]
+    testList "FindByWebLog" [
+        testTask "succeeds when users exist" {
+            do! WebLogUserDataTests.``FindByWebLog succeeds when users exist`` data.Value
+        }
+        testTask "succeeds when no users exist" {
+            do! WebLogUserDataTests.``FindByWebLog succeeds when no users exist`` data.Value
+        }
+    ]
+    testList "FindNames" [
+        testTask "succeeds when users exist" {
+            do! WebLogUserDataTests.``FindNames succeeds when users exist`` data.Value
+        }
+        testTask "succeeds when users do not exist" {
+            do! WebLogUserDataTests.``FindNames succeeds when users do not exist`` data.Value
+        }
+    ]
+    testList "SetLastSeen" [
+        testTask "succeeds when the user exists" {
+            do! WebLogUserDataTests.``SetLastSeen succeeds when the user exists`` data.Value
+        }
+        testTask "succeeds when the user does not exist" {
+            do! WebLogUserDataTests.``SetLastSeen succeeds when the user does not exist`` data.Value
+        }
+    ]
+    testList "Update" [
+        testTask "succeeds when the user exists" {
+            do! WebLogUserDataTests.``Update succeeds when the user exists`` data.Value
+        }
+        testTask "succeeds when the user does not exist" {
+            do! WebLogUserDataTests.``Update succeeds when the user does not exist`` data.Value
+        }
+    ]
+    testList "Delete" [
+        testTask "fails when the user is the author of a page" {
+            do! WebLogUserDataTests.``Delete fails when the user is the author of a page`` data.Value
+        }
+        testTask "fails when the user is the author of a post" {
+            do! WebLogUserDataTests.``Delete fails when the user is the author of a post`` data.Value
+        }
+        testTask "succeeds when the user is not an author" {
+            do! WebLogUserDataTests.``Delete succeeds when the user is not an author`` data.Value
+        }
+        testTask "succeeds when the user does not exist" {
+            do! WebLogUserDataTests.``Delete succeeds when the user does not exist`` data.Value
         }
     ]
 ]

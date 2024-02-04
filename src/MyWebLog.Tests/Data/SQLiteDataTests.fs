@@ -814,7 +814,8 @@ let private uploadTests = testList "Upload" [
 
 let private webLogUserTests = testList "WebLogUser" [
     testTask "Add succeeds" {
-        let data = mkData ()
+        // This restore ensures all the posts and pages exist
+        let! data = freshEnvironment None
         try do! WebLogUserDataTests.``Add succeeds`` data
         finally dispose data
     }
@@ -849,6 +850,76 @@ let private webLogUserTests = testList "WebLogUser" [
         testTask "succeeds when a user is not found (bad ID)" {
             let data = mkData ()
             try do! WebLogUserDataTests.``FindById succeeds when a user is not found (bad ID)`` data
+            finally dispose data
+        }
+    ]
+    testList "FindByWebLog" [
+        testTask "succeeds when users exist" {
+            let data = mkData ()
+            try do! WebLogUserDataTests.``FindByWebLog succeeds when users exist`` data
+            finally dispose data
+        }
+        testTask "succeeds when no users exist" {
+            let data = mkData ()
+            try do! WebLogUserDataTests.``FindByWebLog succeeds when no users exist`` data
+            finally dispose data
+        }
+    ]
+    testList "FindNames" [
+        testTask "succeeds when users exist" {
+            let data = mkData ()
+            try do! WebLogUserDataTests.``FindNames succeeds when users exist`` data
+            finally dispose data
+        }
+        testTask "succeeds when users do not exist" {
+            let data = mkData ()
+            try do! WebLogUserDataTests.``FindNames succeeds when users do not exist`` data
+            finally dispose data
+        }
+    ]
+    testList "SetLastSeen" [
+        testTask "succeeds when the user exists" {
+            let data = mkData ()
+            try do! WebLogUserDataTests.``SetLastSeen succeeds when the user exists`` data
+            finally dispose data
+        }
+        testTask "succeeds when the user does not exist" {
+            let data = mkData ()
+            try do! WebLogUserDataTests.``SetLastSeen succeeds when the user does not exist`` data
+            finally dispose data
+        }
+    ]
+    testList "Update" [
+        testTask "succeeds when the user exists" {
+            let data = mkData ()
+            try do! WebLogUserDataTests.``Update succeeds when the user exists`` data
+            finally dispose data
+        }
+        testTask "succeeds when the user does not exist" {
+            let data = mkData ()
+            try do! WebLogUserDataTests.``Update succeeds when the user does not exist`` data
+            finally dispose data
+        }
+    ]
+    testList "Delete" [
+        testTask "fails when the user is the author of a page" {
+            let data = mkData ()
+            try do! WebLogUserDataTests.``Delete fails when the user is the author of a page`` data
+            finally dispose data
+        }
+        testTask "fails when the user is the author of a post" {
+            let data = mkData ()
+            try do! WebLogUserDataTests.``Delete fails when the user is the author of a post`` data
+            finally dispose data
+        }
+        testTask "succeeds when the user is not an author" {
+            let data = mkData ()
+            try do! WebLogUserDataTests.``Delete succeeds when the user is not an author`` data
+            finally dispose data
+        }
+        testTask "succeeds when the user does not exist" {
+            let data = mkData ()
+            try do! WebLogUserDataTests.``Delete succeeds when the user does not exist`` data
             finally dispose data
         }
     ]
