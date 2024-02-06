@@ -13,6 +13,12 @@
       <a href="{{ entity_url_base | append: "/permalinks" | relative_link }}">Manage Permalinks</a>
       <span class=text-muted> &bull; </span>
       <a href="{{ entity_url_base | append: "/revisions" | relative_link }}">Manage Revisions</a>
+      {% if model.chapter_source == "internal" %}
+        <span id="chapterEditLink">
+          <span class=text-muted> &bull; </span>
+          <a href="{{ entity_url_base | append: "/chapters" | relative_link }}">Manage Chapters</a>
+        </span>
+      {% endif %}
     </span>
   {%- endunless -%}
 </div>

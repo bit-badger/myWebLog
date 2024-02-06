@@ -648,6 +648,9 @@ type EditPostModel = {
     /// The explicit rating for this episode (optional, defaults to podcast setting)
     Explicit: string
     
+    /// The chapter source ("internal" for chapters defined here, "external" for a file link, "none" if none defined)
+    ChapterSource: string
+    
     /// The URL for the chapter file for the episode (may be permalink; optional)
     ChapterFile: string
     
@@ -713,6 +716,9 @@ type EditPostModel = {
           ImageUrl           = defaultArg episode.ImageUrl ""
           Subtitle           = defaultArg episode.Subtitle ""
           Explicit           = defaultArg (episode.Explicit |> Option.map string) ""
+          ChapterSource      = if   Option.isSome episode.Chapters    then "internal"
+                               elif Option.isSome episode.ChapterFile then "external"
+                               else "none"
           ChapterFile        = defaultArg episode.ChapterFile ""
           ChapterType        = defaultArg episode.ChapterType ""
           ContainsWaypoints  = defaultArg episode.ChapterWaypoints false
@@ -773,10 +779,19 @@ type EditPostModel = {
                             ImageUrl           = noneIfBlank this.ImageUrl
                             Subtitle           = noneIfBlank this.Subtitle
                             Explicit           = noneIfBlank this.Explicit |> Option.map ExplicitRating.Parse
-                            Chapters           = match post.Episode with Some e -> e.Chapters | None -> None
-                            ChapterFile        = noneIfBlank this.ChapterFile
-                            ChapterType        = noneIfBlank this.ChapterType
-                            ChapterWaypoints   = if this.ContainsWaypoints then Some true else None
+                            Chapters           = if this.ChapterSource = "internal" then
+                                                     match post.Episode with
+                                                     | Some e when Option.isSome e.Chapters -> e.Chapters
+                                                     | Some _
+                                                     | None -> Some []
+                                                 else None
+                            ChapterFile        = if this.ChapterSource = "external" then noneIfBlank this.ChapterFile
+                                                 else None
+                            ChapterType        = if this.ChapterSource = "external" then noneIfBlank this.ChapterType
+                                                 else None
+                            ChapterWaypoints   = if this.ChapterSource = "none" then None
+                                                 elif this.ContainsWaypoints then Some true
+                                                 else None
                             TranscriptUrl      = noneIfBlank this.TranscriptUrl
                             TranscriptType     = noneIfBlank this.TranscriptType
                             TranscriptLang     = noneIfBlank this.TranscriptLang

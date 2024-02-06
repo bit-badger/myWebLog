@@ -621,7 +621,7 @@ let editPostModelTests = testList "EditPostModel" [
                        ImageUrl           = Some "uploads/podcast-cover.jpg"
                        Subtitle           = Some "Narration"
                        Explicit           = Some Clean
-                       Chapters           = None // for future implementation 
+                       Chapters           = None 
                        ChapterFile        = Some "uploads/1970/01/chapters.txt"
                        ChapterType        = Some "chapters"
                        ChapterWaypoints   = Some true
@@ -661,6 +661,7 @@ let editPostModelTests = testList "EditPostModel" [
             Expect.equal model.ImageUrl "" "ImageUrl not filled properly"
             Expect.equal model.Subtitle "" "Subtitle not filled properly"
             Expect.equal model.Explicit "" "Explicit not filled properly"
+            Expect.equal model.ChapterSource "none" "ChapterSource not filled properly"
             Expect.equal model.ChapterFile "" "ChapterFile not filled properly"
             Expect.equal model.ChapterType "" "ChapterType not filled properly"
             Expect.isFalse model.ContainsWaypoints "ContainsWaypoints should not have been set"
@@ -673,7 +674,7 @@ let editPostModelTests = testList "EditPostModel" [
             Expect.equal model.EpisodeNumber "" "EpisodeNumber not filled properly"
             Expect.equal model.EpisodeDescription "" "EpisodeDescription not filled properly"
         }
-        test "succeeds for full post" {
+        test "succeeds for full post with external chapters" {
             let model = EditPostModel.FromPost { WebLog.Empty with TimeZone = "Etc/GMT+1" } fullPost
             Expect.equal model.PostId "a-post" "PostId not filled properly"
             Expect.equal model.Title "A Post" "Title not filled properly"
@@ -704,6 +705,7 @@ let editPostModelTests = testList "EditPostModel" [
             Expect.equal model.ImageUrl "uploads/podcast-cover.jpg" "ImageUrl not filled properly"
             Expect.equal model.Subtitle "Narration" "Subtitle not filled properly"
             Expect.equal model.Explicit "clean" "Explicit not filled properly"
+            Expect.equal model.ChapterSource "external" "ChapterSource not filled properly"
             Expect.equal model.ChapterFile "uploads/1970/01/chapters.txt" "ChapterFile not filled properly"
             Expect.equal model.ChapterType "chapters" "ChapterType not filled properly"
             Expect.isTrue model.ContainsWaypoints "ContainsWaypoints should have been set"
@@ -715,6 +717,19 @@ let editPostModelTests = testList "EditPostModel" [
             Expect.equal model.SeasonDescription "Season Three" "SeasonDescription not filled properly"
             Expect.equal model.EpisodeNumber "322" "EpisodeNumber not filled properly"
             Expect.equal model.EpisodeDescription "Episode 322" "EpisodeDescription not filled properly"
+        }
+        test "succeeds for full post with internal chapters" {
+            let model =
+                EditPostModel.FromPost
+                    { WebLog.Empty with TimeZone = "Etc/GMT+1" }
+                    { fullPost with
+                        Episode =
+                            Some
+                                { fullPost.Episode.Value with
+                                    Chapters    = Some []
+                                    ChapterFile = None
+                                    ChapterType = None } } 
+            Expect.equal model.ChapterSource "internal" "ChapterSource not filled properly"
         }
     ]
     testList "IsNew" [
@@ -747,6 +762,7 @@ let editPostModelTests = testList "EditPostModel" [
             ImageUrl           = "updated-cover.png"
             Subtitle           = "Talking"
             Explicit           = "no"
+            ChapterSource      = "external" 
             ChapterFile        = "updated-chapters.txt"
             ChapterType        = "indexes"
             TranscriptUrl      = "updated-transcript.txt"
@@ -787,6 +803,7 @@ let editPostModelTests = testList "EditPostModel" [
             Expect.equal ep.ImageUrl (Some "updated-cover.png") "ImageUrl not filled properly"
             Expect.equal ep.Subtitle (Some "Talking") "Subtitle not filled properly"
             Expect.equal ep.Explicit (Some No) "ExplicitRating not filled properly"
+            Expect.isNone ep.Chapters "Chapters should have had no value"
             Expect.equal ep.ChapterFile (Some "updated-chapters.txt") "ChapterFile not filled properly"
             Expect.equal ep.ChapterType (Some "indexes") "ChapterType not filled properly"
             Expect.equal ep.ChapterWaypoints (Some true) "ChapterWaypoints should have been set"
@@ -839,6 +856,32 @@ let editPostModelTests = testList "EditPostModel" [
             Expect.isNone ep.SeasonDescription "SeasonDescription not filled properly"
             Expect.isNone ep.EpisodeNumber "EpisodeNumber not filled properly"
             Expect.isNone ep.EpisodeDescription "EpisodeDescription not filled properly"
+        }
+        test "succeeds for a podcast episode with internal chapters" {
+            let minModel =
+                { updatedModel with
+                    ChapterSource = "internal" 
+                    ChapterFile   = ""
+                    ChapterType   = "" }
+            let post = minModel.UpdatePost fullPost (Noda.epoch + Duration.FromDays 500)
+            Expect.isSome post.Episode "There should have been a podcast episode"
+            let ep = post.Episode.Value
+            Expect.equal ep.Chapters (Some []) "Chapters not filled properly"
+            Expect.isNone ep.ChapterFile "ChapterFile not filled properly"
+            Expect.isNone ep.ChapterType "ChapterType not filled properly"
+        }
+        test "succeeds for a podcast episode with no chapters" {
+            let minModel = { updatedModel with ChapterSource = "none" }
+            let post =
+                minModel.UpdatePost
+                    { fullPost with Episode = Some { fullPost.Episode.Value with Chapters = Some [] } }
+                    (Noda.epoch + Duration.FromDays 500)
+            Expect.isSome post.Episode "There should have been a podcast episode"
+            let ep = post.Episode.Value
+            Expect.isNone ep.Chapters "Chapters not filled properly"
+            Expect.isNone ep.ChapterFile "ChapterFile not filled properly"
+            Expect.isNone ep.ChapterType "ChapterType not filled properly"
+            Expect.isNone ep.ChapterWaypoints "ChapterWaypoints not filled properly"
         }
         test "succeeds for no podcast episode and no template" {
             let post = { updatedModel with IsEpisode = false; Template = "" }.UpdatePost fullPost Noda.epoch

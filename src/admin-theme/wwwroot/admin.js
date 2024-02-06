@@ -213,14 +213,36 @@ this.Admin = {
   },
 
   /**
+   * Set the chapter type for a podcast episode
+   * @param {"none"|"internal"|"external"} src The source for chapters for this episode
+   */
+  setChapterSource(src) {
+    document.getElementById("containsWaypoints").disabled = src === "none"
+    const isDisabled = src === "none" || src === "internal"
+    const chapterFile = document.getElementById("chapterFile")
+    chapterFile.disabled = isDisabled
+    chapterFile.required = !isDisabled
+    document.getElementById("chapterType").disabled = isDisabled
+    const link = document.getElementById("chapterEditLink")
+    if (link) link.style.display = src === "none" || src === "external" ? "none" : ""
+  },
+  
+  /**
    * Enable or disable podcast fields
    */
   toggleEpisodeFields() {
     const disabled = !document.getElementById("isEpisode").checked
-    ;[ "media", "mediaType", "length", "duration", "subtitle", "imageUrl", "explicit", "chapterFile", "chapterType",
-       "transcriptUrl", "transcriptType", "transcriptLang", "transcriptCaptions", "seasonNumber", "seasonDescription",
-       "episodeNumber", "episodeDescription"
-    ].forEach(it => document.getElementById(it).disabled = disabled)
+    let fields = [
+      "media", "mediaType", "length", "duration", "subtitle", "imageUrl", "explicit", "transcriptUrl", "transcriptType",
+      "transcriptLang", "transcriptCaptions", "seasonNumber", "seasonDescription", "episodeNumber", "episodeDescription"
+    ]
+    if (disabled) {
+      fields.push("chapterFile", "chapterType", "containsWaypoints")
+    } else {
+      const src = [...document.getElementsByName("ChapterSource")].filter(it => it.checked)[0].value
+      this.setChapterSource(src)
+    }
+    fields.forEach(it => document.getElementById(it).disabled = disabled)
   },
   
   /**

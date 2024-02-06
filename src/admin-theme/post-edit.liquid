@@ -109,11 +109,41 @@
               </div>
               <div class=row>
                 <div class="col-12 col-md-8 pb-3">
+                  <div class="form-text">Chapters</div>
+                  <div class="form-check form-check-inline">
+                    <input type=radio name=ChapterSource id=chapterSourceNone value=none
+                           class=form-check-input{% if model.chapter_source == "none" %} checked{% endif %}
+                           onclick="Admin.setChapterSource('none')">
+                    <label for=chapterSourceNone>None</label>
+                  </div>
+                  <div class="form-check form-check-inline">
+                    <input type=radio name=ChapterSource id=chapterSourceInternal value=internal
+                           class=form-check-input{% if model.chapter_source == "internal" %} checked{% endif %}
+                           onclick="Admin.setChapterSource('internal')">
+                    <label for=chapterSourceInternal>Defined Here</label>
+                  </div>
+                  <div class="form-check form-check-inline">
+                    <input type=radio name=ChapterSource id=chapterSourceExternal value=none
+                           class=form-check-input{% if model.chapter_source == "external" %} checked{% endif %}
+                           onclick="Admin.setChapterSource('external')">
+                    <label for=chapterSourceExternal>Separate File</label>
+                  </div>
+                </div>
+                <div class="col-md-4 d-flex justify-content-center">
+                  <div class="form-check form-switch align-self-center pb-3">
+                    <input type=checkbox name=ContainsWaypoints id=containsWaypoints class=form-check-input
+                           value=true{% if model.contains_waypoints %} checked{% endif %}>
+                    <label for=containsWaypoints>Chapters contain waypoints</label>
+                  </div>
+                </div>
+              </div>
+              <div class=row>
+                <div class="col-12 col-md-8 pb-3">
                   <div class=form-floating>
                     <input type=text name=ChapterFile id=chapterFile class=form-control placeholder="Chapter File"
                            value="{{ model.chapter_file }}">
                     <label for=chapterFile>Chapter File</label>
-                    <div class=form-text>Optional; relative URL served from this web log</div>
+                    <div class=form-text>Relative URL served from this web log</div>
                   </div>
                 </div>
                 <div class="col-12 col-md-4 pb-3">
