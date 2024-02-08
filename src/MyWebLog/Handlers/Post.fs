@@ -371,6 +371,21 @@ let deleteRevision (postId, revDate) : HttpHandler = requireAccess Author >=> fu
     | _, None -> return! Error.notFound next ctx
 }
 
+// GET /admin/post/{id}/chapters
+let chapters postId : HttpHandler = requireAccess Author >=> fun next ctx -> task {
+    match! ctx.Data.Post.FindById (PostId postId) ctx.WebLog.Id with
+    | Some post
+        when    Option.isSome post.Episode
+             && Option.isSome post.Episode.Value.Chapters
+             && canEdit post.AuthorId ctx ->
+        return!
+            hashForPage "Manage Chapters"
+            |> withAntiCsrf ctx
+            |> addToHash ViewContext.Model (ManageChaptersModel.Create post)
+            |> adminView "chapters" next ctx
+    | Some _ | None -> return! Error.notFound next ctx
+}
+
 // POST /admin/post/save
 let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     let! model   = ctx.BindFormAsync<EditPostModel>()

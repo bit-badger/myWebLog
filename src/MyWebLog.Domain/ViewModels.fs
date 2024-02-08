@@ -3,6 +3,7 @@
 open System
 open MyWebLog
 open NodaTime
+open NodaTime.Text
 
 /// Helper functions for view models
 [<AutoOpen>]
@@ -70,6 +71,45 @@ type DisplayCategory = {
     /// The number of posts in this category
     PostCount: int
 }
+
+/// A display version of an episode chapter
+type DisplayChapter = {
+    /// The start time of the chapter (HH:MM:SS.FF format)
+    StartTime: string
+    
+    /// The title of the chapter
+    Title: string
+    
+    /// An image to display for this chapter
+    ImageUrl: string
+    
+    /// Whether this chapter should be displayed in podcast players
+    IsHidden: bool
+    
+    /// The end time of the chapter (HH:MM:SS.FF format)
+    EndTime: string
+    
+    /// The name of a location
+    LocationName: string
+    
+    /// The geographic coordinates of the location
+    LocationGeo: string
+    
+    /// An OpenStreetMap query for this location
+    LocationOsm: string
+} with
+
+    /// Create a display chapter from a chapter
+    static member FromChapter (chapter: Chapter) =
+        let pattern = DurationPattern.CreateWithInvariantCulture("H:mm:ss.ff")
+        { StartTime    = pattern.Format(chapter.StartTime)
+          Title        = defaultArg chapter.Title ""
+          ImageUrl     = defaultArg chapter.ImageUrl ""
+          IsHidden     = defaultArg chapter.IsHidden false
+          EndTime      = chapter.EndTime  |> Option.map pattern.Format |> Option.defaultValue ""
+          LocationName = chapter.Location |> Option.map (fun l -> l.Name) |> Option.defaultValue ""
+          LocationGeo  = chapter.Location |> Option.map (fun l -> l.Geo) |> Option.flatten |> Option.defaultValue ""
+          LocationOsm  = chapter.Location |> Option.map (fun l -> l.Osm) |> Option.flatten |> Option.defaultValue "" }
 
 
 /// A display version of a custom feed definition
@@ -983,6 +1023,25 @@ type LogOnModel = {
     static member Empty =
         { EmailAddress = ""; Password = ""; ReturnTo = None }
 
+
+/// View model to manage chapters
+[<CLIMutable; NoComparison; NoEquality>]
+type ManageChaptersModel = {
+    /// The post ID for the chapters being edited
+    Id: string
+    
+    /// The title of the post for which chapters are being edited
+    Title: string
+    
+    Chapters: Chapter array
+} with
+    
+    /// Create a model from a post and its episode's chapters
+    static member Create (post: Post) =
+        { Id       = string post.Id
+          Title    = post.Title
+          Chapters = Array.ofList post.Episode.Value.Chapters.Value }
+    
 
 /// View model to manage permalinks
 [<CLIMutable; NoComparison; NoEquality>]

@@ -129,6 +129,7 @@ let router : HttpHandler = choose [
                 routef "/%s/permalinks"              Post.editPermalinks
                 routef "/%s/revision/%s/preview"     Post.previewRevision
                 routef "/%s/revisions"               Post.editRevisions
+                routef "/%s/chapters"                Post.chapters
             ])
             subRoute "/settings" (requireAccess WebLogAdmin >=> choose [
                 route    ""             >=> Admin.WebLog.settings

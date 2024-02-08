@@ -1,0 +1,38 @@
+<h2 class=my-3>{{ page_title }}</h2>
+<article>
+  <form method=post hx-target=body>
+    <input type=hidden name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
+    <input type=hidden name=Id value="{{ model.id }}">
+    <div class="container mb-3">
+      <div class=row>
+        <div class=col>
+          <p style="line-height:1.2rem;">
+            <strong>{{ model.title }}</strong><br>
+            <small class=text-muted>
+              <a href="{{ "admin/post/" | append: model.id | append: "/edit" | relative_link }}">
+                &laquo; Back to Edit Post
+              </a>
+            </small>
+        </div>
+      </div>
+      <div class="row mwl-table-heading">
+        <div class=col>Start</div>
+        <div class=col>Title</div>
+        <div class=col>Image?</div>
+        <div class=col>Location?</div>
+      </div>
+      {% for chapter in model.chapters %}
+        <div class="row pb-3 mwl-table-detail">
+          <div class=col>{{ chapter.start_time }}</div>
+          <div class=col>{{ chapter.title }}</div>
+          <div class=col>{% if chapter.image_url == "" %}N{% else %}Y{% endif %}</div>
+          <div class=col>{% if chapter.location %}Y{% else %}N{% endif %}</div>
+        </div>
+      {% endfor %}
+      <div class="row pb-3 mwl-table-detail" id=chapter_new>
+        {% assign new_link = "admin/post/" | append: model.id | append: "/chapter/new" | relative_link %}
+        <a href="{{ new_link }}" hx-get="{{ new_link }}" hx-target=#chapter_new>Add a New Chapter</a>
+      </div>
+    </div>
+  </form>
+</article>
