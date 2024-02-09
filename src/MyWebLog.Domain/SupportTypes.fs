@@ -190,7 +190,16 @@ type Chapter = {
 
     /// A location that applies to a chapter
     Location: Location option
-}
+} with
+    
+    /// An empty chapter
+    static member Empty =
+        { StartTime = Duration.Zero
+          Title     = None
+          ImageUrl  = None
+          IsHidden  = None
+          EndTime   = None
+          Location  = None }
 
 
 open NodaTime.Text

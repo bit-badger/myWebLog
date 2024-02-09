@@ -1,6 +1,6 @@
 <h2 class=my-3>{{ page_title }}</h2>
 <article>
-  <form method=post hx-target=body>
+  <form method=post id=chapter_list hx-target=body>
     <input type=hidden name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
     <input type=hidden name=Id value="{{ model.id }}">
     <div class="container mb-3">
@@ -29,9 +29,9 @@
           <div class=col>{% if chapter.location %}Y{% else %}N{% endif %}</div>
         </div>
       {% endfor %}
-      <div class="row pb-3 mwl-table-detail" id=chapter_new>
-        {% assign new_link = "admin/post/" | append: model.id | append: "/chapter/new" | relative_link %}
-        <a href="{{ new_link }}" hx-get="{{ new_link }}" hx-target=#chapter_new>Add a New Chapter</a>
+      <div class="row pb-3" id=chapter_new>
+        {% assign new_link = "admin/post/" | append: model.id | append: "/chapter/-1" | relative_link %}
+        <a class="btn btn-primary" href="{{ new_link }}" hx-get="{{ new_link }}" hx-target=#chapter_new>Add a New Chapter</a>
       </div>
     </div>
   </form>

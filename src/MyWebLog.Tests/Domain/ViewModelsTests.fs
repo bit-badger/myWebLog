@@ -33,6 +33,39 @@ let addBaseToRelativeUrlsTests = testList "PublicHelpers.addBaseToRelativeUrls" 
     }
 ]
 
+/// Unit tests for the DisplayChapter type
+let displayChapterTests = testList "DisplayChapter.FromChapter" [
+    test "succeeds for a minimally-filled chapter" {
+        let chapter = DisplayChapter.FromChapter { Chapter.Empty with StartTime = Duration.FromSeconds 322L }
+        Expect.equal chapter.StartTime "0:05:22" "Start time not filled/formatted properly"
+        Expect.equal chapter.Title "" "Title not filled properly"
+        Expect.equal chapter.ImageUrl "" "Image URL not filled properly"
+        Expect.isFalse chapter.IsHidden "Is hidden flag not filled properly"
+        Expect.equal chapter.EndTime "" "End time not filled properly"
+        Expect.equal chapter.LocationName "" "Location name not filled properly"
+        Expect.equal chapter.LocationGeo "" "Location geo URL not filled properly"
+        Expect.equal chapter.LocationOsm "" "Location OSM query not filled properly"
+    }
+    test "succeeds for a fully-filled chapter" {
+        let chapter =
+            DisplayChapter.FromChapter
+                { StartTime = Duration.FromSeconds 7201.43242
+                  Title     = Some "My Test Chapter"
+                  ImageUrl  = Some "two-hours-in.jpg"
+                  IsHidden  = Some true
+                  EndTime   = Some (Duration.FromSeconds 7313.788)
+                  Location  = Some { Name = "Over Here"; Geo = Some "geo:23432"; Osm = Some "SF98fFSu-8" } }
+        Expect.equal chapter.StartTime "2:00:01.43" "Start time not filled/formatted properly"
+        Expect.equal chapter.Title "My Test Chapter" "Title not filled properly"
+        Expect.equal chapter.ImageUrl "two-hours-in.jpg" "Image URL not filled properly"
+        Expect.isTrue chapter.IsHidden "Is hidden flag not filled properly"
+        Expect.equal chapter.EndTime "2:01:53.78" "End time not filled/formatted properly"
+        Expect.equal chapter.LocationName "Over Here" "Location name not filled properly"
+        Expect.equal chapter.LocationGeo "geo:23432" "Location geo URL not filled properly"
+        Expect.equal chapter.LocationOsm "SF98fFSu-8" "Location OSM query not filled properly"
+    }
+]
+
 /// Unit tests for the DisplayCustomFeed type
 let displayCustomFeedTests = testList "DisplayCustomFeed.FromFeed" [
     test "succeeds for a feed for an existing category" {
@@ -1071,6 +1104,29 @@ let editUserModelTests = testList "EditUserModel" [
     ]
 ]
 
+/// Unit tests for the ManageChaptersModel type
+let manageChaptersModelTests = testList "ManageChaptersModel.Create" [
+    test "succeeds" {
+        let model =
+            ManageChaptersModel.Create
+                { Post.Empty with
+                    Id      = PostId "test-post"
+                    Title   = "Look at all these chapters"
+                    Episode = Some
+                        { Episode.Empty with
+                            Chapters = Some
+                                [ { Chapter.Empty with StartTime = Duration.FromSeconds 18L }
+                                  { Chapter.Empty with StartTime = Duration.FromSeconds 36L }
+                                  { Chapter.Empty with StartTime = Duration.FromSeconds 180.7 } ] } }
+        Expect.equal model.Id "test-post" "ID not filled properly"
+        Expect.equal model.Title "Look at all these chapters" "Title not filled properly"
+        Expect.hasLength model.Chapters 3 "There should be three chapters"
+        Expect.equal model.Chapters[0].StartTime "0:00:18" "First chapter not filled properly"
+        Expect.equal model.Chapters[1].StartTime "0:00:36" "Second chapter not filled properly"
+        Expect.equal model.Chapters[2].StartTime "0:03:00.7" "Third chapter not filled properly"
+    }
+]
+
 /// Unit tests for the ManagePermalinksModel type
 let managePermalinksModelTests = testList "ManagePermalinksModel" [
     test "FromPage succeeds" {
@@ -1285,6 +1341,7 @@ let userMessageTests = testList "UserMessage" [
 /// All tests in the Domain.ViewModels file
 let all = testList "ViewModels" [
     addBaseToRelativeUrlsTests
+    displayChapterTests
     displayCustomFeedTests
     displayPageTests
     displayRevisionTests
@@ -1300,6 +1357,7 @@ let all = testList "ViewModels" [
     editRssModelTests
     editTagMapModelTests
     editUserModelTests
+    manageChaptersModelTests
     managePermalinksModelTests
     manageRevisionsModelTests
     postListItemTests

@@ -72,9 +72,10 @@ type DisplayCategory = {
     PostCount: int
 }
 
+
 /// A display version of an episode chapter
 type DisplayChapter = {
-    /// The start time of the chapter (HH:MM:SS.FF format)
+    /// The start time of the chapter (H:mm:ss.FF format)
     StartTime: string
     
     /// The title of the chapter
@@ -86,7 +87,7 @@ type DisplayChapter = {
     /// Whether this chapter should be displayed in podcast players
     IsHidden: bool
     
-    /// The end time of the chapter (HH:MM:SS.FF format)
+    /// The end time of the chapter (H:mm:ss.FF format)
     EndTime: string
     
     /// The name of a location
@@ -101,15 +102,15 @@ type DisplayChapter = {
 
     /// Create a display chapter from a chapter
     static member FromChapter (chapter: Chapter) =
-        let pattern = DurationPattern.CreateWithInvariantCulture("H:mm:ss.ff")
-        { StartTime    = pattern.Format(chapter.StartTime)
+        let pattern = DurationPattern.CreateWithInvariantCulture "H:mm:ss.FF"
+        { StartTime    = pattern.Format chapter.StartTime
           Title        = defaultArg chapter.Title ""
           ImageUrl     = defaultArg chapter.ImageUrl ""
           IsHidden     = defaultArg chapter.IsHidden false
-          EndTime      = chapter.EndTime  |> Option.map pattern.Format |> Option.defaultValue ""
-          LocationName = chapter.Location |> Option.map (fun l -> l.Name) |> Option.defaultValue ""
-          LocationGeo  = chapter.Location |> Option.map (fun l -> l.Geo) |> Option.flatten |> Option.defaultValue ""
-          LocationOsm  = chapter.Location |> Option.map (fun l -> l.Osm) |> Option.flatten |> Option.defaultValue "" }
+          EndTime      = chapter.EndTime  |> Option.map pattern.Format          |> Option.defaultValue ""
+          LocationName = chapter.Location |> Option.map _.Name                  |> Option.defaultValue ""
+          LocationGeo  = chapter.Location |> Option.map _.Geo |> Option.flatten |> Option.defaultValue ""
+          LocationOsm  = chapter.Location |> Option.map _.Osm |> Option.flatten |> Option.defaultValue "" }
 
 
 /// A display version of a custom feed definition
@@ -358,6 +359,78 @@ type EditCategoryModel = {
     /// Is this a new category?
     member this.IsNew =
         this.CategoryId = "new"
+
+
+/// View model to add/edit an episode chapter
+type EditChapterModel = {
+    /// The ID of the post to which the chapter belongs
+    PostId: string
+    
+    /// The index in the chapter list (-1 means new)
+    Index: int
+    
+    /// The start time of the chapter (H:mm:ss.FF format)
+    StartTime: string
+    
+    /// The title of the chapter
+    Title: string
+    
+    /// An image to display for this chapter
+    ImageUrl: string
+    
+    /// Whether this chapter should be displayed in podcast players
+    IsHidden: bool
+    
+    /// The end time of the chapter (HH:MM:SS.FF format)
+    EndTime: string
+    
+    /// The name of a location
+    LocationName: string
+    
+    /// The geographic coordinates of the location
+    LocationGeo: string
+    
+    /// An OpenStreetMap query for this location
+    LocationOsm: string
+} with
+
+    /// Create a display chapter from a chapter
+    static member FromChapter (postId: PostId) idx chapter =
+        let it = DisplayChapter.FromChapter chapter
+        { PostId       = string postId
+          Index        = idx
+          StartTime    = it.StartTime
+          Title        = it.Title
+          ImageUrl     = it.ImageUrl
+          IsHidden     = it.IsHidden
+          EndTime      = it.EndTime
+          LocationName = it.LocationName
+          LocationGeo  = it.LocationGeo
+          LocationOsm  = it.LocationOsm }
+    
+    /// Create a chapter from the values in this model
+    member this.ToChapter () =
+        let parseDuration name value =
+            let pattern =
+                match value |> Seq.fold (fun count chr -> if chr = ':' then count + 1 else count) 0 with
+                | 0 -> "S"
+                | 1 -> "MM:ss"
+                | 2 -> "H:mm:ss"
+                | _ -> invalidArg name "Max time format is H:mm:ss"
+                |> function
+                | it -> DurationPattern.CreateWithInvariantCulture $"{it}.FFFFFFFFF"
+            let result = pattern.Parse value
+            if result.Success then result.Value else raise result.Exception
+        let location =
+            match noneIfBlank this.LocationName with
+            | None -> None
+            | Some name -> Some { Name = name; Geo = noneIfBlank this.LocationGeo; Osm = noneIfBlank this.LocationOsm }
+        { StartTime = parseDuration (nameof this.StartTime) this.StartTime
+          Title     = noneIfBlank this.Title
+          ImageUrl  = noneIfBlank this.ImageUrl
+          IsHidden  = if this.IsHidden then Some true else None
+          EndTime   = noneIfBlank this.EndTime |> Option.map (parseDuration (nameof this.EndTime))
+          Location  = location }
 
 
 /// View model to edit a custom RSS feed
@@ -1033,14 +1106,15 @@ type ManageChaptersModel = {
     /// The title of the post for which chapters are being edited
     Title: string
     
-    Chapters: Chapter array
+    /// The chapters for the post
+    Chapters: DisplayChapter array
 } with
     
     /// Create a model from a post and its episode's chapters
     static member Create (post: Post) =
         { Id       = string post.Id
           Title    = post.Title
-          Chapters = Array.ofList post.Episode.Value.Chapters.Value }
+          Chapters = post.Episode.Value.Chapters.Value |> List.map DisplayChapter.FromChapter |> Array.ofList }
     
 
 /// View model to manage permalinks

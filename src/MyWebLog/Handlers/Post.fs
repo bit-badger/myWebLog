@@ -386,6 +386,29 @@ let chapters postId : HttpHandler = requireAccess Author >=> fun next ctx -> tas
     | Some _ | None -> return! Error.notFound next ctx
 }
 
+// GET /admin/post/{id}/chapter/{idx}
+let editChapter (postId, index) : HttpHandler = requireAccess Author >=> fun next ctx -> task {
+    match! ctx.Data.Post.FindById (PostId postId) ctx.WebLog.Id with
+    | Some post
+        when    Option.isSome post.Episode
+             && Option.isSome post.Episode.Value.Chapters
+             && canEdit post.AuthorId ctx ->
+        let chapter =
+            if index = -1 then Some Chapter.Empty
+            else
+                let chapters = post.Episode.Value.Chapters.Value
+                if index < List.length chapters then Some chapters[index] else None
+        match chapter with
+        | Some chap ->
+            return!
+                hashForPage (if index = -1 then "Add a Chapter" else "Edit Chapter")
+                |> withAntiCsrf ctx
+                |> addToHash ViewContext.Model (EditChapterModel.FromChapter post.Id index chap)
+                |> adminBareView "chapter-edit" next ctx
+        | None -> return! Error.notFound next ctx
+    | Some _ | None -> return! Error.notFound next ctx
+}
+
 // POST /admin/post/save
 let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     let! model   = ctx.BindFormAsync<EditPostModel>()
