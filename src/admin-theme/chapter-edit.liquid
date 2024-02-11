@@ -1,7 +1,9 @@
 <h3 class=my-3>{% if model.index < 0 %}Add{% else %}Edit{% endif %} Chapter</h3>
 <p class=form-text>Times may be entered as seconds; minutes and seconds; or hours, minutes and seconds. Fractional
   seconds are supported to two decimal places.
-<form method=post hx-target=#chapter_list class=container>
+{% assign post_url = "admin/post/" | append: model.post_id | append: "/chapter/" | append: model.index | relative_link %}
+<form method=post action="{{ post_url }}" hx-post="{{ post_url }}" hx-target=#chapter_list class=container>
+  <input type=hidden name="{{ csrf.form_field_name }}" value="{{ csrf.request_token }}">
   <input type=hidden name=PostId value="{{ model.post_id }}">
   <input type=hidden name=Index value={{ model.index }}>
   <div class=row>
@@ -45,24 +47,25 @@
     </div>
   </div>
   <div class=row>
+    {%- if model.location_name != "" -%}{% assign has_loc = true %}{% else %}{% assign has_loc = false %}{% endif -%}
     <div class="col-12 col-md-4 col-lg-3 offset-lg-1 mb-3 align-self-end">
       <div class="form-check form-switch mb-3">
-        <input type=checkbox id=has_location class=form-check-input value=true
-               {%- if model.location_name != "" %} checked{% endif %}>
+        <input type=checkbox id=has_location class=form-check-input value=true{% if has_loc %} checked{% endif %}
+               onclick="Admin.checkChapterLocation()">
         <label for=has_location>Associate Location</label>
       </div>
     </div>
     <div class="col-12 col-md-8 col-lg-6 offset-lg-1 mb-3">
       <div class=form-floating>
         <input type=text id=location_name name=LocationName class=form-control value="{{ model.location_name }}"
-               placeholder="Location Name">
+               placeholder="Location Name" required{% unless has_loc %} disabled{% endunless %}>
         <label for=location_name>Name</label>
       </div>
     </div>
     <div class="col-6 col-lg-4 offset-lg-2 mb-3">
       <div class=form-floating>
         <input type=text id=location_geo name=LocationGeo class=form-control value="{{ model.location_geo }}"
-               placeholder="Location Geo URL">
+               placeholder="Location Geo URL"{% unless has_loc %} disabled{% endunless %}>
         <label for=location_geo>Geo URL</label>
         <em class=form-text>
           Optional;
@@ -74,7 +77,7 @@
     <div class="col-6 col-lg-4 mb-3">
       <div class=form-floating>
         <input type=text id=location_osm name=LocationOsm class=form-control value="{{ model.location_osm }}"
-               placeholder="Location OSM Query">
+               placeholder="Location OSM Query"{% unless has_loc %} disabled{% endunless %}>
         <label for=location_osm>OpenStreetMap ID</label>
         <em class=form-text>
           Optional; <a href="https://www.openstreetmap.org/" target="_blank" rel="noopener">get ID</a>, 
@@ -87,11 +90,14 @@
   <div class=row>
     <div class=col>
       {% if model.index < 0 -%}
-        <button type=submit class="btn btn-primary">Add + New Chapter</button>
-        <button type=button class="btn btn-secondary">Save</button>
+        <div class="form-check form-switch mb-3">
+          <input type=checkbox id=add_another name=AddAnother class=form-check-input value=true checked>
+          <label for=add_another>Add Another New Chapter</label>
+        </div>
       {% else -%}
-        <button type=submit class="btn btn-primary">Save</button>
+        <input type=hidden name=AddAnother value=false>
       {% endif %}
+      <button type=submit class="btn btn-primary">Save</button>
       {% assign cancel_link = "admin/post/" | append: model.post_id | append: "/chapters" | relative_link %}
       <a href="{{ cancel_link }}" hx-get="{{ cancel_link }}" class="btn btn-secondary" hx-target=body>Cancel</a>
     </div>

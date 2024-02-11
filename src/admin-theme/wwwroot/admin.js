@@ -306,6 +306,18 @@ this.Admin = {
   },
 
   /**
+   * Enable/disable fields based on whether chapter location checkbox is checked
+   */
+  checkChapterLocation() {
+    const isDisabled = !document.getElementById("has_location").checked
+    ;["location_name", "location_geo", "location_osm"].forEach(it => {
+      const elt = document.getElementById(it)
+      elt.disabled = isDisabled
+      if (isDisabled) elt.value = ""
+    })
+  },
+
+  /**
    * Show messages that may have come with an htmx response
    * @param {string} messages The messages from the response
    */

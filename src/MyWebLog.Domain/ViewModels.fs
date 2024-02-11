@@ -392,6 +392,9 @@ type EditChapterModel = {
     
     /// An OpenStreetMap query for this location
     LocationOsm: string
+    
+    /// Whether to add another chapter after adding this one
+    AddAnother: bool
 } with
 
     /// Create a display chapter from a chapter
@@ -406,7 +409,8 @@ type EditChapterModel = {
           EndTime      = it.EndTime
           LocationName = it.LocationName
           LocationGeo  = it.LocationGeo
-          LocationOsm  = it.LocationOsm }
+          LocationOsm  = it.LocationOsm
+          AddAnother   = false }
     
     /// Create a chapter from the values in this model
     member this.ToChapter () =
