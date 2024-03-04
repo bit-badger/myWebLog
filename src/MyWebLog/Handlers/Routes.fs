@@ -178,6 +178,7 @@ let router : HttpHandler = choose [
             subRoute "/post" (choose [
                 route  "/save"                   >=> Post.save
                 route  "/permalinks"             >=> Post.savePermalinks
+                routef "/%s/chapter/%i"              Post.saveChapter
                 routef "/%s/delete"                  Post.delete
                 routef "/%s/revision/%s/delete"      Post.deleteRevision
                 routef "/%s/revision/%s/restore"     Post.restoreRevision

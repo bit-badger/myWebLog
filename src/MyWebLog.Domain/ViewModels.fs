@@ -362,6 +362,7 @@ type EditCategoryModel = {
 
 
 /// View model to add/edit an episode chapter
+[<CLIMutable; NoComparison; NoEquality>]
 type EditChapterModel = {
     /// The ID of the post to which the chapter belongs
     PostId: string

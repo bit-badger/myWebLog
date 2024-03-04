@@ -409,6 +409,37 @@ let editChapter (postId, index) : HttpHandler = requireAccess Author >=> fun nex
     | Some _ | None -> return! Error.notFound next ctx
 }
 
+// POST /admin/post/{id}/chapter/{idx}
+let saveChapter (postId, index) : HttpHandler = requireAccess Author >=> fun next ctx -> task {
+    let data = ctx.Data
+    match! data.Post.FindById (PostId postId) ctx.WebLog.Id with
+    | Some post
+        when    Option.isSome post.Episode
+             && Option.isSome post.Episode.Value.Chapters
+             && canEdit post.AuthorId ctx ->
+        let! form     = ctx.BindFormAsync<EditChapterModel>()
+        let  chapters = post.Episode.Value.Chapters.Value
+        if index = -1 || (index >= 0 && index < List.length chapters) then
+            let updatedPost =
+                { post with
+                    Episode = Some {
+                      post.Episode.Value with
+                        Chapters =
+                            form.ToChapter() :: (if index = -1 then chapters else chapters |> List.removeAt index)
+                            |> List.sortBy _.StartTime
+                            |> Some } }
+            do! data.Post.Update updatedPost
+            do! addMessage ctx { UserMessage.Success with Message = "Chapter saved successfully" }
+            // TODO: handle "add another", only return chapter list vs. entire page with title
+            return!
+                hashForPage "Manage Chapters"
+                |> withAntiCsrf ctx
+                |> addToHash ViewContext.Model (ManageChaptersModel.Create updatedPost)
+                |> adminView "chapters" next ctx
+        else return! Error.notFound next ctx
+    | Some _ | None -> return! Error.notFound next ctx
+}
+
 // POST /admin/post/save
 let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     let! model   = ctx.BindFormAsync<EditPostModel>()
