@@ -1,4 +1,4 @@
-module MyWebLog.AdminViews.Admin
+module MyWebLog.Views.Admin
 
 open Giraffe.ViewEngine
 open MyWebLog.ViewModels

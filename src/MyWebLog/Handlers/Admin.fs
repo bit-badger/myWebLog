@@ -27,7 +27,7 @@ module Dashboard =
               ListedPages        = listed
               Categories         = cats
               TopLevelCategories = topCats }
-        return! adminPage "Dashboard" false (AdminViews.Admin.dashboard model) next ctx
+        return! adminPage "Dashboard" false (Views.Admin.dashboard model) next ctx
     }
 
     // GET /admin/administration

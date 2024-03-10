@@ -1,4 +1,4 @@
-module MyWebLog.AdminViews.User
+module MyWebLog.Views.User
 
 open Giraffe.ViewEngine
 open Giraffe.ViewEngine.Htmx

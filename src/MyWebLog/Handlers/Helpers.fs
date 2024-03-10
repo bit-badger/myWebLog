@@ -3,8 +3,7 @@ module private MyWebLog.Handlers.Helpers
 
 open System.Text.Json
 open Microsoft.AspNetCore.Http
-open MyWebLog.AdminViews
-open MyWebLog.AdminViews.Helpers
+open MyWebLog.Views
 
 /// Session extensions to get and set objects
 type ISession with

@@ -419,7 +419,7 @@ type EditChapterModel = {
             let pattern =
                 match value |> Seq.fold (fun count chr -> if chr = ':' then count + 1 else count) 0 with
                 | 0 -> "S"
-                | 1 -> "MM:ss"
+                | 1 -> "M:ss"
                 | 2 -> "H:mm:ss"
                 | _ -> invalidArg name "Max time format is H:mm:ss"
                 |> function

@@ -1,5 +1,5 @@
 [<AutoOpen>]
-module MyWebLog.AdminViews.Helpers
+module MyWebLog.Views.Helpers
 
 open Microsoft.AspNetCore.Antiforgery
 open Giraffe.ViewEngine

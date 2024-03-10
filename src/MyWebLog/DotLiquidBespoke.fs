@@ -6,8 +6,8 @@ open System.IO
 open System.Web
 open DotLiquid
 open Giraffe.ViewEngine
-open MyWebLog.AdminViews.Helpers
 open MyWebLog.ViewModels
+open MyWebLog.Views
 
 /// Extensions on the DotLiquid Context object
 type Context with

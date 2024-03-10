@@ -379,7 +379,7 @@ let chapters postId : HttpHandler = requireAccess Author >=> fun next ctx -> tas
              && Option.isSome post.Episode.Value.Chapters
              && canEdit post.AuthorId ctx ->
         return!
-            adminPage "Manage Chapters" true (AdminViews.Post.chapters false (ManageChaptersModel.Create post)) next ctx
+            adminPage "Manage Chapters" true (Views.Post.chapters false (ManageChaptersModel.Create post)) next ctx
     | Some _ | None -> return! Error.notFound next ctx
 }
 
@@ -398,9 +398,9 @@ let editChapter (postId, index) : HttpHandler = requireAccess Author >=> fun nex
         match chapter with
         | Some chap ->
             return!
-                adminPage
+                adminBarePage
                     (if index = -1 then "Add a Chapter" else "Edit Chapter") true
-                    (AdminViews.Post.chapterEdit (EditChapterModel.FromChapter post.Id index chap)) next ctx
+                    (Views.Post.chapterEdit (EditChapterModel.FromChapter post.Id index chap)) next ctx
         | None -> return! Error.notFound next ctx
     | Some _ | None -> return! Error.notFound next ctx
 }
@@ -418,7 +418,7 @@ let saveChapter (postId, index) : HttpHandler = requireAccess Author >=> fun nex
         if index >= -1 && index < List.length chapters then
             try
                 let chapter     = form.ToChapter()
-                let existing    = if index = -1 then chapters else chapters |> List.removeAt index
+                let existing    = if index = -1 then chapters else List.removeAt index chapters
                 let updatedPost =
                     { post with
                         Episode = Some
@@ -429,9 +429,32 @@ let saveChapter (postId, index) : HttpHandler = requireAccess Author >=> fun nex
                 return!
                     adminPage
                         "Manage Chapters" true
-                        (AdminViews.Post.chapterList form.AddAnother (ManageChaptersModel.Create updatedPost)) next ctx
+                        (Views.Post.chapterList form.AddAnother (ManageChaptersModel.Create updatedPost)) next ctx
             with
-            | ex -> return! Error.notFound next ctx // TODO: return error
+            | ex -> return! Error.server ex.Message next ctx
+        else return! Error.notFound next ctx
+    | Some _ | None -> return! Error.notFound next ctx
+}
+
+// DELETE /admin/post/{id}/chapter/{idx}
+let deleteChapter (postId, index) : HttpHandler = requireAccess Author >=> fun next ctx -> task {
+    let data = ctx.Data
+    match! data.Post.FindById (PostId postId) ctx.WebLog.Id with
+    | Some post
+        when    Option.isSome post.Episode
+             && Option.isSome post.Episode.Value.Chapters
+             && canEdit post.AuthorId ctx ->
+        let  chapters = post.Episode.Value.Chapters.Value
+        if index >= 0 && index < List.length chapters then
+            let updatedPost =
+                { post with
+                    Episode = Some { post.Episode.Value with Chapters = Some (List.removeAt index chapters) } }
+            do! data.Post.Update updatedPost
+            do! addMessage ctx { UserMessage.Success with Message = "Chapter deleted successfully" }
+            return!
+                adminPage
+                    "Manage Chapters" true (Views.Post.chapterList false (ManageChaptersModel.Create updatedPost)) next
+                    ctx
         else return! Error.notFound next ctx
     | Some _ | None -> return! Error.notFound next ctx
 }

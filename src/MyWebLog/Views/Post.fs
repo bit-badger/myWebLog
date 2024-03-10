@@ -1,4 +1,4 @@
-module MyWebLog.AdminViews.Post
+module MyWebLog.Views.Post
 
 open Giraffe.ViewEngine
 open Giraffe.ViewEngine.Htmx
@@ -9,6 +9,7 @@ open NodaTime.Text
 /// The pattern for chapter start times
 let startTimePattern = DurationPattern.CreateWithInvariantCulture "H:mm:ss.FF"
 
+/// The form to add or edit a chapter
 let chapterEdit (model: EditChapterModel) app = [
     let postUrl = relUrl app $"admin/post/{model.PostId}/chapter/{model.Index}"
     h3 [ _class "my-3" ] [ raw (if model.Index < 0 then "Add" else "Edit"); raw " Chapter" ]
@@ -128,6 +129,7 @@ let chapterEdit (model: EditChapterModel) app = [
                 else
                     input [ _type "hidden"; _name "AddAnother"; _value "false" ]
                 button [ _type "submit"; _class "btn btn-primary" ] [ raw "Save" ]
+                raw " &nbsp; "
                 a [ _href cancelLink; _hxGet cancelLink; _class "btn btn-secondary"; _hxTarget "body" ] [ raw "Cancel" ]
             ]
         ]
@@ -146,20 +148,37 @@ let chapterList withNew (model: ManageChaptersModel) app =
             div [ _class "col" ] [ raw "Location?" ]
         ]
         yield! model.Chapters |> List.mapi (fun idx chapter ->
-            div [ _class "row pb-3 mwl-table-detail"; _id $"chapter{idx}" ] [
+            div [ _class "row mwl-table-detail"; _id $"chapter{idx}" ] [
                 div [ _class "col" ] [ txt (startTimePattern.Format chapter.StartTime) ]
-                div [ _class "col" ] [ txt (defaultArg chapter.Title "") ]
+                div [ _class "col" ] [
+                    txt (defaultArg chapter.Title ""); br []
+                    small [] [
+                        if withNew then
+                            raw "&nbsp;"
+                        else
+                            let chapterUrl = relUrl app $"admin/post/{model.Id}/chapter/{idx}"
+                            a [ _href chapterUrl; _hxGet chapterUrl; _hxTarget $"#chapter{idx}"
+                                _hxSwap $"innerHTML show:#chapter{idx}:top" ] [
+                                raw "Edit"
+                            ]
+                            span [ _class "text-muted" ] [ raw " &bull; " ]
+                            a [ _href chapterUrl; _hxDelete chapterUrl; _class "text-danger" ] [
+                                raw "Delete"
+                            ]
+                    ]
+                ]
                 div [ _class "col" ] [ raw (if Option.isSome chapter.ImageUrl then "Y" else "N") ]
                 div [ _class "col" ] [ raw (if Option.isSome chapter.Location then "Y" else "N") ]
             ])
         div [ _class "row pb-3"; _id "chapter-1" ] [
+            let newLink = relUrl app $"admin/post/{model.Id}/chapter/-1"
             if withNew then
-                yield! chapterEdit (EditChapterModel.FromChapter (PostId model.Id) -1 Chapter.Empty) app
+                span [ _hxGet newLink; _hxTarget "#chapter-1"; _hxTrigger "load"; _hxSwap "show:#chapter-1:top" ] []
             else
-                let newLink = relUrl app $"admin/post/{model.Id}/chapter/-1"
                 div [ _class "row pb-3 mwl-table-detail" ] [
                     div [ _class "col-12" ] [
-                        a [ _class "btn btn-primary"; _href newLink; _hxGet newLink; _hxTarget "#chapter-1" ] [
+                        a [ _class "btn btn-primary"; _href newLink; _hxGet newLink; _hxTarget "#chapter-1"
+                            _hxSwap "show:#chapter-1:top" ] [
                             raw "Add a New Chapter"
                         ]
                     ]

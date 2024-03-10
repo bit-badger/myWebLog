@@ -36,7 +36,7 @@ let logOn returnUrl : HttpHandler = fun next ctx ->
         match returnUrl with
         | Some _ -> returnUrl
         | None -> if ctx.Request.Query.ContainsKey "returnUrl" then Some ctx.Request.Query["returnUrl"].[0] else None
-    adminPage "Log On" true (AdminViews.User.logOn { LogOnModel.Empty with ReturnTo = returnTo }) next ctx
+    adminPage "Log On" true (Views.User.logOn { LogOnModel.Empty with ReturnTo = returnTo }) next ctx
 
 
 open System.Security.Claims
@@ -93,7 +93,7 @@ let private goAway : HttpHandler = RequestErrors.BAD_REQUEST "really?"
 // GET /admin/settings/users
 let all : HttpHandler = fun next ctx -> task {
     let! users = ctx.Data.WebLogUser.FindByWebLog ctx.WebLog.Id
-    return! adminBarePage "User Administration" true (AdminViews.User.userList users) next ctx
+    return! adminBarePage "User Administration" true (Views.User.userList users) next ctx
 }
 
 /// Show the edit user page

@@ -216,6 +216,11 @@ let router : HttpHandler = choose [
                 routef  "/%s/delete"       Upload.deleteFromDb
             ])
         ]
+        DELETE >=> validateCsrf >=> choose [
+            subRoute "/post" (choose [
+                routef "/%s/chapter/%i" Post.deleteChapter
+            ])
+        ]
     ])
     GET_HEAD >=> routexp "/category/(.*)"  Post.pageOfCategorizedPosts
     GET_HEAD >=> routef  "/page/%i"        Post.pageOfPosts
