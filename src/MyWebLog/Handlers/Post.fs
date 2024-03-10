@@ -379,10 +379,7 @@ let chapters postId : HttpHandler = requireAccess Author >=> fun next ctx -> tas
              && Option.isSome post.Episode.Value.Chapters
              && canEdit post.AuthorId ctx ->
         return!
-            hashForPage "Manage Chapters"
-            |> withAntiCsrf ctx
-            |> addToHash ViewContext.Model (ManageChaptersModel.Create post)
-            |> adminView "chapters" next ctx
+            adminPage "Manage Chapters" true (AdminViews.Post.chapters false (ManageChaptersModel.Create post)) next ctx
     | Some _ | None -> return! Error.notFound next ctx
 }
 
@@ -401,10 +398,9 @@ let editChapter (postId, index) : HttpHandler = requireAccess Author >=> fun nex
         match chapter with
         | Some chap ->
             return!
-                hashForPage (if index = -1 then "Add a Chapter" else "Edit Chapter")
-                |> withAntiCsrf ctx
-                |> addToHash ViewContext.Model (EditChapterModel.FromChapter post.Id index chap)
-                |> adminBareView "chapter-edit" next ctx
+                adminPage
+                    (if index = -1 then "Add a Chapter" else "Edit Chapter") true
+                    (AdminViews.Post.chapterEdit (EditChapterModel.FromChapter post.Id index chap)) next ctx
         | None -> return! Error.notFound next ctx
     | Some _ | None -> return! Error.notFound next ctx
 }
@@ -419,23 +415,23 @@ let saveChapter (postId, index) : HttpHandler = requireAccess Author >=> fun nex
              && canEdit post.AuthorId ctx ->
         let! form     = ctx.BindFormAsync<EditChapterModel>()
         let  chapters = post.Episode.Value.Chapters.Value
-        if index = -1 || (index >= 0 && index < List.length chapters) then
-            let updatedPost =
-                { post with
-                    Episode = Some {
-                      post.Episode.Value with
-                        Chapters =
-                            form.ToChapter() :: (if index = -1 then chapters else chapters |> List.removeAt index)
-                            |> List.sortBy _.StartTime
-                            |> Some } }
-            do! data.Post.Update updatedPost
-            do! addMessage ctx { UserMessage.Success with Message = "Chapter saved successfully" }
-            // TODO: handle "add another", only return chapter list vs. entire page with title
-            return!
-                hashForPage "Manage Chapters"
-                |> withAntiCsrf ctx
-                |> addToHash ViewContext.Model (ManageChaptersModel.Create updatedPost)
-                |> adminView "chapters" next ctx
+        if index >= -1 && index < List.length chapters then
+            try
+                let chapter     = form.ToChapter()
+                let existing    = if index = -1 then chapters else chapters |> List.removeAt index
+                let updatedPost =
+                    { post with
+                        Episode = Some
+                          { post.Episode.Value with
+                              Chapters = Some (chapter :: existing |> List.sortBy _.StartTime) } }
+                do! data.Post.Update updatedPost
+                do! addMessage ctx { UserMessage.Success with Message = "Chapter saved successfully" }
+                return!
+                    adminPage
+                        "Manage Chapters" true
+                        (AdminViews.Post.chapterList form.AddAnother (ManageChaptersModel.Create updatedPost)) next ctx
+            with
+            | ex -> return! Error.notFound next ctx // TODO: return error
         else return! Error.notFound next ctx
     | Some _ | None -> return! Error.notFound next ctx
 }

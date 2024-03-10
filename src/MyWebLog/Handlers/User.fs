@@ -36,10 +36,7 @@ let logOn returnUrl : HttpHandler = fun next ctx ->
         match returnUrl with
         | Some _ -> returnUrl
         | None -> if ctx.Request.Query.ContainsKey "returnUrl" then Some ctx.Request.Query["returnUrl"].[0] else None
-    hashForPage "Log On"
-    |> withAntiCsrf ctx
-    |> addToHash ViewContext.Model { LogOnModel.Empty with ReturnTo = returnTo }
-    |> adminView "log-on" next ctx
+    adminPage "Log On" true (AdminViews.User.logOn { LogOnModel.Empty with ReturnTo = returnTo }) next ctx
 
 
 open System.Security.Claims
@@ -96,11 +93,7 @@ let private goAway : HttpHandler = RequestErrors.BAD_REQUEST "really?"
 // GET /admin/settings/users
 let all : HttpHandler = fun next ctx -> task {
     let! users = ctx.Data.WebLogUser.FindByWebLog ctx.WebLog.Id
-    return!
-        hashForPage "User Administration"
-        |> withAntiCsrf ctx
-        |> addToHash "users" (users |> List.map (DisplayUser.FromUser ctx.WebLog) |> Array.ofList)
-        |> adminBareView "user-list-body" next ctx
+    return! adminBarePage "User Administration" true (AdminViews.User.userList users) next ctx
 }
 
 /// Show the edit user page

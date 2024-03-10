@@ -3,6 +3,8 @@ module private MyWebLog.Handlers.Helpers
 
 open System.Text.Json
 open Microsoft.AspNetCore.Http
+open MyWebLog.AdminViews
+open MyWebLog.AdminViews.Helpers
 
 /// Session extensions to get and set objects
 type ISession with
@@ -24,6 +26,10 @@ module ViewContext =
     /// The anti cross-site request forgery (CSRF) token set to use for form submissions
     [<Literal>]
     let AntiCsrfTokens = "csrf"
+    
+    /// The unified application view context
+    [<Literal>]
+    let AppViewContext = "app"
     
     /// The categories for this web log
     [<Literal>]
@@ -185,32 +191,62 @@ open Giraffe.ViewEngine
 /// htmx script tag
 let private htmxScript = RenderView.AsString.htmlNode Htmx.Script.minified
 
-/// Populate the DotLiquid hash with standard information
-let addViewContext ctx (hash: Hash) = task {
+/// Get the current user messages, and commit the session so that they are preserved
+let private getCurrentMessages ctx = task {
     let! messages = messages ctx
     do! commitSession ctx
-    return
-        if hash.ContainsKey ViewContext.HtmxScript && hash.ContainsKey ViewContext.Messages then
-            // We have already populated everything; just update messages
-            hash[ViewContext.Messages] <- Array.concat [ hash[ViewContext.Messages] :?> UserMessage array; messages ]
+    return messages
+}
+
+/// Generate the view context for a response
+let private generateViewContext pageTitle messages includeCsrf (ctx: HttpContext) =
+    { WebLog          = ctx.WebLog
+      UserId          = ctx.User.Claims
+                        |> Seq.tryFind (fun claim -> claim.Type = ClaimTypes.NameIdentifier)
+                        |> Option.map (fun claim -> WebLogUserId claim.Value)
+      PageTitle       = pageTitle
+      Csrf            = if includeCsrf then Some ctx.CsrfTokenSet else None
+      PageList        = PageListCache.get ctx
+      Categories      = CategoryCache.get ctx
+      CurrentPage     = ctx.Request.Path.Value[1..]
+      Messages        = messages
+      Generator       = ctx.Generator
+      HtmxScript      = htmxScript
+      IsAuthor        = ctx.HasAccessLevel Author
+      IsEditor        = ctx.HasAccessLevel Editor
+      IsWebLogAdmin   = ctx.HasAccessLevel WebLogAdmin
+      IsAdministrator = ctx.HasAccessLevel Administrator }
+
+
+/// Populate the DotLiquid hash with standard information
+let addViewContext ctx (hash: Hash) = task {
+    let! messages = getCurrentMessages ctx
+    if hash.ContainsKey ViewContext.AppViewContext then
+        let oldApp = hash[ViewContext.AppViewContext] :?> AppViewContext
+        let newApp = { oldApp with Messages = Array.concat [ oldApp.Messages; messages ] }
+        return
             hash
-        else
-            ctx.User.Claims
-            |> Seq.tryFind (fun claim -> claim.Type = ClaimTypes.NameIdentifier)
-            |> Option.map (fun claim -> addToHash ViewContext.UserId claim.Value hash)
-            |> Option.defaultValue hash
-            |> addToHash ViewContext.WebLog          ctx.WebLog
-            |> addToHash ViewContext.PageList        (PageListCache.get ctx)
-            |> addToHash ViewContext.Categories      (CategoryCache.get ctx)
-            |> addToHash ViewContext.CurrentPage     ctx.Request.Path.Value[1..]
-            |> addToHash ViewContext.Messages        messages
-            |> addToHash ViewContext.Generator       ctx.Generator
-            |> addToHash ViewContext.HtmxScript      htmxScript
-            |> addToHash ViewContext.IsLoggedOn      ctx.User.Identity.IsAuthenticated
-            |> addToHash ViewContext.IsAuthor        (ctx.HasAccessLevel Author)
-            |> addToHash ViewContext.IsEditor        (ctx.HasAccessLevel Editor)
-            |> addToHash ViewContext.IsWebLogAdmin   (ctx.HasAccessLevel WebLogAdmin)
-            |> addToHash ViewContext.IsAdministrator (ctx.HasAccessLevel Administrator)
+            |> addToHash ViewContext.AppViewContext newApp
+            |> addToHash ViewContext.Messages       newApp.Messages
+    else
+        let app =
+            generateViewContext (string hash[ViewContext.PageTitle]) messages
+                                (hash.ContainsKey ViewContext.AntiCsrfTokens) ctx
+        return
+            hash
+            |> addToHash ViewContext.UserId          (app.UserId |> Option.map string |> Option.defaultValue "")
+            |> addToHash ViewContext.WebLog          app.WebLog
+            |> addToHash ViewContext.PageList        app.PageList
+            |> addToHash ViewContext.Categories      app.Categories
+            |> addToHash ViewContext.CurrentPage     app.CurrentPage
+            |> addToHash ViewContext.Messages        app.Messages
+            |> addToHash ViewContext.Generator       app.Generator
+            |> addToHash ViewContext.HtmxScript      app.HtmxScript
+            |> addToHash ViewContext.IsLoggedOn      app.IsLoggedOn
+            |> addToHash ViewContext.IsAuthor        app.IsAuthor
+            |> addToHash ViewContext.IsEditor        app.IsEditor
+            |> addToHash ViewContext.IsWebLogAdmin   app.IsWebLogAdmin
+            |> addToHash ViewContext.IsAdministrator app.IsAdministrator
 }
 
 /// Is the request from htmx?
@@ -258,7 +294,7 @@ module Error =
                 (messagesToHeaders messages >=> setStatusCode 401) earlyReturn ctx
             else setStatusCode 401 earlyReturn ctx
 
-    /// Handle 404s from the API, sending known URL paths to the Vue app so that they can be handled there
+    /// Handle 404s
     let notFound : HttpHandler =
         handleContext (fun ctx ->
             if isHtmx ctx then
@@ -333,6 +369,21 @@ let adminView template =
 /// Display a bare view for the admin theme
 let adminBareView template =
     bareForTheme adminTheme template
+
+/// Display a page for an admin endpoint
+let adminPage pageTitle includeCsrf (content: AppViewContext -> XmlNode list) : HttpHandler = fun next ctx -> task {
+    let! messages = getCurrentMessages ctx
+    let  appCtx   = generateViewContext pageTitle messages includeCsrf ctx
+    let  layout   = if isHtmx ctx then Layout.partial else Layout.full
+    return! htmlString (layout content appCtx |> RenderView.AsString.htmlDocument) next ctx
+}
+
+/// Display a bare page for an admin endpoint
+let adminBarePage pageTitle includeCsrf (content: AppViewContext -> XmlNode list) : HttpHandler = fun next ctx -> task {
+    let! messages = getCurrentMessages ctx
+    let  appCtx   = generateViewContext pageTitle messages includeCsrf ctx
+    return! htmlString (Layout.bare content appCtx |> RenderView.AsString.htmlDocument) next ctx
+}
 
 /// Validate the anti cross-site request forgery token in the current request
 let validateCsrf : HttpHandler = fun next ctx -> task {

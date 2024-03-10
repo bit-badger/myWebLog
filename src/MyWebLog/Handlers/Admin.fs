@@ -20,17 +20,14 @@ module Dashboard =
         let! listed  = getCount data.Page.CountListed
         let! cats    = getCount data.Category.CountAll
         let! topCats = getCount data.Category.CountTopLevel
-        return!
-            hashForPage "Dashboard"
-            |> addToHash ViewContext.Model {
-                    Posts              = posts
-                    Drafts             = drafts
-                    Pages              = pages
-                    ListedPages        = listed
-                    Categories         = cats
-                    TopLevelCategories = topCats
-                }
-            |> adminView "dashboard" next ctx
+        let model =
+            { Posts              = posts
+              Drafts             = drafts
+              Pages              = pages
+              ListedPages        = listed
+              Categories         = cats
+              TopLevelCategories = topCats }
+        return! adminPage "Dashboard" false (AdminViews.Admin.dashboard model) next ctx
     }
 
     // GET /admin/administration

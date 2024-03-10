@@ -6,6 +6,7 @@ open System.IO
 open System.Web
 open DotLiquid
 open Giraffe.ViewEngine
+open MyWebLog.AdminViews.Helpers
 open MyWebLog.ViewModels
 
 /// Extensions on the DotLiquid Context object
@@ -227,15 +228,16 @@ let register () =
       typeof<CustomFeed>;   typeof<Episode>;    typeof<Episode option>; typeof<MetaItem>;          typeof<Page>
       typeof<RedirectRule>; typeof<RssOptions>; typeof<TagMap>;         typeof<UploadDestination>; typeof<WebLog>
       // View models
-      typeof<DashboardModel>;        typeof<DisplayCategory>;      typeof<DisplayChapter>
-      typeof<DisplayCustomFeed>;     typeof<DisplayPage>;          typeof<DisplayRevision>
-      typeof<DisplayTheme>;          typeof<DisplayUpload>;        typeof<DisplayUser>
-      typeof<EditCategoryModel>;     typeof<EditChapterModel>;     typeof<EditCustomFeedModel>
-      typeof<EditMyInfoModel>;       typeof<EditPageModel>;        typeof<EditPostModel>
-      typeof<EditRedirectRuleModel>; typeof<EditRssModel>;         typeof<EditTagMapModel>
-      typeof<EditUserModel>;         typeof<LogOnModel>;           typeof<ManageChaptersModel>
-      typeof<ManagePermalinksModel>; typeof<ManageRevisionsModel>; typeof<PostDisplay>
-      typeof<PostListItem>;          typeof<SettingsModel>;        typeof<UserMessage>
+      typeof<AppViewContext>;      typeof<DashboardModel>;        typeof<DisplayCategory>
+      typeof<DisplayChapter>;      typeof<DisplayCustomFeed>;     typeof<DisplayPage>
+      typeof<DisplayRevision>;     typeof<DisplayTheme>;          typeof<DisplayUpload>
+      typeof<DisplayUser>;         typeof<EditCategoryModel>;     typeof<EditChapterModel>
+      typeof<EditCustomFeedModel>; typeof<EditMyInfoModel>;       typeof<EditPageModel>
+      typeof<EditPostModel>;       typeof<EditRedirectRuleModel>; typeof<EditRssModel>
+      typeof<EditTagMapModel>;     typeof<EditUserModel>;         typeof<LogOnModel>
+      typeof<ManageChaptersModel>; typeof<ManagePermalinksModel>; typeof<ManageRevisionsModel>
+      typeof<PostDisplay>;         typeof<PostListItem>;          typeof<SettingsModel>
+      typeof<UserMessage>
       // Framework types
       typeof<AntiforgeryTokenSet>; typeof<DateTime option>; typeof<int option>;    typeof<KeyValuePair>
       typeof<MetaItem list>;       typeof<string list>;     typeof<string option>; typeof<TagMap list>

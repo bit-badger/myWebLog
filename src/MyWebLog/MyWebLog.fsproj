@@ -9,6 +9,10 @@
   <ItemGroup>
     <Content Include="appsettings*.json" CopyToOutputDirectory="Always" />
     <Compile Include="Caches.fs" />
+    <Compile Include="AdminViews\Helpers.fs" />
+    <Compile Include="AdminViews\Admin.fs" />
+    <Compile Include="AdminViews\Post.fs" />
+    <Compile Include="AdminViews\User.fs" />
     <Compile Include="Handlers\Helpers.fs" />
     <Compile Include="Handlers\Admin.fs" />
     <Compile Include="Handlers\Feed.fs" />

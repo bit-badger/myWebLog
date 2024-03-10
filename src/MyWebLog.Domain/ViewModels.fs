@@ -1112,14 +1112,14 @@ type ManageChaptersModel = {
     Title: string
     
     /// The chapters for the post
-    Chapters: DisplayChapter array
+    Chapters: Chapter list
 } with
     
     /// Create a model from a post and its episode's chapters
     static member Create (post: Post) =
         { Id       = string post.Id
           Title    = post.Title
-          Chapters = post.Episode.Value.Chapters.Value |> List.map DisplayChapter.FromChapter |> Array.ofList }
+          Chapters = post.Episode.Value.Chapters.Value }
     
 
 /// View model to manage permalinks
