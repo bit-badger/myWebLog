@@ -84,6 +84,9 @@ type DisplayChapter = {
     /// An image to display for this chapter
     ImageUrl: string
     
+    /// A URL with information about this chapter
+    Url: string
+    
     /// Whether this chapter should be displayed in podcast players
     IsHidden: bool
     
@@ -106,10 +109,11 @@ type DisplayChapter = {
         { StartTime    = pattern.Format chapter.StartTime
           Title        = defaultArg chapter.Title ""
           ImageUrl     = defaultArg chapter.ImageUrl ""
+          Url          = defaultArg chapter.Url ""
           IsHidden     = defaultArg chapter.IsHidden false
           EndTime      = chapter.EndTime  |> Option.map pattern.Format          |> Option.defaultValue ""
           LocationName = chapter.Location |> Option.map _.Name                  |> Option.defaultValue ""
-          LocationGeo  = chapter.Location |> Option.map _.Geo |> Option.flatten |> Option.defaultValue ""
+          LocationGeo  = chapter.Location |> Option.map _.Geo                   |> Option.defaultValue ""
           LocationOsm  = chapter.Location |> Option.map _.Osm |> Option.flatten |> Option.defaultValue "" }
 
 
@@ -379,6 +383,9 @@ type EditChapterModel = {
     /// An image to display for this chapter
     ImageUrl: string
     
+    /// A URL with information about this chapter
+    Url: string
+    
     /// Whether this chapter should be displayed in podcast players
     IsHidden: bool
     
@@ -406,6 +413,7 @@ type EditChapterModel = {
           StartTime    = it.StartTime
           Title        = it.Title
           ImageUrl     = it.ImageUrl
+          Url          = it.Url
           IsHidden     = it.IsHidden
           EndTime      = it.EndTime
           LocationName = it.LocationName
@@ -429,10 +437,11 @@ type EditChapterModel = {
         let location =
             match noneIfBlank this.LocationName with
             | None -> None
-            | Some name -> Some { Name = name; Geo = noneIfBlank this.LocationGeo; Osm = noneIfBlank this.LocationOsm }
+            | Some name -> Some { Name = name; Geo = this.LocationGeo; Osm = noneIfBlank this.LocationOsm }
         { StartTime = parseDuration (nameof this.StartTime) this.StartTime
           Title     = noneIfBlank this.Title
           ImageUrl  = noneIfBlank this.ImageUrl
+          Url       = noneIfBlank this.Url
           IsHidden  = if this.IsHidden then Some true else None
           EndTime   = noneIfBlank this.EndTime |> Option.map (parseDuration (nameof this.EndTime))
           Location  = location }

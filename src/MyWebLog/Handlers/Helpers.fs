@@ -421,6 +421,11 @@ open System.Threading.Tasks
 /// Create a Task with a Some result for the given object
 let someTask<'T> (it: 'T) = Task.FromResult(Some it)
 
+/// Create an absolute URL from a string that may already be an absolute URL
+let absoluteUrl (url: string) (ctx: HttpContext) =
+    if url.StartsWith "http" then url else ctx.WebLog.AbsoluteUrl (Permalink url)
+
+
 open System.Collections.Generic
 open MyWebLog.Data
 

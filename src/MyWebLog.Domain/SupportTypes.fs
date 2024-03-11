@@ -164,7 +164,7 @@ type Location = {
     Name: string
 
     /// A geographic coordinate string (RFC 5870)
-    Geo: string option
+    Geo: string
 
     /// An OpenStreetMap query
     Osm: string option
@@ -182,6 +182,9 @@ type Chapter = {
     /// A URL for an image for this chapter
     ImageUrl: string option
 
+    /// A URL with information pertaining to this chapter
+    Url: string option
+
     /// Whether this chapter is hidden
     IsHidden: bool option
 
@@ -197,6 +200,7 @@ type Chapter = {
         { StartTime = Duration.Zero
           Title     = None
           ImageUrl  = None
+          Url       = None
           IsHidden  = None
           EndTime   = None
           Location  = None }

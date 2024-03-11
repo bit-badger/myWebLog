@@ -208,18 +208,42 @@ let home : HttpHandler = fun next ctx -> task {
 }
 
 // GET /{post-permalink}?chapters
-let chapters (post: Post) : HttpHandler =
+let chapters (post: Post) : HttpHandler = fun next ctx ->
     match post.Episode with
     | Some ep ->
         match ep.Chapters with
         | Some chapters ->
-            
-            json chapters
+            let chapterData =
+                chapters
+                |> Seq.ofList
+                |> Seq.map (fun it ->
+                    let dic = Dictionary<string, obj>()
+                    dic["startTime"] <- Math.Round(it.StartTime.TotalSeconds, 2)
+                    it.Title    |> Option.iter (fun ttl -> dic["title"]   <- ttl)
+                    it.ImageUrl |> Option.iter (fun img -> dic["img"]     <- absoluteUrl img ctx)
+                    it.Url      |> Option.iter (fun url -> dic["url"]     <- absoluteUrl url ctx)
+                    it.IsHidden |> Option.iter (fun toc -> dic["toc"]     <- not toc)
+                    it.EndTime  |> Option.iter (fun ent -> dic["endTime"] <- Math.Round(ent.TotalSeconds, 2))
+                    it.Location |> Option.iter (fun loc ->
+                        let locData = Dictionary<string, obj>()
+                        locData["name"] <- loc.Name
+                        locData["geo"]  <- loc.Geo
+                        loc.Osm |> Option.iter (fun osm -> locData["osm"] <- osm)
+                        dic["location"] <- locData)
+                    dic)
+                |> ResizeArray
+            let jsonFile = Dictionary<string, obj>()
+            jsonFile["version"]  <- "1.2.0"
+            jsonFile["title"]    <- post.Title
+            jsonFile["fileName"] <- absoluteUrl ep.Media ctx
+            if defaultArg ep.ChapterWaypoints false then jsonFile["waypoints"] <- true
+            jsonFile["chapters"] <- chapterData
+            json jsonFile next ctx
         | None ->
             match ep.ChapterFile with
-            | Some file -> redirectTo true file
-            | None -> Error.notFound
-    | None -> Error.notFound
+            | Some file -> redirectTo true file next ctx
+            | None -> Error.notFound next ctx
+    | None -> Error.notFound next ctx
 
 
 // ~~ ADMINISTRATION ~~

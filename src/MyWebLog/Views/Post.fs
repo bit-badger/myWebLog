@@ -46,7 +46,7 @@ let chapterEdit (model: EditChapterModel) app = [
                     span [ _class "form-text" ] [ raw "Optional" ]
                 ]
             ]
-            div [ _class "col-12 col-lg-6 offset-xl-1 mb-3" ] [
+            div [ _class "col-12 col-lg-6 col-xl-5 mb-3" ] [
                 div [ _class "form-floating" ] [
                     input [ _type "text"; _id "image_url"; _name "ImageUrl"; _class "form-control"
                             _value model.ImageUrl; _placeholder "Image URL" ]
@@ -56,7 +56,17 @@ let chapterEdit (model: EditChapterModel) app = [
                     ]
                 ]
             ]
-            div [ _class "col-12 col-lg-6 col-xl-4 mb-3 align-self-end d-flex flex-column" ] [
+            div [ _class "col-12 col-lg-6 col-xl-5 mb-3" ] [
+                div [ _class "form-floating" ] [
+                    input [ _type "text"; _id "url"; _name "Url"; _class "form-control"; _value model.Url
+                            _placeholder "URL" ]
+                    label [ _for "url" ] [ raw "URL" ]
+                    span [ _class "form-text" ] [
+                        raw "Optional; informational link for this chapter"
+                    ]
+                ]
+            ]
+            div [ _class "col-12 col-lg-6 offset-lg-3 col-xl-2 offset-xl-0 mb-3 align-self-end d-flex flex-column" ] [
                 div [ _class "form-check form-switch mb-3" ] [
                     input [ _type "checkbox"; _id "is_hidden"; _name "IsHidden"; _class "form-check-input"
                             _value "true"
@@ -87,11 +97,10 @@ let chapterEdit (model: EditChapterModel) app = [
             div [ _class "col-6 col-lg-4 offset-lg-2 mb-3" ] [
                 div [ _class "form-floating" ] [
                     input [ _type "text"; _id "location_geo"; _name "LocationGeo"; _class "form-control"
-                            _value model.LocationGeo; _placeholder "Location Geo URL"
+                            _value model.LocationGeo; _placeholder "Location Geo URL"; _required
                             if not hasLoc then _disabled ]
                     label [ _for "location_geo" ] [ raw "Geo URL" ]
                     em [ _class "form-text" ] [
-                        raw "Optional; "
                         a [ _href "https://github.com/Podcastindex-org/podcast-namespace/blob/main/location/location.md#geo-recommended"
                             _target "_blank"; _rel "noopener" ] [
                             raw "see spec"
@@ -142,16 +151,19 @@ let chapterList withNew (model: ManageChaptersModel) app =
         antiCsrf app
         input [ _type "hidden"; _name "Id"; _value model.Id ]
         div [ _class "row mwl-table-heading" ] [
-            div [ _class "col" ] [ raw "Start" ]
-            div [ _class "col" ] [ raw "Title" ]
-            div [ _class "col" ] [ raw "Image?" ]
-            div [ _class "col" ] [ raw "Location?" ]
+            div [ _class "col-3 col-md-2" ] [ raw "Start" ]
+            div [ _class "col-3 col-md-6 col-lg-8" ] [ raw "Title" ]
+            div [ _class "col-3 col-md-2 col-lg-1 text-center" ] [ raw "Image?" ]
+            div [ _class "col-3 col-md-2 col-lg-1 text-center" ] [ raw "Location?" ]
         ]
         yield! model.Chapters |> List.mapi (fun idx chapter ->
             div [ _class "row mwl-table-detail"; _id $"chapter{idx}" ] [
-                div [ _class "col" ] [ txt (startTimePattern.Format chapter.StartTime) ]
-                div [ _class "col" ] [
-                    txt (defaultArg chapter.Title ""); br []
+                div [ _class "col-3 col-md-2" ] [ txt (startTimePattern.Format chapter.StartTime) ]
+                div [ _class "col-3 col-md-6 col-lg-8" ] [
+                    match chapter.Title with
+                    | Some title -> txt title
+                    | None -> em [ _class "text-muted" ] [ raw "no title" ]
+                    br []
                     small [] [
                         if withNew then
                             raw "&nbsp;"
@@ -167,8 +179,12 @@ let chapterList withNew (model: ManageChaptersModel) app =
                             ]
                     ]
                 ]
-                div [ _class "col" ] [ raw (if Option.isSome chapter.ImageUrl then "Y" else "N") ]
-                div [ _class "col" ] [ raw (if Option.isSome chapter.Location then "Y" else "N") ]
+                div [ _class "col-3 col-md-2 col-lg-1 text-center" ] [
+                    raw (match chapter.ImageUrl with Some _ -> "Y" | None -> "N")
+                ]
+                div [ _class "col-3 col-md-2 col-lg-1 text-center" ] [
+                    raw (match chapter.Location with Some _ -> "Y" | None -> "N")
+                ]
             ])
         div [ _class "row pb-3"; _id "chapter-1" ] [
             let newLink = relUrl app $"admin/post/{model.Id}/chapter/-1"
