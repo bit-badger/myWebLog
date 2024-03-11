@@ -381,7 +381,9 @@ let adminPage pageTitle includeCsrf (content: AppViewContext -> XmlNode list) : 
 let adminBarePage pageTitle includeCsrf (content: AppViewContext -> XmlNode list) : HttpHandler = fun next ctx -> task {
     let! messages = getCurrentMessages ctx
     let  appCtx   = generateViewContext pageTitle messages includeCsrf ctx
-    return! htmlString (Layout.bare content appCtx |> RenderView.AsString.htmlDocument) next ctx
+    return!
+        (    messagesToHeaders appCtx.Messages
+         >=> htmlString (Layout.bare content appCtx |> RenderView.AsString.htmlDocument)) next ctx
 }
 
 /// Validate the anti cross-site request forgery token in the current request

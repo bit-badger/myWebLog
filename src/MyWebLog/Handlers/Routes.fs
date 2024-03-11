@@ -29,10 +29,15 @@ module CatchAll =
             match data.Post.FindByPermalink permalink webLog.Id |> await with
             | Some post ->
                 debug (fun () -> "Found post by permalink")
-                let hash = Post.preparePostList webLog [ post ] Post.ListType.SinglePost "" 1 1 data |> await
-                yield fun next ctx ->
-                       addToHash ViewContext.PageTitle post.Title hash
-                    |> themedView (defaultArg post.Template "single-post") next ctx
+                if post.Status = Published || Option.isSome ctx.UserAccessLevel then
+                    if ctx.Request.Query.ContainsKey "chapters" then
+                        yield Post.chapters post
+                    else
+                        yield fun next ctx ->
+                            Post.preparePostList webLog [ post ] Post.ListType.SinglePost "" 1 1 data
+                            |> await
+                            |> addToHash ViewContext.PageTitle post.Title
+                            |> themedView (defaultArg post.Template "single-post") next ctx
             | None -> ()
             // Current page
             match data.Page.FindByPermalink permalink webLog.Id |> await with
@@ -130,7 +135,7 @@ let router : HttpHandler = choose [
                 routef "/%s/revision/%s/preview"     Post.previewRevision
                 routef "/%s/revisions"               Post.editRevisions
                 routef "/%s/chapter/%i"              Post.editChapter
-                routef "/%s/chapters"                Post.chapters
+                routef "/%s/chapters"                Post.manageChapters
             ])
             subRoute "/settings" (requireAccess WebLogAdmin >=> choose [
                 route    ""             >=> Admin.WebLog.settings
@@ -201,10 +206,7 @@ let router : HttpHandler = choose [
                     route  "/save"      >=> Admin.TagMapping.save
                     routef "/%s/delete"     Admin.TagMapping.delete
                 ])
-                subRoute "/user" (choose [
-                    route  "/save"      >=> User.save
-                    routef "/%s/delete"     User.delete
-                ])
+                route "/user/save" >=> User.save
             ])
             subRoute "/theme" (choose [
                 route  "/new"       >=> Admin.Theme.save
@@ -219,6 +221,9 @@ let router : HttpHandler = choose [
         DELETE >=> validateCsrf >=> choose [
             subRoute "/post" (choose [
                 routef "/%s/chapter/%i" Post.deleteChapter
+            ])
+            subRoute "/settings" (requireAccess WebLogAdmin >=> choose [
+                routef "/user/%s" User.delete
             ])
         ]
     ])

@@ -76,19 +76,27 @@ let raw = rawText
 
 /// The pattern for a long date
 let longDatePattern =
-    InstantPattern.CreateWithInvariantCulture "MMMM d, yyyy"
+    ZonedDateTimePattern.CreateWithInvariantCulture("MMMM d, yyyy", DateTimeZoneProviders.Tzdb)
 
 /// Create a long date
-let longDate =
-    longDatePattern.Format >> txt
+let longDate app (instant: Instant) =
+    DateTimeZoneProviders.Tzdb[app.WebLog.TimeZone]
+    |> Option.ofObj
+    |> Option.map (fun tz -> longDatePattern.Format(instant.InZone(tz)))
+    |> Option.defaultValue "--"
+    |> txt
 
 /// The pattern for a short time
 let shortTimePattern =
-    InstantPattern.CreateWithInvariantCulture "h:mmtt"
+    ZonedDateTimePattern.CreateWithInvariantCulture("h:mmtt", DateTimeZoneProviders.Tzdb)
 
 /// Create a short time
-let shortTime instant =
-    txt (shortTimePattern.Format(instant).ToLower())
+let shortTime app (instant: Instant) =
+    DateTimeZoneProviders.Tzdb[app.WebLog.TimeZone]
+    |> Option.ofObj
+    |> Option.map (fun tz -> shortTimePattern.Format(instant.InZone(tz)).ToLowerInvariant())
+    |> Option.defaultValue "--"
+    |> txt
 
 /// Functions for generating content in varying layouts
 module Layout =

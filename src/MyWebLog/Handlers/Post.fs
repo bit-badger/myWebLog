@@ -207,6 +207,23 @@ let home : HttpHandler = fun next ctx -> task {
         | None -> return! Error.notFound next ctx
 }
 
+// GET /{post-permalink}?chapters
+let chapters (post: Post) : HttpHandler =
+    match post.Episode with
+    | Some ep ->
+        match ep.Chapters with
+        | Some chapters ->
+            
+            json chapters
+        | None ->
+            match ep.ChapterFile with
+            | Some file -> redirectTo true file
+            | None -> Error.notFound
+    | None -> Error.notFound
+
+
+// ~~ ADMINISTRATION ~~
+
 // GET /admin/posts
 // GET /admin/posts/page/{pageNbr}
 let all pageNbr : HttpHandler = requireAccess Author >=> fun next ctx -> task {
@@ -372,7 +389,7 @@ let deleteRevision (postId, revDate) : HttpHandler = requireAccess Author >=> fu
 }
 
 // GET /admin/post/{id}/chapters
-let chapters postId : HttpHandler = requireAccess Author >=> fun next ctx -> task {
+let manageChapters postId : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     match! ctx.Data.Post.FindById (PostId postId) ctx.WebLog.Id with
     | Some post
         when    Option.isSome post.Episode

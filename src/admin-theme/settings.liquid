@@ -122,7 +122,7 @@
         <div class="{{ last_col }} d-none d-md-block">Last Log On</div>
       </div>
     </div>
-    {{ user_list }}
+    <span hx-get="{{ "admin/settings/users" | relative_link }}" hx-trigger="load" hx-swap="outerHTML"></span>
   </fieldset>
   <fieldset id=rss-settings class="container mb-3 pb-0">
     <legend>RSS Settings</legend>

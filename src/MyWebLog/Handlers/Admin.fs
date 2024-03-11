@@ -531,48 +531,43 @@ module WebLog =
     // GET /admin/settings
     let settings : HttpHandler = fun next ctx -> task {
         let data = ctx.Data
-        match! TemplateCache.get adminTheme "user-list-body" data with
-        | Ok userTemplate ->
-            match! TemplateCache.get adminTheme "tag-mapping-list-body" ctx.Data with
-            | Ok tagMapTemplate ->
-                let! allPages = data.Page.All ctx.WebLog.Id
-                let! themes   = data.Theme.All()
-                let! users    = data.WebLogUser.FindByWebLog ctx.WebLog.Id
-                let! hash     =
-                    hashForPage "Web Log Settings"
-                    |> withAntiCsrf ctx
-                    |> addToHash ViewContext.Model (SettingsModel.FromWebLog ctx.WebLog)
-                    |> addToHash "pages" (
-                        seq {
-                            KeyValuePair.Create("posts", "- First Page of Posts -")
-                            yield! allPages
-                                   |> List.sortBy _.Title.ToLower()
-                                   |> List.map (fun p -> KeyValuePair.Create(string p.Id, p.Title))
-                        }
-                        |> Array.ofSeq)
-                    |> addToHash "themes" (
-                        themes
-                        |> Seq.ofList
-                        |> Seq.map (fun it ->
-                            KeyValuePair.Create(string it.Id, $"{it.Name} (v{it.Version})"))
-                        |> Array.ofSeq)
-                    |> addToHash "upload_values" [|
-                        KeyValuePair.Create(string Database, "Database")
-                        KeyValuePair.Create(string Disk,     "Disk")
-                    |]
-                    |> addToHash "users" (users |> List.map (DisplayUser.FromUser ctx.WebLog) |> Array.ofList)
-                    |> addToHash "rss_model" (EditRssModel.FromRssOptions ctx.WebLog.Rss)
-                    |> addToHash "custom_feeds" (
-                        ctx.WebLog.Rss.CustomFeeds
-                        |> List.map (DisplayCustomFeed.FromFeed (CategoryCache.get ctx))
-                        |> Array.ofList)
-                    |> addViewContext ctx
-                let! hash' = TagMapping.withTagMappings ctx hash
-                return!
-                       addToHash "user_list"        (userTemplate.Render   hash') hash'
-                    |> addToHash "tag_mapping_list" (tagMapTemplate.Render hash')
-                    |> adminView "settings" next ctx
-            | Error message -> return! Error.server message next ctx
+        match! TemplateCache.get adminTheme "tag-mapping-list-body" ctx.Data with
+        | Ok tagMapTemplate ->
+            let! allPages = data.Page.All ctx.WebLog.Id
+            let! themes   = data.Theme.All()
+            let! hash     =
+                hashForPage "Web Log Settings"
+                |> withAntiCsrf ctx
+                |> addToHash ViewContext.Model (SettingsModel.FromWebLog ctx.WebLog)
+                |> addToHash "pages" (
+                    seq {
+                        KeyValuePair.Create("posts", "- First Page of Posts -")
+                        yield! allPages
+                               |> List.sortBy _.Title.ToLower()
+                               |> List.map (fun p -> KeyValuePair.Create(string p.Id, p.Title))
+                    }
+                    |> Array.ofSeq)
+                |> addToHash "themes" (
+                    themes
+                    |> Seq.ofList
+                    |> Seq.map (fun it ->
+                        KeyValuePair.Create(string it.Id, $"{it.Name} (v{it.Version})"))
+                    |> Array.ofSeq)
+                |> addToHash "upload_values" [|
+                    KeyValuePair.Create(string Database, "Database")
+                    KeyValuePair.Create(string Disk,     "Disk")
+                |]
+                |> addToHash "rss_model" (EditRssModel.FromRssOptions ctx.WebLog.Rss)
+                |> addToHash "custom_feeds" (
+                    ctx.WebLog.Rss.CustomFeeds
+                    |> List.map (DisplayCustomFeed.FromFeed (CategoryCache.get ctx))
+                    |> Array.ofList)
+                |> addViewContext ctx
+            let! hash' = TagMapping.withTagMappings ctx hash
+            return!
+                hash'
+                |> addToHash "tag_mapping_list" (tagMapTemplate.Render hash')
+                |> adminView "settings" next ctx
         | Error message -> return! Error.server message next ctx
     }
 

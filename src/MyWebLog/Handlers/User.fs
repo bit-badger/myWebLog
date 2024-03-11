@@ -5,7 +5,6 @@ open System
 open Microsoft.AspNetCore.Http
 open Microsoft.AspNetCore.Identity
 open MyWebLog
-open NodaTime
 
 // ~~ LOG ON / LOG OFF ~~
 
@@ -84,7 +83,6 @@ let logOff : HttpHandler = fun next ctx -> task {
 
 // ~~ ADMINISTRATION ~~
 
-open System.Collections.Generic
 open Giraffe.Htmx
 
 /// Got no time for URL/form manipulators...
@@ -98,16 +96,7 @@ let all : HttpHandler = fun next ctx -> task {
 
 /// Show the edit user page
 let private showEdit (model: EditUserModel) : HttpHandler = fun next ctx ->
-    hashForPage (if model.IsNew then "Add a New User" else "Edit User")
-    |> withAntiCsrf ctx
-    |> addToHash ViewContext.Model model
-    |> addToHash "access_levels" [|
-        KeyValuePair.Create(string Author, "Author")
-        KeyValuePair.Create(string Editor, "Editor")
-        KeyValuePair.Create(string WebLogAdmin, "Web Log Admin")
-        if ctx.HasAccessLevel Administrator then KeyValuePair.Create(string Administrator, "Administrator")
-    |]
-    |> adminBareView "user-edit" next ctx
+    adminBarePage (if model.IsNew then "Add a New User" else "Edit User") true (Views.User.edit model) next ctx
     
 // GET /admin/settings/user/{id}/edit
 let edit usrId : HttpHandler = fun next ctx -> task {
@@ -121,7 +110,7 @@ let edit usrId : HttpHandler = fun next ctx -> task {
     | None -> return! Error.notFound next ctx
 }
 
-// POST /admin/settings/user/{id}/delete
+// DELETE /admin/settings/user/{id}
 let delete userId : HttpHandler = fun next ctx -> task {
     let data = ctx.Data
     match! data.WebLogUser.FindById (WebLogUserId userId) ctx.WebLog.Id with
@@ -144,21 +133,11 @@ let delete userId : HttpHandler = fun next ctx -> task {
     | None -> return! Error.notFound next ctx
 }
 
-/// Display the user "my info" page, with information possibly filled in
-let private showMyInfo (model: EditMyInfoModel) (user: WebLogUser) : HttpHandler = fun next ctx ->
-    hashForPage "Edit Your Information"
-    |> withAntiCsrf ctx
-    |> addToHash ViewContext.Model model
-    |> addToHash "access_level"    (string user.AccessLevel)
-    |> addToHash "created_on"      (ctx.WebLog.LocalTime user.CreatedOn)
-    |> addToHash "last_seen_on"    (ctx.WebLog.LocalTime (defaultArg user.LastSeenOn (Instant.FromUnixTimeSeconds 0)))
-    |> adminView "my-info" next ctx
-
-
 // GET /admin/my-info
 let myInfo : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     match! ctx.Data.WebLogUser.FindById ctx.UserId ctx.WebLog.Id with
-    | Some user -> return! showMyInfo (EditMyInfoModel.FromUser user) user next ctx
+    | Some user ->
+        return! adminPage "Edit Your Information" true (Views.User.myInfo (EditMyInfoModel.FromUser user) user) next ctx
     | None -> return! Error.notFound next ctx
 }
 
@@ -181,7 +160,10 @@ let saveMyInfo : HttpHandler = requireAccess Author >=> fun next ctx -> task {
         return! redirectToGet "admin/my-info" next ctx
     | Some user ->
         do! addMessage ctx { UserMessage.Error with Message = "Passwords did not match; no updates made" }
-        return! showMyInfo { model with NewPassword = ""; NewPasswordConfirm = "" } user next ctx
+        return!
+            adminPage
+                "Edit Your Information" true
+                (Views.User.myInfo { model with NewPassword = ""; NewPasswordConfirm = "" } user) next ctx
     | None -> return! Error.notFound next ctx
 }
 
