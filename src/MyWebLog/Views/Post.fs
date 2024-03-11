@@ -218,3 +218,110 @@ let chapters withNew (model: ManageChaptersModel) app = [
         yield! chapterList withNew model app
     ]
 ]
+
+/// Display a list of posts
+let list (model: PostDisplay) app = [
+    let dateCol   = "col-xs-12 col-md-3 col-lg-2"
+    let titleCol  = "col-xs-12 col-md-7 col-lg-6 col-xl-5 col-xxl-4"
+    let authorCol = "col-xs-12 col-md-2 col-lg-1"
+    let tagCol    = "col-lg-3 col-xl-4 col-xxl-5 d-none d-lg-inline-block"
+    h2 [ _class "my-3" ] [ txt app.PageTitle ]
+    article [] [
+        a [ _href (relUrl app "admin/post/new/edit"); _class "btn btn-primary btn-sm mb-3" ] [ raw "Write a New Post" ]
+        if model.Posts.Length > 0 then
+            form [ _method "post"; _class "container mb-3"; _hxTarget "body" ] [
+                antiCsrf app
+                div [ _class "row mwl-table-heading" ] [
+                    div [ _class dateCol ] [
+                        span [ _class "d-md-none" ] [ raw "Post" ]; span [ _class "d-none d-md-inline" ] [ raw "Date" ]
+                    ]
+                    div [ _class $"{titleCol} d-none d-md-inline-block" ] [ raw "Title" ]
+                    div [ _class $"{authorCol} d-none d-md-inline-block" ] [ raw "Author" ]
+                    div [ _class tagCol ] [ raw "Tags" ]
+                ]
+                for post in model.Posts do
+                    div [ _class "row mwl-table-detail" ] [
+                        div [ _class $"{dateCol} no-wrap" ] [
+                            small [ _class "d-md-none" ] [
+                                if post.PublishedOn.HasValue then
+                                    raw "Published "; txt (post.PublishedOn.Value.ToString "MMMM d, yyyy")
+                                else raw "Not Published"
+                                if post.PublishedOn.HasValue && post.PublishedOn.Value <> post.UpdatedOn then
+                                    em [ _class "text-muted" ] [
+                                        raw " (Updated "; txt (post.UpdatedOn.ToString "MMMM d, yyyy"); raw ")"
+                                    ]
+                            ]
+                            span [ _class "d-none d-md-inline" ] [
+                                if post.PublishedOn.HasValue then txt (post.PublishedOn.Value.ToString "MMMM d, yyyy")
+                                else raw "Not Published"
+                                if not post.PublishedOn.HasValue || post.PublishedOn.Value <> post.UpdatedOn then
+                                    br []
+                                    small [ _class "text-muted" ] [
+                                        em [] [ txt (post.UpdatedOn.ToString "MMMM d, yyyy") ]
+                                    ]
+                            ]
+                        ]
+                        div [ _class titleCol ] [
+                            if Option.isSome post.Episode then
+                                span [ _class "badge bg-success float-end text-uppercase mt-1" ] [ raw "Episode" ]
+                            raw post.Title; br []
+                            small [] [
+                                let postUrl = relUrl app $"admin/post/{post.Id}"
+                                a [ _href (relUrl app post.Permalink); _target "_blank" ] [ raw "View Post" ]
+                                if app.IsEditor || (app.IsAuthor && app.UserId.Value = WebLogUserId post.AuthorId) then
+                                    span [ _class "text-muted" ] [ raw " &bull; " ]
+                                    a [ _href $"{postUrl}/edit" ] [ raw "Edit" ]
+                                if app.IsWebLogAdmin then
+                                    span [ _class "text-muted" ] [ raw " &bull; " ]
+                                    a [ _href postUrl; _hxDelete postUrl; _class "text-danger"
+                                        _hxConfirm $"Are you sure you want to delete the post “{post.Title}”? This action cannot be undone." ] [
+                                        raw "Delete"
+                                    ]
+                            ]
+                        ]
+                        div [ _class authorCol ] [
+                            let author =
+                                model.Authors
+                                |> List.tryFind (fun a -> a.Name = post.AuthorId)
+                                |> Option.map _.Value
+                                |> Option.defaultValue "--"
+                                |> txt
+                            small [ _class "d-md-none" ] [
+                                raw "Authored by "; author; raw " | "
+                                raw (if post.Tags.Length = 0 then "No" else string post.Tags.Length)
+                                raw " Tag"; if post.Tags.Length <> 0 then raw "s"
+                            ]
+                            span [ _class "d-none d-md-inline" ] [ author ]
+                        ]
+                        div [ _class tagCol ] [
+                            let tags =
+                                post.Tags |> List.mapi (fun idx tag -> idx, span [ _class "no-wrap" ] [ txt tag ])
+                            for tag in tags do
+                                snd tag
+                                if fst tag < tags.Length - 1 then raw ", "
+                        ]
+                    ]
+            ]
+            if Option.isSome model.NewerLink || Option.isSome model.OlderLink then
+                div [ _class "d-flex justify-content-evenly mb-3" ] [
+                    div [] [
+                        if Option.isSome model.NewerLink then
+                            p [] [
+                                a [ _href model.NewerLink.Value; _class "btn btn-secondary"; ] [
+                                    raw "&laquo; Newer Posts"
+                                ]
+                            ]
+                    ]
+                    div [ _class "text-right" ] [
+                        if Option.isSome model.OlderLink then
+                            p [] [
+                                a [ _href model.OlderLink.Value; _class "btn btn-secondary" ] [
+                                    raw "Older Posts &raquo;"
+                                ]
+                            ]
+                    ]
+                ]
+        else
+            p [ _class "text-muted fst-italic text-center" ] [ raw "This web log has no posts" ]
+    ]
+]

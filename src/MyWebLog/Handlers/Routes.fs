@@ -184,7 +184,6 @@ let router : HttpHandler = choose [
                 route  "/save"                   >=> Post.save
                 route  "/permalinks"             >=> Post.savePermalinks
                 routef "/%s/chapter/%i"              Post.saveChapter
-                routef "/%s/delete"                  Post.delete
                 routef "/%s/revision/%s/delete"      Post.deleteRevision
                 routef "/%s/revision/%s/restore"     Post.restoreRevision
                 routef "/%s/revisions/purge"         Post.purgeRevisions
@@ -220,6 +219,7 @@ let router : HttpHandler = choose [
         ]
         DELETE >=> validateCsrf >=> choose [
             subRoute "/post" (choose [
+                routef "/%s"            Post.delete
                 routef "/%s/chapter/%i" Post.deleteChapter
             ])
             subRoute "/settings" (requireAccess WebLogAdmin >=> choose [

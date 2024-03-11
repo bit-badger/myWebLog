@@ -254,10 +254,7 @@ let all pageNbr : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     let  data  = ctx.Data
     let! posts = data.Post.FindPageOfPosts ctx.WebLog.Id pageNbr 25
     let! hash  = preparePostList ctx.WebLog posts AdminList "" pageNbr 25 data
-    return!
-           addToHash ViewContext.PageTitle "Posts" hash
-        |> withAntiCsrf ctx
-        |> adminView "post-list" next ctx
+    return! adminPage "Posts" true (Views.Post.list (hash[ViewContext.Model] :?> PostDisplay)) next ctx
 }
 
 // GET /admin/post/{id}/edit
@@ -294,12 +291,13 @@ let edit postId : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     | None -> return! Error.notFound next ctx
 }
 
-// POST /admin/post/{id}/delete
+// DELETE /admin/post/{id}
 let delete postId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     match! ctx.Data.Post.Delete (PostId postId) ctx.WebLog.Id with
     | true  -> do! addMessage ctx { UserMessage.Success with Message = "Post deleted successfully" }
     | false -> do! addMessage ctx { UserMessage.Error with Message = "Post not found; nothing deleted" }
-    return! redirectToGet "admin/posts" next ctx
+    //return! redirectToGet "admin/posts" next ctx
+    return! all 1 next ctx
 }
 
 // GET /admin/post/{id}/permalinks
