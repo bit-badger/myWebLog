@@ -244,6 +244,6 @@
        hx-target=#tag_new>
       Add a New Tag Mapping
     </a>
-    {{ tag_mapping_list }}
+    <span hx-get="{{ "admin/settings/tag-mappings" | relative_link }}" hx-trigger="load" hx-swap="outerHTML"></span>
   </fieldset>
 </article>

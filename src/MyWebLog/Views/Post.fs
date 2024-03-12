@@ -1,5 +1,6 @@
 module MyWebLog.Views.Post
 
+open Giraffe.Htmx.Common
 open Giraffe.ViewEngine
 open Giraffe.ViewEngine.Htmx
 open MyWebLog
@@ -147,7 +148,7 @@ let chapterEdit (model: EditChapterModel) app = [
 
 /// Display a list of chapters
 let chapterList withNew (model: ManageChaptersModel) app =
-    form [ _method "post"; _id "chapter_list"; _class "container mb-3"; _hxTarget "this"; _hxSwap "outerHTML" ] [
+    form [ _method "post"; _id "chapter_list"; _class "container mb-3"; _hxTarget "this"; _hxSwap HxSwap.OuterHtml ] [
         antiCsrf app
         input [ _type "hidden"; _name "Id"; _value model.Id ]
         div [ _class "row mwl-table-heading" ] [
@@ -170,7 +171,7 @@ let chapterList withNew (model: ManageChaptersModel) app =
                         else
                             let chapterUrl = relUrl app $"admin/post/{model.Id}/chapter/{idx}"
                             a [ _href chapterUrl; _hxGet chapterUrl; _hxTarget $"#chapter{idx}"
-                                _hxSwap $"innerHTML show:#chapter{idx}:top" ] [
+                                _hxSwap $"{HxSwap.InnerHtml} show:#chapter{idx}:top" ] [
                                 raw "Edit"
                             ]
                             span [ _class "text-muted" ] [ raw " &bull; " ]
@@ -179,12 +180,8 @@ let chapterList withNew (model: ManageChaptersModel) app =
                             ]
                     ]
                 ]
-                div [ _class "col-3 col-md-2 col-lg-1 text-center" ] [
-                    raw (match chapter.ImageUrl with Some _ -> "Y" | None -> "N")
-                ]
-                div [ _class "col-3 col-md-2 col-lg-1 text-center" ] [
-                    raw (match chapter.Location with Some _ -> "Y" | None -> "N")
-                ]
+                div [ _class "col-3 col-md-2 col-lg-1 text-center" ] [ yesOrNo (Option.isSome chapter.ImageUrl) ]
+                div [ _class "col-3 col-md-2 col-lg-1 text-center" ] [ yesOrNo (Option.isSome chapter.Location) ]
             ])
         div [ _class "row pb-3"; _id "chapter-1" ] [
             let newLink = relUrl app $"admin/post/{model.Id}/chapter/-1"

@@ -214,34 +214,24 @@ module RedirectRules =
     open Microsoft.AspNetCore.Http
 
     // GET /admin/settings/redirect-rules
-    let all : HttpHandler = fun next ctx -> task {
-        return!
-            hashForPage "Redirect Rules"
-            |> withAntiCsrf ctx
-            |> addToHash "redirections" ctx.WebLog.RedirectRules
-            |> adminView "redirect-list" next ctx
-    }
+    let all : HttpHandler = fun next ctx ->
+        adminPage "Redirect Rules" true (Views.Admin.redirectList ctx.WebLog.RedirectRules) next ctx
 
     // GET /admin/settings/redirect-rules/[index]
-    let edit idx : HttpHandler = fun next ctx -> task {
-        if idx = -1 then
-            return!
-                hashForPage "Add Redirect Rule"
-                |> addToHash "model" (EditRedirectRuleModel.FromRule -1 RedirectRule.Empty)
-                |> withAntiCsrf ctx
-                |> adminBareView "redirect-edit" next ctx
-        else        
-            let rules = ctx.WebLog.RedirectRules
-            if rules.Length < idx || idx < 0 then
-                return! Error.notFound next ctx
-            else
-                return!
-                    hashForPage "Edit Redirect Rule"
-                    |> addToHash "model" (EditRedirectRuleModel.FromRule idx (List.item idx rules))
-                    |> withAntiCsrf ctx
-                    |> adminBareView "redirect-edit" next ctx
-    }
-
+    let edit idx : HttpHandler = fun next ctx ->
+        let titleAndModel =
+            if idx = -1 then
+                Some ("Add", Views.Admin.redirectEdit (EditRedirectRuleModel.FromRule -1 RedirectRule.Empty))
+            else        
+                let rules = ctx.WebLog.RedirectRules
+                if rules.Length < idx || idx < 0 then
+                    None
+                else
+                    Some ("Edit", (Views.Admin.redirectEdit (EditRedirectRuleModel.FromRule idx (List.item idx rules))))
+        match titleAndModel with
+        | Some (title, model) -> adminBarePage $"{title} Redirect Rule" true model next ctx
+        | None -> Error.notFound next ctx
+        
     /// Update the web log's redirect rules in the database, the request web log, and the web log cache
     let private updateRedirectRules (ctx: HttpContext) webLog = backgroundTask {
         do! ctx.Data.WebLog.UpdateRedirectRules webLog
@@ -251,16 +241,15 @@ module RedirectRules =
 
     // POST /admin/settings/redirect-rules/[index]
     let save idx : HttpHandler = fun next ctx -> task {
-        let! model    = ctx.BindFormAsync<EditRedirectRuleModel>()
-        let  isNew    = idx = -1
-        let  rules    = ctx.WebLog.RedirectRules
-        let  rule     = model.ToRule()
-        let  newRules =
-            match isNew with
-            | true when model.InsertAtTop -> List.insertAt 0 rule rules
-            | true -> List.insertAt rules.Length rule rules
-            | false -> rules |> List.removeAt idx |> List.insertAt idx rule
-        do! updateRedirectRules ctx { ctx.WebLog with RedirectRules = newRules }
+        let! model = ctx.BindFormAsync<EditRedirectRuleModel>()
+        let  rule  = model.ToRule()
+        let  rules =
+            ctx.WebLog.RedirectRules
+            |> match idx with
+               | -1 when model.InsertAtTop -> List.insertAt 0 rule
+               | -1 -> List.insertAt ctx.WebLog.RedirectRules.Length rule
+               | _ -> List.removeAt idx >> List.insertAt idx rule
+        do! updateRedirectRules ctx { ctx.WebLog with RedirectRules = rules }
         do! addMessage ctx { UserMessage.Success with Message = "Redirect rule saved successfully" }
         return! all next ctx
     }
@@ -287,7 +276,7 @@ module RedirectRules =
             return! all next ctx
     }
 
-    // POST /admin/settings/redirect-rules/[index]/delete
+    // DELETE /admin/settings/redirect-rules/[index]
     let delete idx : HttpHandler = fun next ctx -> task {
         if idx < 0 || idx >= ctx.WebLog.RedirectRules.Length then
             return! Error.notFound next ctx
@@ -302,25 +291,10 @@ module RedirectRules =
 /// ~~~ TAG MAPPINGS ~~~
 module TagMapping =
     
-    open Microsoft.AspNetCore.Http
-
-    /// Add tag mappings to the given hash
-    let withTagMappings (ctx: HttpContext) hash = task {
-        let! mappings = ctx.Data.TagMap.FindByWebLog ctx.WebLog.Id
-        return
-               addToHash "mappings"    mappings hash
-            |> addToHash "mapping_ids" (
-                mappings
-                |> List.map (fun it -> { Name = it.Tag; Value = string it.Id }))
-    }
-
     // GET /admin/settings/tag-mappings
     let all : HttpHandler = fun next ctx -> task {
-        let! hash =
-            hashForPage ""
-            |> withAntiCsrf    ctx
-            |> withTagMappings ctx
-        return! adminBareView "tag-mapping-list-body" next ctx hash
+        let! mappings = ctx.Data.TagMap.FindByWebLog ctx.WebLog.Id
+        return! adminBarePage "Tag Mapping List" true (Views.Admin.tagMapList mappings) next ctx
     }
 
     // GET /admin/settings/tag-mapping/{id}/edit
@@ -332,10 +306,9 @@ module TagMapping =
         match! tagMap with
         | Some tm ->
             return!
-                hashForPage (if isNew then "Add Tag Mapping" else $"Mapping for {tm.Tag} Tag") 
-                |> withAntiCsrf ctx
-                |> addToHash ViewContext.Model (EditTagMapModel.FromMapping tm)
-                |> adminBareView "tag-mapping-edit" next ctx
+                adminBarePage
+                    (if isNew then "Add Tag Mapping" else $"Mapping for {tm.Tag} Tag") true 
+                    (Views.Admin.tagMapEdit (EditTagMapModel.FromMapping tm)) next ctx
         | None -> return! Error.notFound next ctx
     }
 
@@ -354,7 +327,7 @@ module TagMapping =
         | None -> return! Error.notFound next ctx
     }
 
-    // POST /admin/settings/tag-mapping/{id}/delete
+    // DELETE /admin/settings/tag-mapping/{id}
     let delete tagMapId : HttpHandler = fun next ctx -> task {
         match! ctx.Data.TagMap.Delete (TagMapId tagMapId) ctx.WebLog.Id with
         | true  -> do! addMessage ctx { UserMessage.Success with Message = "Tag mapping deleted successfully" }
@@ -531,44 +504,36 @@ module WebLog =
     // GET /admin/settings
     let settings : HttpHandler = fun next ctx -> task {
         let data = ctx.Data
-        match! TemplateCache.get adminTheme "tag-mapping-list-body" ctx.Data with
-        | Ok tagMapTemplate ->
-            let! allPages = data.Page.All ctx.WebLog.Id
-            let! themes   = data.Theme.All()
-            let! hash     =
-                hashForPage "Web Log Settings"
-                |> withAntiCsrf ctx
-                |> addToHash ViewContext.Model (SettingsModel.FromWebLog ctx.WebLog)
-                |> addToHash "pages" (
-                    seq {
-                        KeyValuePair.Create("posts", "- First Page of Posts -")
-                        yield! allPages
-                               |> List.sortBy _.Title.ToLower()
-                               |> List.map (fun p -> KeyValuePair.Create(string p.Id, p.Title))
-                    }
-                    |> Array.ofSeq)
-                |> addToHash "themes" (
-                    themes
-                    |> Seq.ofList
-                    |> Seq.map (fun it ->
-                        KeyValuePair.Create(string it.Id, $"{it.Name} (v{it.Version})"))
-                    |> Array.ofSeq)
-                |> addToHash "upload_values" [|
-                    KeyValuePair.Create(string Database, "Database")
-                    KeyValuePair.Create(string Disk,     "Disk")
-                |]
-                |> addToHash "rss_model" (EditRssModel.FromRssOptions ctx.WebLog.Rss)
-                |> addToHash "custom_feeds" (
-                    ctx.WebLog.Rss.CustomFeeds
-                    |> List.map (DisplayCustomFeed.FromFeed (CategoryCache.get ctx))
-                    |> Array.ofList)
-                |> addViewContext ctx
-            let! hash' = TagMapping.withTagMappings ctx hash
-            return!
-                hash'
-                |> addToHash "tag_mapping_list" (tagMapTemplate.Render hash')
-                |> adminView "settings" next ctx
-        | Error message -> return! Error.server message next ctx
+        let! allPages = data.Page.All ctx.WebLog.Id
+        let! themes   = data.Theme.All()
+        return!
+            hashForPage "Web Log Settings"
+            |> withAntiCsrf ctx
+            |> addToHash ViewContext.Model (SettingsModel.FromWebLog ctx.WebLog)
+            |> addToHash "pages" (
+                seq {
+                    KeyValuePair.Create("posts", "- First Page of Posts -")
+                    yield! allPages
+                           |> List.sortBy _.Title.ToLower()
+                           |> List.map (fun p -> KeyValuePair.Create(string p.Id, p.Title))
+                }
+                |> Array.ofSeq)
+            |> addToHash "themes" (
+                themes
+                |> Seq.ofList
+                |> Seq.map (fun it ->
+                    KeyValuePair.Create(string it.Id, $"{it.Name} (v{it.Version})"))
+                |> Array.ofSeq)
+            |> addToHash "upload_values" [|
+                KeyValuePair.Create(string Database, "Database")
+                KeyValuePair.Create(string Disk,     "Disk")
+            |]
+            |> addToHash "rss_model" (EditRssModel.FromRssOptions ctx.WebLog.Rss)
+            |> addToHash "custom_feeds" (
+                ctx.WebLog.Rss.CustomFeeds
+                |> List.map (DisplayCustomFeed.FromFeed (CategoryCache.get ctx))
+                |> Array.ofList)
+            |> adminView "settings" next ctx
     }
 
     // POST /admin/settings

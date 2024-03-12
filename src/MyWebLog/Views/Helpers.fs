@@ -98,6 +98,10 @@ let shortTime app (instant: Instant) =
     |> Option.defaultValue "--"
     |> txt
 
+/// Display "Yes" or "No" based on the state of a boolean value
+let yesOrNo value =
+    raw (if value then "Yes" else "No")
+
 /// Functions for generating content in varying layouts
 module Layout =
     

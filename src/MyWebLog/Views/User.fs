@@ -1,5 +1,6 @@
 module MyWebLog.Views.User
 
+open Giraffe.Htmx.Common
 open Giraffe.ViewEngine
 open Giraffe.ViewEngine.Htmx
 open MyWebLog
@@ -12,7 +13,7 @@ let edit (model: EditUserModel) app =
     div [ _class "col-12" ] [
         h5 [ _class "my-3" ] [ txt app.PageTitle ]
         form [ _hxPost (relUrl app "admin/settings/user/save"); _method "post"; _class "container"
-               _hxTarget "#userList"; _hxSwap "outerHTML show:window:top" ] [
+               _hxTarget "#userList"; _hxSwap $"{HxSwap.OuterHtml} show:window:top" ] [
             antiCsrf app
             input [ _type "hidden"; _name "Id"; _value model.Id ]
             div [ _class "row" ] [
@@ -167,7 +168,8 @@ let userList (model: WebLogUser list) app =
         div [ _class "container g-0" ] [
             div [ _class "row mwl-table-detail"; _id "user_new" ] []
         ]
-        form [ _method "post"; _class "container g-0"; _hxTarget "this"; _hxSwap "outerHTML show:window:top" ] [
+        form [ _method "post"; _class "container g-0"; _hxTarget "this"
+               _hxSwap $"{HxSwap.OuterHtml} show:window:top" ] [
             antiCsrf app
             for user in model do
                 div [ _class "row mwl-table-detail"; _id $"user_{user.Id}" ] [
@@ -183,7 +185,7 @@ let userList (model: WebLogUser list) app =
                             let userUrl = relUrl app $"admin/settings/user/{user.Id}"
                             small [] [
                                 a [ _href $"{userUrl}/edit"; _hxTarget $"#user_{user.Id}"
-                                    _hxSwap $"innerHTML show:#user_{user.Id}:top" ] [
+                                    _hxSwap $"{HxSwap.InnerHtml} show:#user_{user.Id}:top" ] [
                                     raw "Edit"
                                 ]
                                 if app.UserId.Value <> user.Id then

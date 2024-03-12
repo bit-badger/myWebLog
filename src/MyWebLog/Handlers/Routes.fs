@@ -196,16 +196,12 @@ let router : HttpHandler = choose [
                     routef "/%s/delete"     Feed.deleteCustomFeed
                 ])
                 subRoute "/redirect-rules" (choose [
-                    routef "/%i"        Admin.RedirectRules.save
-                    routef "/%i/up"     Admin.RedirectRules.moveUp
-                    routef "/%i/down"   Admin.RedirectRules.moveDown
-                    routef "/%i/delete" Admin.RedirectRules.delete
+                    routef "/%i"      Admin.RedirectRules.save
+                    routef "/%i/up"   Admin.RedirectRules.moveUp
+                    routef "/%i/down" Admin.RedirectRules.moveDown
                 ])
-                subRoute "/tag-mapping" (choose [
-                    route  "/save"      >=> Admin.TagMapping.save
-                    routef "/%s/delete"     Admin.TagMapping.delete
-                ])
-                route "/user/save" >=> User.save
+                route "/tag-mapping/save" >=> Admin.TagMapping.save
+                route "/user/save"        >=> User.save
             ])
             subRoute "/theme" (choose [
                 route  "/new"       >=> Admin.Theme.save
@@ -223,7 +219,9 @@ let router : HttpHandler = choose [
                 routef "/%s/chapter/%i" Post.deleteChapter
             ])
             subRoute "/settings" (requireAccess WebLogAdmin >=> choose [
-                routef "/user/%s" User.delete
+                routef "/user/%s"           User.delete
+                routef "/redirect-rules/%i" Admin.RedirectRules.delete
+                routef "/tag-mapping/%s"    Admin.TagMapping.delete
             ])
         ]
     ])

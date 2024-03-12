@@ -52,12 +52,14 @@ let displayChapterTests = testList "DisplayChapter.FromChapter" [
                 { StartTime = Duration.FromSeconds 7201.43242
                   Title     = Some "My Test Chapter"
                   ImageUrl  = Some "two-hours-in.jpg"
+                  Url       = Some "https://example.com/about"
                   IsHidden  = Some true
                   EndTime   = Some (Duration.FromSeconds 7313.788)
-                  Location  = Some { Name = "Over Here"; Geo = Some "geo:23432"; Osm = Some "SF98fFSu-8" } }
+                  Location  = Some { Name = "Over Here"; Geo = "geo:23432"; Osm = Some "SF98fFSu-8" } }
         Expect.equal chapter.StartTime "2:00:01.43" "Start time not filled/formatted properly"
         Expect.equal chapter.Title "My Test Chapter" "Title not filled properly"
         Expect.equal chapter.ImageUrl "two-hours-in.jpg" "Image URL not filled properly"
+        Expect.equal chapter.Url "https://example.com/about" "URL not filled properly"
         Expect.isTrue chapter.IsHidden "Is hidden flag not filled properly"
         Expect.equal chapter.EndTime "2:01:53.78" "End time not filled/formatted properly"
         Expect.equal chapter.LocationName "Over Here" "Location name not filled properly"
@@ -1121,9 +1123,9 @@ let manageChaptersModelTests = testList "ManageChaptersModel.Create" [
         Expect.equal model.Id "test-post" "ID not filled properly"
         Expect.equal model.Title "Look at all these chapters" "Title not filled properly"
         Expect.hasLength model.Chapters 3 "There should be three chapters"
-        Expect.equal model.Chapters[0].StartTime "0:00:18" "First chapter not filled properly"
-        Expect.equal model.Chapters[1].StartTime "0:00:36" "Second chapter not filled properly"
-        Expect.equal model.Chapters[2].StartTime "0:03:00.7" "Third chapter not filled properly"
+        Expect.equal model.Chapters[0].StartTime (Duration.FromSeconds 18L) "First chapter not filled properly"
+        Expect.equal model.Chapters[1].StartTime (Duration.FromSeconds 36L) "Second chapter not filled properly"
+        Expect.equal model.Chapters[2].StartTime (Duration.FromSeconds 180.7) "Third chapter not filled properly"
     }
 ]
 
