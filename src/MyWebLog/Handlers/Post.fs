@@ -254,7 +254,7 @@ let all pageNbr : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     let  data  = ctx.Data
     let! posts = data.Post.FindPageOfPosts ctx.WebLog.Id pageNbr 25
     let! hash  = preparePostList ctx.WebLog posts AdminList "" pageNbr 25 data
-    return! adminPage "Posts" true (Views.Post.list (hash[ViewContext.Model] :?> PostDisplay)) next ctx
+    return! adminPage "Posts" true next ctx (Views.Post.list (hash[ViewContext.Model] :?> PostDisplay))
 }
 
 // GET /admin/post/{id}/edit
@@ -305,10 +305,9 @@ let editPermalinks postId : HttpHandler = requireAccess Author >=> fun next ctx 
     match! ctx.Data.Post.FindFullById (PostId postId) ctx.WebLog.Id with
     | Some post when canEdit post.AuthorId ctx ->
         return!
-            hashForPage "Manage Prior Permalinks"
-            |> withAntiCsrf ctx
-            |> addToHash ViewContext.Model (ManagePermalinksModel.FromPost post)
-            |> adminView "permalinks" next ctx
+            ManagePermalinksModel.FromPost post
+            |> Views.Helpers.managePermalinks
+            |> adminPage "Manage Prior Permalinks" true next ctx
     | Some _ -> return! Error.notAuthorized next ctx
     | None -> return! Error.notFound next ctx
 }
@@ -334,15 +333,14 @@ let editRevisions postId : HttpHandler = requireAccess Author >=> fun next ctx -
     match! ctx.Data.Post.FindFullById (PostId postId) ctx.WebLog.Id with
     | Some post when canEdit post.AuthorId ctx ->
         return!
-            hashForPage "Manage Post Revisions"
-            |> withAntiCsrf ctx
-            |> addToHash ViewContext.Model (ManageRevisionsModel.FromPost ctx.WebLog post)
-            |> adminView "revisions" next ctx
+            ManageRevisionsModel.FromPost post
+            |> Views.Helpers.manageRevisions
+            |> adminPage "Manage Post Revisions" true next ctx
     | Some _ -> return! Error.notAuthorized next ctx
     | None -> return! Error.notFound next ctx
 }
 
-// GET /admin/post/{id}/revisions/purge
+// DELETE /admin/post/{id}/revisions
 let purgeRevisions postId : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     let data = ctx.Data
     match! data.Post.FindFullById (PostId postId) ctx.WebLog.Id with
@@ -398,7 +396,7 @@ let restoreRevision (postId, revDate) : HttpHandler = requireAccess Author >=> f
     | _, None -> return! Error.notFound next ctx
 }
 
-// POST /admin/post/{id}/revision/{revision-date}/delete
+// DELETE /admin/post/{id}/revision/{revision-date}
 let deleteRevision (postId, revDate) : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     match! findPostRevision postId revDate ctx with
     | Some post, Some rev when canEdit post.AuthorId ctx ->
@@ -418,7 +416,8 @@ let manageChapters postId : HttpHandler = requireAccess Author >=> fun next ctx 
              && Option.isSome post.Episode.Value.Chapters
              && canEdit post.AuthorId ctx ->
         return!
-            adminPage "Manage Chapters" true (Views.Post.chapters false (ManageChaptersModel.Create post)) next ctx
+            Views.Post.chapters false (ManageChaptersModel.Create post)
+            |> adminPage "Manage Chapters" true next ctx
     | Some _ | None -> return! Error.notFound next ctx
 }
 
@@ -437,9 +436,8 @@ let editChapter (postId, index) : HttpHandler = requireAccess Author >=> fun nex
         match chapter with
         | Some chap ->
             return!
-                adminBarePage
-                    (if index = -1 then "Add a Chapter" else "Edit Chapter") true
-                    (Views.Post.chapterEdit (EditChapterModel.FromChapter post.Id index chap)) next ctx
+                Views.Post.chapterEdit (EditChapterModel.FromChapter post.Id index chap)
+                |> adminBarePage (if index = -1 then "Add a Chapter" else "Edit Chapter") true next ctx
         | None -> return! Error.notFound next ctx
     | Some _ | None -> return! Error.notFound next ctx
 }
@@ -466,9 +464,8 @@ let saveChapter (postId, index) : HttpHandler = requireAccess Author >=> fun nex
                 do! data.Post.Update updatedPost
                 do! addMessage ctx { UserMessage.Success with Message = "Chapter saved successfully" }
                 return!
-                    adminPage
-                        "Manage Chapters" true
-                        (Views.Post.chapterList form.AddAnother (ManageChaptersModel.Create updatedPost)) next ctx
+                    Views.Post.chapterList form.AddAnother (ManageChaptersModel.Create updatedPost)
+                    |> adminPage "Manage Chapters" true next ctx
             with
             | ex -> return! Error.server ex.Message next ctx
         else return! Error.notFound next ctx
@@ -491,9 +488,8 @@ let deleteChapter (postId, index) : HttpHandler = requireAccess Author >=> fun n
             do! data.Post.Update updatedPost
             do! addMessage ctx { UserMessage.Success with Message = "Chapter deleted successfully" }
             return!
-                adminPage
-                    "Manage Chapters" true (Views.Post.chapterList false (ManageChaptersModel.Create updatedPost)) next
-                    ctx
+                Views.Post.chapterList false (ManageChaptersModel.Create updatedPost)
+                |> adminPage "Manage Chapters" true next ctx
         else return! Error.notFound next ctx
     | Some _ | None -> return! Error.notFound next ctx
 }

@@ -35,7 +35,7 @@ let logOn returnUrl : HttpHandler = fun next ctx ->
         match returnUrl with
         | Some _ -> returnUrl
         | None -> if ctx.Request.Query.ContainsKey "returnUrl" then Some ctx.Request.Query["returnUrl"].[0] else None
-    adminPage "Log On" true (Views.User.logOn { LogOnModel.Empty with ReturnTo = returnTo }) next ctx
+    adminPage "Log On" true next ctx (Views.User.logOn { LogOnModel.Empty with ReturnTo = returnTo })
 
 
 open System.Security.Claims
@@ -91,12 +91,12 @@ let private goAway : HttpHandler = RequestErrors.BAD_REQUEST "really?"
 // GET /admin/settings/users
 let all : HttpHandler = fun next ctx -> task {
     let! users = ctx.Data.WebLogUser.FindByWebLog ctx.WebLog.Id
-    return! adminBarePage "User Administration" true (Views.User.userList users) next ctx
+    return! adminBarePage "User Administration" true next ctx (Views.User.userList users)
 }
 
 /// Show the edit user page
 let private showEdit (model: EditUserModel) : HttpHandler = fun next ctx ->
-    adminBarePage (if model.IsNew then "Add a New User" else "Edit User") true (Views.User.edit model) next ctx
+    adminBarePage (if model.IsNew then "Add a New User" else "Edit User") true next ctx (Views.User.edit model)
     
 // GET /admin/settings/user/{id}/edit
 let edit usrId : HttpHandler = fun next ctx -> task {
@@ -137,7 +137,9 @@ let delete userId : HttpHandler = fun next ctx -> task {
 let myInfo : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     match! ctx.Data.WebLogUser.FindById ctx.UserId ctx.WebLog.Id with
     | Some user ->
-        return! adminPage "Edit Your Information" true (Views.User.myInfo (EditMyInfoModel.FromUser user) user) next ctx
+        return!
+            Views.User.myInfo (EditMyInfoModel.FromUser user) user
+            |> adminPage "Edit Your Information" true next ctx
     | None -> return! Error.notFound next ctx
 }
 
@@ -161,9 +163,8 @@ let saveMyInfo : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     | Some user ->
         do! addMessage ctx { UserMessage.Error with Message = "Passwords did not match; no updates made" }
         return!
-            adminPage
-                "Edit Your Information" true
-                (Views.User.myInfo { model with NewPassword = ""; NewPasswordConfirm = "" } user) next ctx
+            Views.User.myInfo { model with NewPassword = ""; NewPasswordConfirm = "" } user
+            |> adminPage "Edit Your Information" true next ctx
     | None -> return! Error.notFound next ctx
 }
 

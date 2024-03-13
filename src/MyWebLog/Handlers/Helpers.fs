@@ -282,8 +282,9 @@ module Error =
     let notAuthorized : HttpHandler = fun next ctx ->
         if ctx.Request.Method = "GET" then
             let redirectUrl = $"user/log-on?returnUrl={WebUtility.UrlEncode ctx.Request.Path}"
-            if isHtmx ctx then (withHxRedirect redirectUrl >=> redirectToGet redirectUrl) next ctx
-            else redirectToGet redirectUrl next ctx
+            (next, ctx)
+            ||> if isHtmx ctx then withHxRedirect redirectUrl >=> withHxRetarget "body" >=> redirectToGet redirectUrl
+                else redirectToGet redirectUrl
         else
             if isHtmx ctx then
                 let messages = [|
@@ -370,7 +371,7 @@ let adminBareView template =
     bareForTheme adminTheme template
 
 /// Display a page for an admin endpoint
-let adminPage pageTitle includeCsrf (content: AppViewContext -> XmlNode list) : HttpHandler = fun next ctx -> task {
+let adminPage pageTitle includeCsrf next ctx (content: AppViewContext -> XmlNode list) = task {
     let! messages = getCurrentMessages ctx
     let  appCtx   = generateViewContext pageTitle messages includeCsrf ctx
     let  layout   = if isHtmx ctx then Layout.partial else Layout.full
@@ -378,7 +379,7 @@ let adminPage pageTitle includeCsrf (content: AppViewContext -> XmlNode list) : 
 }
 
 /// Display a bare page for an admin endpoint
-let adminBarePage pageTitle includeCsrf (content: AppViewContext -> XmlNode list) : HttpHandler = fun next ctx -> task {
+let adminBarePage pageTitle includeCsrf next ctx (content: AppViewContext -> XmlNode list) = task {
     let! messages = getCurrentMessages ctx
     let  appCtx   = generateViewContext pageTitle messages includeCsrf ctx
     return!
@@ -471,13 +472,12 @@ let getCategoryIds slug ctx =
     |> Seq.map (fun c -> CategoryId c.Id)
     |> List.ofSeq
 
-open System
-open System.Globalization
 open NodaTime
 
 /// Parse a date/time to UTC 
-let parseToUtc (date: string) =
-    Instant.FromDateTimeUtc(DateTime.Parse(date, null, DateTimeStyles.AdjustToUniversal))
+let parseToUtc (date: string) : Instant =
+    let result = roundTrip.Parse date
+    if result.Success then result.Value else raise result.Exception
 
 open Microsoft.Extensions.DependencyInjection
 open Microsoft.Extensions.Logging

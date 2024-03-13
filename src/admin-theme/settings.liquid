@@ -109,19 +109,6 @@
   </fieldset>
   <fieldset id=users class="container mb-3 pb-0">
     <legend>Users</legend>
-    {% include_template "_user-list-columns" %}
-    <a href="{{ "admin/settings/user/new/edit" | relative_link }}" class="btn btn-primary btn-sm mb-3"
-       hx-target=#user_new>
-      Add a New User
-    </a>
-    <div class="container g-0">
-      <div class="row mwl-table-heading">
-        <div class="{{ user_col }}">User<span class=d-md-none>; Full Name / E-mail; Last Log On</span></div>
-        <div class="{{ email_col }} d-none d-md-inline-block">Full Name / E-mail</div>
-        <div class="{{ cre8_col }}">Created</div>
-        <div class="{{ last_col }} d-none d-md-block">Last Log On</div>
-      </div>
-    </div>
     <span hx-get="{{ "admin/settings/users" | relative_link }}" hx-trigger="load" hx-swap="outerHTML"></span>
   </fieldset>
   <fieldset id=rss-settings class="container mb-3 pb-0">

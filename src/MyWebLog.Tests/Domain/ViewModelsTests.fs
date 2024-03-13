@@ -179,17 +179,6 @@ let displayPageTests = testList "DisplayPage" [
     ]
 ]
 
-/// Unit tests for the DisplayRevision type
-let displayRevisionTests = test "DisplayRevision.FromRevision succeeds" {
-    let model =
-        DisplayRevision.FromRevision
-            { WebLog.Empty with TimeZone = "Etc/GMT+1" }
-            { Text = Html "howdy"; AsOf = Noda.epoch }
-    Expect.equal model.AsOf (Noda.epoch.ToDateTimeUtc()) "AsOf not filled properly"
-    Expect.equal model.AsOfLocal ((Noda.epoch - Duration.FromHours 1).ToDateTimeUtc()) "AsOfLocal not filled properly"
-    Expect.equal model.Format "HTML" "Format not filled properly"
-}
-
 open System.IO
 
 /// Unit tests for the DisplayTheme type
@@ -1346,7 +1335,6 @@ let all = testList "ViewModels" [
     displayChapterTests
     displayCustomFeedTests
     displayPageTests
-    displayRevisionTests
     displayThemeTests
     displayUploadTests
     displayUserTests

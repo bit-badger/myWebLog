@@ -232,3 +232,139 @@ module Layout =
             title [] []
             yield! content app
         ]
+
+
+// ~~ SHARED TEMPLATES BETWEEN POSTS AND PAGES
+open Giraffe.Htmx.Common
+
+/// The round-trip instant pattern
+let roundTrip = InstantPattern.CreateWithInvariantCulture "uuuu'-'MM'-'dd'T'HH':'mm':'ss'.'fffffff"
+
+/// Capitalize the first letter in the given string
+let private capitalize (it: string) =
+    $"{(string it[0]).ToUpper()}{it[1..]}"
+
+/// Form to manage permalinks for pages or posts
+let managePermalinks (model: ManagePermalinksModel) app = [
+    let baseUrl = relUrl app $"admin/{model.Entity}/"
+    let linkDetail idx link =
+        div [ _id $"link_%i{idx}"; _class "row mb-3" ] [
+            div [ _class "col-1 text-center align-self-center" ] [
+                button [ _type "button"; _class "btn btn-sm btn-danger"
+                         _onclick $"Admin.removePermalink({idx})" ] [
+                    raw "&minus;"
+                ]
+            ]
+            div [ _class "col-11" ] [
+                div [ _class "form-floating" ] [
+                    input [ _type "text"; _name "Prior"; _id $"prior_{idx}"; _class "form-control"; _placeholder "Link"
+                            _value link ]
+                    label [ _for $"prior_{idx}" ] [ raw "Link" ]
+                ]
+            ]
+        ]
+    h2 [ _class "my-3" ] [ raw app.PageTitle ]
+    article [] [
+        form [ _action $"{baseUrl}permalinks"; _method "post"; _class "container" ] [
+            antiCsrf app
+            input [ _type "hidden"; _name "Id"; _value model.Id ]
+            div [ _class "row" ] [
+                div [ _class "col" ] [
+                    p [ _style "line-height:1.2rem;" ] [
+                        strong [] [ txt model.CurrentTitle ]; br []
+                        small [ _class "text-muted" ] [
+                            span [ _class "fst-italic" ] [ txt model.CurrentPermalink ]; br []
+                            a [ _href $"{baseUrl}{model.Id}/edit" ] [
+                                raw $"&laquo; Back to Edit {capitalize model.Entity}"
+                            ]
+                        ]
+                    ]
+                ]
+            ]
+            div [ _class "row mb-3" ] [
+                div [ _class "col" ] [
+                    button [ _type "button"; _class "btn btn-sm btn-secondary"; _onclick "Admin.addPermalink()" ] [
+                        raw "Add a Permalink"
+                    ]
+                ]
+            ]
+            div [ _class "row mb-3" ] [
+                div [ _class "col" ] [
+                    div [ _id "permalinks"; _class "container g-0" ] [
+                        yield! Array.mapi linkDetail model.Prior
+                        script [] [
+                            raw """document.addEventListener(\"DOMContentLoaded\", """
+                            raw $"() => Admin.setPermalinkIndex({model.Prior.Length}))"
+                        ]
+                    ]
+                ]
+            ]
+            div [ _class "row pb-3" ] [
+                div [ _class "col " ] [
+                    button [ _type "submit"; _class "btn btn-primary" ] [ raw "Save Changes" ]
+                ]
+            ]
+        ]
+    ]
+]
+
+/// Form to manage revisions for pages or posts
+let manageRevisions (model: ManageRevisionsModel) app = [
+    let revUrlBase = relUrl app $"admin/{model.Entity}/{model.Id}/revision"
+    let revDetail idx (rev: Revision) =
+        let asOfString = roundTrip.Format rev.AsOf
+        let asOfId     = $"""rev_{asOfString.Replace(".", "_").Replace(":", "-")}"""
+        div [ _id asOfId; _class "row pb-3 mwl-table-detail" ] [
+            div [ _class "col-12 mb-1" ] [
+                longDate app rev.AsOf; raw " at "; shortTime app rev.AsOf; raw " "
+                span [ _class "badge bg-secondary text-uppercase ms-2" ] [ txt (string rev.Text.SourceType) ]
+                if idx = 0 then span [ _class "badge bg-primary text-uppercase ms-2" ] [ raw "Current Revision" ]
+                br []
+                if idx > 0 then
+                    let revUrlPrefix = $"{revUrlBase}/{asOfString}"
+                    let revRestore   = $"{revUrlPrefix}/restore"
+                    small [] [
+                        a [ _href $"{revUrlPrefix}/preview"; _hxTarget $"#{asOfId}_preview" ] [ raw "Preview" ]
+                        span [ _class "text-muted" ] [ raw " &bull; " ]
+                        a [ _href revRestore; _hxPost revRestore ] [ raw "Restore as Current" ]
+                        span [ _class "text-muted" ] [ raw " &bull; " ]
+                        a [ _href revUrlPrefix; _hxDelete revUrlPrefix; _hxTarget $"#{asOfId}"
+                            _hxSwap HxSwap.OuterHtml; _class "text-danger" ] [
+                            raw "Delete"
+                        ]
+                    ]
+            ]
+            if idx > 0 then div [ _id $"{asOfId}_preview"; _class "col-12" ] []
+        ]
+
+    h2 [ _class "my-3" ] [ raw app.PageTitle ]
+    article [] [
+        form [ _method "post"; _hxTarget "body"; _class "container mb-3" ] [
+            antiCsrf app
+            input [ _type "hidden"; _name "Id"; _value model.Id ]
+            div [ _class "row" ] [
+                div [ _class "col" ] [
+                    p [ _style "line-height:1.2rem;" ] [
+                        strong [] [ txt model.CurrentTitle ]; br []
+                        small [ _class "text-muted" ] [
+                            a [ _href (relUrl app $"admin/{model.Entity}/{model.Id}/edit") ] [
+                                raw $"&laquo; Back to Edit {(string model.Entity[0]).ToUpper()}{model.Entity[1..]}"
+                            ]
+                        ]
+                    ]
+                ]
+            ]
+            if model.Revisions.Length > 1 then
+                div [ _class "row mb-3" ] [
+                    div [ _class "col" ] [
+                        button [ _type "button"; _class "btn btn-sm btn-danger"; _hxDelete $"{revUrlBase}s/purge"
+                                 _hxConfirm "This will remove all revisions but the current one; are you sure this is what you wish to do?" ] [
+                            raw "Delete All Prior Revisions"
+                        ]
+                    ]
+                ]
+            div [ _class "row mwl-table-heading" ] [ div [ _class "col" ] [ raw "Revision" ] ]
+            yield! List.mapi revDetail model.Revisions
+        ]
+    ]
+]

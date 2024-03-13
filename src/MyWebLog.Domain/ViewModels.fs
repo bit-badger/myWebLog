@@ -204,26 +204,6 @@ type DisplayPage = {
         }
 
 
-/// Information about a revision used for display
-[<NoComparison; NoEquality>]
-type DisplayRevision = {
-    /// The as-of date/time for the revision
-    AsOf: DateTime
-    
-    /// The as-of date/time for the revision in the web log's local time zone
-    AsOfLocal: DateTime
-    
-    /// The format of the text of the revision
-    Format: string
-} with
-    
-    /// Create a display revision from an actual revision
-    static member FromRevision (webLog: WebLog) (rev : Revision) =
-        { AsOf      = rev.AsOf.ToDateTimeUtc()
-          AsOfLocal = webLog.LocalTime rev.AsOf
-          Format    = rev.Text.SourceType }
-
-
 open System.IO
 
 /// Information about a theme used for display
@@ -1180,22 +1160,22 @@ type ManageRevisionsModel = {
     CurrentTitle: string
     
     /// The revisions for the page or post
-    Revisions: DisplayRevision array
+    Revisions: Revision list
 } with
     
     /// Create a revision model from a page
-    static member FromPage webLog (page: Page) =
+    static member FromPage (page: Page) =
         { Id           = string page.Id
           Entity       = "page"
           CurrentTitle = page.Title
-          Revisions    = page.Revisions |> List.map (DisplayRevision.FromRevision webLog) |> Array.ofList }
+          Revisions    = page.Revisions }
 
     /// Create a revision model from a post
-    static member FromPost webLog (post: Post) =
+    static member FromPost (post: Post) =
         { Id           = string post.Id
           Entity       = "post"
           CurrentTitle = post.Title
-          Revisions    = post.Revisions |> List.map (DisplayRevision.FromRevision webLog) |> Array.ofList }
+          Revisions    = post.Revisions }
 
 
 /// View model for posts in a list

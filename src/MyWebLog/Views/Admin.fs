@@ -293,3 +293,91 @@ let tagMapList (model: TagMap list) app =
         ]
     ]
     |> List.singleton
+
+
+/// Display a list of themes
+let themeList (model: DisplayTheme list) app =
+    let themeCol = "col-12 col-md-6"
+    let slugCol  = "d-none d-md-block col-md-3"
+    let tmplCol  = "d-none d-md-block col-md-3"
+    div [ _id "theme_panel" ] [
+        a [ _href (relUrl app "admin/theme/new"); _class "btn btn-primary btn-sm mb-3"; _hxTarget "#theme_new" ] [
+            raw "Upload a New Theme"
+        ]
+        div [ _class "container g-0" ] [
+            div [ _class "row mwl-table-heading" ] [
+                div [ _class themeCol ] [ raw "Theme" ]
+                div [ _class slugCol ] [ raw "Slug" ]
+                div [ _class tmplCol ] [ raw "Templates" ]
+            ]
+        ]
+        div [ _class "row mwl-table-detail"; _id "theme_new" ] []
+        form [ _method "post"; _id "themeList"; _class "container g-0"; _hxTarget "#theme_panel"
+               _hxSwap $"{HxSwap.OuterHtml} show:window:top" ] [
+            antiCsrf app
+            for theme in model do
+                let url = relUrl app $"admin/theme/{theme.Id}"
+                div [ _class "row mwl-table-detail"; _id $"theme_{theme.Id}" ] [
+                    div [ _class $"{themeCol} no-wrap" ] [
+                        txt theme.Name
+                        if theme.IsInUse then span [ _class "badge bg-primary ms-2" ] [ raw "IN USE" ]
+                        if not theme.IsOnDisk then
+                            span [ _class "badge bg-warning text-dark ms-2" ] [ raw "NOT ON DISK" ]
+                        br []
+                        small [] [
+                            span [ _class "text-muted" ] [ txt $"v{theme.Version}" ]
+                            if not (theme.IsInUse || theme.Id = "default") then
+                                span [ _class "text-muted" ] [ raw " &bull; " ]
+                                a [ _href url; _hxDelete url; _class "text-danger"
+                                    _hxConfirm $"Are you sure you want to delete the theme “{theme.Name}”? This action cannot be undone." ] [
+                                    raw "Delete"
+                                ]
+                            span [ _class "d-md-none text-muted" ] [
+                                br []; raw "Slug: "; txt theme.Id; raw $" &bull; {theme.TemplateCount} Templates"
+                            ]
+                        ]
+                    ]
+                    div [ _class slugCol ] [ txt (string theme.Id) ]
+                    div [ _class tmplCol ] [ txt (string theme.TemplateCount) ]
+                ]
+        ]
+    ]
+    |> List.singleton
+
+
+/// Form to allow a theme to be uploaded
+let themeUpload app =
+    div [ _class "col" ] [
+        h5 [ _class "mt-2" ] [ raw app.PageTitle ]
+        form [ _action (relUrl app "admin/theme/new"); _method "post"; _class "container"
+               _enctype "multipart/form-data"; _hxNoBoost ] [
+            antiCsrf app
+            div [ _class "row " ] [
+                div [ _class "col-12 col-sm-6 pb-3" ] [
+                    div [ _class "form-floating" ] [
+                        input [ _type "file"; _id "file"; _name "file"; _class "form-control"; _accept ".zip"
+                                _placeholder "Theme File"; _required ]
+                        label [ _for "file" ] [ raw "Theme File" ]
+                    ]
+                ]
+                div [ _class "col-12 col-sm-6 pb-3 d-flex justify-content-center align-items-center" ] [
+                    div [ _class "form-check form-switch pb-2" ] [
+                        input [ _type "checkbox"; _name "DoOverwrite"; _id "doOverwrite"; _class "form-check-input"
+                                _value "true" ]
+                        label [ _for "doOverwrite"; _class "form-check-label" ] [ raw "Overwrite" ]
+                    ]
+                ]
+            ]
+            div [ _class "row pb-3" ] [
+                div [ _class "col text-center" ] [
+                    button [ _type "submit"; _class "btn btn-sm btn-primary" ] [ raw "Upload Theme" ]; raw " &nbsp; "
+                    button [ _type "button"; _class "btn btn-sm btn-secondary ms-3"
+                             _onclick "document.getElementById('theme_new').innerHTML = ''" ] [
+                        raw "Cancel"
+                    ]
+                ]
+            ]
+        ]
+    ]
+    |> List.singleton
+    

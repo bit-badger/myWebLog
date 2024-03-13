@@ -2,19 +2,7 @@
 <article>
   <fieldset class="container mb-3 pb-0">
     <legend>Themes</legend>
-    <a href="{{ "admin/theme/new" | relative_link }}" class="btn btn-primary btn-sm mb-3" hx-target=#theme_new>
-      Upload a New Theme
-    </a>
-    <div class="container g-0">
-      {% include_template "_theme-list-columns" %}
-      <div class="row mwl-table-heading">
-        <div class="{{ theme_col }}">Theme</div>
-        <div class="{{ slug_col }} d-none d-md-inline-block">Slug</div>
-        <div class="{{ tmpl_col }} d-none d-md-inline-block">Templates</div>
-      </div>
-    </div>
-    <div class="row mwl-table-detail" id="theme_new"></div>
-    {{ theme_list }}
+    <span hx-get="{{ "admin/theme/list" | relative_link }}" hx-trigger="load" hx-swap="outerHTML"></span>
   </fieldset>
   <fieldset class="container mb-3 pb-0">
     {%- assign cache_base_url = "admin/cache/" -%}

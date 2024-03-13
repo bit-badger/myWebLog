@@ -27,45 +27,35 @@ module Dashboard =
               ListedPages        = listed
               Categories         = cats
               TopLevelCategories = topCats }
-        return! adminPage "Dashboard" false (Views.Admin.dashboard model) next ctx
+        return! adminPage "Dashboard" false next ctx (Views.Admin.dashboard model)
     }
 
     // GET /admin/administration
     let admin : HttpHandler = requireAccess Administrator >=> fun next ctx -> task {
-        match! TemplateCache.get adminTheme "theme-list-body" ctx.Data with
-        | Ok bodyTemplate ->
-            let! themes          = ctx.Data.Theme.All()
-            let  cachedTemplates = TemplateCache.allNames ()
-            let! hash =
-                hashForPage "myWebLog Administration"
-                |> withAntiCsrf ctx
-                |> addToHash "themes" (
-                    themes
-                    |> List.map (DisplayTheme.FromTheme WebLogCache.isThemeInUse)
-                    |> Array.ofList)
-                |> addToHash "cached_themes" (
-                    themes
-                    |> Seq.ofList
-                    |> Seq.map (fun it -> [|
-                        string it.Id
-                        it.Name
-                        cachedTemplates
-                        |> List.filter _.StartsWith(string it.Id)
-                        |> List.length
-                        |> string
-                    |])
-                    |> Array.ofSeq)
-                |> addToHash "web_logs" (
-                    WebLogCache.all ()
-                    |> Seq.ofList
-                    |> Seq.sortBy _.Name
-                    |> Seq.map (fun it -> [| string it.Id; it.Name; it.UrlBase |])
-                    |> Array.ofSeq)
-                |> addViewContext ctx
-            return!
-                addToHash "theme_list" (bodyTemplate.Render hash) hash
-                |> adminView "admin-dashboard" next ctx
-        | Error message -> return! Error.server message next ctx
+        let! themes          = ctx.Data.Theme.All()
+        let  cachedTemplates = TemplateCache.allNames ()
+        return!
+            hashForPage "myWebLog Administration"
+            |> withAntiCsrf ctx
+            |> addToHash "cached_themes" (
+                themes
+                |> Seq.ofList
+                |> Seq.map (fun it -> [|
+                    string it.Id
+                    it.Name
+                    cachedTemplates
+                    |> List.filter _.StartsWith(string it.Id)
+                    |> List.length
+                    |> string
+                |])
+                |> Array.ofSeq)
+            |> addToHash "web_logs" (
+                WebLogCache.all ()
+                |> Seq.ofList
+                |> Seq.sortBy _.Name
+                |> Seq.map (fun it -> [| string it.Id; it.Name; it.UrlBase |])
+                |> Array.ofSeq)
+            |> adminView "admin-dashboard" next ctx
     }
 
 /// Redirect the user to the admin dashboard
@@ -215,11 +205,11 @@ module RedirectRules =
 
     // GET /admin/settings/redirect-rules
     let all : HttpHandler = fun next ctx ->
-        adminPage "Redirect Rules" true (Views.Admin.redirectList ctx.WebLog.RedirectRules) next ctx
+        adminPage "Redirect Rules" true next ctx (Views.Admin.redirectList ctx.WebLog.RedirectRules)
 
     // GET /admin/settings/redirect-rules/[index]
     let edit idx : HttpHandler = fun next ctx ->
-        let titleAndModel =
+        let titleAndView =
             if idx = -1 then
                 Some ("Add", Views.Admin.redirectEdit (EditRedirectRuleModel.FromRule -1 RedirectRule.Empty))
             else        
@@ -228,8 +218,8 @@ module RedirectRules =
                     None
                 else
                     Some ("Edit", (Views.Admin.redirectEdit (EditRedirectRuleModel.FromRule idx (List.item idx rules))))
-        match titleAndModel with
-        | Some (title, model) -> adminBarePage $"{title} Redirect Rule" true model next ctx
+        match titleAndView with
+        | Some (title, view) -> adminBarePage $"{title} Redirect Rule" true next ctx view
         | None -> Error.notFound next ctx
         
     /// Update the web log's redirect rules in the database, the request web log, and the web log cache
@@ -294,7 +284,7 @@ module TagMapping =
     // GET /admin/settings/tag-mappings
     let all : HttpHandler = fun next ctx -> task {
         let! mappings = ctx.Data.TagMap.FindByWebLog ctx.WebLog.Id
-        return! adminBarePage "Tag Mapping List" true (Views.Admin.tagMapList mappings) next ctx
+        return! adminBarePage "Tag Mapping List" true next ctx (Views.Admin.tagMapList mappings)
     }
 
     // GET /admin/settings/tag-mapping/{id}/edit
@@ -306,9 +296,8 @@ module TagMapping =
         match! tagMap with
         | Some tm ->
             return!
-                adminBarePage
-                    (if isNew then "Add Tag Mapping" else $"Mapping for {tm.Tag} Tag") true 
-                    (Views.Admin.tagMapEdit (EditTagMapModel.FromMapping tm)) next ctx
+                Views.Admin.tagMapEdit (EditTagMapModel.FromMapping tm)
+                |> adminBarePage (if isNew then "Add Tag Mapping" else $"Mapping for {tm.Tag} Tag") true next ctx
         | None -> return! Error.notFound next ctx
     }
 
@@ -349,17 +338,13 @@ module Theme =
     let all : HttpHandler = requireAccess Administrator >=> fun next ctx -> task { 
         let! themes = ctx.Data.Theme.All ()
         return!
-            hashForPage "Themes"
-            |> withAntiCsrf ctx
-            |> addToHash "themes" (themes |> List.map (DisplayTheme.FromTheme WebLogCache.isThemeInUse) |> Array.ofList)
-            |> adminBareView "theme-list-body" next ctx
+            Views.Admin.themeList (List.map (DisplayTheme.FromTheme WebLogCache.isThemeInUse) themes)
+            |> adminBarePage "Themes" true next ctx
     }
 
     // GET /admin/theme/new
     let add : HttpHandler = requireAccess Administrator >=> fun next ctx ->
-        hashForPage "Upload a Theme File"
-        |> withAntiCsrf ctx
-        |> adminBareView "theme-upload" next ctx
+        adminBarePage "Upload a Theme File" true next ctx Views.Admin.themeUpload
 
     /// Update the name and version for a theme based on the version.txt file, if present
     let private updateNameAndVersion (theme: Theme) (zip: ZipArchive) = backgroundTask {

@@ -66,10 +66,9 @@ let editPermalinks pgId : HttpHandler = requireAccess Author >=> fun next ctx ->
     match! ctx.Data.Page.FindFullById (PageId pgId) ctx.WebLog.Id with
     | Some pg when canEdit pg.AuthorId ctx ->
         return!
-            hashForPage "Manage Prior Permalinks"
-            |> withAntiCsrf ctx
-            |> addToHash ViewContext.Model (ManagePermalinksModel.FromPage pg)
-            |> adminView "permalinks" next ctx
+            ManagePermalinksModel.FromPage pg
+            |> Views.Helpers.managePermalinks
+            |> adminPage "Manage Prior Permalinks" true next ctx
     | Some _ -> return! Error.notAuthorized next ctx
     | None -> return! Error.notFound next ctx
 }
@@ -95,15 +94,14 @@ let editRevisions pgId : HttpHandler = requireAccess Author >=> fun next ctx -> 
     match! ctx.Data.Page.FindFullById (PageId pgId) ctx.WebLog.Id with
     | Some pg when canEdit pg.AuthorId ctx ->
         return!
-            hashForPage "Manage Page Revisions"
-            |> withAntiCsrf ctx
-            |> addToHash ViewContext.Model (ManageRevisionsModel.FromPage ctx.WebLog pg)
-            |> adminView "revisions" next ctx
+            ManageRevisionsModel.FromPage pg
+            |> Views.Helpers.manageRevisions
+            |> adminPage "Manage Page Revisions" true next ctx
     | Some _ -> return! Error.notAuthorized next ctx
     | None -> return! Error.notFound next ctx
 }
 
-// GET /admin/page/{id}/revisions/purge
+// DELETE /admin/page/{id}/revisions
 let purgeRevisions pgId : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     let data = ctx.Data
     match! data.Page.FindFullById (PageId pgId) ctx.WebLog.Id with
@@ -158,7 +156,7 @@ let restoreRevision (pgId, revDate) : HttpHandler = requireAccess Author >=> fun
     | _, None -> return! Error.notFound next ctx
 }
 
-// POST /admin/page/{id}/revision/{revision-date}/delete
+// DELETE /admin/page/{id}/revision/{revision-date}
 let deleteRevision (pgId, revDate) : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     match! findPageRevision pgId revDate ctx with
     | Some pg, Some rev when canEdit pg.AuthorId ctx ->

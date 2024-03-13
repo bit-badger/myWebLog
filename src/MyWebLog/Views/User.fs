@@ -13,7 +13,7 @@ let edit (model: EditUserModel) app =
     div [ _class "col-12" ] [
         h5 [ _class "my-3" ] [ txt app.PageTitle ]
         form [ _hxPost (relUrl app "admin/settings/user/save"); _method "post"; _class "container"
-               _hxTarget "#userList"; _hxSwap $"{HxSwap.OuterHtml} show:window:top" ] [
+               _hxTarget "#user_panel"; _hxSwap $"{HxSwap.OuterHtml} show:window:top" ] [
             antiCsrf app
             input [ _type "hidden"; _name "Id"; _value model.Id ]
             div [ _class "row" ] [
@@ -163,56 +163,77 @@ let logOn (model: LogOnModel) (app: AppViewContext) = [
 
 /// The list of users for a web log (part of web log settings page)
 let userList (model: WebLogUser list) app =
-    let badge = "ms-2 badge bg"
-    div [ _id "userList" ] [
-        div [ _class "container g-0" ] [
-            div [ _class "row mwl-table-detail"; _id "user_new" ] []
-        ]
-        form [ _method "post"; _class "container g-0"; _hxTarget "this"
-               _hxSwap $"{HxSwap.OuterHtml} show:window:top" ] [
-            antiCsrf app
-            for user in model do
-                div [ _class "row mwl-table-detail"; _id $"user_{user.Id}" ] [
-                    div [ _class "col-12 col-md-4 col-xl-3 no-wrap" ] [
-                        txt user.PreferredName; raw " "
-                        match user.AccessLevel with
-                        | Administrator -> span [ _class $"{badge}-success"   ] [ raw "ADMINISTRATOR" ]
-                        | WebLogAdmin   -> span [ _class $"{badge}-primary"   ] [ raw "WEB LOG ADMIN" ]
-                        | Editor        -> span [ _class $"{badge}-secondary" ] [ raw "EDITOR" ]
-                        | Author        -> span [ _class $"{badge}-dark"      ] [ raw "AUTHOR" ]
-                        br []
-                        if app.IsAdministrator || (app.IsWebLogAdmin && not (user.AccessLevel = Administrator)) then
-                            let userUrl = relUrl app $"admin/settings/user/{user.Id}"
-                            small [] [
-                                a [ _href $"{userUrl}/edit"; _hxTarget $"#user_{user.Id}"
-                                    _hxSwap $"{HxSwap.InnerHtml} show:#user_{user.Id}:top" ] [
-                                    raw "Edit"
-                                ]
-                                if app.UserId.Value <> user.Id then
-                                    span [ _class "text-muted" ] [ raw " &bull; " ]
-                                    a [ _href userUrl; _hxDelete userUrl; _class "text-danger"
-                                        _hxConfirm $"Are you sure you want to delete the user “{user.PreferredName}”? This action cannot be undone. (This action will not succeed if the user has authored any posts or pages.)" ] [
-                                        raw "Delete"
-                                    ]
+    let userCol  = "col-12 col-md-4 col-xl-3"
+    let emailCol = "col-12 col-md-4 col-xl-4"
+    let cre8Col  = "d-none d-xl-block col-xl-2"
+    let lastCol  = "col-12 col-md-4 col-xl-3"
+    let badge    = "ms-2 badge bg"
+    let userDetail (user: WebLogUser) =
+        div [ _class "row mwl-table-detail"; _id $"user_{user.Id}" ] [
+            div [ _class $"{userCol} no-wrap" ] [
+                txt user.PreferredName; raw " "
+                match user.AccessLevel with
+                | Administrator -> span [ _class $"{badge}-success"   ] [ raw "ADMINISTRATOR" ]
+                | WebLogAdmin   -> span [ _class $"{badge}-primary"   ] [ raw "WEB LOG ADMIN" ]
+                | Editor        -> span [ _class $"{badge}-secondary" ] [ raw "EDITOR" ]
+                | Author        -> span [ _class $"{badge}-dark"      ] [ raw "AUTHOR" ]
+                br []
+                if app.IsAdministrator || (app.IsWebLogAdmin && not (user.AccessLevel = Administrator)) then
+                    let userUrl = relUrl app $"admin/settings/user/{user.Id}"
+                    small [] [
+                        a [ _href $"{userUrl}/edit"; _hxTarget $"#user_{user.Id}"
+                            _hxSwap $"{HxSwap.InnerHtml} show:#user_{user.Id}:top" ] [
+                            raw "Edit"
+                        ]
+                        if app.UserId.Value <> user.Id then
+                            span [ _class "text-muted" ] [ raw " &bull; " ]
+                            a [ _href userUrl; _hxDelete userUrl; _class "text-danger"
+                                _hxConfirm $"Are you sure you want to delete the user “{user.PreferredName}”? This action cannot be undone. (This action will not succeed if the user has authored any posts or pages.)" ] [
+                                raw "Delete"
                             ]
                     ]
-                    div [ _class "col-12 col-md-4 col-xl-4" ] [
-                        txt $"{user.FirstName} {user.LastName}"; br []
-                        small [ _class "text-muted" ] [
-                            txt user.Email
-                            if Option.isSome user.Url then
-                                br []; txt user.Url.Value
-                        ]
-                    ]
-                    div [ _class "d-none d-xl-block col-xl-2" ] [
-                        if user.CreatedOn = Noda.epoch then raw "N/A" else longDate app user.CreatedOn
-                    ]
-                    div [ _class "col-12 col-md-4 col-xl-3" ] [
-                        match user.LastSeenOn with
-                        | Some it -> longDate app it; raw " at "; shortTime app it
-                        | None -> raw "--"
-                    ]
+            ]
+            div [ _class emailCol ] [
+                txt $"{user.FirstName} {user.LastName}"; br []
+                small [ _class "text-muted" ] [
+                    txt user.Email
+                    if Option.isSome user.Url then
+                        br []; txt user.Url.Value
                 ]
+            ]
+            div [ _class "d-none d-xl-block col-xl-2" ] [
+                if user.CreatedOn = Noda.epoch then raw "N/A" else longDate app user.CreatedOn
+            ]
+            div [ _class "col-12 col-md-4 col-xl-3" ] [
+                match user.LastSeenOn with
+                | Some it -> longDate app it; raw " at "; shortTime app it
+                | None -> raw "--"
+            ]
+        ]
+    div [ _id "user_panel" ] [
+        a [ _href (relUrl app "admin/settings/user/new/edit"); _class "btn btn-primary btn-sm mb-3"
+            _hxTarget "#user_new" ] [
+            raw "Add a New User"
+        ]
+        div [ _class "container g-0" ] [
+            div [ _class "row mwl-table-heading" ] [
+                div [ _class userCol ] [
+                    raw "User"; span [ _class "d-md-none" ] [ raw "; Full Name / E-mail; Last Log On" ]
+                ]
+                div [ _class $"{emailCol} d-none d-md-inline-block" ] [ raw "Full Name / E-mail" ]
+                div [ _class cre8Col ] [ raw "Created" ]
+                div [ _class $"{lastCol} d-none d-md-block" ] [ raw "Last Log On" ]
+            ]
+        ]
+        div [ _id "userList" ] [
+            div [ _class "container g-0" ] [
+                div [ _class "row mwl-table-detail"; _id "user_new" ] []
+            ]
+            form [ _method "post"; _class "container g-0"; _hxTarget "#user_panel"
+                   _hxSwap $"{HxSwap.OuterHtml} show:window:top" ] [
+                antiCsrf app
+                yield! List.map userDetail model
+            ]
         ]
     ]
     |> List.singleton

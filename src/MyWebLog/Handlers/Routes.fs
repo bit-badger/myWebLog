@@ -176,17 +176,13 @@ let router : HttpHandler = choose [
                 route  "/save"                   >=> Page.save
                 route  "/permalinks"             >=> Page.savePermalinks
                 routef "/%s/delete"                  Page.delete
-                routef "/%s/revision/%s/delete"      Page.deleteRevision
                 routef "/%s/revision/%s/restore"     Page.restoreRevision
-                routef "/%s/revisions/purge"         Page.purgeRevisions
             ])
             subRoute "/post" (choose [
                 route  "/save"                   >=> Post.save
                 route  "/permalinks"             >=> Post.savePermalinks
                 routef "/%s/chapter/%i"              Post.saveChapter
-                routef "/%s/revision/%s/delete"      Post.deleteRevision
                 routef "/%s/revision/%s/restore"     Post.restoreRevision
-                routef "/%s/revisions/purge"         Post.purgeRevisions
             ])
             subRoute "/settings" (requireAccess WebLogAdmin >=> choose [
                 route ""     >=> Admin.WebLog.saveSettings
@@ -214,9 +210,15 @@ let router : HttpHandler = choose [
             ])
         ]
         DELETE >=> validateCsrf >=> choose [
+            subRoute "/page" (choose [
+                routef "/%s/revision/%s" Page.deleteRevision
+                routef "/%s/revisions"   Page.purgeRevisions
+            ])
             subRoute "/post" (choose [
-                routef "/%s"            Post.delete
-                routef "/%s/chapter/%i" Post.deleteChapter
+                routef "/%s"             Post.delete
+                routef "/%s/chapter/%i"  Post.deleteChapter
+                routef "/%s/revision/%s" Post.deleteRevision
+                routef "/%s/revisions"   Post.purgeRevisions
             ])
             subRoute "/settings" (requireAccess WebLogAdmin >=> choose [
                 routef "/user/%s"           User.delete
