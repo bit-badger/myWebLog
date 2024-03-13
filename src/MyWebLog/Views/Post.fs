@@ -24,83 +24,47 @@ let chapterEdit (model: EditChapterModel) app = [
         input [ _type "hidden"; _name "Index"; _value (string model.Index) ]
         div [ _class "row" ] [
             div [ _class "col-6 col-lg-3 mb-3" ] [
-                div [ _class "form-floating" ] [
-                    input [ _type "text"; _id "start_time"; _name "StartTime"; _class "form-control"; _required
-                            _autofocus; _placeholder "Start Time"
-                            if model.Index >= 0 then _value model.StartTime ]
-                    label [ _for "start_time" ] [ raw "Start Time" ]
-                ]
+                textField [ _required; _autofocus ] (nameof model.StartTime) "Start Time"
+                          (if model.Index < 0 then "" else model.StartTime) []
             ]
             div [ _class "col-6 col-lg-3 mb-3" ] [
-                div [ _class "form-floating" ] [
-                    input [ _type "text"; _id "end_time"; _name "EndTime"; _class "form-control"; _value model.EndTime
-                            _placeholder "End Time" ]
-                    label [ _for "end_time" ] [ raw "End Time" ]
+                textField [] (nameof model.EndTime) "End Time" model.EndTime [
                     span [ _class "form-text" ] [ raw "Optional; ends when next starts" ]
                 ]
             ]
             div [ _class "col-12 col-lg-6 mb-3" ] [
-                div [ _class "form-floating" ] [
-                    input [ _type "text"; _id "title"; _name "Title"; _class "form-control"; _value model.Title
-                            _placeholder "Title" ]
-                    label [ _for "title" ] [ raw "Chapter Title" ]
+                textField [] (nameof model.Title) "Chapter Title" model.Title [
                     span [ _class "form-text" ] [ raw "Optional" ]
                 ]
             ]
             div [ _class "col-12 col-lg-6 col-xl-5 mb-3" ] [
-                div [ _class "form-floating" ] [
-                    input [ _type "text"; _id "image_url"; _name "ImageUrl"; _class "form-control"
-                            _value model.ImageUrl; _placeholder "Image URL" ]
-                    label [ _for "image_url" ] [ raw "Image URL" ]
+                textField [] (nameof model.ImageUrl) "Image URL" model.ImageUrl [
                     span [ _class "form-text" ] [
                         raw "Optional; a separate image to display while this chapter is playing"
                     ]
                 ]
             ]
             div [ _class "col-12 col-lg-6 col-xl-5 mb-3" ] [
-                div [ _class "form-floating" ] [
-                    input [ _type "text"; _id "url"; _name "Url"; _class "form-control"; _value model.Url
-                            _placeholder "URL" ]
-                    label [ _for "url" ] [ raw "URL" ]
-                    span [ _class "form-text" ] [
-                        raw "Optional; informational link for this chapter"
-                    ]
+                textField [] (nameof model.Url) "URL" model.Url [
+                    span [ _class "form-text" ] [ raw "Optional; informational link for this chapter" ]
                 ]
             ]
             div [ _class "col-12 col-lg-6 offset-lg-3 col-xl-2 offset-xl-0 mb-3 align-self-end d-flex flex-column" ] [
-                div [ _class "form-check form-switch mb-3" ] [
-                    input [ _type "checkbox"; _id "is_hidden"; _name "IsHidden"; _class "form-check-input"
-                            _value "true"
-                            if model.IsHidden then _checked ]
-                    label [ _for "is_hidden" ] [ raw "Hidden Chapter" ]
-                ]
-                span [ _class "form-text" ] [ raw "Not displayed, but may update image and location" ]
+                checkboxSwitch [] (nameof model.IsHidden) "Hidden Chapter" model.IsHidden []
+                span [ _class "mt-2 form-text" ] [ raw "Not displayed, but may update image and location" ]
             ]
         ]
         div [ _class "row" ] [
             let hasLoc = model.LocationName <> ""
+            let attrs  = if hasLoc then [] else [ _disabled ]
             div [ _class "col-12 col-md-4 col-lg-3 offset-lg-1 mb-3 align-self-end" ] [
-                div [ _class "form-check form-switch mb-3" ] [
-                    input [ _type "checkbox"; _id "has_location"; _class "form-check-input"; _value "true"
-                            if hasLoc then _checked
-                            _onclick "Admin.checkChapterLocation()" ]
-                    label [ _for "has_location" ] [ raw "Associate Location" ]
-                ]
+                checkboxSwitch [ _onclick "Admin.checkChapterLocation()" ] "has_location" "Associate Location" hasLoc []
             ]
             div [ _class "col-12 col-md-8 col-lg-6 offset-lg-1 mb-3" ] [
-                div [ _class "form-floating" ] [
-                    input [ _type "text"; _id "location_name"; _name "LocationName"; _class "form-control"
-                            _value model.LocationName; _placeholder "Location Name"; _required
-                            if not hasLoc then _disabled ]
-                    label [ _for "location_name" ] [ raw "Name" ]
-                ]
+                textField (_required :: attrs) (nameof model.LocationName) "Name" model.LocationName []
             ]
             div [ _class "col-6 col-lg-4 offset-lg-2 mb-3" ] [
-                div [ _class "form-floating" ] [
-                    input [ _type "text"; _id "location_geo"; _name "LocationGeo"; _class "form-control"
-                            _value model.LocationGeo; _placeholder "Location Geo URL"; _required
-                            if not hasLoc then _disabled ]
-                    label [ _for "location_geo" ] [ raw "Geo URL" ]
+                textField (_required :: attrs) (nameof model.LocationGeo) "Geo URL" model.LocationGeo [
                     em [ _class "form-text" ] [
                         a [ _href "https://github.com/Podcastindex-org/podcast-namespace/blob/main/location/location.md#geo-recommended"
                             _target "_blank"; _rel "noopener" ] [
@@ -110,11 +74,7 @@ let chapterEdit (model: EditChapterModel) app = [
                 ]
             ]
             div [ _class "col-6 col-lg-4 mb-3" ] [
-                div [ _class "form-floating" ] [ 
-                    input [ _type "text"; _id "location_osm"; _name "LocationOsm"; _class "form-control"
-                            _value model.LocationOsm; _placeholder "Location OSM Query"
-                            if not hasLoc then _disabled ]
-                    label [ _for "location_osm" ] [ raw "OpenStreetMap ID" ]
+                textField attrs (nameof model.LocationOsm) "OpenStreetMap ID" model.LocationOsm [
                     em [ _class "form-text" ] [
                         raw "Optional; "
                         a [ _href "https://www.openstreetmap.org/"; _target "_blank"; _rel "noopener" ] [ raw "get ID" ]
@@ -138,8 +98,7 @@ let chapterEdit (model: EditChapterModel) app = [
                     ]
                 else
                     input [ _type "hidden"; _name "AddAnother"; _value "false" ]
-                button [ _type "submit"; _class "btn btn-primary" ] [ raw "Save" ]
-                raw " &nbsp; "
+                saveButton; raw " &nbsp; "
                 a [ _href cancelLink; _hxGet cancelLink; _class "btn btn-secondary"; _hxTarget "body" ] [ raw "Cancel" ]
             ]
         ]

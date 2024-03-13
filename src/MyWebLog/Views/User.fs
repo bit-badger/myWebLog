@@ -30,41 +30,21 @@ let edit (model: EditUserModel) app =
                     ]
                 ]
                 div [ _class "col-12 col-md-7 col-lg-4 col-xxl-3 mb-3" ] [
-                    div [ _class "form-floating" ] [
-                        input [ _type "email"; _name "Email"; _id "email"; _class "form-control"; _placeholder "E-mail"
-                                _required; _value model.Email ]
-                        label [ _for "email" ] [ raw "E-mail Address" ]
-                    ]
+                    emailField [ _required ] (nameof model.Email) "E-mail Address" model.Email []
                 ]
                 div [ _class "col-12 col-lg-5 mb-3" ] [
-                    div [ _class "form-floating" ] [
-                        input [ _type "text"; _name "Url"; _id "url"; _class "form-control"; _placeholder "URL"
-                                _value model.Url ]
-                        label [ _for "url" ] [ raw "User&rsquo;s Personal URL" ]
-                    ]
+                    textField [] (nameof model.Url) "User&rsquo;s Personal URL" model.Url []
                 ]
             ]
             div [ _class "row mb-3" ] [
                 div [ _class "col-12 col-md-6 col-lg-4 col-xl-3 offset-xl-1 pb-3" ] [
-                    div [ _class "form-floating" ] [
-                        input [ _type "text"; _name "FirstName"; _id "firstName"; _class "form-control"
-                                _placeholder "First"; _required; _value model.FirstName ]
-                        label [ _for "firstName" ] [ raw "First Name" ]
-                    ]
+                    textField [ _required ] (nameof model.FirstName) "First Name" model.FirstName []
                 ]
                 div [ _class "col-12 col-md-6 col-lg-4 col-xl-3 pb-3" ] [
-                    div [ _class "form-floating" ] [
-                        input [ _type "text"; _name "LastName"; _id "lastName"; _class "form-control"
-                                _placeholder "Last"; _required; _value model.LastName ]
-                        label [ _for "lastName" ] [ raw "Last Name" ]
-                    ]
+                    textField [ _required ] (nameof model.LastName) "Last Name" model.LastName []
                 ]
                 div [ _class "col-12 col-md-6 offset-md-3 col-lg-4 offset-lg-0 col-xl-3 offset-xl-1 pb-3" ] [
-                    div [ _class "form-floating " ] [
-                        input [ _type "text"; _name "PreferredName"; _id "preferredName"; _class "form-control"
-                                _placeholder "Preferred"; _required; _value model.PreferredName ]
-                        label [ _for "preferredName" ] [ raw "Preferred Name" ]
-                    ]
+                    textField [ _required ] (nameof model.PreferredName) "Preferred Name" model.PreferredName []
                 ]
             ]
             div [ _class "row mb-3" ] [
@@ -83,28 +63,12 @@ let edit (model: EditUserModel) app =
                                 ]
                             ]
                         div [ _class "row" ] [
+                            let attrs, newLbl = if model.IsNew then [ _required ], "" else [], "New "
                             div [ _class "col-12 col-md-6 pb-3" ] [
-                                div [ _class "form-floating" ] [
-                                    input [ _type "password"; _name "Password"; _id "password"; _class "form-control"
-                                            _placeholder "Password"
-                                            if model.IsNew then _required ]
-                                    label [ _for "password" ] [
-                                        if not model.IsNew then raw "New "
-                                        raw "Password"
-                                    ]
-                                ]
+                                passwordField attrs (nameof model.Password) $"{newLbl}Password" "" []
                             ]
                             div [ _class "col-12 col-md-6 pb-3" ] [
-                                div [ _class "form-floating" ] [
-                                    input [ _type "password"; _name "PasswordConfirm"; _id "passwordConfirm"
-                                            _class "form-control"; _placeholder "Confirm"
-                                            if model.IsNew then _required ]
-                                    label [ _for "passwordConfirm" ] [
-                                        raw "Confirm"
-                                        if not model.IsNew then raw " New"
-                                        raw " Password"
-                                    ]
-                                ]
+                                passwordField attrs (nameof model.PasswordConfirm) $"Confirm {newLbl}Password" "" []
                             ]
                         ]
                     ]
@@ -112,7 +76,7 @@ let edit (model: EditUserModel) app =
             ]
             div [ _class "row mb-3" ] [
                 div [ _class "col text-center" ] [
-                    button [ _type "submit"; _class "btn btn-sm btn-primary" ] [ raw "Save Changes" ]; raw " &nbsp; "
+                    saveButton; raw " &nbsp; "
                     if model.IsNew then
                         button [ _type "button"; _class "btn btn-sm btn-secondary ms-3"
                                  _onclick "document.getElementById('user_new').innerHTML = ''" ] [
@@ -138,17 +102,10 @@ let logOn (model: LogOnModel) (app: AppViewContext) = [
             if Option.isSome model.ReturnTo then input [ _type "hidden"; _name "ReturnTo"; _value model.ReturnTo.Value ]
             div [ _class "row" ] [
                 div [ _class "col-12 col-md-6 col-lg-4 offset-lg-2 pb-3" ] [
-                    div [ _class "form-floating" ] [
-                        input [ _type "email"; _id "email"; _name "EmailAddress"; _class "form-control"; _autofocus
-                                _required ]
-                        label [ _for "email" ] [ rawText "E-mail Address" ]
-                    ]
+                    emailField [ _required; _autofocus ] (nameof model.EmailAddress) "E-mail Address" "" []
                 ]
                 div [ _class "col-12 col-md-6 col-lg-4 pb-3" ] [
-                    div [ _class "form-floating" ] [
-                        input [ _type "password"; _id "password"; _name "Password"; _class "form-control"; _required ]
-                        label [ _for "password" ] [ rawText "Password" ]
-                    ]
+                    passwordField [ _required ] (nameof model.Password) "Password" "" []
                 ]
             ]
             div [ _class "row pb-3" ] [
@@ -263,25 +220,13 @@ let myInfo (model: EditMyInfoModel) (user: WebLogUser) app = [
                 div [ _class "row" ] [ div [ _class "col" ] [ hr [ _class "mt-0" ] ] ]
                 div [ _class "row mb-3" ] [
                     div [ _class "col-12 col-md-6 col-lg-4 pb-3" ] [
-                        div [ _class "form-floating" ] [
-                            input [ _type "text"; _name "FirstName"; _id "firstName"; _class "form-control"; _autofocus
-                                    _required; _placeholder "First"; _value model.FirstName ]
-                            label [ _for "firstName" ] [ raw "First Name" ]
-                        ]
+                        textField [ _required; _autofocus ] (nameof model.FirstName) "First Name" model.FirstName []
                     ]
                     div [ _class "col-12 col-md-6 col-lg-4 pb-3" ] [
-                        div [ _class "form-floating" ] [
-                            input [ _type "text"; _name "LastName"; _id "lastName"; _class "form-control"; _required
-                                    _placeholder "Last"; _value model.LastName ]
-                            label [ _for "lastName" ] [ raw "Last Name" ]
-                        ]
+                        textField [ _required ] (nameof model.LastName) "Last Name" model.LastName []
                     ]
                     div [ _class "col-12 col-md-6 col-lg-4 pb-3" ] [
-                        div [ _class "form-floating" ] [
-                            input [ _type "text"; _name "PreferredName"; _id "preferredName"; _class "form-control"
-                                    _required; _placeholder "Preferred"; _value model.PreferredName ]
-                            label [ _for "preferredName" ] [ raw "Preferred Name" ]
-                        ]
+                        textField [ _required ] (nameof model.PreferredName) "Preferred Name" model.PreferredName []
                     ]
                 ]
                 div [ _class "row mb-3" ] [
@@ -297,28 +242,16 @@ let myInfo (model: EditMyInfoModel) (user: WebLogUser) app = [
                             ]
                             div [ _class "row" ] [
                                 div [ _class "col-12 col-md-6 pb-3" ] [
-                                    div [ _class "form-floating" ] [
-                                        input [ _type "password"; _name "NewPassword"; _id "newPassword"
-                                                _class "form-control"; _placeholder "Password" ]
-                                        label [ _for "newPassword" ] [ raw "New Password" ]
-                                    ]
+                                    passwordField [] (nameof model.NewPassword) "New Password" "" []
                                 ]
                                 div [ _class "col-12 col-md-6 pb-3" ] [
-                                    div [ _class "form-floating" ] [
-                                        input [ _type "password"; _name "NewPasswordConfirm"; _id "newPasswordConfirm"
-                                                _class "form-control"; _placeholder "Confirm" ]
-                                        label [ _for "newPasswordConfirm" ] [ raw "Confirm New Password" ]
-                                    ]
+                                    passwordField [] (nameof model.NewPasswordConfirm) "Confirm New Password" "" []
                                 ]
                             ]
                         ]
                     ]
                 ]
-                div [ _class "row" ] [
-                    div [ _class "col text-center mb-3" ] [
-                        button [ _type "submit"; _class "btn btn-primary" ] [ raw "Save Changes" ]
-                    ]
-                ]
+                div [ _class "row" ] [ div [ _class "col text-center mb-3" ] [ saveButton ] ]
             ]
         ]
     ]

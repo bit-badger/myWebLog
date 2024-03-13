@@ -102,6 +102,59 @@ let shortTime app (instant: Instant) =
 let yesOrNo value =
     raw (if value then "Yes" else "No")
 
+/// Create a text input field
+let inputField fieldType attrs name labelText value extra =
+    div [ _class "form-floating" ] [
+        [ _type fieldType; _name name; _id name; _class "form-control"; _placeholder labelText; _value value ]
+        |> List.append attrs
+        |> input
+        label [ _for name ] [ raw labelText ]
+        yield! extra
+    ]
+
+/// Create a text input field
+let textField attrs name labelText value extra =
+    inputField "text" attrs name labelText value extra
+
+/// Create a number input field
+let numberField attrs name labelText (value: int) extra =
+    inputField "number" attrs name labelText (string value) extra
+
+/// Create an e-mail input field
+let emailField attrs name labelText value extra =
+    inputField "email" attrs name labelText value extra
+
+/// Create a password input field
+let passwordField attrs name labelText value extra =
+    inputField "password" attrs name labelText value extra
+
+/// Create a select (dropdown) field
+let selectField<'T, 'a>
+        attrs name labelText value (values: 'T list) (idFunc: 'T -> 'a) (displayFunc: 'T -> string) extra =
+    div [ _class "form-floating" ] [
+        select ([ _name name; _id name; _class "form-control" ] |> List.append attrs) [
+            for item in values do
+                let itemId = string (idFunc item)
+                option [ _value itemId; if value = itemId then _selected ] [ txt (displayFunc item) ]
+        ]
+        label [ _for name ] [ raw labelText ]
+        yield! extra
+    ]
+
+/// Create a checkbox input styled as a switch
+let checkboxSwitch attrs name labelText (value: bool) extra =
+    div [ _class "form-check form-switch" ] [
+        [ _type "checkbox"; _name name; _id name; _class "form-check-input"; _value "true"; if value then _checked ]
+        |> List.append attrs
+        |> input
+        label [ _for name; _class "form-check-label" ] [ raw labelText ]
+        yield! extra
+    ]
+
+/// A standard save button
+let saveButton =
+    button [ _type "submit"; _class "btn btn-sm btn-primary" ] [ raw "Save Changes" ]
+
 /// Functions for generating content in varying layouts
 module Layout =
     

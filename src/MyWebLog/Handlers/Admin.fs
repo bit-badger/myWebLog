@@ -483,42 +483,24 @@ module Theme =
 /// ~~~ WEB LOG SETTINGS ~~~
 module WebLog =
     
-    open System.Collections.Generic
     open System.IO
 
     // GET /admin/settings
     let settings : HttpHandler = fun next ctx -> task {
-        let data = ctx.Data
+        let  data     = ctx.Data
         let! allPages = data.Page.All ctx.WebLog.Id
+        let  pages    =
+            allPages
+            |> List.sortBy _.Title.ToLower()
+            |> List.append [ { Page.Empty with Id = PageId "posts"; Title = "- First Page of Posts -" } ]
         let! themes   = data.Theme.All()
+        let  uploads  = [ Database; Disk ]
+        let  feeds    = ctx.WebLog.Rss.CustomFeeds |> List.map (DisplayCustomFeed.FromFeed (CategoryCache.get ctx))
         return!
-            hashForPage "Web Log Settings"
-            |> withAntiCsrf ctx
-            |> addToHash ViewContext.Model (SettingsModel.FromWebLog ctx.WebLog)
-            |> addToHash "pages" (
-                seq {
-                    KeyValuePair.Create("posts", "- First Page of Posts -")
-                    yield! allPages
-                           |> List.sortBy _.Title.ToLower()
-                           |> List.map (fun p -> KeyValuePair.Create(string p.Id, p.Title))
-                }
-                |> Array.ofSeq)
-            |> addToHash "themes" (
-                themes
-                |> Seq.ofList
-                |> Seq.map (fun it ->
-                    KeyValuePair.Create(string it.Id, $"{it.Name} (v{it.Version})"))
-                |> Array.ofSeq)
-            |> addToHash "upload_values" [|
-                KeyValuePair.Create(string Database, "Database")
-                KeyValuePair.Create(string Disk,     "Disk")
-            |]
-            |> addToHash "rss_model" (EditRssModel.FromRssOptions ctx.WebLog.Rss)
-            |> addToHash "custom_feeds" (
-                ctx.WebLog.Rss.CustomFeeds
-                |> List.map (DisplayCustomFeed.FromFeed (CategoryCache.get ctx))
-                |> Array.ofList)
-            |> adminView "settings" next ctx
+            Views.Admin.webLogSettings
+                (SettingsModel.FromWebLog ctx.WebLog) themes pages uploads (EditRssModel.FromRssOptions ctx.WebLog.Rss)
+                feeds
+            |> adminPage "Web Log Settings" true next ctx
     }
 
     // POST /admin/settings

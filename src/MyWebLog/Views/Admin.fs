@@ -90,25 +90,17 @@ let redirectEdit (model: EditRedirectRuleModel) app = [
         input [ _type "hidden"; _name "RuleId"; _value (string model.RuleId) ]
         div [ _class "row" ] [
             div [ _class "col-12 col-lg-5 mb-3" ] [
-                div [ _class "form-floating" ] [
-                    input [ _type "text"; _name "From"; _id "from"; _class "form-control"
-                            _placeholder "From local URL/pattern"; _autofocus; _required; _value model.From ]
-                    label [ _for "from" ] [ raw "From" ]
+                textField [ _autofocus; _required ] (nameof model.From) "From" model.From [
+                    span [ _class "form-text" ] [ raw "From local URL/pattern" ]
                 ]
             ]
             div [ _class "col-12 col-lg-5 mb-3" ] [
-                div [ _class "form-floating" ] [
-                    input [ _type "text"; _name "To"; _id "to"; _class "form-control"; _placeholder "To URL/pattern"
-                            _required; _value model.To ]
-                    label [ _for "to" ] [ raw "To" ]
+                textField [ _required ] (nameof model.To) "To" model.To [
+                    span [ _class "form-text" ] [ raw "To URL/pattern" ]
                 ]
             ]
             div [ _class "col-12 col-lg-2 mb-3" ] [
-                div [ _class "form-check form-switch" ] [
-                    input [ _type "checkbox"; _name "IsRegex"; _id "isRegex"; _class "form-check-input"; _value "true"
-                            if model.IsRegex then _checked ]
-                    label [ _for "isRegex" ] [ raw "Use RegEx" ]
-                ]
+                checkboxSwitch [] (nameof model.IsRegex) "Use RegEx" model.IsRegex []
             ]
         ]
         if model.RuleId < 0 then
@@ -126,7 +118,7 @@ let redirectEdit (model: EditRedirectRuleModel) app = [
             ]
         div [ _class "row mb-3" ] [
             div [ _class "col text-center" ] [
-                button [ _type "submit"; _class "btn btn-sm btn-primary" ] [ raw "Save Changes" ]
+                saveButton; raw " &nbsp; "
                 a [ _href (relUrl app "admin/settings/redirect-rules"); _class "btn btn-sm btn-secondary ms-3" ] [
                     raw "Cancel"
                 ]
@@ -223,23 +215,15 @@ let tagMapEdit (model: EditTagMapModel) app = [
         input [ _type "hidden"; _name "Id"; _value model.Id ]
         div [ _class "row mb-3" ] [
             div [ _class "col-6 col-lg-4 offset-lg-2" ] [
-                div [ _class "form-floating" ] [
-                    input [ _type "text"; _name "Tag"; _id "tag"; _class "form-control"; _placeholder "Tag"; _autofocus
-                            _required; _value model.Tag ]
-                    label [ _for "tag" ] [ raw "Tag" ]
-                ]
+                textField [ _autofocus; _required ] (nameof model.Tag) "Tag" model.Tag []
             ]
             div [ _class "col-6 col-lg-4" ] [
-                div [ _class "form-floating" ] [
-                    input [ _type "text"; _name "UrlValue"; _id "urlValue"; _class "form-control"
-                            _placeholder "URL Value"; _required; _value model.UrlValue ]
-                    label [ _for "urlValue" ] [ raw "URL Value" ]
-                ]
+                textField [ _required ] (nameof model.UrlValue) "URL Value" model.UrlValue []
             ]
         ]
         div [ _class "row mb-3" ] [
             div [ _class "col text-center" ] [
-                button [ _type "submit"; _class "btn btn-sm btn-primary" ] [ raw "Save Changes" ]; raw " &nbsp; "
+                saveButton; raw " &nbsp; "
                 a [ _href (relUrl app "admin/settings/tag-mappings"); _class "btn btn-sm btn-secondary ms-3" ] [
                     raw "Cancel"
                 ]
@@ -380,4 +364,185 @@ let themeUpload app =
         ]
     ]
     |> List.singleton
-    
+
+
+/// Web log settings page
+let webLogSettings
+        (model: SettingsModel) (themes: Theme list) (pages: Page list) (uploads: UploadDestination list)
+        (rss: EditRssModel) (feeds: DisplayCustomFeed list) app = [
+    h2 [ _class "my-3" ] [ txt app.WebLog.Name; raw " Settings" ]
+    article [] [
+        p [ _class "text-muted" ] [
+            raw "Go to: "; a [ _href "#users" ] [ raw "Users" ]; raw " &bull; "
+            a [ _href "#rss-settings" ] [ raw "RSS Settings" ]; raw " &bull; "
+            a [ _href "#tag-mappings" ] [ raw "Tag Mappings" ]; raw " &bull; "
+            a [ _href (relUrl app "admin/settings/redirect-rules") ] [ raw "Redirect Rules" ]
+        ]
+        fieldset [ _class "container mb-3" ] [
+            legend [] [ raw "Web Log Settings" ]
+            form [ _action (relUrl app "admin/settings"); _method "post" ] [
+                antiCsrf app
+                div [ _class "container g-0" ] [
+                    div [ _class "row" ] [
+                        div [ _class "col-12 col-md-6 col-xl-4 pb-3" ] [
+                            textField [ _required; _autofocus ] (nameof model.Name) "Name" model.Name []
+                        ]
+                        div [ _class "col-12 col-md-6 col-xl-4 pb-3" ] [
+                            textField [ _required ] (nameof model.Slug) "Slug" model.Slug [
+                                span [ _class "form-text" ] [
+                                    span [ _class "badge rounded-pill bg-warning text-dark" ] [ raw "WARNING" ]
+                                    raw " changing this value may break links ("
+                                    a [ _href "https://bitbadger.solutions/open-source/myweblog/configuring.html#blog-settings"
+                                        _target "_blank" ] [
+                                            raw "more"
+                                    ]; raw ")"
+                                ]
+                            ]
+                        ]
+                        div [ _class "col-12 col-md-6 col-xl-4 pb-3" ] [
+                            textField [] (nameof model.Subtitle) "Subtitle" model.Subtitle []
+                        ]
+                        div [ _class "col-12 col-md-6 col-xl-4 offset-xl-1 pb-3" ] [
+                            selectField [ _required ] (nameof model.ThemeId) "Theme" model.ThemeId themes
+                                        (fun t -> string t.Id) (fun t -> $"{t.Name} (v{t.Version})") []
+                        ]
+                        div [ _class "col-12 col-md-6 offset-md-1 col-xl-4 offset-xl-0 pb-3" ] [
+                            selectField [ _required ] (nameof model.DefaultPage) "Default Page" model.DefaultPage pages
+                                        (fun p -> string p.Id) (_.Title) []
+                        ]
+                        div [ _class "col-12 col-md-4 col-xl-2 pb-3" ] [
+                            numberField [ _required; _min "0"; _max "50" ] (nameof model.PostsPerPage) "Posts per Page"
+                                        model.PostsPerPage []
+                        ]
+                    ]
+                    div [ _class "row" ] [
+                        div [ _class "col-12 col-md-4 col-xl-3 offset-xl-2 pb-3" ] [
+                            textField [ _required ] (nameof model.TimeZone) "Time Zone" model.TimeZone []
+                        ]
+                        div [ _class "col-12 col-md-4 col-xl-2" ] [
+                            checkboxSwitch [] (nameof model.AutoHtmx) "Auto-Load htmx" model.AutoHtmx []
+                            span [ _class "form-text fst-italic" ] [
+                                a [ _href "https://htmx.org"; _target "_blank"; _rel "noopener" ] [
+                                    raw "What is this?"
+                                ]
+                            ]
+                        ]
+                        div [ _class "col-12 col-md-4 col-xl-3 pb-3" ] [
+                            selectField [] (nameof model.Uploads) "Default Upload Destination" model.Uploads uploads
+                                        string string []
+                        ]
+                    ]
+                    div [ _class "row pb-3" ] [
+                        div [ _class "col text-center" ] [
+                            button [ _type "submit"; _class "btn btn-primary" ] [ raw "Save Changes" ]
+                        ]
+                    ]
+                ]
+            ]
+        ]
+        fieldset [ _id "users"; _class "container mb-3 pb-0" ] [
+            legend [] [ raw "Users" ]
+            span [ _hxGet (relUrl app "admin/settings/users"); _hxTrigger HxTrigger.Load; _hxSwap HxSwap.OuterHtml ] []
+        ]
+        fieldset [ _id "rss-settings"; _class "container mb-3 pb-0" ] [
+            legend [] [ raw "RSS Settings" ]
+            form [ _action (relUrl app "admin/settings/rss"); _method "post"; _class "container g-0" ] [
+                antiCsrf app
+                div [ _class "row pb-3" ] [
+                    div [ _class "col col-xl-8 offset-xl-2" ] [
+                        fieldset [ _class "d-flex justify-content-evenly flex-row" ] [
+                            legend [] [ raw "Feeds Enabled" ]
+                            checkboxSwitch [] (nameof rss.IsFeedEnabled) "All Posts" rss.IsFeedEnabled []
+                            checkboxSwitch [] (nameof rss.IsCategoryEnabled) "Posts by Category" rss.IsCategoryEnabled
+                                           []
+                            checkboxSwitch [] (nameof rss.IsTagEnabled) "Posts by Tag" rss.IsTagEnabled []
+                        ]
+                    ]
+                ]
+                div [ _class "row" ] [
+                    div [ _class "col-12 col-sm-6 col-md-3 col-xl-2 offset-xl-2 pb-3" ] [
+                        textField [] (nameof rss.FeedName) "Feed File Name" rss.FeedName [
+                            span [ _class "form-text" ] [ raw "Default is "; code [] [ raw "feed.xml" ] ]
+                        ]
+                    ]
+                    div [ _class "col-12 col-sm-6 col-md-4 col-xl-2 pb-3" ] [
+                        numberField [ _required; _min "0" ] (nameof rss.ItemsInFeed) "Items in Feed" rss.ItemsInFeed [
+                            span [ _class "form-text" ] [
+                                raw "Set to &ldquo;0&rdquo; to use &ldquo;Posts per Page&rdquo; setting ("
+                                raw (string app.WebLog.PostsPerPage); raw ")"
+                            ]
+                        ]
+                    ]
+                    div [ _class "col-12 col-md-5 col-xl-4 pb-3" ] [
+                        textField [] (nameof rss.Copyright) "Copyright String" rss.Copyright [
+                            span [ _class "form-text" ] [
+                                raw "Can be a "
+                                a [ _href "https://creativecommons.org/share-your-work/"; _target "_blank"
+                                    _rel "noopener" ] [
+                                    raw "Creative Commons license string"
+                                ]
+                            ]
+                        ]
+                    ]
+                ]
+                div [ _class "row pb-3" ] [
+                    div [ _class "col text-center" ] [
+                        button [ _type "submit"; _class "btn btn-primary" ] [ raw "Save Changes" ]
+                    ]
+                ]
+            ]
+            fieldset [ _class "container mb-3 pb-0" ] [
+                legend [] [ raw "Custom Feeds" ]
+                a [ _class "btn btn-sm btn-secondary"; _href (relUrl app "admin/settings/rss/new/edit") ] [
+                    raw "Add a New Custom Feed"
+                ]
+                if feeds.Length = 0 then
+                    p [ _class "text-muted fst-italic text-center" ] [ raw "No custom feeds defined" ]
+                else
+                    form [ _method "post"; _class "container g-0"; _hxTarget "body" ] [
+                        antiCsrf app
+                        div [ _class "row mwl-table-heading" ] [
+                            div [ _class "col-12 col-md-6" ] [
+                                span [ _class "d-md-none" ] [ raw "Feed" ]
+                                span [ _class "d-none d-md-inline" ] [ raw "Source" ]
+                            ]
+                            div [ _class $"col-12 col-md-6 d-none d-md-inline-block" ] [ raw "Relative Path" ]
+                        ]
+                        for feed in feeds do
+                            div [ _class "row mwl-table-detail" ] [
+                                div [ _class "col-12 col-md-6" ] [
+                                    txt feed.Source
+                                    if feed.IsPodcast then
+                                        raw " &nbsp; "; span [ _class "badge bg-primary" ] [ raw "PODCAST" ]
+                                    br []
+                                    small [] [
+                                        let feedUrl = relUrl app $"admin/settings/rss/{feed.Id}"
+                                        a [ _href (relUrl app feed.Path); _target "_blank" ] [ raw "View Feed" ]
+                                        span [ _class "text-muted" ] [ raw " &bull; " ]
+                                        a [ _href $"{feedUrl}/edit" ] [ raw "Edit" ]
+                                        span [ _class "text-muted" ] [ raw " &bull; " ]
+                                        a [ _href feedUrl; _hxDelete feedUrl; _class "text-danger"
+                                            _hxConfirm $"Are you sure you want to delete the custom RSS feed based on {feed.Source}? This action cannot be undone." ] [
+                                            raw "Delete"
+                                        ]
+                                    ]
+                                ]
+                                div [ _class "col-12 col-md-6" ] [
+                                    small [ _class "d-md-none" ] [ raw "Served at "; txt feed.Path ]
+                                    span [ _class "d-none d-md-inline" ] [ txt feed.Path ]
+                                ]
+                            ]
+                    ]
+            ]
+        ]
+        fieldset [ _id "tag-mappings"; _class "container mb-3 pb-0" ] [
+            legend [] [ raw "Tag Mappings" ]
+            a [ _href (relUrl app "admin/settings/tag-mapping/new/edit"); _class "btn btn-primary btn-sm mb-3"
+                _hxTarget "#tag_new" ] [
+                raw "Add a New Tag Mapping"
+            ]
+            span [ _hxGet (relUrl app "admin/settings/tag-mappings"); _hxTrigger HxTrigger.Load
+                   _hxSwap HxSwap.OuterHtml ] []
+        ]
+    ]
+]

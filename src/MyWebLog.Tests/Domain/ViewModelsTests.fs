@@ -1158,16 +1158,11 @@ let manageRevisionsModelTests = testList "ManageRevisionsModel" [
               { AsOf = Noda.epoch + Duration.FromDays 20; Text = Html "<p>huh</p>" } ]
         let model =
             ManageRevisionsModel.FromPage
-                { WebLog.Empty with TimeZone = "Etc/GMT+1" }
                 { Page.Empty with Id = PageId "revs"; Title = "A Revised Page"; Revisions = revisions }
         Expect.equal model.Id "revs" "Id not filled properly"
         Expect.equal model.Entity "page" "Entity not filled properly"
         Expect.equal model.CurrentTitle "A Revised Page" "CurrentTitle not filled properly"
         Expect.equal model.Revisions.Length 2 "There should be two revisions"
-        Expect.equal
-            model.Revisions[0].AsOfLocal
-            ((revisions[0].AsOf - Duration.FromHours 1).ToDateTimeUtc())
-            "AsOfLocal not filled properly"
     }
     test "FromPost succeeds" {
         let revisions =
@@ -1175,16 +1170,11 @@ let manageRevisionsModelTests = testList "ManageRevisionsModel" [
               { AsOf = Noda.epoch + Duration.FromDays 12; Text = Html "<p>original</p>" } ]
         let model =
             ManageRevisionsModel.FromPost
-                { WebLog.Empty with TimeZone = "Etc/GMT-3" }
                 { Post.Empty with Id = PostId "altered"; Title = "Round Two"; Revisions = revisions }
         Expect.equal model.Id "altered" "Id not filled properly"
         Expect.equal model.Entity "post" "Entity not filled properly"
         Expect.equal model.CurrentTitle "Round Two" "CurrentTitle not filled properly"
         Expect.equal model.Revisions.Length 2 "There should be two revisions"
-        Expect.equal
-            model.Revisions[0].AsOfLocal
-            ((revisions[0].AsOf + Duration.FromHours 3).ToDateTimeUtc())
-            "AsOfLocal not filled properly"
     }
 ]
 
