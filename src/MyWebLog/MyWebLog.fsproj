@@ -11,6 +11,7 @@
     <Compile Include="Caches.fs" />
     <Compile Include="Views\Helpers.fs" />
     <Compile Include="Views\Admin.fs" />
+    <Compile Include="Views\Page.fs" />
     <Compile Include="Views\Post.fs" />
     <Compile Include="Views\User.fs" />
     <Compile Include="Handlers\Helpers.fs" />

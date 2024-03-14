@@ -9,19 +9,15 @@ open MyWebLog.ViewModels
 // GET /admin/pages/page/{pageNbr}
 let all pageNbr : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     let! pages = ctx.Data.Page.FindPageOfPages ctx.WebLog.Id pageNbr
+    let displayPages =
+        pages
+        |> Seq.ofList
+        |> Seq.truncate 25
+        |> Seq.map (DisplayPage.FromPageMinimal ctx.WebLog)
+        |> List.ofSeq
     return!
-        hashForPage "Pages"
-        |> withAntiCsrf ctx
-        |> addToHash "pages"     (pages
-                                  |> Seq.ofList
-                                  |> Seq.truncate 25
-                                  |> Seq.map (DisplayPage.FromPageMinimal ctx.WebLog)
-                                  |> List.ofSeq)
-        |> addToHash "page_nbr"  pageNbr
-        |> addToHash "prev_page" (if pageNbr = 2 then "" else $"/page/{pageNbr - 1}")
-        |> addToHash "has_next"  (List.length pages > 25)
-        |> addToHash "next_page" $"/page/{pageNbr + 1}"
-        |> adminView "page-list" next ctx
+        Views.Page.pageList displayPages pageNbr (pages.Length > 25)
+        |> adminPage "Pages" true next ctx
 }
 
 // GET /admin/page/{id}/edit
@@ -51,7 +47,7 @@ let edit pgId : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     | None -> return! Error.notFound next ctx
 }
 
-// POST /admin/page/{id}/delete
+// DELETE /admin/page/{id}
 let delete pgId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     match! ctx.Data.Page.Delete (PageId pgId) ctx.WebLog.Id with
     | true ->

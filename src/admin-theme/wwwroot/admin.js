@@ -310,7 +310,7 @@ this.Admin = {
    */
   checkChapterLocation() {
     const isDisabled = !document.getElementById("has_location").checked
-    ;["location_name", "location_geo", "location_osm"].forEach(it => {
+    ;["LocationName", "LocationGeo", "LocationOsm"].forEach(it => {
       const elt = document.getElementById(it)
       elt.disabled = isDisabled
       if (isDisabled) elt.value = ""

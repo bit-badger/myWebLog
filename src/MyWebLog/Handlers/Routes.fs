@@ -175,7 +175,6 @@ let router : HttpHandler = choose [
             subRoute "/page" (choose [
                 route  "/save"                   >=> Page.save
                 route  "/permalinks"             >=> Page.savePermalinks
-                routef "/%s/delete"                  Page.delete
                 routef "/%s/revision/%s/restore"     Page.restoreRevision
             ])
             subRoute "/post" (choose [
@@ -211,6 +210,7 @@ let router : HttpHandler = choose [
         ]
         DELETE >=> validateCsrf >=> choose [
             subRoute "/page" (choose [
+                routef "/%s"             Page.delete
                 routef "/%s/revision/%s" Page.deleteRevision
                 routef "/%s/revisions"   Page.purgeRevisions
             ])
