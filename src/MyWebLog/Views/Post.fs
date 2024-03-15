@@ -55,8 +55,7 @@ let chapterEdit (model: EditChapterModel) app = [
             ]
         ]
         div [ _class "row" ] [
-            let hasLoc = model.LocationName <> ""
-            let attrs  = if hasLoc then [] else [ _disabled ]
+            let hasLoc, attrs = if model.LocationName = "" then false, [ _disabled ] else true, []
             div [ _class "col-12 col-md-4 col-lg-3 offset-lg-1 mb-3 align-self-end" ] [
                 checkboxSwitch [ _onclick "Admin.checkChapterLocation()" ] "has_location" "Associate Location" hasLoc []
             ]
@@ -91,11 +90,7 @@ let chapterEdit (model: EditChapterModel) app = [
             div [ _class "col" ] [
                 let cancelLink = relUrl app $"admin/post/{model.PostId}/chapters"
                 if model.Index < 0 then
-                    div [ _class "form-check form-switch mb-3" ] [
-                        input [ _type "checkbox"; _id "add_another"; _name "AddAnother"; _class "form-check-input"
-                                _value "true"; _checked ]
-                        label [ _for "add_another" ] [ raw "Add Another New Chapter" ]
-                    ]
+                    checkboxSwitch [ _checked ] (nameof model.AddAnother) "Add Another New Chapter" true []
                 else
                     input [ _type "hidden"; _name "AddAnother"; _value "false" ]
                 saveButton; raw " &nbsp; "
