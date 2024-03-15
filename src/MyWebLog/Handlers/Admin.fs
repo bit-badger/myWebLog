@@ -27,35 +27,13 @@ module Dashboard =
               ListedPages        = listed
               Categories         = cats
               TopLevelCategories = topCats }
-        return! adminPage "Dashboard" false next ctx (Views.Admin.dashboard model)
+        return! adminPage "Dashboard" false next ctx (Views.WebLog.dashboard model)
     }
 
     // GET /admin/administration
     let admin : HttpHandler = requireAccess Administrator >=> fun next ctx -> task {
-        let! themes          = ctx.Data.Theme.All()
-        let  cachedTemplates = TemplateCache.allNames ()
-        return!
-            hashForPage "myWebLog Administration"
-            |> withAntiCsrf ctx
-            |> addToHash "cached_themes" (
-                themes
-                |> Seq.ofList
-                |> Seq.map (fun it -> [|
-                    string it.Id
-                    it.Name
-                    cachedTemplates
-                    |> List.filter _.StartsWith(string it.Id)
-                    |> List.length
-                    |> string
-                |])
-                |> Array.ofSeq)
-            |> addToHash "web_logs" (
-                WebLogCache.all ()
-                |> Seq.ofList
-                |> Seq.sortBy _.Name
-                |> Seq.map (fun it -> [| string it.Id; it.Name; it.UrlBase |])
-                |> Array.ofSeq)
-            |> adminView "admin-dashboard" next ctx
+        let! themes = ctx.Data.Theme.All()
+        return! adminPage "myWebLog Administration" true next ctx (Views.Admin.dashboard themes)
     }
 
 /// Redirect the user to the admin dashboard
@@ -117,43 +95,24 @@ module Category =
     open MyWebLog.Data
 
     // GET /admin/categories
-    let all : HttpHandler = fun next ctx -> task {
-        match! TemplateCache.get adminTheme "category-list-body" ctx.Data with
-        | Ok catListTemplate ->
-            let! hash =
-                hashForPage "Categories"
-                |> withAntiCsrf ctx
-                |> addViewContext ctx
-            return!
-                   addToHash "category_list" (catListTemplate.Render hash) hash
-                |> adminView "category-list" next ctx
-        | Error message -> return! Error.server message next ctx
-    }
-
-    // GET /admin/categories/bare
-    let bare : HttpHandler = fun next ctx ->
-        hashForPage "Categories"
-        |> withAntiCsrf ctx
-        |> adminBareView "category-list-body" next ctx
-
+    let all : HttpHandler = fun next ctx ->
+        adminPage "Categories" true next ctx Views.WebLog.categoryList
 
     // GET /admin/category/{id}/edit
     let edit catId : HttpHandler = fun next ctx -> task {
         let! result = task {
             match catId with
-            | "new" -> return Some("Add a New Category", { Category.Empty with Id = CategoryId "new" })
+            | "new" -> return Some ("Add a New Category", { Category.Empty with Id = CategoryId "new" })
             | _ ->
                 match! ctx.Data.Category.FindById (CategoryId catId) ctx.WebLog.Id with
-                | Some cat -> return Some("Edit Category", cat)
+                | Some cat -> return Some ("Edit Category", cat)
                 | None -> return None
         }
         match result with
         | Some (title, cat) ->
             return!
-                hashForPage title
-                |> withAntiCsrf ctx
-                |> addToHash ViewContext.Model (EditCategoryModel.FromCategory cat)
-                |> adminBareView "category-edit" next ctx
+                Views.WebLog.categoryEdit (EditCategoryModel.FromCategory cat)
+                |> adminBarePage title true next ctx
         | None -> return! Error.notFound next ctx
     }
 
@@ -171,16 +130,16 @@ module Category =
                     Name        = model.Name
                     Slug        = model.Slug
                     Description = if model.Description = "" then None else Some model.Description
-                    ParentId    = if model.ParentId    = "" then None else Some(CategoryId model.ParentId) }
+                    ParentId    = if model.ParentId    = "" then None else Some (CategoryId model.ParentId) }
             do! (if model.IsNew then data.Category.Add else data.Category.Update) updatedCat
             do! CategoryCache.update ctx
             do! addMessage ctx { UserMessage.Success with Message = "Category saved successfully" }
-            return! bare next ctx
+            return! all next ctx
         | None -> return! Error.notFound next ctx
     }
 
-    // POST /admin/category/{id}/delete
-    let delete catId : HttpHandler = fun next ctx -> task {
+    // DELETE /admin/category/{id}
+    let delete catId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
         let! result = ctx.Data.Category.Delete (CategoryId catId) ctx.WebLog.Id
         match result with
         | CategoryDeleted
@@ -194,7 +153,7 @@ module Category =
             do! addMessage ctx { UserMessage.Success with Message = "Category deleted successfully"; Detail = detail }
         | CategoryNotFound ->
             do! addMessage ctx { UserMessage.Error with Message = "Category not found; cannot delete" }
-        return! bare next ctx
+        return! all next ctx
     }
 
 
@@ -205,19 +164,20 @@ module RedirectRules =
 
     // GET /admin/settings/redirect-rules
     let all : HttpHandler = fun next ctx ->
-        adminPage "Redirect Rules" true next ctx (Views.Admin.redirectList ctx.WebLog.RedirectRules)
+        adminPage "Redirect Rules" true next ctx (Views.WebLog.redirectList ctx.WebLog.RedirectRules)
 
     // GET /admin/settings/redirect-rules/[index]
     let edit idx : HttpHandler = fun next ctx ->
         let titleAndView =
             if idx = -1 then
-                Some ("Add", Views.Admin.redirectEdit (EditRedirectRuleModel.FromRule -1 RedirectRule.Empty))
+                Some ("Add", Views.WebLog.redirectEdit (EditRedirectRuleModel.FromRule -1 RedirectRule.Empty))
             else        
                 let rules = ctx.WebLog.RedirectRules
                 if rules.Length < idx || idx < 0 then
                     None
                 else
-                    Some ("Edit", (Views.Admin.redirectEdit (EditRedirectRuleModel.FromRule idx (List.item idx rules))))
+                    Some
+                        ("Edit", (Views.WebLog.redirectEdit (EditRedirectRuleModel.FromRule idx (List.item idx rules))))
         match titleAndView with
         | Some (title, view) -> adminBarePage $"{title} Redirect Rule" true next ctx view
         | None -> Error.notFound next ctx
@@ -284,7 +244,7 @@ module TagMapping =
     // GET /admin/settings/tag-mappings
     let all : HttpHandler = fun next ctx -> task {
         let! mappings = ctx.Data.TagMap.FindByWebLog ctx.WebLog.Id
-        return! adminBarePage "Tag Mapping List" true next ctx (Views.Admin.tagMapList mappings)
+        return! adminBarePage "Tag Mapping List" true next ctx (Views.WebLog.tagMapList mappings)
     }
 
     // GET /admin/settings/tag-mapping/{id}/edit
@@ -296,7 +256,7 @@ module TagMapping =
         match! tagMap with
         | Some tm ->
             return!
-                Views.Admin.tagMapEdit (EditTagMapModel.FromMapping tm)
+                Views.WebLog.tagMapEdit (EditTagMapModel.FromMapping tm)
                 |> adminBarePage (if isNew then "Add Tag Mapping" else $"Mapping for {tm.Tag} Tag") true next ctx
         | None -> return! Error.notFound next ctx
     }
@@ -497,7 +457,7 @@ module WebLog =
         let  uploads  = [ Database; Disk ]
         let  feeds    = ctx.WebLog.Rss.CustomFeeds |> List.map (DisplayCustomFeed.FromFeed (CategoryCache.get ctx))
         return!
-            Views.Admin.webLogSettings
+            Views.WebLog.webLogSettings
                 (SettingsModel.FromWebLog ctx.WebLog) themes pages uploads (EditRssModel.FromRssOptions ctx.WebLog.Rss)
                 feeds
             |> adminPage "Web Log Settings" true next ctx

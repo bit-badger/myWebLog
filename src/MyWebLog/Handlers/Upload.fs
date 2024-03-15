@@ -108,30 +108,24 @@ let list : HttpHandler = requireAccess Author >=> fun next ctx -> task {
                     Path             = file.Replace($"{path}{slash}", "").Replace(name, "").Replace(slash, '/')
                     UpdatedOn        = create
                     Source           = string Disk })
-            |> List.ofSeq
         with
         | :? DirectoryNotFoundException -> [] // This is fine
         | ex ->
             warn "Upload" ctx $"Encountered {ex.GetType().Name} listing uploads for {path}:\n{ex.Message}"
             []
-    let allFiles =
-        dbUploads
-        |> List.map (DisplayUpload.FromUpload webLog Database)
-        |> List.append diskUploads
-        |> List.sortByDescending (fun file -> file.UpdatedOn, file.Path)
     return!
-        hashForPage "Uploaded Files"
-        |> withAntiCsrf ctx
-        |> addToHash "files" allFiles
-        |> adminView "upload-list" next ctx
+        dbUploads
+        |> Seq.ofList
+        |> Seq.map (DisplayUpload.FromUpload webLog Database)
+        |> Seq.append diskUploads
+        |> Seq.sortByDescending (fun file -> file.UpdatedOn, file.Path)
+        |> Views.WebLog.uploadList
+        |> adminPage "Uploaded Files" true next ctx
 }
 
 // GET /admin/upload/new
 let showNew : HttpHandler = requireAccess Author >=> fun next ctx ->
-    hashForPage "Upload a File"
-    |> withAntiCsrf ctx
-    |> addToHash "destination" (string ctx.WebLog.Uploads)
-    |> adminView "upload-new" next ctx
+    adminPage "Upload a File" true next ctx Views.WebLog.uploadNew
 
 
 /// Redirect to the upload list
@@ -173,8 +167,8 @@ let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
         return! RequestErrors.BAD_REQUEST "Bad request; no file present" next ctx
 }
 
-// POST /admin/upload/{id}/delete
-let deleteFromDb upId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
+// DELETE /admin/upload/{id}
+let deleteFromDb upId : HttpHandler = fun next ctx -> task {
     match! ctx.Data.Upload.Delete (UploadId upId) ctx.WebLog.Id with
     | Ok fileName ->
         do! addMessage ctx { UserMessage.Success with Message = $"{fileName} deleted successfully" }
@@ -193,8 +187,8 @@ let removeEmptyDirectories (webLog: WebLog) (filePath: string) =
             path <- String.Join(slash, path.Split slash |> Array.rev |> Array.skip 1 |> Array.rev)
         else finished <- true
     
-// POST /admin/upload/delete/{**path}
-let deleteFromDisk urlParts : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
+// DELETE /admin/upload/disk/{**path}
+let deleteFromDisk urlParts : HttpHandler = fun next ctx -> task {
     let filePath = urlParts |> Seq.skip 1 |> Seq.head
     let path = Path.Combine(uploadDir, ctx.WebLog.Slug, filePath)
     if File.Exists path then

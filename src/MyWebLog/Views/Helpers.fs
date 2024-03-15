@@ -74,6 +74,9 @@ let txt = encodedText
 /// Shorthand for raw text in a template
 let raw = rawText
 
+/// Rel attribute to prevent opener information from being provided to the new window
+let _relNoOpener = _rel "noopener"
+
 /// The pattern for a long date
 let longDatePattern =
     ZonedDateTimePattern.CreateWithInvariantCulture("MMMM d, yyyy", DateTimeZoneProviders.Tzdb)
@@ -136,7 +139,7 @@ let passwordField attrs name labelText value extra =
 
 /// Create a select (dropdown) field
 let selectField<'T, 'a>
-        attrs name labelText value (values: 'T list) (idFunc: 'T -> 'a) (displayFunc: 'T -> string) extra =
+        attrs name labelText value (values: 'T seq) (idFunc: 'T -> 'a) (displayFunc: 'T -> string) extra =
     div [ _class "form-floating" ] [
         select ([ _name name; _id name; _class "form-control" ] |> List.append attrs) [
             for item in values do
@@ -160,6 +163,10 @@ let checkboxSwitch attrs name labelText (value: bool) extra =
 /// A standard save button
 let saveButton =
     button [ _type "submit"; _class "btn btn-sm btn-primary" ] [ raw "Save Changes" ]
+
+/// A spacer bullet to use between action links
+let actionSpacer =
+    span [ _class "text-muted" ] [ raw " &bull; " ]
 
 /// Functions for generating content in varying layouts
 module Layout =

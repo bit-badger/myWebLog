@@ -114,7 +114,6 @@ let router : HttpHandler = choose [
             route    "/administration" >=> Admin.Dashboard.admin
             subRoute "/categor" (requireAccess WebLogAdmin >=> choose [
                 route  "ies"       >=> Admin.Category.all
-                route  "ies/bare"  >=> Admin.Category.bare
                 routef "y/%s/edit"     Admin.Category.edit
             ])
             route    "/dashboard" >=> Admin.Dashboard.user
@@ -184,11 +183,10 @@ let router : HttpHandler = choose [
                 routef "/%s/revision/%s/restore"     Post.restoreRevision
             ])
             subRoute "/settings" (requireAccess WebLogAdmin >=> choose [
-                route ""     >=> Admin.WebLog.saveSettings
+                route "" >=> Admin.WebLog.saveSettings
                 subRoute "/rss" (choose [
-                    route  ""           >=> Feed.saveSettings
-                    route  "/save"      >=> Feed.saveCustomFeed
-                    routef "/%s/delete"     Feed.deleteCustomFeed
+                    route  ""      >=> Feed.saveSettings
+                    route  "/save" >=> Feed.saveCustomFeed
                 ])
                 subRoute "/redirect-rules" (choose [
                     routef "/%i"      Admin.RedirectRules.save
@@ -202,13 +200,10 @@ let router : HttpHandler = choose [
                 route  "/new"       >=> Admin.Theme.save
                 routef "/%s/delete"     Admin.Theme.delete
             ])
-            subRoute "/upload" (choose [
-                route   "/save"        >=> Upload.save
-                routexp "/delete/(.*)"     Upload.deleteFromDisk
-                routef  "/%s/delete"       Upload.deleteFromDb
-            ])
+            route "/upload/save" >=> Upload.save
         ]
         DELETE >=> validateCsrf >=> choose [
+            routef "/category/%s" Admin.Category.delete
             subRoute "/page" (choose [
                 routef "/%s"             Page.delete
                 routef "/%s/revision/%s" Page.deleteRevision
@@ -221,9 +216,14 @@ let router : HttpHandler = choose [
                 routef "/%s/revisions"   Post.purgeRevisions
             ])
             subRoute "/settings" (requireAccess WebLogAdmin >=> choose [
-                routef "/user/%s"           User.delete
                 routef "/redirect-rules/%i" Admin.RedirectRules.delete
+                routef "/rss/%s"            Feed.deleteCustomFeed
                 routef "/tag-mapping/%s"    Admin.TagMapping.delete
+                routef "/user/%s"           User.delete
+            ])
+            subRoute "/upload" (requireAccess WebLogAdmin >=> choose [
+                routexp "/disk/(.*)" Upload.deleteFromDisk
+                routef  "/%s"        Upload.deleteFromDb
             ])
         ]
     ])

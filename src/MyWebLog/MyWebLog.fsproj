@@ -14,6 +14,7 @@
     <Compile Include="Views\Page.fs" />
     <Compile Include="Views\Post.fs" />
     <Compile Include="Views\User.fs" />
+    <Compile Include="Views\WebLog.fs" />
     <Compile Include="Handlers\Helpers.fs" />
     <Compile Include="Handlers\Admin.fs" />
     <Compile Include="Handlers\Feed.fs" />

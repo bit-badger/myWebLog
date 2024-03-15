@@ -2,7 +2,6 @@
 module MyWebLog.Handlers.Feed
 
 open System
-open System.Collections.Generic
 open System.IO
 open System.Net
 open System.ServiceModel.Syndication
@@ -446,7 +445,7 @@ let editCustomFeed feedId : HttpHandler = requireAccess WebLogAdmin >=> fun next
             { Name = string Newsletter; Value = "Newsletter" }
             { Name = string Blog;       Value = "Blog" }
         ]
-        Views.Admin.feedEdit (EditCustomFeedModel.FromFeed f) ratings mediums
+        Views.WebLog.feedEdit (EditCustomFeedModel.FromFeed f) ratings mediums
         |> adminPage $"""{if feedId = "new" then "Add" else "Edit"} Custom RSS Feed""" true next ctx
     | None -> Error.notFound next ctx
 
@@ -474,7 +473,7 @@ let saveCustomFeed : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx ->
     | None -> return! Error.notFound next ctx
 }
 
-// POST /admin/settings/rss/{id}/delete
+// DELETE /admin/settings/rss/{id}
 let deleteCustomFeed feedId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> task {
     let data = ctx.Data
     match! data.WebLog.FindById ctx.WebLog.Id with

@@ -66,7 +66,7 @@ let chapterEdit (model: EditChapterModel) app = [
                 textField (_required :: attrs) (nameof model.LocationGeo) "Geo URL" model.LocationGeo [
                     em [ _class "form-text" ] [
                         a [ _href "https://github.com/Podcastindex-org/podcast-namespace/blob/main/location/location.md#geo-recommended"
-                            _target "_blank"; _rel "noopener" ] [
+                            _target "_blank"; _relNoOpener ] [
                             raw "see spec"
                         ]
                     ]
@@ -76,10 +76,10 @@ let chapterEdit (model: EditChapterModel) app = [
                 textField attrs (nameof model.LocationOsm) "OpenStreetMap ID" model.LocationOsm [
                     em [ _class "form-text" ] [
                         raw "Optional; "
-                        a [ _href "https://www.openstreetmap.org/"; _target "_blank"; _rel "noopener" ] [ raw "get ID" ]
+                        a [ _href "https://www.openstreetmap.org/"; _target "_blank"; _relNoOpener ] [ raw "get ID" ]
                         raw ", " 
                         a [ _href "https://github.com/Podcastindex-org/podcast-namespace/blob/main/location/location.md#osm-recommended"
-                            _target "_blank"; _rel "noopener" ] [
+                            _target "_blank"; _relNoOpener ] [
                             raw "see spec"
                         ]
                     ]
