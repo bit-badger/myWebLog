@@ -604,6 +604,59 @@ type EditMyInfoModel = {
           NewPasswordConfirm = "" }
 
 
+/// View model common to page and post edits
+type EditCommonModel() =
+    
+    /// Find the latest revision within a list of revisions
+    let findLatestRevision (revs: Revision list) =
+        match revs |> List.sortByDescending _.AsOf |> List.tryHead with Some rev -> rev | None -> Revision.Empty
+    
+    /// The ID of the page or post
+    member val Id = "" with get, set
+    
+    /// The title of the page or post
+    member val Title = "" with get, set
+    
+    /// The permalink for the page or post
+    member val Permalink = "" with get, set
+    
+    /// The entity to which this model applies ("page" or "post")
+    member val Entity = "" with get, set
+    
+    /// Whether to provide a link to manage chapters
+    member val IncludeChapterLink = false with get, set
+    
+    /// The source type ("HTML" or "Markdown")
+    member val Source = "" with get, set
+    
+    /// The text of the page or post
+    member val Text = "" with get, set
+    
+    /// Whether this is a new page or post
+    member this.IsNew with get () = this.Id = "new"
+    
+    /// Fill the properties of this object from a page
+    member this.FromPage (page: Page) =
+        let latest = findLatestRevision page.Revisions
+        this.Id        <- string page.Id
+        this.Title     <- page.Title
+        this.Permalink <- string page.Permalink
+        this.Entity    <- "page"
+        this.Source    <- latest.Text.SourceType
+        this.Text      <- latest.Text.Text
+        
+    /// Fill the properties of this object from a post
+    member this.FromPost (post: Post) =
+        let latest = findLatestRevision post.Revisions
+        this.Id                 <- string post.Id
+        this.Title              <- post.Title
+        this.Permalink          <- string post.Permalink
+        this.Entity             <- "post"
+        this.IncludeChapterLink <- Option.isSome post.Episode && Option.isSome post.Episode.Value.Chapters
+        this.Source             <- latest.Text.SourceType
+        this.Text               <- latest.Text.Text
+
+    
 /// View model to edit a page
 [<CLIMutable; NoComparison; NoEquality>]
 type EditPageModel = {

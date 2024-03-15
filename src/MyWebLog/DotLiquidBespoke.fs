@@ -228,10 +228,9 @@ let register () =
       typeof<CustomFeed>;   typeof<Episode>;    typeof<Episode option>; typeof<MetaItem>;          typeof<Page>
       typeof<RedirectRule>; typeof<RssOptions>; typeof<TagMap>;         typeof<UploadDestination>; typeof<WebLog>
       // View models
-      typeof<AppViewContext>;      typeof<DisplayCategory>; typeof<DisplayCustomFeed>; typeof<DisplayPage>
-      typeof<DisplayTheme>;        typeof<DisplayUpload>;   typeof<DisplayUser>;       typeof<EditCategoryModel>
-      typeof<EditCustomFeedModel>; typeof<EditPageModel>;   typeof<EditPostModel>;     typeof<EditRssModel>
-      typeof<PostDisplay>;         typeof<PostListItem>;    typeof<SettingsModel>;     typeof<UserMessage>
+      typeof<AppViewContext>; typeof<DisplayCategory>; typeof<DisplayCustomFeed>; typeof<DisplayPage>
+      typeof<DisplayTheme>;   typeof<DisplayUpload>;   typeof<DisplayUser>;       typeof<EditPageModel>
+      typeof<EditPostModel>;  typeof<PostDisplay>;     typeof<PostListItem>;      typeof<UserMessage>
       // Framework types
       typeof<AntiforgeryTokenSet>; typeof<DateTime option>; typeof<int option>;    typeof<KeyValuePair>
       typeof<MetaItem list>;       typeof<string list>;     typeof<string option>; typeof<TagMap list>

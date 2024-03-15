@@ -310,6 +310,40 @@ let roundTrip = InstantPattern.CreateWithInvariantCulture "uuuu'-'MM'-'dd'T'HH':
 let private capitalize (it: string) =
     $"{(string it[0]).ToUpper()}{it[1..]}"
 
+/// The common edit form shared by pages and posts
+let commonEdit (model: EditCommonModel) app = [
+    textField [ _required; _autofocus ] (nameof model.Title) "Title" model.Title []
+    textField [ _required ] (nameof model.Permalink) "Permalink" model.Permalink [
+        if not model.IsNew then
+            let urlBase = relUrl app $"admin/{model.Entity}/{model.Id}"
+            span [ _class "form-text" ] [
+                a [ _href $"{urlBase}/permalinks" ] [ raw "Manage Permalinks" ]; actionSpacer
+                a [ _href $"{urlBase}/revisions" ] [ raw "Manage Revisions" ]
+                if model.IncludeChapterLink then
+                    span [ _id "chapterEditLink" ] [
+                        actionSpacer; a [ _href $"{urlBase}/chapters" ] [ raw "Manage Chapters" ]
+                    ]
+            ]
+    ]
+    div [ _class "mb-2" ] [
+        label [ _for "text" ] [ raw "Text" ]; raw " &nbsp; &nbsp; "
+        div [ _class "btn-group btn-group-sm"; _roleGroup; _ariaLabel "Text format button group" ] [
+            input [ _type "radio"; _name (nameof model.Source); _id "source_html"; _class "btn-check"
+                    _value (string Html); if model.Source = string Html then _checked ]
+            label [ _class "btn btn-sm btn-outline-secondary"; _for "source_html" ] [ raw "HTML" ]
+            input [ _type "radio"; _name (nameof model.Source); _id "source_md"; _class "btn-check"
+                    _value (string Markdown); if model.Source = string Markdown then _checked ]
+            label [ _class "btn btn-sm btn-outline-secondary"; _for "source_md" ] [ raw "Markdown" ]
+        ]
+    ]
+    div [ _class "pb-3" ] [
+        textarea [ _name (nameof model.Text); _id (nameof model.Text); _class "form-control"; _rows "20" ] [
+            raw model.Text
+        ]
+    ]
+]
+
+
 /// Form to manage permalinks for pages or posts
 let managePermalinks (model: ManagePermalinksModel) app = [
     let baseUrl = relUrl app $"admin/{model.Entity}/"
