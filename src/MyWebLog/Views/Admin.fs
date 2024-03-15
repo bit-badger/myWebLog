@@ -81,6 +81,216 @@ let dashboard (model: DashboardModel) app = [
 ]
 
 
+/// Custom RSS feed edit form
+let feedEdit (model: EditCustomFeedModel) (ratings: MetaItem list) (mediums: MetaItem list) app = [
+    h2 [ _class "my-3" ] [ raw app.PageTitle ]
+    article [] [
+        form [ _action (relUrl app "admin/settings/rss/save"); _method "post"; _class "container" ] [
+            antiCsrf app
+            input [ _type "hidden"; _name "Id"; _value model.Id ]
+            div [ _class "row pb-3" ] [
+                div [ _class "col" ] [
+                    a [ _href (relUrl app "admin/settings#rss-settings") ] [ raw "&laquo; Back to Settings" ]
+                ]
+            ]
+            div [ _class "row pb-3" ] [
+                div [ _class "col-12 col-lg-6" ] [
+                    fieldset [ _class "container pb-0" ] [
+                        legend [] [ raw "Identification" ]
+                        div [ _class "row" ] [
+                            div [ _class "col" ] [
+                                textField [ _required ] (nameof model.Path) "Relative Feed Path" model.Path [
+                                  span [ _class "form-text fst-italic" ] [ raw "Appended to "; txt app.WebLog.UrlBase ]
+                                ]
+                            ]
+                        ]
+                        div [ _class "row" ] [
+                            div [ _class "col py-3 d-flex align-self-center justify-content-center" ] [
+                                checkboxSwitch [ _onclick "Admin.checkPodcast()"; if model.IsPodcast then _checked ]
+                                               (nameof model.IsPodcast) "This Is a Podcast Feed" model.IsPodcast []
+                            ]
+                        ]
+                    ]
+                ]
+                div [ _class "col-12 col-lg-6" ] [
+                    fieldset [ _class "container pb-0" ] [
+                        legend [] [ raw "Feed Source" ]
+                        div [ _class "row d-flex align-items-center" ] [
+                            div [ _class "col-1 d-flex justify-content-end pb-3" ] [
+                                div [ _class "form-check form-check-inline me-0" ] [
+                                    input [ _type "radio"; _name (nameof model.SourceType); _id "SourceTypeCat"
+                                            _class "form-check-input"; _value "category"
+                                            if model.SourceType <> "tag" then _checked
+                                            _onclick "Admin.customFeedBy('category')" ]
+                                    label [ _for "SourceTypeCat"; _class "form-check-label d-none" ] [ raw "Category" ]
+                                ]
+                            ]
+                            div [ _class "col-11 pb-3" ] [
+                                let cats =
+                                    app.Categories
+                                    |> Seq.ofArray
+                                    |> Seq.map (fun c ->
+                                        let parents =
+                                            if c.ParentNames.Length = 0 then ""
+                                            else
+                                                c.ParentNames
+                                                |> Array.map (fun it -> $"{it} &rang; ")
+                                                |> String.concat ""
+                                        { Name = c.Id; Value = $"{parents} {c.Name}".Trim() })
+                                    |> Seq.append [ { Name = ""; Value = "&ndash; Select Category &ndash;" } ]
+                                    |> List.ofSeq
+                                selectField [ _id "SourceValueCat"; _required
+                                              if model.SourceType = "tag" then _disabled ]
+                                            (nameof model.SourceValue) "Category" model.SourceValue cats (_.Name)
+                                            (_.Value) []
+                            ]
+                            div [ _class "col-1 d-flex justify-content-end pb-3" ] [
+                                div [ _class "form-check form-check-inline me-0" ] [
+                                    input [ _type "radio"; _name (nameof model.SourceType); _id "SourceTypeTag"
+                                            _class "form-check-input"; _value "tag"
+                                            if model.SourceType= "tag" then _checked
+                                            _onclick "Admin.customFeedBy('tag')" ]
+                                    label [ _for "sourceTypeTag"; _class "form-check-label d-none" ] [ raw "Tag" ]
+                                ]
+                            ]
+                            div [ _class "col-11 pb-3" ] [
+                                textField [ _id "SourceValueTag"; _required
+                                            if model.SourceType <> "tag" then _disabled ]
+                                          (nameof model.SourceValue) "Tag"
+                                          (if model.SourceType = "tag" then model.SourceValue else "") []
+                            ]
+                        ]
+                    ]
+                ]
+            ]
+            div [ _class "row pb-3" ] [
+                div [ _class "col" ] [
+                    fieldset [ _class "container"; _id "podcastFields"; if not model.IsPodcast then _disabled ] [
+                        legend [] [ raw "Podcast Settings" ]
+                        div [ _class "row" ] [
+                            div [ _class "col-12 col-md-5 col-lg-4 offset-lg-1 pb-3" ] [
+                                textField [ _required ] (nameof model.Title) "Title" model.Title []
+                            ]
+                            div [ _class "col-12 col-md-4 col-lg-4 pb-3" ] [
+                                textField [] (nameof model.Subtitle) "Podcast Subtitle" model.Subtitle []
+                            ]
+                            div [ _class "col-12 col-md-3 col-lg-2 pb-3" ] [
+                                numberField [ _required ] (nameof model.ItemsInFeed) "# Episodes" model.ItemsInFeed []
+                            ]
+                        ]
+                        div [ _class "row" ] [
+                            div [ _class "col-12 col-md-5 col-lg-4 offset-lg-1 pb-3" ] [
+                                textField [ _required ] (nameof model.AppleCategory) "iTunes Category"
+                                          model.AppleCategory [
+                                    span [ _class "form-text fst-italic" ] [
+                                        a [ _href "https://www.thepodcasthost.com/planning/itunes-podcast-categories/"
+                                            _target "_blank"; _rel "noopener" ] [
+                                            raw "iTunes Category / Subcategory List"
+                                        ]
+                                    ]
+                                ]
+                            ]
+                            div [ _class "col-12 col-md-4 pb-3" ] [
+                                textField [] (nameof model.AppleSubcategory) "iTunes Subcategory" model.AppleSubcategory
+                                          []
+                            ]
+                            div [ _class "col-12 col-md-3 col-lg-2 pb-3" ] [
+                                selectField [ _required ] (nameof model.Explicit) "Explicit Rating" model.Explicit
+                                            ratings (_.Name) (_.Value) []
+                            ]
+                        ]
+                        div [ _class "row" ] [
+                            div [ _class "col-12 col-md-6 col-lg-4 offset-xxl-1 pb-3" ] [
+                                textField [ _required ] (nameof model.DisplayedAuthor) "Displayed Author"
+                                          model.DisplayedAuthor []
+                            ]
+                            div [ _class "col-12 col-md-6 col-lg-4 pb-3" ] [
+                                emailField [ _required ] (nameof model.Email) "Author E-mail" model.Email [
+                                    span [ _class "form-text fst-italic" ] [
+                                        raw "For iTunes, must match registered e-mail"
+                                    ]
+                                ]
+                            ]
+                            div [ _class "col-12 col-sm-5 col-md-4 col-lg-4 col-xl-3 offset-xl-1 col-xxl-2 offset-xxl-0 pb-3" ] [
+                                textField [] (nameof model.DefaultMediaType) "Default Media Type"
+                                          model.DefaultMediaType [
+                                    span [ _class "form-text fst-italic" ] [ raw "Optional; blank for no default" ]
+                                ]
+                            ]
+                            div [ _class "col-12 col-sm-7 col-md-8 col-lg-10 offset-lg-1 pb-3" ] [
+                                textField [ _required ] (nameof model.ImageUrl) "Image URL" model.ImageUrl [
+                                    span [ _class "form-text fst-italic"] [
+                                        raw "Relative URL will be appended to "; txt app.WebLog.UrlBase; raw "/"
+                                    ]
+                                ]
+                            ]
+                        ]
+                        div [ _class "row pb-3" ] [
+                            div [ _class "col-12 col-lg-10 offset-lg-1" ] [
+                                textField [ _required ] (nameof model.Summary) "Summary" model.Summary [
+                                    span [ _class "form-text fst-italic" ] [ raw "Displayed in podcast directories" ]
+                                ]
+                            ]
+                        ]
+                        div [ _class "row pb-3" ] [
+                            div [ _class "col-12 col-lg-10 offset-lg-1" ] [
+                                textField [] (nameof model.MediaBaseUrl) "Media Base URL" model.MediaBaseUrl [
+                                    span [ _class "form-text fst-italic" ] [
+                                        raw "Optional; prepended to episode media file if present"
+                                    ]
+                                ]
+                            ]
+                        ]
+                        div [ _class "row" ] [
+                            div [ _class "col-12 col-lg-5 offset-lg-1 pb-3" ] [
+                                textField [] (nameof model.FundingUrl) "Funding URL" model.FundingUrl [
+                                    span [ _class "form-text fst-italic" ] [
+                                        raw "Optional; URL describing donation options for this podcast, "
+                                        raw "relative URL supported"
+                                    ]
+                                ]
+                            ]
+                            div [ _class "col-12 col-lg-5 pb-3" ] [
+                                textField [ _maxlength "128" ] (nameof model.FundingText) "Funding Text"
+                                          model.FundingText [
+                                    span [ _class "form-text fst-italic" ] [ raw "Optional; text for the funding link" ]
+                                ]
+                            ]
+                        ]
+                        div [ _class "row pb-3" ] [
+                            div [ _class "col-8 col-lg-5 offset-lg-1 pb-3" ] [
+                                textField [] (nameof model.PodcastGuid) "Podcast GUID" model.PodcastGuid [
+                                    span [ _class "form-text fst-italic" ] [
+                                        raw "Optional; v5 UUID uniquely identifying this podcast; "
+                                        raw "once entered, do not change this value ("
+                                        a [ _href "https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#guid"
+                                            _target "_blank"; _rel "noopener" ] [
+                                            raw "documentation"
+                                        ]; raw ")"
+                                    ]
+                                ]
+                            ]
+                            div [ _class "col-4 col-lg-3 offset-lg-2 pb-3" ] [
+                                selectField [] (nameof model.Medium) "Medium" model.Medium mediums (_.Name) (_.Value) [
+                                    span [ _class "form-text fst-italic" ] [
+                                        raw "Optional; medium of the podcast content ("
+                                        a [ _href "https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#medium"
+                                            _target "_blank"; _rel "noopener" ] [
+                                            raw "documentation"
+                                        ]; raw ")"
+                                    ]
+                                ]
+                            ]
+                        ]
+                    ]
+                ]
+            ]
+            div [ _class "row pb-3" ] [ div [ _class "col text-center" ] [ saveButton ] ]
+        ]
+    ]
+]
+
+
 /// Redirect Rule edit form
 let redirectEdit (model: EditRedirectRuleModel) app = [
     let url = relUrl app $"admin/settings/redirect-rules/{model.RuleId}"

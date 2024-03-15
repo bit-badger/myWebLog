@@ -249,7 +249,7 @@ this.Admin = {
    * Check to enable or disable podcast fields
    */
   checkPodcast() {
-    document.getElementById("podcastFields").disabled = !document.getElementById("isPodcast").checked
+    document.getElementById("podcastFields").disabled = !document.getElementById("IsPodcast").checked
   },
 
   /**
@@ -269,8 +269,8 @@ this.Admin = {
    * @param {string} source The source that was selected
    */
   customFeedBy(source) {
-    const categoryInput = document.getElementById("sourceValueCat")
-    const tagInput      = document.getElementById("sourceValueTag")
+    const categoryInput = document.getElementById("SourceValueCat")
+    const tagInput      = document.getElementById("SourceValueTag")
     if (source === "category") {
       tagInput.value         = ""
       tagInput.disabled      = true

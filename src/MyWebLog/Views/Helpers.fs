@@ -104,11 +104,17 @@ let yesOrNo value =
 
 /// Create a text input field
 let inputField fieldType attrs name labelText value extra =
+    let fieldId, newAttrs =
+        let passedId = attrs |> List.tryFind (fun x -> match x with KeyValue ("id", _) -> true | _ -> false)
+        match passedId with
+        | Some (KeyValue (_, idValue)) ->
+            idValue, attrs |> List.filter (fun x -> match x with KeyValue ("id", _) -> false | _ -> true)
+        | Some _ | None -> name, attrs
     div [ _class "form-floating" ] [
-        [ _type fieldType; _name name; _id name; _class "form-control"; _placeholder labelText; _value value ]
-        |> List.append attrs
+        [ _type fieldType; _name name; _id fieldId; _class "form-control"; _placeholder labelText; _value value ]
+        |> List.append newAttrs
         |> input
-        label [ _for name ] [ raw labelText ]
+        label [ _for fieldId ] [ raw labelText ]
         yield! extra
     ]
 
@@ -135,7 +141,7 @@ let selectField<'T, 'a>
         select ([ _name name; _id name; _class "form-control" ] |> List.append attrs) [
             for item in values do
                 let itemId = string (idFunc item)
-                option [ _value itemId; if value = itemId then _selected ] [ txt (displayFunc item) ]
+                option [ _value itemId; if value = itemId then _selected ] [ raw (displayFunc item) ]
         ]
         label [ _for name ] [ raw labelText ]
         yield! extra

@@ -431,20 +431,23 @@ let editCustomFeed feedId : HttpHandler = requireAccess WebLogAdmin >=> fun next
         | _     -> ctx.WebLog.Rss.CustomFeeds |> List.tryFind (fun f -> f.Id = CustomFeedId feedId)
     match customFeed with
     | Some f ->
-        hashForPage $"""{if feedId = "new" then "Add" else "Edit"} Custom RSS Feed"""
-        |> withAntiCsrf ctx
-        |> addToHash ViewContext.Model (EditCustomFeedModel.FromFeed f)
-        |> addToHash "medium_values" [|
-            KeyValuePair.Create("", "&ndash; Unspecified &ndash;")
-            KeyValuePair.Create(string Podcast,    "Podcast")
-            KeyValuePair.Create(string Music,      "Music")
-            KeyValuePair.Create(string Video,      "Video")
-            KeyValuePair.Create(string Film,       "Film")
-            KeyValuePair.Create(string Audiobook,  "Audiobook")
-            KeyValuePair.Create(string Newsletter, "Newsletter")
-            KeyValuePair.Create(string Blog,       "Blog")
-        |]
-        |> adminView "custom-feed-edit" next ctx
+        let ratings = [
+            { Name = string Yes;   Value = "Yes" }
+            { Name = string No;    Value = "No" }
+            { Name = string Clean; Value = "Clean" }
+        ]
+        let mediums = [
+            { Name = "";                Value = "&ndash; Unspecified &ndash;" }
+            { Name = string Podcast;    Value = "Podcast" }
+            { Name = string Music;      Value = "Music" }
+            { Name = string Video;      Value = "Video" }
+            { Name = string Film;       Value = "Film" }
+            { Name = string Audiobook;  Value = "Audiobook" }
+            { Name = string Newsletter; Value = "Newsletter" }
+            { Name = string Blog;       Value = "Blog" }
+        ]
+        Views.Admin.feedEdit (EditCustomFeedModel.FromFeed f) ratings mediums
+        |> adminPage $"""{if feedId = "new" then "Add" else "Edit"} Custom RSS Feed""" true next ctx
     | None -> Error.notFound next ctx
 
 // POST /admin/settings/rss/save
