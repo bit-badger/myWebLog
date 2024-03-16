@@ -178,10 +178,6 @@ let addToHash key (value: obj) (hash: Hash) =
     if hash.ContainsKey key then hash[key] <- value else hash.Add(key, value)
     hash
 
-/// Add anti-CSRF tokens to the given hash
-let withAntiCsrf (ctx: HttpContext) =
-    addToHash ViewContext.AntiCsrfTokens ctx.CsrfTokenSet 
-
 open System.Security.Claims
 open Giraffe
 open Giraffe.Htmx
@@ -361,10 +357,6 @@ let themedView template next ctx hash = task {
 
 /// The ID for the admin theme
 let adminTheme = ThemeId "admin"
-
-/// Display a view for the admin theme
-let adminView template =
-    viewForTheme adminTheme template
 
 /// Display a bare view for the admin theme
 let adminBareView template =

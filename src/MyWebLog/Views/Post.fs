@@ -276,3 +276,246 @@ let list (model: PostDisplay) app = [
             p [ _class "text-muted fst-italic text-center" ] [ raw "This web log has no posts" ]
     ]
 ]
+
+let postEdit (model: EditPostModel) templates (ratings: MetaItem list) app = [
+    h2 [ _class "my-3" ] [ raw app.PageTitle ]
+    article [] [
+        form [ _action (relUrl app "admin/post/save"); _method "post"; _hxPushUrl "true"; _class "container" ] [
+            antiCsrf app
+            input [ _type "hidden"; _name (nameof model.Id); _value model.Id ]
+            div [ _class "row mb-3" ] [
+                div [ _class "col-12 col-lg-9" ] [
+                    yield! commonEdit model app
+                    textField [ _class "mb-3" ] (nameof model.Tags) "Tags" model.Tags [
+                        div [ _class "form-text" ] [ raw "comma-delimited" ]
+                    ]
+                    if model.Status = string Draft then
+                        checkboxSwitch [ _class "mb-2" ] (nameof model.DoPublish) "Publish This Post" model.DoPublish []
+                    saveButton
+                    hr [ _class "mb-3" ]
+                    fieldset [ _class "mb-3" ] [
+                        legend [] [
+                            span [ _class "form-check form-switch" ] [
+                                small [] [
+                                    input [ _type "checkbox"; _name (nameof model.IsEpisode)
+                                            _id (nameof model.IsEpisode); _class "form-check-input"; _value "true"
+                                            _data "bs-toggle" "collapse"; _data "bs-target" "#episode_items"
+                                            _onclick "Admin.toggleEpisodeFields()"; if model.IsEpisode then _checked ]
+                                ]
+                                label [ _for (nameof model.IsEpisode) ] [ raw "Podcast Episode" ]
+                            ]
+                        ]
+                        div [ _id "episode_items"
+                              _class $"""container p-0 collapse{if model.IsEpisode then " show" else ""}""" ] [
+                            div [ _class "row" ] [
+                                div [ _class "col-12 col-md-8 pb-3" ] [
+                                    textField [ _required ] (nameof model.Media) "Media File" model.Media [
+                                        div [ _class "form-text" ] [
+                                            raw "Relative URL will be appended to base media path (if set) "
+                                            raw "or served from this web log"
+                                        ]
+                                    ]
+                                ]
+                                div [ _class "col-12 col-md-4 pb-3" ] [
+                                    textField [] (nameof model.MediaType) "Media MIME Type" model.MediaType [
+                                        div [ _class "form-text" ] [ raw "Optional; overrides podcast default" ]
+                                    ]
+                                ]
+                            ]
+                            div [ _class "row pb-3" ] [
+                                div [ _class "col" ] [
+                                    numberField [ _required ] (nameof model.Length) "Media Length (bytes)"
+                                                0 (* TODO: string model.Length *) [
+                                        div [ _class "form-text" ] [ raw "TODO: derive from above file name" ]
+                                    ]
+                                ]
+                                div [ _class "col" ] [
+                                    textField [] (nameof model.Duration) "Duration" model.Duration [
+                                        div [ _class "form-text" ] [
+                                            raw "Recommended; enter in "; code [] [ raw "HH:MM:SS"]; raw " format"
+                                        ]
+                                    ]
+                                ]
+                            ]
+                            div [ _class "row pb-3" ] [
+                                div [ _class "col" ] [
+                                    textField [] (nameof model.Subtitle) "Subtitle" model.Subtitle [
+                                        div [ _class "form-text" ] [ raw "Optional; a subtitle for this episode" ]
+                                    ]
+                                ]
+                            ]
+                            div [ _class "row" ] [
+                                div [ _class "col-12 col-md-8 pb-3" ] [
+                                    textField [] (nameof model.ImageUrl) "Image URL" model.ImageUrl [
+                                        div [ _class "form-text" ] [
+                                            raw "Optional; overrides podcast default; "
+                                            raw "relative URL served from this web log"
+                                        ]
+                                    ]
+                                ]
+                                div [ _class "col-12 col-md-4 pb-3" ] [
+                                    selectField [] (nameof model.Explicit) "Explicit Rating" model.Explicit ratings
+                                                (_.Name) (_.Value) [
+                                        div [ _class "form-text" ] [ raw "Optional; overrides podcast default" ]
+                                    ]
+                                ]
+                            ]
+                            div [ _class "row" ] [
+                                div [ _class "col-12 col-md-8 pb-3" ] [
+                                    div [ _class "form-text" ] [ raw "Chapters" ]
+                                    div [ _class "form-check form-check-inline" ] [
+                                        input [ _type "radio"; _name (nameof model.ChapterSource)
+                                                _id "chapter_source_none"; _value "none"; _class "form-check-input"
+                                                if model.ChapterSource = "none" then _checked
+                                                _onclick "Admin.setChapterSource('none')" ]
+                                        label [ _for "chapter_source_none" ] [ raw "None" ]
+                                    ]
+                                    div [ _class "form-check form-check-inline" ] [
+                                        input [ _type "radio"; _name (nameof model.ChapterSource)
+                                                _id "chapter_source_internal"; _value "internal"
+                                                _class "form-check-input"
+                                                if model.ChapterSource= "internal" then _checked
+                                                _onclick "Admin.setChapterSource('internal')" ]
+                                        label [ _for "chapter_source_internal" ] [ raw "Defined Here" ]
+                                    ]
+                                    div [ _class "form-check form-check-inline" ] [
+                                        input [ _type "radio"; _name (nameof model.ChapterSource)
+                                                _id "chapter_source_external"; _value "external"
+                                                _class "form-check-input"
+                                                if model.ChapterSource = "external" then _checked
+                                                _onclick "Admin.setChapterSource('external')" ]
+                                        label [ _for "chapter_source_external" ] [ raw "Separate File" ]
+                                    ]
+                                ]
+                                div [ _class "col-md-4 d-flex justify-content-center" ] [
+                                    checkboxSwitch [ _class "align-self-center pb-3" ] (nameof model.ContainsWaypoints)
+                                                   "Chapters contain waypoints" model.ContainsWaypoints []
+                                ]
+                            ]
+                            div [ _class "row" ] [
+                                div [ _class "col-12 col-md-8 pb-3" ] [
+                                    textField [] (nameof model.ChapterFile) "Chapter File" model.ChapterFile [
+                                        div [ _class "form-text" ] [ raw "Relative URL served from this web log" ]
+                                    ]
+                                ]
+                                div [ _class "col-12 col-md-4 pb-3" ] [
+                                    textField [] (nameof model.ChapterType) "Chapter MIME Type" model.ChapterType [
+                                        div [ _class "form-text" ] [
+                                            raw "Optional; "; code [] [ raw "application/json+chapters" ]
+                                            raw " assumed if chapter file ends with "; code [] [ raw ".json" ]
+                                        ]
+                                    ]
+                                ]
+                            ]
+                            div [ _class "row" ] [
+                                div [ _class "col-12 col-md-8 pb-3" ] [
+                                    textField [] (nameof model.TranscriptUrl) "Transcript URL" model.TranscriptUrl [
+                                        div [ _class "form-text" ] [
+                                            raw "Optional; relative URL served from this web log"
+                                        ]
+                                    ]
+                                ]
+                                div [ _class "col-12 col-md-4 pb-3" ] [
+                                    textField [] (nameof model.TranscriptType) "Transcript MIME Type"
+                                              model.TranscriptType [
+                                        div [ _class "form-text" ] [ raw "Required if transcript URL provided" ]
+                                    ]
+                                ]
+                            ]
+                            div [ _class "row pb-3" ] [
+                                div [ _class "col" ] [
+                                    textField [] (nameof model.TranscriptLang) "Transcript Language"
+                                              model.TranscriptLang [
+                                        div [ _class "form-text" ] [ raw "Optional; overrides podcast default" ]
+                                    ]
+                                ]
+                                div [ _class "col d-flex justify-content-center" ] [
+                                    checkboxSwitch [ _class "align-self-center pb-3" ] (nameof model.TranscriptCaptions)
+                                                   "This is a captions file" model.TranscriptCaptions []
+                                ]
+                            ]
+                            div [ _class "row pb-3" ] [
+                                div [ _class "col col-md-4" ] [
+                                    numberField [] (nameof model.SeasonNumber) "Season Number" model.SeasonNumber [
+                                        div [ _class "form-text" ] [ raw "Optional" ]
+                                    ]
+                                ]
+                                div [ _class "col col-md-8" ] [
+                                    textField [ _maxlength "128" ] (nameof model.SeasonDescription) "Season Description"
+                                              model.SeasonDescription [
+                                        div [ _class "form-text" ] [ raw "Optional" ]
+                                    ]
+                                ]
+                            ]
+                            div [ _class "row pb-3" ] [
+                                div [ _class "col col-md-4" ] [
+                                    numberField [ _step "0.01" ] (nameof model.EpisodeNumber) "Episode Number"
+                                                0 (* TODO: model.EpisodeNumber *) [
+                                        div [ _class "form-text" ] [ raw "Optional; up to 2 decimal points" ]
+                                    ]
+                                ]
+                                div [ _class "col col-md-8" ] [
+                                    textField [ _maxlength "128" ] (nameof model.EpisodeDescription)
+                                              "Episode Description" model.EpisodeDescription [
+                                        div [ _class "form-text" ] [ raw "Optional" ]
+                                    ]
+                                ]
+                            ]
+                        ]
+                        script [] [
+                            raw """document.addEventListener("DOMContentLoaded", () => Admin.toggleEpisodeFields())"""
+                        ]
+                    ]
+                    commonMetaItems model
+                    if model.Status = string Published then
+                        fieldset [ _class "pb-3" ] [
+                            legend [] [ raw "Maintenance" ]
+                            div [ _class "container" ] [
+                                div [ _class "row" ] [
+                                    div [ _class "col align-self-center" ] [
+                                        checkboxSwitch [ _class "pb-2" ] (nameof model.SetPublished)
+                                                       "Set Published Date" model.SetPublished []
+                                    ]
+                                    div [ _class "col-4" ] [
+                                        div [ _class "form-floating" ] [
+                                            input [ _type "datetime-local"; _name (nameof model.PubOverride)
+                                                    _id (nameof model.PubOverride); _class "form-control"
+                                                    _placeholder "Override Date"
+                                                    if model.PubOverride.HasValue then
+                                                        _value (model.PubOverride.Value.ToString "yyyy-MM-dd\THH:mm") ]
+                                            label [ _for (nameof model.PubOverride); _class "form-label" ] [
+                                                raw "Published On"
+                                            ]
+                                        ]
+                                    ]
+                                    div [ _class "col-5 align-self-center" ] [
+                                        checkboxSwitch [ _class "pb-2" ] (nameof model.SetUpdated)
+                                                       "Purge revisions and<br>set as updated date as well"
+                                                       model.SetUpdated []
+                                    ]
+                                ]
+                            ]
+                        ]
+                ]
+                div [ _class "col-12 col-lg-3" ] [
+                    commonTemplates model templates
+                    fieldset [] [
+                        legend [] [ raw "Categories" ]
+                        for cat in app.Categories do
+                            div [ _class "form-check" ] [
+                                input [ _type "checkbox"; _name (nameof model.CategoryIds); _id $"category_{cat.Id}"
+                                        _class "form-check-input"; _value cat.Id
+                                        if model.CategoryIds |> Array.contains cat.Id then _checked ]
+                                label [ _for $"category_{cat.Id}"; _class "form-check-label"
+                                        match cat.Description with Some it -> _title it | None -> () ] [
+                                    yield! cat.ParentNames |> Array.map (fun _ -> raw "&nbsp; &rang; &nbsp;")
+                                    txt cat.Name
+                                ]
+                          ]
+                    ]
+                ]
+            ]
+        ]
+    ]
+    script [] [ raw "window.setTimeout(() => Admin.toggleEpisodeFields(), 500)" ]
+]

@@ -272,21 +272,12 @@ let edit postId : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     | Some (title, post) when canEdit post.AuthorId ctx ->
         let! templates = templatesForTheme ctx "post"
         let  model     = EditPostModel.FromPost ctx.WebLog post
-        return!
-            hashForPage title
-            |> withAntiCsrf ctx
-            |> addToHash ViewContext.Model model
-            |> addToHash "metadata" (
-                Array.zip model.MetaNames model.MetaValues
-                |> Array.mapi (fun idx (name, value) -> [| string idx; name; value |]))
-            |> addToHash "templates" templates
-            |> addToHash "explicit_values" [|
-                KeyValuePair.Create("", "&ndash; Default &ndash;")
-                KeyValuePair.Create(string Yes,   "Yes")
-                KeyValuePair.Create(string No,    "No")
-                KeyValuePair.Create(string Clean, "Clean")
-            |]
-            |> adminView "post-edit" next ctx
+        let  ratings   = [
+            { Name = string Yes;   Value = "Yes" }
+            { Name = string No;    Value = "No" }
+            { Name = string Clean; Value = "Clean" }
+        ]
+        return! adminPage title true next ctx (Views.Post.postEdit model templates ratings)
     | Some _ -> return! Error.notAuthorized next ctx
     | None -> return! Error.notFound next ctx
 }
