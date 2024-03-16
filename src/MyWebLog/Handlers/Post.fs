@@ -273,6 +273,7 @@ let edit postId : HttpHandler = requireAccess Author >=> fun next ctx -> task {
         let! templates = templatesForTheme ctx "post"
         let  model     = EditPostModel.FromPost ctx.WebLog post
         let  ratings   = [
+            { Name = "";           Value = "&ndash; Default &ndash;" }
             { Name = string Yes;   Value = "Yes" }
             { Name = string No;    Value = "No" }
             { Name = string Clean; Value = "Clean" }
@@ -338,7 +339,7 @@ let purgeRevisions postId : HttpHandler = requireAccess Author >=> fun next ctx 
     | Some post when canEdit post.AuthorId ctx ->
         do! data.Post.Update { post with Revisions = [ List.head post.Revisions ] }
         do! addMessage ctx { UserMessage.Success with Message = "Prior revisions purged successfully" }
-        return! redirectToGet $"admin/post/{postId}/revisions" next ctx
+        return! editRevisions postId next ctx
     | Some _ -> return! Error.notAuthorized next ctx
     | None -> return! Error.notFound next ctx
 }
@@ -427,7 +428,7 @@ let editChapter (postId, index) : HttpHandler = requireAccess Author >=> fun nex
 // POST /admin/post/{id}/chapter/{idx}
 let saveChapter (postId, index) : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     let data = ctx.Data
-    match! data.Post.FindById (PostId postId) ctx.WebLog.Id with
+    match! data.Post.FindFullById (PostId postId) ctx.WebLog.Id with
     | Some post
         when    Option.isSome post.Episode
              && Option.isSome post.Episode.Value.Chapters
@@ -447,7 +448,7 @@ let saveChapter (postId, index) : HttpHandler = requireAccess Author >=> fun nex
                 do! addMessage ctx { UserMessage.Success with Message = "Chapter saved successfully" }
                 return!
                     Views.Post.chapterList form.AddAnother (ManageChaptersModel.Create updatedPost)
-                    |> adminPage "Manage Chapters" true next ctx
+                    |> adminBarePage "Manage Chapters" true next ctx
             with
             | ex -> return! Error.server ex.Message next ctx
         else return! Error.notFound next ctx

@@ -132,8 +132,8 @@ let textField attrs name labelText value extra =
     inputField "text" attrs name labelText value extra
 
 /// Create a number input field
-let numberField attrs name labelText (value: int) extra =
-    inputField "number" attrs name labelText (string value) extra
+let numberField attrs name labelText value extra =
+    inputField "number" attrs name labelText value extra
 
 /// Create an e-mail input field
 let emailField attrs name labelText value extra =
@@ -450,7 +450,7 @@ let managePermalinks (model: ManagePermalinksModel) app = [
                     div [ _id "permalinks"; _class "container g-0" ] [
                         yield! Array.mapi linkDetail model.Prior
                         script [] [
-                            raw """document.addEventListener(\"DOMContentLoaded\", """
+                            raw """document.addEventListener("DOMContentLoaded", """
                             raw $"() => Admin.setPermalinkIndex({model.Prior.Length}))"
                         ]
                     ]
@@ -514,7 +514,7 @@ let manageRevisions (model: ManageRevisionsModel) app = [
             if model.Revisions.Length > 1 then
                 div [ _class "row mb-3" ] [
                     div [ _class "col" ] [
-                        button [ _type "button"; _class "btn btn-sm btn-danger"; _hxDelete $"{revUrlBase}s/purge"
+                        button [ _type "button"; _class "btn btn-sm btn-danger"; _hxDelete $"{revUrlBase}s"
                                  _hxConfirm "This will remove all revisions but the current one; are you sure this is what you wish to do?" ] [
                             raw "Delete All Prior Revisions"
                         ]

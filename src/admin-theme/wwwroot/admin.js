@@ -375,9 +375,7 @@ this.Admin = {
    */
   showPreRenderedMessages() {
     [...document.querySelectorAll(".toast")].forEach(el => {
-      if (el.getAttribute("data-mwl-shown") === "true" && el.className.indexOf("hide") >= 0) {
-        document.removeChild(el)
-      } else {
+      if (el.getAttribute("data-mwl-shown") !== "true") {
         const toast = new bootstrap.Toast(el,
             el.getAttribute("data-bs-autohide") === "false"
                 ? { autohide: false } : { delay: 6000, autohide: true })

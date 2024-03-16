@@ -325,7 +325,7 @@ let postEdit (model: EditPostModel) templates (ratings: MetaItem list) app = [
                             div [ _class "row pb-3" ] [
                                 div [ _class "col" ] [
                                     numberField [ _required ] (nameof model.Length) "Media Length (bytes)"
-                                                0 (* TODO: string model.Length *) [
+                                                (string model.Length) [
                                         div [ _class "form-text" ] [ raw "TODO: derive from above file name" ]
                                     ]
                                 ]
@@ -409,14 +409,16 @@ let postEdit (model: EditPostModel) templates (ratings: MetaItem list) app = [
                             ]
                             div [ _class "row" ] [
                                 div [ _class "col-12 col-md-8 pb-3" ] [
-                                    textField [] (nameof model.TranscriptUrl) "Transcript URL" model.TranscriptUrl [
+                                    textField [ _onkeyup "Admin.requireTranscriptType()" ] (nameof model.TranscriptUrl)
+                                              "Transcript URL" model.TranscriptUrl [
                                         div [ _class "form-text" ] [
                                             raw "Optional; relative URL served from this web log"
                                         ]
                                     ]
                                 ]
                                 div [ _class "col-12 col-md-4 pb-3" ] [
-                                    textField [] (nameof model.TranscriptType) "Transcript MIME Type"
+                                    textField [ if model.TranscriptUrl <> "" then _required ]
+                                              (nameof model.TranscriptType) "Transcript MIME Type"
                                               model.TranscriptType [
                                         div [ _class "form-text" ] [ raw "Required if transcript URL provided" ]
                                     ]
@@ -436,7 +438,8 @@ let postEdit (model: EditPostModel) templates (ratings: MetaItem list) app = [
                             ]
                             div [ _class "row pb-3" ] [
                                 div [ _class "col col-md-4" ] [
-                                    numberField [] (nameof model.SeasonNumber) "Season Number" model.SeasonNumber [
+                                    numberField [] (nameof model.SeasonNumber) "Season Number"
+                                                (string model.SeasonNumber) [
                                         div [ _class "form-text" ] [ raw "Optional" ]
                                     ]
                                 ]
@@ -450,7 +453,7 @@ let postEdit (model: EditPostModel) templates (ratings: MetaItem list) app = [
                             div [ _class "row pb-3" ] [
                                 div [ _class "col col-md-4" ] [
                                     numberField [ _step "0.01" ] (nameof model.EpisodeNumber) "Episode Number"
-                                                0 (* TODO: model.EpisodeNumber *) [
+                                                model.EpisodeNumber [
                                         div [ _class "form-text" ] [ raw "Optional; up to 2 decimal points" ]
                                     ]
                                 ]

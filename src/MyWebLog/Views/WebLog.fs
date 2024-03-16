@@ -281,7 +281,8 @@ let feedEdit (model: EditCustomFeedModel) (ratings: MetaItem list) (mediums: Met
                                 textField [] (nameof model.Subtitle) "Podcast Subtitle" model.Subtitle []
                             ]
                             div [ _class "col-12 col-md-3 col-lg-2 pb-3" ] [
-                                numberField [ _required ] (nameof model.ItemsInFeed) "# Episodes" model.ItemsInFeed []
+                                numberField [ _required ] (nameof model.ItemsInFeed) "# Episodes"
+                                            (string model.ItemsInFeed) []
                             ]
                         ]
                         div [ _class "row" ] [
@@ -775,7 +776,7 @@ let webLogSettings
                         ]
                         div [ _class "col-12 col-md-4 col-xl-2 pb-3" ] [
                             numberField [ _required; _min "0"; _max "50" ] (nameof model.PostsPerPage) "Posts per Page"
-                                        model.PostsPerPage []
+                                        (string model.PostsPerPage) []
                         ]
                     ]
                     div [ _class "row" ] [
@@ -827,7 +828,8 @@ let webLogSettings
                         ]
                     ]
                     div [ _class "col-12 col-sm-6 col-md-4 col-xl-2 pb-3" ] [
-                        numberField [ _required; _min "0" ] (nameof rss.ItemsInFeed) "Items in Feed" rss.ItemsInFeed [
+                        numberField [ _required; _min "0" ] (nameof rss.ItemsInFeed) "Items in Feed"
+                                    (string rss.ItemsInFeed) [
                             span [ _class "form-text" ] [
                                 raw "Set to &ldquo;0&rdquo; to use &ldquo;Posts per Page&rdquo; setting ("
                                 raw (string app.WebLog.PostsPerPage); raw ")"

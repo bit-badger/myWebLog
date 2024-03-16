@@ -46,7 +46,7 @@ let delete pgId : HttpHandler = requireAccess WebLogAdmin >=> fun next ctx -> ta
         do! PageListCache.update ctx
         do! addMessage ctx { UserMessage.Success with Message = "Page deleted successfully" }
     | false -> do! addMessage ctx { UserMessage.Error with Message = "Page not found; nothing deleted" }
-    return! redirectToGet "admin/pages" next ctx
+    return! all 1 next ctx
 }
 
 // GET /admin/page/{id}/permalinks
@@ -96,7 +96,7 @@ let purgeRevisions pgId : HttpHandler = requireAccess Author >=> fun next ctx ->
     | Some pg ->
         do! data.Page.Update { pg with Revisions = [ List.head pg.Revisions ] }
         do! addMessage ctx { UserMessage.Success with Message = "Prior revisions purged successfully" }
-        return! redirectToGet $"admin/page/{pgId}/revisions" next ctx
+        return! editRevisions pgId next ctx
     | None -> return! Error.notFound next ctx
 }
 
