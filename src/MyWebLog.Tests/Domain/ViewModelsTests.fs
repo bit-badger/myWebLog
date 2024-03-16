@@ -33,88 +33,6 @@ let addBaseToRelativeUrlsTests = testList "PublicHelpers.addBaseToRelativeUrls" 
     }
 ]
 
-/// Unit tests for the DisplayChapter type
-let displayChapterTests = testList "DisplayChapter.FromChapter" [
-    test "succeeds for a minimally-filled chapter" {
-        let chapter = DisplayChapter.FromChapter { Chapter.Empty with StartTime = Duration.FromSeconds 322L }
-        Expect.equal chapter.StartTime "0:05:22" "Start time not filled/formatted properly"
-        Expect.equal chapter.Title "" "Title not filled properly"
-        Expect.equal chapter.ImageUrl "" "Image URL not filled properly"
-        Expect.isFalse chapter.IsHidden "Is hidden flag not filled properly"
-        Expect.equal chapter.EndTime "" "End time not filled properly"
-        Expect.equal chapter.LocationName "" "Location name not filled properly"
-        Expect.equal chapter.LocationGeo "" "Location geo URL not filled properly"
-        Expect.equal chapter.LocationOsm "" "Location OSM query not filled properly"
-    }
-    test "succeeds for a fully-filled chapter" {
-        let chapter =
-            DisplayChapter.FromChapter
-                { StartTime = Duration.FromSeconds 7201.43242
-                  Title     = Some "My Test Chapter"
-                  ImageUrl  = Some "two-hours-in.jpg"
-                  Url       = Some "https://example.com/about"
-                  IsHidden  = Some true
-                  EndTime   = Some (Duration.FromSeconds 7313.788)
-                  Location  = Some { Name = "Over Here"; Geo = "geo:23432"; Osm = Some "SF98fFSu-8" } }
-        Expect.equal chapter.StartTime "2:00:01.43" "Start time not filled/formatted properly"
-        Expect.equal chapter.Title "My Test Chapter" "Title not filled properly"
-        Expect.equal chapter.ImageUrl "two-hours-in.jpg" "Image URL not filled properly"
-        Expect.equal chapter.Url "https://example.com/about" "URL not filled properly"
-        Expect.isTrue chapter.IsHidden "Is hidden flag not filled properly"
-        Expect.equal chapter.EndTime "2:01:53.78" "End time not filled/formatted properly"
-        Expect.equal chapter.LocationName "Over Here" "Location name not filled properly"
-        Expect.equal chapter.LocationGeo "geo:23432" "Location geo URL not filled properly"
-        Expect.equal chapter.LocationOsm "SF98fFSu-8" "Location OSM query not filled properly"
-    }
-]
-
-/// Unit tests for the DisplayCustomFeed type
-let displayCustomFeedTests = testList "DisplayCustomFeed.FromFeed" [
-    test "succeeds for a feed for an existing category" {
-        let cats =
-            [| { DisplayCategory.Id = "abc"
-                 Slug        = "a-b-c"
-                 Name        = "My Lovely Category"
-                 Description = None
-                 ParentNames = [||]
-                 PostCount   = 3 } |]
-        let feed =
-            { CustomFeed.Empty with
-                Id     = CustomFeedId "test-feed"
-                Source = Category (CategoryId "abc")
-                Path   = Permalink "test-feed.xml" }
-        let model = DisplayCustomFeed.FromFeed cats feed
-        Expect.equal model.Id "test-feed" "Id not filled properly"
-        Expect.equal model.Source "Category: My Lovely Category" "Source not filled properly"
-        Expect.equal model.Path "test-feed.xml" "Path not filled properly"
-        Expect.isFalse model.IsPodcast "IsPodcast not filled properly"
-    }
-    test "succeeds for a feed for a non-existing category" {
-        let feed =
-            { CustomFeed.Empty with
-                Id     = CustomFeedId "bad-feed"
-                Source = Category (CategoryId "xyz")
-                Path   = Permalink "trouble.xml" }
-        let model = DisplayCustomFeed.FromFeed [||] feed
-        Expect.equal model.Id "bad-feed" "Id not filled properly"
-        Expect.equal model.Source "Category: --INVALID; DELETE THIS FEED--" "Source not filled properly"
-        Expect.equal model.Path "trouble.xml" "Path not filled properly"
-        Expect.isFalse model.IsPodcast "IsPodcast not filled properly"
-    }
-    test "succeeds for a feed for a tag" {
-        let feed =
-            { Id      = CustomFeedId "tag-feed"
-              Source  = Tag "testing"
-              Path    = Permalink "testing-posts.xml"
-              Podcast = Some PodcastOptions.Empty }
-        let model = DisplayCustomFeed.FromFeed [||] feed
-        Expect.equal model.Id "tag-feed" "Id not filled properly"
-        Expect.equal model.Source "Tag: testing" "Source not filled properly"
-        Expect.equal model.Path "testing-posts.xml" "Path not filled properly"
-        Expect.isTrue model.IsPodcast "IsPodcast not filled properly"
-    }
-]
-
 /// Unit tests for the DisplayPage type
 let displayPageTests = testList "DisplayPage" [
     let page =
@@ -242,47 +160,6 @@ let displayUploadTests = test "DisplayUpload.FromUpload succeeds" {
         model.UpdatedOn.Value ((Noda.epoch + Duration.FromHours 1).ToDateTimeUtc()) "UpdatedOn not filled properly"
 }
 
-/// Unit tests for the DisplayUser type
-let displayUserTests = testList "DisplayUser.FromUser" [
-        let minimalUser =
-            { WebLogUser.Empty with
-                Id            = WebLogUserId "test-user"
-                Email         = "jim.james@example.com"
-                FirstName     = "Jim"
-                LastName      = "James"
-                PreferredName = "John"
-                AccessLevel   = Editor
-                CreatedOn     = Noda.epoch }
-        test "succeeds when the user has minimal information" {
-            let model = DisplayUser.FromUser WebLog.Empty minimalUser
-            Expect.equal model.Id "test-user" "Id not filled properly"
-            Expect.equal model.Email "jim.james@example.com" "Email not filled properly"
-            Expect.equal model.FirstName "Jim" "FirstName not filled properly"
-            Expect.equal model.LastName "James" "LastName not filled properly"
-            Expect.equal model.PreferredName "John" "PreferredName not filled properly"
-            Expect.equal model.Url "" "Url not filled properly"
-            Expect.equal model.AccessLevel "Editor" "AccessLevel not filled properly"
-            Expect.equal model.CreatedOn (Noda.epoch.ToDateTimeUtc()) "CreatedOn not filled properly"
-            Expect.isFalse model.LastSeenOn.HasValue "LastSeenOn should have been null"
-        }
-        test "succeeds when the user has all information" {
-            let model =
-                DisplayUser.FromUser
-                    { WebLog.Empty with TimeZone = "Etc/GMT-1" }
-                    { minimalUser with
-                        Url = Some "https://my.site"
-                        LastSeenOn = Some (Noda.epoch + Duration.FromDays 4) } 
-            Expect.equal model.Url "https://my.site" "Url not filled properly"
-            Expect.equal
-                model.CreatedOn ((Noda.epoch + Duration.FromHours 1).ToDateTimeUtc()) "CreatedOn not filled properly"
-            Expect.isTrue model.LastSeenOn.HasValue "LastSeenOn should not have been null"
-            Expect.equal
-                model.LastSeenOn.Value
-                ((Noda.epoch + Duration.FromDays 4 + Duration.FromHours 1).ToDateTimeUtc())
-                "LastSeenOn not filled properly"
-        }
-    ]
-
 /// Unit tests for the EditCategoryModel type
 let editCategoryModelTests = testList "EditCategoryModel" [
     testList "FromCategory" [
@@ -311,6 +188,131 @@ let editCategoryModelTests = testList "EditCategoryModel" [
         test "succeeds for a non-new category" {
             let model = EditCategoryModel.FromCategory Category.Empty
             Expect.isFalse model.IsNew "Category should not have been considered new"
+        }
+    ]
+]
+
+/// A full page used to test various models
+let private testFullPage =
+    { Page.Empty with
+        Id           = PageId "the-page"
+        Title        = "Test Page"
+        Permalink    = Permalink "blog/page.html"
+        Template     = Some "bork"
+        IsInPageList = true
+        Revisions    =
+            [ { AsOf = Noda.epoch + Duration.FromHours 1; Text = Markdown "# Howdy!" }
+              { AsOf = Noda.epoch; Text = Html "<h1>howdy</h1>" } ]
+        Metadata     = [ { Name = "Test"; Value = "me" }; { Name = "Two"; Value = "2" } ] }
+
+/// A full post used to test various models
+let testFullPost =
+    { Post.Empty with
+        Id          = PostId "a-post"
+        Status      = Published
+        Title       = "A Post"
+        Permalink   = Permalink "1970/01/a-post.html"
+        PublishedOn = Some (Noda.epoch + Duration.FromDays 7)
+        UpdatedOn   = Noda.epoch + Duration.FromDays 365
+        Template    = Some "demo"
+        Text        = "<p>A post!</p>"
+        CategoryIds = [ CategoryId "cat-a"; CategoryId "cat-b"; CategoryId "cat-n" ]
+        Tags        = [ "demo"; "post" ]
+        Metadata    = [ { Name = "A Meta"; Value = "A Value" } ]
+        Revisions   =
+            [ { AsOf = Noda.epoch + Duration.FromDays 365; Text = Html "<p>A post!</p>" }
+              { AsOf = Noda.epoch + Duration.FromDays 7;   Text = Markdown "A post!" } ]
+        Episode     =
+            Some { Media              = "a-post-ep.mp3"
+                   Length             = 15555L
+                   Duration           = Some (Duration.FromMinutes 15L + Duration.FromSeconds 22L)
+                   MediaType          = Some "audio/mpeg3"
+                   ImageUrl           = Some "uploads/podcast-cover.jpg"
+                   Subtitle           = Some "Narration"
+                   Explicit           = Some Clean
+                   Chapters           = None 
+                   ChapterFile        = Some "uploads/1970/01/chapters.txt"
+                   ChapterType        = Some "chapters"
+                   ChapterWaypoints   = Some true
+                   TranscriptUrl      = Some "uploads/1970/01/transcript.txt"
+                   TranscriptType     = Some "transcript"
+                   TranscriptLang     = Some "EN-us"
+                   TranscriptCaptions = Some true
+                   SeasonNumber       = Some 3
+                   SeasonDescription  = Some "Season Three"
+                   EpisodeNumber      = Some 322.
+                   EpisodeDescription = Some "Episode 322" } }
+
+/// Unit tests for the EditCommonModel type
+let editCommonModelTests = testList "EditCommonModel" [
+    testList "IsNew" [
+        test "succeeds for a new page or post" {
+            Expect.isTrue (EditCommonModel(Id = "new")).IsNew "IsNew should have been set"
+        }
+        test "succeeds for an existing page or post" {
+            Expect.isFalse (EditCommonModel(Id = string (PageId.Create ()))).IsNew "IsNew should not have been set"
+        }
+    ]
+    testList "PopulateFromPage" [
+        test "succeeds for empty page" {
+            let model = EditCommonModel()
+            model.PopulateFromPage { Page.Empty with Id = PageId "abc" }
+            Expect.equal model.Id "abc" "PageId not filled properly"
+            Expect.equal model.Title "" "Title not filled properly"
+            Expect.equal model.Permalink "" "Permalink not filled properly"
+            Expect.equal model.Template "" "Template not filled properly"
+            Expect.equal model.Source "HTML" "Source not filled properly"
+            Expect.equal model.Text "" "Text not set properly"
+            Expect.equal model.MetaNames.Length 1 "MetaNames should have one entry"
+            Expect.equal model.MetaNames[0] "" "Meta name not set properly"
+            Expect.equal model.MetaValues.Length 1 "MetaValues should have one entry"
+            Expect.equal model.MetaValues[0] "" "Meta value not set properly"
+        }
+        test "succeeds for filled page" {
+            let model = EditCommonModel()
+            model.PopulateFromPage testFullPage
+            Expect.equal model.Id "the-page" "PageId not filled properly"
+            Expect.equal model.Title "Test Page" "Title not filled properly"
+            Expect.equal model.Permalink "blog/page.html" "Permalink not filled properly"
+            Expect.equal model.Template "bork" "Template not filled properly"
+            Expect.equal model.Source "Markdown" "Source not filled properly"
+            Expect.equal model.Text "# Howdy!" "Text not filled properly"
+            Expect.equal model.MetaNames.Length 2 "MetaNames should have two entries"
+            Expect.equal model.MetaNames[0] "Test" "Meta name 0 not set properly"
+            Expect.equal model.MetaNames[1] "Two" "Meta name 1 not set properly"
+            Expect.equal model.MetaValues.Length 2 "MetaValues should have two entries"
+            Expect.equal model.MetaValues[0] "me" "Meta value 0 not set properly"
+            Expect.equal model.MetaValues[1] "2" "Meta value 1 not set properly"
+        }
+    ]
+    testList "PopulateFromPost" [
+        test "succeeds for empty post" {
+            let model = EditCommonModel()
+            model.PopulateFromPost { Post.Empty with Id = PostId "la-la-la" }
+            Expect.equal model.Id "la-la-la" "PostId not filled properly"
+            Expect.equal model.Title "" "Title not filled properly"
+            Expect.equal model.Permalink "" "Permalink not filled properly"
+            Expect.equal model.Source "HTML" "Source not filled properly"
+            Expect.equal model.Text "" "Text not filled properly"
+            Expect.equal model.Template "" "Template not filled properly"
+            Expect.equal model.MetaNames.Length 1 "MetaNames not filled properly"
+            Expect.equal model.MetaNames[0] "" "Meta name 0 not filled properly"
+            Expect.equal model.MetaValues.Length 1 "MetaValues not filled properly"
+            Expect.equal model.MetaValues[0] "" "Meta value 0 not filled properly"
+        }
+        test "succeeds for full post with external chapters" {
+            let model = EditCommonModel()
+            model.PopulateFromPost testFullPost
+            Expect.equal model.Id "a-post" "PostId not filled properly"
+            Expect.equal model.Title "A Post" "Title not filled properly"
+            Expect.equal model.Permalink "1970/01/a-post.html" "Permalink not filled properly"
+            Expect.equal model.Source "HTML" "Source not filled properly"
+            Expect.equal model.Text "<p>A post!</p>" "Text not filled properly"
+            Expect.equal model.Template "demo" "Template not filled properly"
+            Expect.equal model.MetaNames.Length 1 "MetaNames not filled properly"
+            Expect.equal model.MetaNames[0] "A Meta" "Meta name 0 not filled properly"
+            Expect.equal model.MetaValues.Length 1 "MetaValues not filled properly"
+            Expect.equal model.MetaValues[0] "A Value" "Meta value 0 not filled properly"
         }
     ]
 ]
@@ -502,63 +504,26 @@ let editMyInfoModelTests = test "EditMyInfoModel.FromUser succeeds" {
     Expect.equal model.NewPasswordConfirm "" "NewPasswordConfirm not filled properly"
 }
 
+/// Unit tests for the EditPageModel type
 let editPageModelTests = testList "EditPageModel" [
-    let fullPage =
-        { Page.Empty with
-            Id           = PageId "the-page"
-            Title        = "Test Page"
-            Permalink    = Permalink "blog/page.html"
-            Template     = Some "bork"
-            IsInPageList = true
-            Revisions    =
-                [ { AsOf = Noda.epoch + Duration.FromHours 1; Text = Markdown "# Howdy!" }
-                  { AsOf = Noda.epoch; Text = Html "<h1>howdy</h1>" } ]
-            Metadata     = [ { Name = "Test"; Value = "me" }; { Name = "Two"; Value = "2" } ] }
     testList "FromPage" [
         test "succeeds for empty page" {
             let model = EditPageModel.FromPage { Page.Empty with Id = PageId "abc" }
-            Expect.equal model.PageId "abc" "PageId not filled properly"
-            Expect.equal model.Title "" "Title not filled properly"
-            Expect.equal model.Permalink "" "Permalink not filled properly"
-            Expect.equal model.Template "" "Template not filled properly"
+            Expect.equal model.Id "abc" "Parent fields not filled properly"
             Expect.isFalse model.IsShownInPageList "IsShownInPageList should not have been set"
-            Expect.equal model.Source "HTML" "Source not filled properly"
-            Expect.equal model.Text "" "Text not set properly"
-            Expect.equal model.MetaNames.Length 1 "MetaNames should have one entry"
-            Expect.equal model.MetaNames[0] "" "Meta name not set properly"
-            Expect.equal model.MetaValues.Length 1 "MetaValues should have one entry"
-            Expect.equal model.MetaValues[0] "" "Meta value not set properly"
         }
         test "succeeds for filled page" {
-            let model = EditPageModel.FromPage fullPage
-            Expect.equal model.PageId "the-page" "PageId not filled properly"
-            Expect.equal model.Title "Test Page" "Title not filled properly"
-            Expect.equal model.Permalink "blog/page.html" "Permalink not filled properly"
-            Expect.equal model.Template "bork" "Template not filled properly"
+            let model = EditPageModel.FromPage testFullPage
+            Expect.equal model.Id "the-page" "Parent fields not filled properly"
             Expect.isTrue model.IsShownInPageList "IsShownInPageList should have been set"
-            Expect.equal model.Source "Markdown" "Source not filled properly"
-            Expect.equal model.Text "# Howdy!" "Text not filled properly"
-            Expect.equal model.MetaNames.Length 2 "MetaNames should have two entries"
-            Expect.equal model.MetaNames[0] "Test" "Meta name 0 not set properly"
-            Expect.equal model.MetaNames[1] "Two" "Meta name 1 not set properly"
-            Expect.equal model.MetaValues.Length 2 "MetaValues should have two entries"
-            Expect.equal model.MetaValues[0] "me" "Meta value 0 not set properly"
-            Expect.equal model.MetaValues[1] "2" "Meta value 1 not set properly"
-        }
-    ]
-    testList "IsNew" [
-        test "succeeds for a new page" {
-            Expect.isTrue
-                (EditPageModel.FromPage { Page.Empty with Id = PageId "new" }).IsNew "IsNew should have been set"
-        }
-        test "succeeds for an existing page" {
-            Expect.isFalse (EditPageModel.FromPage Page.Empty).IsNew "IsNew should not have been set"
         }
     ]
     testList "UpdatePage" [
         test "succeeds with minimal changes" {
-            let model = { EditPageModel.FromPage fullPage with Title = "Updated Page"; IsShownInPageList = false }
-            let page = model.UpdatePage fullPage (Noda.epoch + Duration.FromHours 4)
+            let model = EditPageModel.FromPage testFullPage
+            model.Title             <- "Updated Page"
+            model.IsShownInPageList <- false
+            let page = model.UpdatePage testFullPage (Noda.epoch + Duration.FromHours 4)
             Expect.equal page.Title "Updated Page" "Title not filled properly"
             Expect.equal page.Permalink (Permalink "blog/page.html") "Permalink not filled properly"
             Expect.isEmpty page.PriorPermalinks "PriorPermalinks should be empty"
@@ -582,18 +547,18 @@ let editPageModelTests = testList "EditPageModel" [
             Expect.equal rev2.Text (Html "<h1>howdy</h1>") "Revision 1 text not filled properly"
         }
         test "succeeds with all changes" {
-            let model =
-                { PageId            = "this-page"
-                  Title             = "My Updated Page"
-                  Permalink         = "blog/updated.html"
-                  Template          = ""
-                  IsShownInPageList = false
-                  Source            = "HTML"
-                  Text              = "<h1>Howdy, partners!</h1>"
-                  MetaNames         = [| "banana"; "apple"; "grape" |]
-                  MetaValues        = [| "monkey"; "zebra"; "ape"   |] }
+            let model = EditPageModel()
+            model.Id                <- "this-page"
+            model.Title             <- "My Updated Page"
+            model.Permalink         <- "blog/updated.html"
+            model.Template          <- ""
+            model.IsShownInPageList <- false
+            model.Source            <- "HTML"
+            model.Text              <- "<h1>Howdy, partners!</h1>"
+            model.MetaNames         <- [| "banana"; "apple"; "grape" |]
+            model.MetaValues        <- [| "monkey"; "zebra"; "ape"   |]
             let now = Noda.epoch + Duration.FromDays 7
-            let page = model.UpdatePage fullPage now
+            let page = model.UpdatePage testFullPage now
             Expect.equal page.Title "My Updated Page" "Title not filled properly"
             Expect.equal page.Permalink (Permalink "blog/updated.html") "Permalink not filled properly"
             Expect.equal page.PriorPermalinks [ Permalink "blog/page.html" ] "PriorPermalinks not filled properly"
@@ -621,59 +586,14 @@ let editPageModelTests = testList "EditPageModel" [
 
 /// Unit tests for the EditPostModel type
 let editPostModelTests = testList "EditPostModel" [
-    let fullPost =
-        { Post.Empty with
-            Id          = PostId "a-post"
-            Status      = Published
-            Title       = "A Post"
-            Permalink   = Permalink "1970/01/a-post.html"
-            PublishedOn = Some (Noda.epoch + Duration.FromDays 7)
-            UpdatedOn   = Noda.epoch + Duration.FromDays 365
-            Template    = Some "demo"
-            Text        = "<p>A post!</p>"
-            CategoryIds = [ CategoryId "cat-a"; CategoryId "cat-b"; CategoryId "cat-n" ]
-            Tags        = [ "demo"; "post" ]
-            Metadata    = [ { Name = "A Meta"; Value = "A Value" } ]
-            Revisions   =
-                [ { AsOf = Noda.epoch + Duration.FromDays 365; Text = Html "<p>A post!</p>" }
-                  { AsOf = Noda.epoch + Duration.FromDays 7;   Text = Markdown "A post!" } ]
-            Episode     =
-                Some { Media              = "a-post-ep.mp3"
-                       Length             = 15555L
-                       Duration           = Some (Duration.FromMinutes 15L + Duration.FromSeconds 22L)
-                       MediaType          = Some "audio/mpeg3"
-                       ImageUrl           = Some "uploads/podcast-cover.jpg"
-                       Subtitle           = Some "Narration"
-                       Explicit           = Some Clean
-                       Chapters           = None 
-                       ChapterFile        = Some "uploads/1970/01/chapters.txt"
-                       ChapterType        = Some "chapters"
-                       ChapterWaypoints   = Some true
-                       TranscriptUrl      = Some "uploads/1970/01/transcript.txt"
-                       TranscriptType     = Some "transcript"
-                       TranscriptLang     = Some "EN-us"
-                       TranscriptCaptions = Some true
-                       SeasonNumber       = Some 3
-                       SeasonDescription  = Some "Season Three"
-                       EpisodeNumber      = Some 322.
-                       EpisodeDescription = Some "Episode 322" } }
     testList "FromPost" [
         test "succeeds for empty post" {
             let model = EditPostModel.FromPost WebLog.Empty { Post.Empty with Id = PostId "la-la-la" }
-            Expect.equal model.PostId "la-la-la" "PostId not filled properly"
-            Expect.equal model.Title "" "Title not filled properly"
-            Expect.equal model.Permalink "" "Permalink not filled properly"
-            Expect.equal model.Source "HTML" "Source not filled properly"
-            Expect.equal model.Text "" "Text not filled properly"
+            Expect.equal model.Id "la-la-la" "Parent fields not filled properly"
             Expect.equal model.Tags "" "Tags not filled properly"
-            Expect.equal model.Template "" "Template not filled properly"
             Expect.isEmpty model.CategoryIds "CategoryIds not filled properly"
             Expect.equal model.Status (string Draft) "Status not filled properly"
             Expect.isFalse model.DoPublish "DoPublish should not have been set"
-            Expect.equal model.MetaNames.Length 1 "MetaNames not filled properly"
-            Expect.equal model.MetaNames[0] "" "Meta name 0 not filled properly"
-            Expect.equal model.MetaValues.Length 1 "MetaValues not filled properly"
-            Expect.equal model.MetaValues[0] "" "Meta value 0 not filled properly"
             Expect.isFalse model.SetPublished "SetPublished should not have been set"
             Expect.isFalse model.PubOverride.HasValue "PubOverride not filled properly"
             Expect.isFalse model.SetUpdated "SetUpdated should not have been set"
@@ -699,21 +619,12 @@ let editPostModelTests = testList "EditPostModel" [
             Expect.equal model.EpisodeDescription "" "EpisodeDescription not filled properly"
         }
         test "succeeds for full post with external chapters" {
-            let model = EditPostModel.FromPost { WebLog.Empty with TimeZone = "Etc/GMT+1" } fullPost
-            Expect.equal model.PostId "a-post" "PostId not filled properly"
-            Expect.equal model.Title "A Post" "Title not filled properly"
-            Expect.equal model.Permalink "1970/01/a-post.html" "Permalink not filled properly"
-            Expect.equal model.Source "HTML" "Source not filled properly"
-            Expect.equal model.Text "<p>A post!</p>" "Text not filled properly"
+            let model = EditPostModel.FromPost { WebLog.Empty with TimeZone = "Etc/GMT+1" } testFullPost
+            Expect.equal model.Id "a-post" "Parent fields not filled properly"
             Expect.equal model.Tags "demo, post" "Tags not filled properly"
-            Expect.equal model.Template "demo" "Template not filled properly"
             Expect.equal model.CategoryIds [| "cat-a"; "cat-b"; "cat-n" |] "CategoryIds not filled properly"
             Expect.equal model.Status (string Published) "Status not filled properly"
             Expect.isFalse model.DoPublish "DoPublish should not have been set"
-            Expect.equal model.MetaNames.Length 1 "MetaNames not filled properly"
-            Expect.equal model.MetaNames[0] "A Meta" "Meta name 0 not filled properly"
-            Expect.equal model.MetaValues.Length 1 "MetaValues not filled properly"
-            Expect.equal model.MetaValues[0] "A Value" "Meta value 0 not filled properly"
             Expect.isFalse model.SetPublished "SetPublished should not have been set"
             Expect.isTrue model.PubOverride.HasValue "PubOverride should not have been null"
             Expect.equal
@@ -746,63 +657,52 @@ let editPostModelTests = testList "EditPostModel" [
             let model =
                 EditPostModel.FromPost
                     { WebLog.Empty with TimeZone = "Etc/GMT+1" }
-                    { fullPost with
+                    { testFullPost with
                         Episode =
                             Some
-                                { fullPost.Episode.Value with
+                                { testFullPost.Episode.Value with
                                     Chapters    = Some []
                                     ChapterFile = None
                                     ChapterType = None } } 
             Expect.equal model.ChapterSource "internal" "ChapterSource not filled properly"
         }
     ]
-    testList "IsNew" [
-        test "succeeds for a new post" {
-            Expect.isTrue
-                (EditPostModel.FromPost WebLog.Empty { Post.Empty with Id = PostId "new" }).IsNew
-                "IsNew should be set for new post"
-        }
-        test "succeeds for a not-new post" {
-            Expect.isFalse
-                (EditPostModel.FromPost WebLog.Empty { Post.Empty with Id = PostId "nu" }).IsNew
-                "IsNew should not be set for not-new post"
-        }
-    ]
-    let updatedModel =
-        { EditPostModel.FromPost WebLog.Empty fullPost with
-            Title              = "An Updated Post"
-            Permalink          = "1970/01/updated-post.html"
-            Source             = "HTML"
-            Text               = "<p>An updated post!</p>"
-            Tags               = "Zebras, Aardvarks, , Turkeys"
-            Template           = "updated" 
-            CategoryIds        = [| "cat-x"; "cat-y" |]
-            MetaNames          = [| "Zed Meta"; "A Meta" |]
-            MetaValues         = [| "A Value"; "Zed Value" |]
-            Media              = "an-updated-ep.mp3"
-            Length             = 14444L
-            Duration           = "0:14:42"
-            MediaType          = "audio/mp3"
-            ImageUrl           = "updated-cover.png"
-            Subtitle           = "Talking"
-            Explicit           = "no"
-            ChapterSource      = "external" 
-            ChapterFile        = "updated-chapters.txt"
-            ChapterType        = "indexes"
-            TranscriptUrl      = "updated-transcript.txt"
-            TranscriptType     = "subtitles"
-            TranscriptLang     = "ES-mx"
-            SeasonNumber       = 4
-            SeasonDescription  = "Season Fo"
-            EpisodeNumber      = "432.1" 
-            EpisodeDescription = "Four Three Two pt One" }
+    let updatedModel () =
+        let model = EditPostModel.FromPost WebLog.Empty testFullPost
+        model.Title              <- "An Updated Post"
+        model.Permalink          <- "1970/01/updated-post.html"
+        model.Source             <- "HTML"
+        model.Text               <- "<p>An updated post!</p>"
+        model.Tags               <- "Zebras, Aardvarks, , Turkeys"
+        model.Template           <- "updated" 
+        model.CategoryIds        <- [| "cat-x"; "cat-y" |]
+        model.MetaNames          <- [| "Zed Meta"; "A Meta" |]
+        model.MetaValues         <- [| "A Value"; "Zed Value" |]
+        model.Media              <- "an-updated-ep.mp3"
+        model.Length             <- 14444L
+        model.Duration           <- "0:14:42"
+        model.MediaType          <- "audio/mp3"
+        model.ImageUrl           <- "updated-cover.png"
+        model.Subtitle           <- "Talking"
+        model.Explicit           <- "no"
+        model.ChapterSource      <- "external" 
+        model.ChapterFile        <- "updated-chapters.txt"
+        model.ChapterType        <- "indexes"
+        model.TranscriptUrl      <- "updated-transcript.txt"
+        model.TranscriptType     <- "subtitles"
+        model.TranscriptLang     <- "ES-mx"
+        model.SeasonNumber       <- 4
+        model.SeasonDescription  <- "Season Fo"
+        model.EpisodeNumber      <- "432.1" 
+        model.EpisodeDescription <- "Four Three Two pt One"
+        model
     testList "UpdatePost" [
         test "succeeds for a full podcast episode" {
-            let post = updatedModel.UpdatePost fullPost (Noda.epoch + Duration.FromDays 400)
+            let post = (updatedModel ()).UpdatePost testFullPost (Noda.epoch + Duration.FromDays 400)
             Expect.equal post.Title "An Updated Post" "Title not filled properly"
             Expect.equal post.Permalink (Permalink "1970/01/updated-post.html") "Permalink not filled properly"
             Expect.equal post.PriorPermalinks [ Permalink "1970/01/a-post.html" ] "PriorPermalinks not filled properly"
-            Expect.equal post.PublishedOn fullPost.PublishedOn "PublishedOn should not have changed"
+            Expect.equal post.PublishedOn testFullPost.PublishedOn "PublishedOn should not have changed"
             Expect.equal post.UpdatedOn (Noda.epoch + Duration.FromDays 400) "UpdatedOn not filled properly"
             Expect.equal post.Text "<p>An updated post!</p>" "Text not filled properly"
             Expect.equal post.Tags [ "aardvarks"; "turkeys"; "zebras" ] "Tags not filled properly"
@@ -841,25 +741,24 @@ let editPostModelTests = testList "EditPostModel" [
             Expect.equal ep.EpisodeDescription (Some "Four Three Two pt One") "EpisodeDescription not filled properly"
         }
         test "succeeds for a minimal podcast episode" {
-            let minModel =
-                { updatedModel with
-                    Duration           = ""
-                    MediaType          = ""
-                    ImageUrl           = ""
-                    Subtitle           = ""
-                    Explicit           = ""
-                    ChapterFile        = ""
-                    ChapterType        = ""
-                    ContainsWaypoints  = false
-                    TranscriptUrl      = ""
-                    TranscriptType     = ""
-                    TranscriptLang     = ""
-                    TranscriptCaptions = false
-                    SeasonNumber       = 0
-                    SeasonDescription  = ""
-                    EpisodeNumber      = ""
-                    EpisodeDescription = "" }
-            let post = minModel.UpdatePost fullPost (Noda.epoch + Duration.FromDays 500)
+            let minModel = updatedModel ()
+            minModel.Duration           <- ""
+            minModel.MediaType          <- ""
+            minModel.ImageUrl           <- ""
+            minModel.Subtitle           <- ""
+            minModel.Explicit           <- ""
+            minModel.ChapterFile        <- ""
+            minModel.ChapterType        <- ""
+            minModel.ContainsWaypoints  <- false
+            minModel.TranscriptUrl      <- ""
+            minModel.TranscriptType     <- ""
+            minModel.TranscriptLang     <- ""
+            minModel.TranscriptCaptions <- false
+            minModel.SeasonNumber       <- 0
+            minModel.SeasonDescription  <- ""
+            minModel.EpisodeNumber      <- ""
+            minModel.EpisodeDescription <- "" 
+            let post = minModel.UpdatePost testFullPost (Noda.epoch + Duration.FromDays 500)
             Expect.isSome post.Episode "There should have been a podcast episode"
             let ep = post.Episode.Value
             Expect.equal ep.Media "an-updated-ep.mp3" "Media not filled properly"
@@ -882,12 +781,11 @@ let editPostModelTests = testList "EditPostModel" [
             Expect.isNone ep.EpisodeDescription "EpisodeDescription not filled properly"
         }
         test "succeeds for a podcast episode with internal chapters" {
-            let minModel =
-                { updatedModel with
-                    ChapterSource = "internal" 
-                    ChapterFile   = ""
-                    ChapterType   = "" }
-            let post = minModel.UpdatePost fullPost (Noda.epoch + Duration.FromDays 500)
+            let minModel = updatedModel ()
+            minModel.ChapterSource <- "internal" 
+            minModel.ChapterFile   <- ""
+            minModel.ChapterType   <- ""
+            let post = minModel.UpdatePost testFullPost (Noda.epoch + Duration.FromDays 500)
             Expect.isSome post.Episode "There should have been a podcast episode"
             let ep = post.Episode.Value
             Expect.equal ep.Chapters (Some []) "Chapters not filled properly"
@@ -895,10 +793,11 @@ let editPostModelTests = testList "EditPostModel" [
             Expect.isNone ep.ChapterType "ChapterType not filled properly"
         }
         test "succeeds for a podcast episode with no chapters" {
-            let minModel = { updatedModel with ChapterSource = "none" }
+            let minModel = updatedModel ()
+            minModel.ChapterSource <- "none"
             let post =
                 minModel.UpdatePost
-                    { fullPost with Episode = Some { fullPost.Episode.Value with Chapters = Some [] } }
+                    { testFullPost with Episode = Some { testFullPost.Episode.Value with Chapters = Some [] } }
                     (Noda.epoch + Duration.FromDays 500)
             Expect.isSome post.Episode "There should have been a podcast episode"
             let ep = post.Episode.Value
@@ -908,14 +807,17 @@ let editPostModelTests = testList "EditPostModel" [
             Expect.isNone ep.ChapterWaypoints "ChapterWaypoints not filled properly"
         }
         test "succeeds for no podcast episode and no template" {
-            let post = { updatedModel with IsEpisode = false; Template = "" }.UpdatePost fullPost Noda.epoch
+            let model = updatedModel ()
+            model.IsEpisode <- false
+            model.Template  <- ""
+            let post = model.UpdatePost testFullPost Noda.epoch
             Expect.isNone post.Template "Template not filled properly"
             Expect.isNone post.Episode "Episode not filled properly"
         }
         test "succeeds when publishing a draft" {
-            let post =
-                { updatedModel with DoPublish = true }.UpdatePost
-                    { fullPost with Status = Draft } (Noda.epoch + Duration.FromDays 375)
+            let model = updatedModel ()
+            model.DoPublish <- true
+            let post = model.UpdatePost { testFullPost with Status = Draft } (Noda.epoch + Duration.FromDays 375)
             Expect.equal post.Status Published "Status not set properly"
             Expect.equal post.PublishedOn (Some (Noda.epoch + Duration.FromDays 375)) "PublishedOn not set properly"
         }
@@ -1322,13 +1224,11 @@ let userMessageTests = testList "UserMessage" [
 /// All tests in the Domain.ViewModels file
 let all = testList "ViewModels" [
     addBaseToRelativeUrlsTests
-    displayChapterTests
-    displayCustomFeedTests
     displayPageTests
     displayThemeTests
     displayUploadTests
-    displayUserTests
     editCategoryModelTests
+    editCommonModelTests
     editCustomFeedModelTests
     editMyInfoModelTests
     editPageModelTests

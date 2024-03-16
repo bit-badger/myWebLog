@@ -73,82 +73,6 @@ type DisplayCategory = {
 }
 
 
-/// A display version of an episode chapter
-type DisplayChapter = {
-    /// The start time of the chapter (H:mm:ss.FF format)
-    StartTime: string
-    
-    /// The title of the chapter
-    Title: string
-    
-    /// An image to display for this chapter
-    ImageUrl: string
-    
-    /// A URL with information about this chapter
-    Url: string
-    
-    /// Whether this chapter should be displayed in podcast players
-    IsHidden: bool
-    
-    /// The end time of the chapter (H:mm:ss.FF format)
-    EndTime: string
-    
-    /// The name of a location
-    LocationName: string
-    
-    /// The geographic coordinates of the location
-    LocationGeo: string
-    
-    /// An OpenStreetMap query for this location
-    LocationOsm: string
-} with
-
-    /// Create a display chapter from a chapter
-    static member FromChapter (chapter: Chapter) =
-        let pattern = DurationPattern.CreateWithInvariantCulture "H:mm:ss.FF"
-        { StartTime    = pattern.Format chapter.StartTime
-          Title        = defaultArg chapter.Title ""
-          ImageUrl     = defaultArg chapter.ImageUrl ""
-          Url          = defaultArg chapter.Url ""
-          IsHidden     = defaultArg chapter.IsHidden false
-          EndTime      = chapter.EndTime  |> Option.map pattern.Format          |> Option.defaultValue ""
-          LocationName = chapter.Location |> Option.map _.Name                  |> Option.defaultValue ""
-          LocationGeo  = chapter.Location |> Option.map _.Geo                   |> Option.defaultValue ""
-          LocationOsm  = chapter.Location |> Option.map _.Osm |> Option.flatten |> Option.defaultValue "" }
-
-
-/// A display version of a custom feed definition
-type DisplayCustomFeed = {
-    /// The ID of the custom feed
-    Id: string
-    
-    /// The source of the custom feed
-    Source: string
-    
-    /// The relative path at which the custom feed is served
-    Path: string
-    
-    /// Whether this custom feed is for a podcast
-    IsPodcast: bool
-} with
-    
-    /// Create a display version from a custom feed
-    static member FromFeed (cats: DisplayCategory array) (feed: CustomFeed) =
-        let source =
-            match feed.Source with
-            | Category (CategoryId catId) ->
-                cats
-                |> Array.tryFind (fun cat -> cat.Id = catId)
-                |> Option.map _.Name
-                |> Option.defaultValue "--INVALID; DELETE THIS FEED--"
-                |> sprintf "Category: %s"
-            | Tag tag -> $"Tag: {tag}"
-        { Id        = string feed.Id
-          Source    = source
-          Path      = string feed.Path
-          IsPodcast = Option.isSome feed.Podcast }
-
-
 /// Details about a page used to display page lists
 [<NoComparison; NoEquality>]
 type DisplayPage = {
@@ -269,50 +193,6 @@ type DisplayUpload = {
           Source    = string source }
 
 
-/// View model to display a user's information
-[<NoComparison; NoEquality>]
-type DisplayUser = {
-    /// The ID of the user
-    Id: string
-
-    /// The user name (e-mail address)
-    Email: string
-
-    /// The user's first name
-    FirstName: string
-
-    /// The user's last name
-    LastName: string
-
-    /// The user's preferred name
-    PreferredName: string
-
-    /// The URL of the user's personal site
-    Url: string
-
-    /// The user's access level
-    AccessLevel: string
-    
-    /// When the user was created
-    CreatedOn: DateTime
-    
-    /// When the user last logged on
-    LastSeenOn: Nullable<DateTime>
-} with
-    
-    /// Construct a displayed user from a web log user
-    static member FromUser (webLog: WebLog) (user: WebLogUser) =
-        { Id            = string user.Id
-          Email         = user.Email
-          FirstName     = user.FirstName
-          LastName      = user.LastName
-          PreferredName = user.PreferredName
-          Url           = defaultArg user.Url ""
-          AccessLevel   = string user.AccessLevel
-          CreatedOn     = webLog.LocalTime user.CreatedOn
-          LastSeenOn    = user.LastSeenOn |> Option.map webLog.LocalTime |> Option.toNullable }
-
-
 /// View model for editing categories
 [<CLIMutable; NoComparison; NoEquality>]
 type EditCategoryModel = {
@@ -386,19 +266,19 @@ type EditChapterModel = {
 } with
 
     /// Create a display chapter from a chapter
-    static member FromChapter (postId: PostId) idx chapter =
-        let it = DisplayChapter.FromChapter chapter
+    static member FromChapter (postId: PostId) idx (chapter: Chapter) =
+        let pattern = DurationPattern.CreateWithInvariantCulture "H:mm:ss.FF"
         { PostId       = string postId
           Index        = idx
-          StartTime    = it.StartTime
-          Title        = it.Title
-          ImageUrl     = it.ImageUrl
-          Url          = it.Url
-          IsHidden     = it.IsHidden
-          EndTime      = it.EndTime
-          LocationName = it.LocationName
-          LocationGeo  = it.LocationGeo
-          LocationOsm  = it.LocationOsm
+          StartTime    = pattern.Format chapter.StartTime
+          Title        = defaultArg chapter.Title ""
+          ImageUrl     = defaultArg chapter.ImageUrl ""
+          Url          = defaultArg chapter.Url ""
+          IsHidden     = defaultArg chapter.IsHidden false
+          EndTime      = chapter.EndTime  |> Option.map pattern.Format          |> Option.defaultValue ""
+          LocationName = chapter.Location |> Option.map _.Name                  |> Option.defaultValue ""
+          LocationGeo  = chapter.Location |> Option.map _.Geo                   |> Option.defaultValue ""
+          LocationOsm  = chapter.Location |> Option.map _.Osm |> Option.flatten |> Option.defaultValue ""
           AddAnother   = false }
     
     /// Create a chapter from the values in this model
@@ -425,6 +305,76 @@ type EditChapterModel = {
           IsHidden  = if this.IsHidden then Some true else None
           EndTime   = noneIfBlank this.EndTime |> Option.map (parseDuration (nameof this.EndTime))
           Location  = location }
+
+
+/// View model common to page and post edits
+type EditCommonModel() =
+    
+    /// Find the latest revision within a list of revisions
+    let findLatestRevision (revs: Revision list) =
+        match revs |> List.sortByDescending _.AsOf |> List.tryHead with Some rev -> rev | None -> Revision.Empty
+    
+    /// The ID of the page or post
+    member val Id = "" with get, set
+    
+    /// The title of the page or post
+    member val Title = "" with get, set
+    
+    /// The permalink for the page or post
+    member val Permalink = "" with get, set
+    
+    /// The entity to which this model applies ("page" or "post")
+    member val Entity = "" with get, set
+    
+    /// Whether to provide a link to manage chapters
+    member val IncludeChapterLink = false with get, set
+    
+    /// The template to use to display the page
+    member val Template = "" with get, set
+    
+    /// The source type ("HTML" or "Markdown")
+    member val Source = "" with get, set
+    
+    /// The text of the page or post
+    member val Text = "" with get, set
+    
+    /// Names of metadata items
+    member val MetaNames: string array = [||] with get, set
+    
+    /// Values of metadata items
+    member val MetaValues: string array = [||] with get, set
+    
+    /// Whether this is a new page or post
+    member this.IsNew with get () = this.Id = "new"
+    
+    /// Fill the properties of this object from a page
+    member this.PopulateFromPage (page: Page) =
+        let latest    = findLatestRevision page.Revisions
+        let metaItems = if page.Metadata.Length = 0 then [ MetaItem.Empty ] else page.Metadata
+        this.Id         <- string page.Id
+        this.Title      <- page.Title
+        this.Permalink  <- string page.Permalink
+        this.Entity     <- "page"
+        this.Template   <- defaultArg page.Template ""
+        this.Source     <- latest.Text.SourceType
+        this.Text       <- latest.Text.Text
+        this.MetaNames  <- metaItems |> List.map _.Name  |> Array.ofList
+        this.MetaValues <- metaItems |> List.map _.Value |> Array.ofList
+        
+    /// Fill the properties of this object from a post
+    member this.PopulateFromPost (post: Post) =
+        let latest    = findLatestRevision post.Revisions
+        let metaItems = if post.Metadata.Length = 0 then [ MetaItem.Empty ] else post.Metadata
+        this.Id                 <- string post.Id
+        this.Title              <- post.Title
+        this.Permalink          <- string post.Permalink
+        this.Entity             <- "post"
+        this.IncludeChapterLink <- Option.isSome post.Episode && Option.isSome post.Episode.Value.Chapters
+        this.Template           <- defaultArg post.Template ""
+        this.Source             <- latest.Text.SourceType
+        this.Text               <- latest.Text.Text
+        this.MetaNames          <- metaItems |> List.map _.Name  |> Array.ofList
+        this.MetaValues         <- metaItems |> List.map _.Value |> Array.ofList
 
 
 /// View model to edit a custom RSS feed
@@ -604,74 +554,6 @@ type EditMyInfoModel = {
           NewPasswordConfirm = "" }
 
 
-/// View model common to page and post edits
-type EditCommonModel() =
-    
-    /// Find the latest revision within a list of revisions
-    let findLatestRevision (revs: Revision list) =
-        match revs |> List.sortByDescending _.AsOf |> List.tryHead with Some rev -> rev | None -> Revision.Empty
-    
-    /// The ID of the page or post
-    member val Id = "" with get, set
-    
-    /// The title of the page or post
-    member val Title = "" with get, set
-    
-    /// The permalink for the page or post
-    member val Permalink = "" with get, set
-    
-    /// The entity to which this model applies ("page" or "post")
-    member val Entity = "" with get, set
-    
-    /// Whether to provide a link to manage chapters
-    member val IncludeChapterLink = false with get, set
-    
-    /// The template to use to display the page
-    member val Template = "" with get, set
-    
-    /// The source type ("HTML" or "Markdown")
-    member val Source = "" with get, set
-    
-    /// The text of the page or post
-    member val Text = "" with get, set
-    
-    /// Names of metadata items
-    member val MetaNames: string array = [||] with get, set
-    
-    /// Values of metadata items
-    member val MetaValues: string array = [||] with get, set
-    
-    /// Whether this is a new page or post
-    member this.IsNew with get () = this.Id = "new"
-    
-    /// Fill the properties of this object from a page
-    member this.PopulateFromPage (page: Page) =
-        let latest = findLatestRevision page.Revisions
-        this.Id         <- string page.Id
-        this.Title      <- page.Title
-        this.Permalink  <- string page.Permalink
-        this.Entity     <- "page"
-        this.Template   <- defaultArg page.Template ""
-        this.Source     <- latest.Text.SourceType
-        this.Text       <- latest.Text.Text
-        this.MetaNames  <- page.Metadata |> List.map _.Name  |> Array.ofList
-        this.MetaValues <- page.Metadata |> List.map _.Value |> Array.ofList
-        
-    /// Fill the properties of this object from a post
-    member this.PopulateFromPost (post: Post) =
-        let latest = findLatestRevision post.Revisions
-        this.Id                 <- string post.Id
-        this.Title              <- post.Title
-        this.Permalink          <- string post.Permalink
-        this.Entity             <- "post"
-        this.IncludeChapterLink <- Option.isSome post.Episode && Option.isSome post.Episode.Value.Chapters
-        this.Template           <- defaultArg post.Template ""
-        this.Source             <- latest.Text.SourceType
-        this.Text               <- latest.Text.Text
-        this.MetaNames          <- post.Metadata |> List.map _.Name  |> Array.ofList
-        this.MetaValues         <- post.Metadata |> List.map _.Value |> Array.ofList
-
-
 /// View model to edit a page
 type EditPageModel() =
     inherit EditCommonModel()
@@ -801,7 +683,6 @@ type EditPostModel() =
     /// Create an edit model from an existing past
     static member FromPost (webLog: WebLog) (post: Post) =
         let model = EditPostModel()
-        let post  = if post.Metadata |> List.isEmpty then { post with Metadata = [ MetaItem.Empty ] } else post
         model.PopulateFromPost post
         let episode = defaultArg post.Episode Episode.Empty
         model.Tags               <- post.Tags |> String.concat ", "

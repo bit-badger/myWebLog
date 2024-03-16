@@ -699,7 +699,40 @@ let uploadNew app = [
 /// Web log settings page
 let webLogSettings
         (model: SettingsModel) (themes: Theme list) (pages: Page list) (uploads: UploadDestination list)
-        (rss: EditRssModel) (feeds: DisplayCustomFeed list) app = [
+        (rss: EditRssModel) (app: AppViewContext) = [
+    let feedDetail (feed: CustomFeed) =
+        let source =
+            match feed.Source with
+            | Category (CategoryId catId) ->
+                app.Categories
+                |> Array.tryFind (fun cat -> cat.Id = catId)
+                |> Option.map _.Name
+                |> Option.defaultValue "--INVALID; DELETE THIS FEED--"
+                |> sprintf "Category: %s"
+            | Tag tag -> $"Tag: {tag}"
+        div [ _class "row mwl-table-detail" ] [
+            div [ _class "col-12 col-md-6" ] [
+                txt source
+                if Option.isSome feed.Podcast then
+                    raw " &nbsp; "; span [ _class "badge bg-primary" ] [ raw "PODCAST" ]
+                br []
+                small [] [
+                    let feedUrl = relUrl app $"admin/settings/rss/{feed.Id}"
+                    a [ _href (relUrl app (string feed.Path)); _target "_blank" ] [ raw "View Feed" ]
+                    actionSpacer
+                    a [ _href $"{feedUrl}/edit" ] [ raw "Edit" ]; actionSpacer
+                    a [ _href feedUrl; _hxDelete feedUrl; _class "text-danger"
+                        _hxConfirm $"Are you sure you want to delete the custom RSS feed based on {feed.Source}? This action cannot be undone." ] [
+                        raw "Delete"
+                    ]
+                ]
+            ]
+            div [ _class "col-12 col-md-6" ] [
+                small [ _class "d-md-none" ] [ raw "Served at "; txt (string feed.Path) ]
+                span [ _class "d-none d-md-inline" ] [ txt (string feed.Path) ]
+            ]
+        ]
+
     h2 [ _class "my-3" ] [ txt app.WebLog.Name; raw " Settings" ]
     article [] [
         p [ _class "text-muted" ] [
@@ -824,7 +857,7 @@ let webLogSettings
                 a [ _class "btn btn-sm btn-secondary"; _href (relUrl app "admin/settings/rss/new/edit") ] [
                     raw "Add a New Custom Feed"
                 ]
-                if feeds.Length = 0 then
+                if app.WebLog.Rss.CustomFeeds.Length = 0 then
                     p [ _class "text-muted fst-italic text-center" ] [ raw "No custom feeds defined" ]
                 else
                     form [ _method "post"; _class "container g-0"; _hxTarget "body" ] [
@@ -834,31 +867,9 @@ let webLogSettings
                                 span [ _class "d-md-none" ] [ raw "Feed" ]
                                 span [ _class "d-none d-md-inline" ] [ raw "Source" ]
                             ]
-                            div [ _class $"col-12 col-md-6 d-none d-md-inline-block" ] [ raw "Relative Path" ]
+                            div [ _class "col-12 col-md-6 d-none d-md-inline-block" ] [ raw "Relative Path" ]
                         ]
-                        for feed in feeds do
-                            div [ _class "row mwl-table-detail" ] [
-                                div [ _class "col-12 col-md-6" ] [
-                                    txt feed.Source
-                                    if feed.IsPodcast then
-                                        raw " &nbsp; "; span [ _class "badge bg-primary" ] [ raw "PODCAST" ]
-                                    br []
-                                    small [] [
-                                        let feedUrl = relUrl app $"admin/settings/rss/{feed.Id}"
-                                        a [ _href (relUrl app feed.Path); _target "_blank" ] [ raw "View Feed" ]
-                                        actionSpacer
-                                        a [ _href $"{feedUrl}/edit" ] [ raw "Edit" ]; actionSpacer
-                                        a [ _href feedUrl; _hxDelete feedUrl; _class "text-danger"
-                                            _hxConfirm $"Are you sure you want to delete the custom RSS feed based on {feed.Source}? This action cannot be undone." ] [
-                                            raw "Delete"
-                                        ]
-                                    ]
-                                ]
-                                div [ _class "col-12 col-md-6" ] [
-                                    small [ _class "d-md-none" ] [ raw "Served at "; txt feed.Path ]
-                                    span [ _class "d-none d-md-inline" ] [ txt feed.Path ]
-                                ]
-                            ]
+                        yield! app.WebLog.Rss.CustomFeeds |> List.map feedDetail
                     ]
             ]
         ]

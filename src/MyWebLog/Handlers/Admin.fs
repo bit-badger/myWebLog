@@ -455,11 +455,9 @@ module WebLog =
             |> List.append [ { Page.Empty with Id = PageId "posts"; Title = "- First Page of Posts -" } ]
         let! themes   = data.Theme.All()
         let  uploads  = [ Database; Disk ]
-        let  feeds    = ctx.WebLog.Rss.CustomFeeds |> List.map (DisplayCustomFeed.FromFeed (CategoryCache.get ctx))
         return!
             Views.WebLog.webLogSettings
                 (SettingsModel.FromWebLog ctx.WebLog) themes pages uploads (EditRssModel.FromRssOptions ctx.WebLog.Rss)
-                feeds
             |> adminPage "Web Log Settings" true next ctx
     }
 
