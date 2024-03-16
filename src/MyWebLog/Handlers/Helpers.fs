@@ -355,13 +355,6 @@ let themedView template next ctx hash = task {
     return! viewForTheme (hash[ViewContext.WebLog] :?> WebLog).ThemeId template next ctx hash
 }
 
-/// The ID for the admin theme
-let adminTheme = ThemeId "admin"
-
-/// Display a bare view for the admin theme
-let adminBareView template =
-    bareForTheme adminTheme template
-
 /// Display a page for an admin endpoint
 let adminPage pageTitle includeCsrf next ctx (content: AppViewContext -> XmlNode list) = task {
     let! messages = getCurrentMessages ctx
@@ -416,7 +409,7 @@ let someTask<'T> (it: 'T) = Task.FromResult(Some it)
 
 /// Create an absolute URL from a string that may already be an absolute URL
 let absoluteUrl (url: string) (ctx: HttpContext) =
-    if url.StartsWith "http" then url else ctx.WebLog.AbsoluteUrl (Permalink url)
+    if url.StartsWith "http" then url else ctx.WebLog.AbsoluteUrl(Permalink url)
 
 
 open MyWebLog.Data

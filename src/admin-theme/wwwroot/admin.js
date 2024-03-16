@@ -217,13 +217,13 @@ this.Admin = {
    * @param {"none"|"internal"|"external"} src The source for chapters for this episode
    */
   setChapterSource(src) {
-    document.getElementById("containsWaypoints").disabled = src === "none"
+    document.getElementById("ContainsWaypoints").disabled = src === "none"
     const isDisabled = src === "none" || src === "internal"
-    const chapterFile = document.getElementById("chapterFile")
+    const chapterFile = document.getElementById("ChapterFile")
     chapterFile.disabled = isDisabled
     chapterFile.required = !isDisabled
-    document.getElementById("chapterType").disabled = isDisabled
-    const link = document.getElementById("chapterEditLink")
+    document.getElementById("ChapterType").disabled = isDisabled
+    const link = document.getElementById("ChapterEditLink")
     if (link) link.style.display = src === "none" || src === "external" ? "none" : ""
   },
   
@@ -231,13 +231,13 @@ this.Admin = {
    * Enable or disable podcast fields
    */
   toggleEpisodeFields() {
-    const disabled = !document.getElementById("isEpisode").checked
+    const disabled = !document.getElementById("IsEpisode").checked
     let fields = [
-      "media", "mediaType", "length", "duration", "subtitle", "imageUrl", "explicit", "transcriptUrl", "transcriptType",
-      "transcriptLang", "transcriptCaptions", "seasonNumber", "seasonDescription", "episodeNumber", "episodeDescription"
+      "Media", "MediaType", "Length", "Duration", "Subtitle", "ImageUrl", "Explicit", "TranscriptUrl", "TranscriptType",
+      "TranscriptLang", "TranscriptCaptions", "SeasonNumber", "SeasonDescription", "EpisodeNumber", "EpisodeDescription"
     ]
     if (disabled) {
-      fields.push("chapterFile", "chapterType", "containsWaypoints")
+      fields.push("ChapterFile", "ChapterType", "ContainsWaypoints")
     } else {
       const src = [...document.getElementsByName("ChapterSource")].filter(it => it.checked)[0].value
       this.setChapterSource(src)
@@ -302,7 +302,7 @@ this.Admin = {
    * Require transcript type if transcript URL is present
    */
   requireTranscriptType() {
-    document.getElementById("transcriptType").required = document.getElementById("transcriptUrl").value.trim() !== ""
+    document.getElementById("TranscriptType").required = document.getElementById("TranscriptUrl").value.trim() !== ""
   },
 
   /**

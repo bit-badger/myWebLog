@@ -393,6 +393,14 @@ let commonMetaItems (model: EditCommonModel) =
     ]
 
 
+/// Revision preview template
+let commonPreview (rev: Revision) app =
+    div [ _class "mwl-revision-preview mb-3" ] [
+        rev.Text.AsHtml() |> addBaseToRelativeUrls app.WebLog.ExtraPath |> raw
+    ]
+    |> List.singleton
+
+
 /// Form to manage permalinks for pages or posts
 let managePermalinks (model: ManagePermalinksModel) app = [
     let baseUrl = relUrl app $"admin/{model.Entity}/"

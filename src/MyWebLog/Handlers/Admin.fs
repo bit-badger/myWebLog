@@ -384,7 +384,7 @@ module Theme =
         if ctx.Request.HasFormContentType && ctx.Request.Form.Files.Count > 0 then
             let themeFile = Seq.head ctx.Request.Form.Files
             match deriveIdFromFileName themeFile.FileName with
-            | Ok themeId when themeId <> adminTheme ->
+            | Ok themeId when themeId <> ThemeId "admin" ->
                 let  data   = ctx.Data
                 let! exists = data.Theme.Exists themeId
                 let  isNew  = not exists

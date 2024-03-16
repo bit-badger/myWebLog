@@ -115,18 +115,9 @@ let private findPageRevision pgId revDate (ctx: HttpContext) = task {
 let previewRevision (pgId, revDate) : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     match! findPageRevision pgId revDate ctx with
     | Some pg, Some rev when canEdit pg.AuthorId ctx ->
-        return! {|
-            content =
-                [   """<div class="mwl-revision-preview mb-3">"""
-                    rev.Text.AsHtml() |> addBaseToRelativeUrls ctx.WebLog.ExtraPath
-                    "</div>"
-                ]
-                |> String.concat ""
-        |}
-        |> makeHash |> adminBareView "" next ctx
+        return! adminBarePage "" false next ctx (Views.Helpers.commonPreview rev)
     | Some _, Some _ -> return! Error.notAuthorized next ctx
-    | None, _
-    | _, None -> return! Error.notFound next ctx
+    | None, _ | _, None -> return! Error.notFound next ctx
 }
 
 // POST /admin/page/{id}/revision/{revision-date}/restore
@@ -150,7 +141,7 @@ let deleteRevision (pgId, revDate) : HttpHandler = requireAccess Author >=> fun 
     | Some pg, Some rev when canEdit pg.AuthorId ctx ->
         do! ctx.Data.Page.Update { pg with Revisions = pg.Revisions |> List.filter (fun r -> r.AsOf <> rev.AsOf) }
         do! addMessage ctx { UserMessage.Success with Message = "Revision deleted successfully" }
-        return! adminBareView "" next ctx (makeHash {| content = "" |})
+        return! adminBarePage "" false next ctx (fun _ -> [])
     | Some _, Some _ -> return! Error.notAuthorized next ctx
     | None, _
     | _, None -> return! Error.notFound next ctx
