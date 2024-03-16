@@ -105,19 +105,25 @@ let shortTime app (instant: Instant) =
 let yesOrNo value =
     raw (if value then "Yes" else "No")
 
+/// Extract an attribute value from a list of attributes, remove that attribute if it is found 
+let extractAttrValue name attrs =
+    let valueAttr = attrs |> List.tryFind (fun x -> match x with KeyValue (key, _) when key = name -> true | _ -> false)
+    match valueAttr with
+    | Some (KeyValue (_, value)) ->
+        Some value,
+        attrs |> List.filter (fun x -> match x with KeyValue (key, _) when key = name -> false | _ -> true)
+    | Some _ | None -> None, attrs
+    
 /// Create a text input field
 let inputField fieldType attrs name labelText value extra =
-    let fieldId, newAttrs =
-        let passedId = attrs |> List.tryFind (fun x -> match x with KeyValue ("id", _) -> true | _ -> false)
-        match passedId with
-        | Some (KeyValue (_, idValue)) ->
-            idValue, attrs |> List.filter (fun x -> match x with KeyValue ("id", _) -> false | _ -> true)
-        | Some _ | None -> name, attrs
-    div [ _class "form-floating" ] [
-        [ _type fieldType; _name name; _id fieldId; _class "form-control"; _placeholder labelText; _value value ]
-        |> List.append newAttrs
+    let fieldId,  attrs = extractAttrValue "id"    attrs
+    let cssClass, attrs = extractAttrValue "class" attrs
+    div [ _class $"""form-floating {defaultArg cssClass ""}""" ] [
+        [ _type fieldType; _name name; _id (defaultArg fieldId name); _class "form-control"; _placeholder labelText
+          _value value ]
+        |> List.append attrs
         |> input
-        label [ _for fieldId ] [ raw labelText ]
+        label [ _for (defaultArg fieldId name) ] [ raw labelText ]
         yield! extra
     ]
 
@@ -140,7 +146,8 @@ let passwordField attrs name labelText value extra =
 /// Create a select (dropdown) field
 let selectField<'T, 'a>
         attrs name labelText value (values: 'T seq) (idFunc: 'T -> 'a) (displayFunc: 'T -> string) extra =
-    div [ _class "form-floating" ] [
+    let cssClass, attrs = extractAttrValue "class" attrs
+    div [ _class $"""form-floating {defaultArg cssClass ""}""" ] [
         select ([ _name name; _id name; _class "form-control" ] |> List.append attrs) [
             for item in values do
                 let itemId = string (idFunc item)
@@ -152,7 +159,8 @@ let selectField<'T, 'a>
 
 /// Create a checkbox input styled as a switch
 let checkboxSwitch attrs name labelText (value: bool) extra =
-    div [ _class "form-check form-switch" ] [
+    let cssClass, attrs = extractAttrValue "class" attrs
+    div [ _class $"""form-check form-switch {defaultArg cssClass ""}""" ] [
         [ _type "checkbox"; _name name; _id name; _class "form-check-input"; _value "true"; if value then _checked ]
         |> List.append attrs
         |> input
@@ -312,8 +320,8 @@ let private capitalize (it: string) =
 
 /// The common edit form shared by pages and posts
 let commonEdit (model: EditCommonModel) app = [
-    textField [ _required; _autofocus ] (nameof model.Title) "Title" model.Title []
-    textField [ _required ] (nameof model.Permalink) "Permalink" model.Permalink [
+    textField [ _class "mb-3"; _required; _autofocus ] (nameof model.Title) "Title" model.Title []
+    textField [ _class "mb-3"; _required ] (nameof model.Permalink) "Permalink" model.Permalink [
         if not model.IsNew then
             let urlBase = relUrl app $"admin/{model.Entity}/{model.Id}"
             span [ _class "form-text" ] [
@@ -329,19 +337,60 @@ let commonEdit (model: EditCommonModel) app = [
         label [ _for "text" ] [ raw "Text" ]; raw " &nbsp; &nbsp; "
         div [ _class "btn-group btn-group-sm"; _roleGroup; _ariaLabel "Text format button group" ] [
             input [ _type "radio"; _name (nameof model.Source); _id "source_html"; _class "btn-check"
-                    _value (string Html); if model.Source = string Html then _checked ]
+                    _value "HTML"; if model.Source = "HTML" then _checked ]
             label [ _class "btn btn-sm btn-outline-secondary"; _for "source_html" ] [ raw "HTML" ]
             input [ _type "radio"; _name (nameof model.Source); _id "source_md"; _class "btn-check"
-                    _value (string Markdown); if model.Source = string Markdown then _checked ]
+                    _value "Markdown"; if model.Source = "Markdown" then _checked ]
             label [ _class "btn btn-sm btn-outline-secondary"; _for "source_md" ] [ raw "Markdown" ]
         ]
     ]
-    div [ _class "pb-3" ] [
+    div [ _class "mb-3" ] [
         textarea [ _name (nameof model.Text); _id (nameof model.Text); _class "form-control"; _rows "20" ] [
             raw model.Text
         ]
     ]
 ]
+
+
+/// Display a common template list
+let commonTemplates (model: EditCommonModel) (templates: MetaItem seq) =
+    selectField [ _class "mb-3" ] (nameof model.Template) $"{capitalize model.Entity} Template" model.Template templates
+                (_.Name) (_.Value) []
+
+
+/// Display the metadata item edit form
+let commonMetaItems (model: EditCommonModel) =
+    let items = Array.zip model.MetaNames model.MetaValues
+    let metaDetail idx (name, value) =
+        div [ _id $"meta_%i{idx}"; _class "row mb-3" ] [
+            div [ _class "col-1 text-center align-self-center" ] [
+                button [ _type "button"; _class "btn btn-sm btn-danger"; _onclick $"Admin.removeMetaItem({idx})" ] [
+                    raw "&minus;"
+                ]
+            ]
+            div [ _class "col-3" ] [ textField [ _id $"MetaNames_{idx}" ]  (nameof model.MetaNames)  "Name"  name  [] ]
+            div [ _class "col-8" ] [ textField [ _id $"MetaValues_{idx}" ] (nameof model.MetaValues) "Value" value [] ]
+        ]
+    
+    fieldset [] [
+        legend [] [
+            raw "Metadata "
+            button [ _type "button"; _class "btn btn-sm btn-secondary"; _data "bs-toggle" "collapse"
+                     _data "bs-target" "#meta_item_container" ] [
+                raw "show"
+            ]
+        ]
+        div [ _id "meta_item_container"; _class "collapse" ] [
+            div [ _id "meta_items"; _class "container" ] (items |> Array.mapi metaDetail |> List.ofArray)
+            button [ _type "button"; _class "btn btn-sm btn-secondary"; _onclick "Admin.addMetaItem()" ] [
+                raw "Add an Item"
+            ]
+            script [] [
+                raw """document.addEventListener("DOMContentLoaded", """
+                raw $"() => Admin.setNextMetaIndex({items.Length}))"
+            ]
+        ]
+    ]
 
 
 /// Form to manage permalinks for pages or posts

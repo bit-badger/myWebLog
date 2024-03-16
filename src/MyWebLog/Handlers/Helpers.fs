@@ -427,23 +427,21 @@ let absoluteUrl (url: string) (ctx: HttpContext) =
     if url.StartsWith "http" then url else ctx.WebLog.AbsoluteUrl (Permalink url)
 
 
-open System.Collections.Generic
 open MyWebLog.Data
 
-/// Get the templates available for the current web log's theme (in a key/value pair list)
+/// Get the templates available for the current web log's theme (in a meta item list)
 let templatesForTheme (ctx: HttpContext) (typ: string) = backgroundTask {
     match! ctx.Data.Theme.FindByIdWithoutText ctx.WebLog.ThemeId with
     | Some theme ->
         return seq {
-            KeyValuePair.Create("", $"- Default (single-{typ}) -")
+            { Name = ""; Value = $"- Default (single-{typ}) -" }
             yield!
                 theme.Templates
                 |> Seq.ofList
                 |> Seq.filter (fun it -> it.Name.EndsWith $"-{typ}" && it.Name <> $"single-{typ}")
-                |> Seq.map (fun it -> KeyValuePair.Create(it.Name, it.Name))
+                |> Seq.map (fun it -> { Name = it.Name; Value = it.Name })
         }
-        |> Array.ofSeq
-    | None -> return [| KeyValuePair.Create("", $"- Default (single-{typ}) -") |]
+    | None -> return seq { { Name = ""; Value = $"- Default (single-{typ}) -" } }
 }
 
 /// Get all authors for a list of posts as metadata items

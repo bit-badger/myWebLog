@@ -626,88 +626,65 @@ type EditCommonModel() =
     /// Whether to provide a link to manage chapters
     member val IncludeChapterLink = false with get, set
     
+    /// The template to use to display the page
+    member val Template = "" with get, set
+    
     /// The source type ("HTML" or "Markdown")
     member val Source = "" with get, set
     
     /// The text of the page or post
     member val Text = "" with get, set
     
+    /// Names of metadata items
+    member val MetaNames: string array = [||] with get, set
+    
+    /// Values of metadata items
+    member val MetaValues: string array = [||] with get, set
+    
     /// Whether this is a new page or post
     member this.IsNew with get () = this.Id = "new"
     
     /// Fill the properties of this object from a page
-    member this.FromPage (page: Page) =
+    member this.PopulateFromPage (page: Page) =
         let latest = findLatestRevision page.Revisions
-        this.Id        <- string page.Id
-        this.Title     <- page.Title
-        this.Permalink <- string page.Permalink
-        this.Entity    <- "page"
-        this.Source    <- latest.Text.SourceType
-        this.Text      <- latest.Text.Text
+        this.Id         <- string page.Id
+        this.Title      <- page.Title
+        this.Permalink  <- string page.Permalink
+        this.Entity     <- "page"
+        this.Template   <- defaultArg page.Template ""
+        this.Source     <- latest.Text.SourceType
+        this.Text       <- latest.Text.Text
+        this.MetaNames  <- page.Metadata |> List.map _.Name  |> Array.ofList
+        this.MetaValues <- page.Metadata |> List.map _.Value |> Array.ofList
         
     /// Fill the properties of this object from a post
-    member this.FromPost (post: Post) =
+    member this.PopulateFromPost (post: Post) =
         let latest = findLatestRevision post.Revisions
         this.Id                 <- string post.Id
         this.Title              <- post.Title
         this.Permalink          <- string post.Permalink
         this.Entity             <- "post"
         this.IncludeChapterLink <- Option.isSome post.Episode && Option.isSome post.Episode.Value.Chapters
+        this.Template           <- defaultArg post.Template ""
         this.Source             <- latest.Text.SourceType
         this.Text               <- latest.Text.Text
+        this.MetaNames          <- post.Metadata |> List.map _.Name  |> Array.ofList
+        this.MetaValues         <- post.Metadata |> List.map _.Value |> Array.ofList
 
-    
+
 /// View model to edit a page
-[<CLIMutable; NoComparison; NoEquality>]
-type EditPageModel = {
-    /// The ID of the page being edited
-    PageId: string
-
-    /// The title of the page
-    Title: string
-
-    /// The permalink for the page
-    Permalink: string
-
-    /// The template to use to display the page
-    Template: string
+type EditPageModel() =
+    inherit EditCommonModel()
     
     /// Whether this page is shown in the page list
-    IsShownInPageList: bool
+    member val IsShownInPageList = false with get, set
 
-    /// The source format for the text
-    Source: string
-
-    /// The text of the page
-    Text: string
-    
-    /// Names of metadata items
-    MetaNames: string array
-    
-    /// Values of metadata items
-    MetaValues: string array
-} with
-    
     /// Create an edit model from an existing page
-    static member FromPage (page: Page) =
-        let latest =
-            match page.Revisions |> List.sortByDescending _.AsOf |> List.tryHead with
-            | Some rev -> rev
-            | None -> Revision.Empty
-        let page = if page.Metadata |> List.isEmpty then { page with Metadata = [ MetaItem.Empty ] } else page
-        { PageId            = string page.Id
-          Title             = page.Title
-          Permalink         = string page.Permalink
-          Template          = defaultArg page.Template ""
-          IsShownInPageList = page.IsInPageList
-          Source            = latest.Text.SourceType
-          Text              = latest.Text.Text
-          MetaNames         = page.Metadata |> List.map _.Name  |> Array.ofList
-          MetaValues        = page.Metadata |> List.map _.Value |> Array.ofList }
-    
-    /// Whether this is a new page
-    member this.IsNew =
-        this.PageId = "new"
+    static member FromPage(page: Page) =
+        let model = EditPageModel()
+        model.PopulateFromPage page
+        model.IsShownInPageList <- page.IsInPageList
+        model
     
     /// Update a page with values from this model
     member this.UpdatePage (page: Page) now =
@@ -737,163 +714,123 @@ type EditPageModel = {
 
 
 /// View model to edit a post
-[<CLIMutable; NoComparison; NoEquality>]
-type EditPostModel = {
-    /// The ID of the post being edited
-    PostId: string
-
-    /// The title of the post
-    Title: string
-
-    /// The permalink for the post
-    Permalink: string
-
-    /// The source format for the text
-    Source: string
-
-    /// The text of the post
-    Text: string
+type EditPostModel() =
+    inherit EditCommonModel()
     
     /// The tags for the post
-    Tags: string
-    
-    /// The template used to display the post
-    Template: string
+    member val Tags = "" with get, set
     
     /// The category IDs for the post
-    CategoryIds: string array
+    member val CategoryIds: string array = [||] with get, set
     
     /// The post status
-    Status: string
+    member val Status = "" with get, set
     
     /// Whether this post should be published
-    DoPublish: bool
-    
-    /// Names of metadata items
-    MetaNames: string array
-    
-    /// Values of metadata items
-    MetaValues: string array
+    member val DoPublish = false with get, set
     
     /// Whether to override the published date/time
-    SetPublished: bool
+    member val SetPublished = false with get, set
     
     /// The published date/time to override
-    PubOverride: Nullable<DateTime>
+    member val PubOverride = Nullable<DateTime>() with get, set
     
     /// Whether all revisions should be purged and the override date set as the updated date as well
-    SetUpdated: bool
+    member val SetUpdated = false with get, set
     
     /// Whether this post has a podcast episode
-    IsEpisode: bool
+    member val IsEpisode = false with get, set
     
     /// The URL for the media for this episode (may be permalink)
-    Media: string
+    member val Media = "" with get, set
     
     /// The size (in bytes) of the media for this episode
-    Length: int64
+    member val Length = 0L with get, set
     
     /// The duration of the media for this episode
-    Duration: string
+    member val Duration = "" with get, set
     
     /// The media type (optional, defaults to podcast-defined media type)
-    MediaType: string
+    member val MediaType = "" with get, set
     
     /// The URL for the image for this episode (may be permalink; optional, defaults to podcast image)
-    ImageUrl: string
+    member val ImageUrl = "" with get, set
     
     /// A subtitle for the episode (optional)
-    Subtitle: string
+    member val Subtitle = "" with get, set
     
     /// The explicit rating for this episode (optional, defaults to podcast setting)
-    Explicit: string
+    member val Explicit = "" with get, set
     
     /// The chapter source ("internal" for chapters defined here, "external" for a file link, "none" if none defined)
-    ChapterSource: string
+    member val ChapterSource = "" with get, set
     
     /// The URL for the chapter file for the episode (may be permalink; optional)
-    ChapterFile: string
+    member val ChapterFile = "" with get, set
     
     /// The type of the chapter file (optional; defaults to application/json+chapters if chapterFile is provided)
-    ChapterType: string
+    member val ChapterType = "" with get, set
     
     /// Whether the chapter file (or chapters) contains/contain waypoints
-    ContainsWaypoints: bool
+    member val ContainsWaypoints = false with get, set
     
     /// The URL for the transcript (may be permalink; optional)
-    TranscriptUrl: string
+    member val TranscriptUrl = "" with get, set
     
     /// The MIME type for the transcript (optional, recommended if transcriptUrl is provided)
-    TranscriptType: string
+    member val TranscriptType = "" with get, set
     
     /// The language of the transcript (optional)
-    TranscriptLang: string
+    member val TranscriptLang = "" with get, set
     
     /// Whether the provided transcript should be presented as captions
-    TranscriptCaptions: bool
+    member val TranscriptCaptions = false with get, set
     
     /// The season number (optional)
-    SeasonNumber: int
+    member val SeasonNumber = 0 with get, set
     
     /// A description of this season (optional, ignored if season number is not provided)
-    SeasonDescription: string
+    member val SeasonDescription = "" with get, set
     
     /// The episode number (decimal; optional)
-    EpisodeNumber: string
+    member val EpisodeNumber = "" with get, set
     
     /// A description of this episode (optional, ignored if episode number is not provided)
-    EpisodeDescription: string
-} with
+    member val EpisodeDescription = "" with get, set
     
     /// Create an edit model from an existing past
     static member FromPost (webLog: WebLog) (post: Post) =
-        let latest =
-            match post.Revisions |> List.sortByDescending _.AsOf |> List.tryHead with
-            | Some rev -> rev
-            | None -> Revision.Empty
-        let post    = if post.Metadata |> List.isEmpty then { post with Metadata = [ MetaItem.Empty ] } else post
+        let model = EditPostModel()
+        let post  = if post.Metadata |> List.isEmpty then { post with Metadata = [ MetaItem.Empty ] } else post
+        model.PopulateFromPost post
         let episode = defaultArg post.Episode Episode.Empty
-        { PostId             = string post.Id
-          Title              = post.Title
-          Permalink          = string post.Permalink
-          Source             = latest.Text.SourceType
-          Text               = latest.Text.Text
-          Tags               = String.Join(", ", post.Tags)
-          Template           = defaultArg post.Template ""
-          CategoryIds        = post.CategoryIds |> List.map string |> Array.ofList
-          Status             = string post.Status
-          DoPublish          = false
-          MetaNames          = post.Metadata |> List.map _.Name  |> Array.ofList
-          MetaValues         = post.Metadata |> List.map _.Value |> Array.ofList
-          SetPublished       = false
-          PubOverride        = post.PublishedOn |> Option.map webLog.LocalTime |> Option.toNullable
-          SetUpdated         = false
-          IsEpisode          = Option.isSome post.Episode
-          Media              = episode.Media
-          Length             = episode.Length
-          Duration           = defaultArg (episode.FormatDuration()) ""
-          MediaType          = defaultArg episode.MediaType ""
-          ImageUrl           = defaultArg episode.ImageUrl ""
-          Subtitle           = defaultArg episode.Subtitle ""
-          Explicit           = defaultArg (episode.Explicit |> Option.map string) ""
-          ChapterSource      = if   Option.isSome episode.Chapters    then "internal"
-                               elif Option.isSome episode.ChapterFile then "external"
-                               else "none"
-          ChapterFile        = defaultArg episode.ChapterFile ""
-          ChapterType        = defaultArg episode.ChapterType ""
-          ContainsWaypoints  = defaultArg episode.ChapterWaypoints false
-          TranscriptUrl      = defaultArg episode.TranscriptUrl ""
-          TranscriptType     = defaultArg episode.TranscriptType ""
-          TranscriptLang     = defaultArg episode.TranscriptLang ""
-          TranscriptCaptions = defaultArg episode.TranscriptCaptions false
-          SeasonNumber       = defaultArg episode.SeasonNumber 0
-          SeasonDescription  = defaultArg episode.SeasonDescription ""
-          EpisodeNumber      = defaultArg (episode.EpisodeNumber |> Option.map string) ""  
-          EpisodeDescription = defaultArg episode.EpisodeDescription "" }
-    
-    /// Whether this is a new post
-    member this.IsNew =
-        this.PostId = "new"
+        model.Tags               <- post.Tags |> String.concat ", "
+        model.CategoryIds        <- post.CategoryIds |> List.map string |> Array.ofList
+        model.Status             <- string post.Status
+        model.PubOverride        <- post.PublishedOn |> Option.map webLog.LocalTime |> Option.toNullable
+        model.IsEpisode          <- Option.isSome post.Episode
+        model.Media              <- episode.Media
+        model.Length             <- episode.Length
+        model.Duration           <- defaultArg (episode.FormatDuration()) ""
+        model.MediaType          <- defaultArg episode.MediaType ""
+        model.ImageUrl           <- defaultArg episode.ImageUrl ""
+        model.Subtitle           <- defaultArg episode.Subtitle ""
+        model.Explicit           <- defaultArg (episode.Explicit |> Option.map string) ""
+        model.ChapterSource      <- if   Option.isSome episode.Chapters    then "internal"
+                                    elif Option.isSome episode.ChapterFile then "external"
+                                    else "none"
+        model.ChapterFile        <- defaultArg episode.ChapterFile ""
+        model.ChapterType        <- defaultArg episode.ChapterType ""
+        model.ContainsWaypoints  <- defaultArg episode.ChapterWaypoints false
+        model.TranscriptUrl      <- defaultArg episode.TranscriptUrl ""
+        model.TranscriptType     <- defaultArg episode.TranscriptType ""
+        model.TranscriptLang     <- defaultArg episode.TranscriptLang ""
+        model.TranscriptCaptions <- defaultArg episode.TranscriptCaptions false
+        model.SeasonNumber       <- defaultArg episode.SeasonNumber 0
+        model.SeasonDescription  <- defaultArg episode.SeasonDescription ""
+        model.EpisodeNumber      <- defaultArg (episode.EpisodeNumber |> Option.map string) ""  
+        model.EpisodeDescription <- defaultArg episode.EpisodeDescription ""
+        model
     
     /// Update a post with values from the submitted form
     member this.UpdatePost (post: Post) now =

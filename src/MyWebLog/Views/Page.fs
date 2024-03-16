@@ -5,6 +5,27 @@ open Giraffe.ViewEngine.Htmx
 open MyWebLog
 open MyWebLog.ViewModels
 
+/// The form to edit pages
+let pageEdit (model: EditPageModel) templates app = [
+    h2 [ _class "my-3" ] [ raw app.PageTitle ]
+    article [] [
+        form [ _action (relUrl app "admin/page/save"); _method "post"; _hxPushUrl "true"; _class "container" ] [
+            antiCsrf app
+            input [ _type "hidden"; _name (nameof model.Id); _value model.Id ]
+            div [ _class "row mb-3" ] [
+                div [ _class "col-9" ] (commonEdit model app)
+                div [ _class "col-3" ] [
+                    commonTemplates model templates
+                    checkboxSwitch [] (nameof model.IsShownInPageList) "Show in Page List" model.IsShownInPageList []
+                ]
+            ]
+            div [ _class "row mb-3" ] [ div [ _class "col" ] [ saveButton ] ]
+            div [ _class "row mb-3" ] [ div [ _class "col" ] [ commonMetaItems model ] ]
+        ]
+    ]
+]
+
+
 /// Display a list of pages for this web log
 let pageList (pages: DisplayPage list) pageNbr hasNext app = [
     h2 [ _class "my-3" ] [ raw app.PageTitle ]

@@ -505,7 +505,7 @@ let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
                 WebLogId  = ctx.WebLog.Id
                 AuthorId  = ctx.UserId }
             |> someTask
-        else data.Post.FindFullById (PostId model.PostId) ctx.WebLog.Id
+        else data.Post.FindFullById (PostId model.Id) ctx.WebLog.Id
     match! tryPost with
     | Some post when canEdit post.AuthorId ctx ->
         let priorCats   = post.CategoryIds
@@ -522,7 +522,7 @@ let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
                             Revisions   = [ { (List.head post.Revisions) with AsOf = dt } ] }
                     else { post with PublishedOn = Some dt }
                 else post
-        do! (if model.PostId = "new" then data.Post.Add else data.Post.Update) updatedPost
+        do! (if model.IsNew then data.Post.Add else data.Post.Update) updatedPost
         // If the post was published or its categories changed, refresh the category cache
         if model.DoPublish
            || not (priorCats

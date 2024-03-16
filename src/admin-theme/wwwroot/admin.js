@@ -146,7 +146,7 @@ this.Admin = {
     newRow.appendChild(nameCol)
     newRow.appendChild(valueCol)
 
-    document.getElementById("metaItems").appendChild(newRow)
+    document.getElementById("meta_items").appendChild(newRow)
     this.nextMetaIndex++
   },
   

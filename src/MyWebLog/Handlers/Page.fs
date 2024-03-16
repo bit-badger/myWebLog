@@ -34,15 +34,7 @@ let edit pgId : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     | Some (title, page) when canEdit page.AuthorId ctx ->
         let  model     = EditPageModel.FromPage page
         let! templates = templatesForTheme ctx "page"
-        return!
-            hashForPage title
-            |> withAntiCsrf ctx
-            |> addToHash ViewContext.Model model
-            |> addToHash "metadata" (
-                 Array.zip model.MetaNames model.MetaValues
-                 |> Array.mapi (fun idx (name, value) -> [| string idx; name; value |]))
-            |> addToHash "templates" templates
-            |> adminView "page-edit" next ctx
+        return! adminPage title true next ctx (Views.Page.pageEdit model templates)
     | Some _ -> return! Error.notAuthorized next ctx
     | None -> return! Error.notFound next ctx
 }
@@ -177,7 +169,7 @@ let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
                 AuthorId    = ctx.UserId
                 PublishedOn = now
             } |> someTask
-        else data.Page.FindFullById (PageId model.PageId) ctx.WebLog.Id
+        else data.Page.FindFullById (PageId model.Id) ctx.WebLog.Id
     match! tryPage with
     | Some page when canEdit page.AuthorId ctx ->
         let updateList  = page.IsInPageList <> model.IsShownInPageList
