@@ -29,7 +29,7 @@ let categoryEdit (model: EditCategoryModel) app =
                         |> Seq.map (fun c ->
                             let parents =
                                 c.ParentNames
-                                |> Array.map (fun it -> $"{it} &nbsp; &raquo; ")
+                                |> Array.map (fun it -> $"{it} &rang; ")
                                 |> String.concat ""
                             { Name = c.Id; Value = $"{parents}{c.Name}" })
                         |> Seq.append [ { Name = ""; Value = "&ndash; None &ndash;" } ]
@@ -74,7 +74,7 @@ let categoryList includeNew app = [
                         _hxSwap $"{HxSwap.InnerHtml} show:#cat_{cat.Id}:top" ] [
                         raw "Edit"
                     ]; actionSpacer
-                    a [ _href catUrl; _hxDelete catUrl; _class "text-danger"
+                    a [ _href catUrl; _hxDelete catUrl; _hxTarget "body"; _class "text-danger"
                         _hxConfirm $"Are you sure you want to delete the category “{cat.Name}”? This action cannot be undone." ] [
                         raw "Delete"
                     ]
@@ -109,8 +109,6 @@ let categoryList includeNew app = [
                     ]
                 ]
                 form [ _method "post"; _class "container" ] [
-                    // don't think we need this...
-                    // _hxTarget "#catList"; _hxSwap $"{HxSwap.OuterHtml} show:window:top"
                     antiCsrf app
                     div [ _class "row mwl-table-detail"; _id "cat_new" ] [ if includeNew then loadNew ]
                     yield! app.Categories |> Seq.ofArray |> Seq.map categoryDetail |> List.ofSeq
@@ -632,7 +630,10 @@ let uploadList (model: DisplayUpload seq) app = [
             ]
             div [ _class "col-3" ] [ raw upload.Path ]
             div [ _class "col-3" ] [
-                raw (match upload.UpdatedOn with Some updated -> updated.ToString "yyyy-MM-dd/HH:mm" | None -> "--")
+                match upload.UpdatedOn with
+                | Some updated -> updated.ToString("yyyy-MM-dd/h:mmtt").ToLowerInvariant()
+                | None -> "--"
+                |> raw
             ]
         ]
 
@@ -680,14 +681,16 @@ let uploadNew app = [
                     ]
                 ]
                 div [ _class "col-12 col-md-6 pb-3 d-flex align-self-center justify-content-around" ] [
-                    raw "Destination"; br []
-                    div [ _class "btn-group"; _roleGroup; _ariaLabel "Upload destination button group" ] [
-                        input [ _type "radio"; _name "Destination"; _id "destination_db"; _class "btn-check"
-                                _value (string Database); if app.WebLog.Uploads = Database then _checked ]
-                        label [ _class "btn btn-outline-primary"; _for "destination_db" ] [ raw (string Database) ]
-                        input [ _type "radio"; _name "Destination"; _id "destination_disk"; _class "btn-check"
-                                _value (string Disk); if app.WebLog.Uploads= Disk then _checked ]
-                        label [ _class "btn btn-outline-secondary"; _for "destination_disk" ] [ raw "Disk" ]
+                    div [ _class "text-center" ] [
+                        raw "Destination"; br []
+                        div [ _class "btn-group"; _roleGroup; _ariaLabel "Upload destination button group" ] [
+                            input [ _type "radio"; _name "Destination"; _id "destination_db"; _class "btn-check"
+                                    _value (string Database); if app.WebLog.Uploads = Database then _checked ]
+                            label [ _class "btn btn-outline-primary"; _for "destination_db" ] [ raw (string Database) ]
+                            input [ _type "radio"; _name "Destination"; _id "destination_disk"; _class "btn-check"
+                                    _value (string Disk); if app.WebLog.Uploads= Disk then _checked ]
+                            label [ _class "btn btn-outline-secondary"; _for "destination_disk" ] [ raw "Disk" ]
+                        ]
                     ]
                 ]
             ]

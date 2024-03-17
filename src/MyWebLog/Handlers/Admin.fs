@@ -3,6 +3,7 @@ module MyWebLog.Handlers.Admin
 
 open System.Threading.Tasks
 open Giraffe
+open Giraffe.Htmx
 open MyWebLog
 open MyWebLog.ViewModels
 open NodaTime
@@ -96,7 +97,9 @@ module Category =
 
     // GET /admin/categories
     let all : HttpHandler = fun next ctx ->
-        adminPage "Categories" true next ctx (Views.WebLog.categoryList (ctx.Request.Query.ContainsKey "new"))
+        let response = fun next ctx ->
+            adminPage "Categories" true next ctx (Views.WebLog.categoryList (ctx.Request.Query.ContainsKey "new"))
+        (withHxPushUrl (ctx.WebLog.RelativeUrl (Permalink "admin/categories")) >=> response) next ctx
 
     // GET /admin/category/{id}/edit
     let edit catId : HttpHandler = fun next ctx -> task {

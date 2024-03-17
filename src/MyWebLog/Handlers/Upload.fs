@@ -127,11 +127,6 @@ let list : HttpHandler = requireAccess Author >=> fun next ctx -> task {
 let showNew : HttpHandler = requireAccess Author >=> fun next ctx ->
     adminPage "Upload a File" true next ctx Views.WebLog.uploadNew
 
-
-/// Redirect to the upload list
-let showUploads : HttpHandler =
-    redirectToGet "admin/uploads"
-
 // POST /admin/upload/save
 let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
     if ctx.Request.HasFormContentType && ctx.Request.Form.Files.Count > 0 then
@@ -162,7 +157,7 @@ let save : HttpHandler = requireAccess Author >=> fun next ctx -> task {
             do! upload.CopyToAsync stream
         
         do! addMessage ctx { UserMessage.Success with Message = $"File uploaded to {form.Destination} successfully" }
-        return! showUploads next ctx
+        return! redirectToGet "admin/uploads" next ctx
     else
         return! RequestErrors.BAD_REQUEST "Bad request; no file present" next ctx
 }
@@ -172,7 +167,7 @@ let deleteFromDb upId : HttpHandler = fun next ctx -> task {
     match! ctx.Data.Upload.Delete (UploadId upId) ctx.WebLog.Id with
     | Ok fileName ->
         do! addMessage ctx { UserMessage.Success with Message = $"{fileName} deleted successfully" }
-        return! showUploads next ctx
+        return! list next ctx
     | Error _ -> return! Error.notFound next ctx
 }
 
@@ -195,6 +190,6 @@ let deleteFromDisk urlParts : HttpHandler = fun next ctx -> task {
         File.Delete path
         removeEmptyDirectories ctx.WebLog filePath
         do! addMessage ctx { UserMessage.Success with Message = $"{filePath} deleted successfully" }
-        return! showUploads next ctx
+        return! list next ctx
     else return! Error.notFound next ctx
 }
