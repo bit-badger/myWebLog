@@ -96,7 +96,7 @@ module Category =
 
     // GET /admin/categories
     let all : HttpHandler = fun next ctx ->
-        adminPage "Categories" true next ctx Views.WebLog.categoryList
+        adminPage "Categories" true next ctx (Views.WebLog.categoryList (ctx.Request.Query.ContainsKey "new"))
 
     // GET /admin/category/{id}/edit
     let edit catId : HttpHandler = fun next ctx -> task {

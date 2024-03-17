@@ -51,7 +51,7 @@ let categoryEdit (model: EditCategoryModel) app =
 
 
 /// Category list page
-let categoryList app = [
+let categoryList includeNew app = [
     let catCol  = "col-12 col-md-6 col-xl-5 col-xxl-4"
     let descCol = "col-12 col-md-6 col-xl-7 col-xxl-8"
     let categoryDetail (cat: DisplayCategory) =
@@ -84,6 +84,8 @@ let categoryList app = [
                 match cat.Description with Some value -> raw value | None -> em [ _class "text-muted" ] [ raw "none" ]
             ]
         ]
+    let loadNew =
+        span [ _hxGet (relUrl app "admin/category/new/edit"); _hxTrigger HxTrigger.Load; _hxSwap HxSwap.OuterHtml ] []
 
     h2 [ _class "my-3" ] [ raw app.PageTitle ]
     article [] [
@@ -92,11 +94,13 @@ let categoryList app = [
         ]
         div [ _id "catList"; _class "container" ] [
             if app.Categories.Length = 0 then
-                div [ _id "cat_new" ] [
-                    p [ _class "text-muted fst-italic text-center" ] [
-                        raw "This web log has no categories defined"
+                if includeNew then loadNew
+                else
+                    div [ _id "cat_new" ] [
+                        p [ _class "text-muted fst-italic text-center" ] [
+                            raw "This web log has no categories defined"
+                        ]
                     ]
-                ]
             else
                 div [ _class "container" ] [
                     div [ _class "row mwl-table-heading" ] [
@@ -108,7 +112,7 @@ let categoryList app = [
                     // don't think we need this...
                     // _hxTarget "#catList"; _hxSwap $"{HxSwap.OuterHtml} show:window:top"
                     antiCsrf app
-                    div [ _class "row mwl-table-detail"; _id "cat_new" ] []
+                    div [ _class "row mwl-table-detail"; _id "cat_new" ] [ if includeNew then loadNew ]
                     yield! app.Categories |> Seq.ofArray |> Seq.map categoryDetail |> List.ofSeq
                 ]
         ]
@@ -173,7 +177,7 @@ let dashboard (model: DashboardModel) app = [
                             a [ _href (relUrl app "admin/categories"); _class "btn btn-secondary me-2" ] [
                                 raw "View All"
                             ]
-                            a [ _href (relUrl app "admin/category/new/edit"); _class "btn btn-secondary" ] [
+                            a [ _href (relUrl app "admin/categories?new"); _class "btn btn-secondary" ] [
                                 raw "Add a New Category"
                             ]
                     ]
