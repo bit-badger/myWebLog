@@ -5,6 +5,7 @@ COPY ./Directory.Build.props                   ./
 COPY ./MyWebLog/MyWebLog.fsproj                ./MyWebLog/
 COPY ./MyWebLog.Data/MyWebLog.Data.fsproj      ./MyWebLog.Data/
 COPY ./MyWebLog.Domain/MyWebLog.Domain.fsproj  ./MyWebLog.Domain/
+COPY ./MyWebLog.Tests/MyWebLog.Tests.fsproj    ./MyWebLog.Tests/
 RUN dotnet restore
 
 COPY . ./
