@@ -40,14 +40,10 @@ jobs:
       uses: actions/setup-dotnet@v4.0.0
       with:
         dotnet-version: 8.x
-#    - name: Show current location
-#      run: pwd
-#    - name: Show files at current location
-#      run: ls -l
     - name: Restore dependencies
       run: dotnet restore src/MyWebLog.sln
     - name: Build (${{ matrix.dotnet-version }})
-      run: dotnet build src/MyWebLog.sln --no-restore -f net${{ matrix.dotnet-version }}
+      run: dotnet build src/MyWebLog.sln -f net${{ matrix.dotnet-version }}
     - name: Test (${{ matrix.dotnet-version }})
       run: dotnet run --project src/MyWebLog.Tests/MyWebLog.Tests.fsproj -f net${{ matrix.dotnet-version }}
       
