@@ -64,7 +64,7 @@ jobs:
       with:
         dotnet-version: 8.x
     - name: Create Release Packages
-      run: dotnet run build.fsproj
+      run: dotnet run build.fsproj CI
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
       with:
