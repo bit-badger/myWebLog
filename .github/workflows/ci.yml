@@ -1,0 +1,52 @@
+name: Continuous Integration
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+jobs:
+  build_and_test:
+    name: Build / Test
+    
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        dotnet-version:
+        - "6.0"
+#        - "7.0"
+#        - "8.0"
+
+    services:
+      postgres:
+        image: postgres:latest
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      rethink:
+        image: rethinkdb:latest
+        ports:
+        - 28015:28015
+        - 29015:29015
+    
+    steps:
+    - name: Check Out Code
+      uses: actions/checkout@v4
+    - name: Setup .NET Core SDK
+      uses: actions/setup-dotnet@v4.0.0
+      with:
+        dotnet-version: 8.x
+    - name: Restore dependencies
+      run: dotnet restore src/MyWebLog.sln
+    - name: Build (${{ matrix.dotnet-version }})
+      run: dotnet build src/MyWebLog.sln -f net${{ matrix.dotnet-version }}
+    - name: Test (${{ matrix.dotnet-version }})
+      run: dotnet run --project src/MyWebLog.Tests/MyWebLog.Tests.fsproj -f net${{ matrix.dotnet-version }}
+      
