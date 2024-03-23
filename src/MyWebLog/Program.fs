@@ -131,7 +131,7 @@ open Microsoft.AspNetCore.Authentication.Cookies
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.HttpOverrides
 open Microsoft.Extensions.Caching.Distributed
-open NeoSmart.Caching.Sqlite
+open NeoSmart.Caching.Sqlite.AspNetCore
 open RethinkDB.DistributedCache
 
 [<EntryPoint>]
