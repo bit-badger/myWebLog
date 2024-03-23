@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net7.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
   </PropertyGroup>
 
   <ItemGroup>
@@ -10,11 +10,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Fake.Core.Target" Version="5.23.1" />
-    <PackageReference Include="Fake.DotNet.Cli" Version="5.23.1" />
-    <PackageReference Include="Fake.IO.FileSystem" Version="5.23.1" />
-    <PackageReference Include="Fake.IO.Zip" Version="5.23.1" />
-    <PackageReference Include="MSBuild.StructuredLogger" Version="2.1.768" />
+    <PackageReference Include="Fake.Core.Target" Version="6.0.0" />
+    <PackageReference Include="Fake.DotNet.Cli" Version="6.0.0" />
+    <PackageReference Include="Fake.IO.FileSystem" Version="6.0.0" />
+    <PackageReference Include="Fake.IO.Zip" Version="6.0.0" />
+    <PackageReference Include="MSBuild.StructuredLogger" Version="2.2.206" />
   </ItemGroup>
 
 </Project>
