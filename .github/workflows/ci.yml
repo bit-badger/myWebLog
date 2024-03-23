@@ -17,7 +17,7 @@ jobs:
       matrix:
         dotnet-version:
         - "6.0"
-#        - "7.0"
+        - "7.0"
 #        - "8.0"
 
     services:
