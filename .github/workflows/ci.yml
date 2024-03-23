@@ -34,14 +34,16 @@ jobs:
         - 29015:29015
     
     steps:
+    - name: Check Out Code
+      uses: actions/cehckout@v4
     - name: Setup .NET Core SDK
       uses: actions/setup-dotnet@v4.0.0
       with:
         dotnet-version: 8.x
-    - name: Show current location
-      run: pwd
-    - name: Show files at current location
-      run: ls -l
+#    - name: Show current location
+#      run: pwd
+#    - name: Show files at current location
+#      run: ls -l
     - name: Restore dependencies
       run: dotnet restore src/MyWebLog.sln
     - name: Build (${{ matrix.dotnet-version }})
