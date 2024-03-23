@@ -5,6 +5,8 @@ on:
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
+env:
+  MWL_TEST_RETHINK_URI: rethinkdb://localhost/mwl_test
 jobs:
   build_and_test:
     name: Build / Test
@@ -48,5 +50,5 @@ jobs:
     - name: Build (${{ matrix.dotnet-version }})
       run: dotnet build src/MyWebLog.sln -f net${{ matrix.dotnet-version }}
     - name: Test (${{ matrix.dotnet-version }})
-      run: dotnet run --project src/MyWebLog.Tests/MyWebLog.Tests.fsproj -f net${{ matrix.dotnet-version }}
+      run: cd src/MyWebLog.Tests; dotnet run -f net${{ matrix.dotnet-version }}
       
