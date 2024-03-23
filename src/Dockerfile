@@ -14,11 +14,12 @@ RUN dotnet publish -f net8.0 -c Release -r linux-x64 --no-self-contained -p:Publ
 
 FROM alpine AS theme
 RUN apk add --no-cache zip
-WORKDIR /themes
-COPY ./default-theme ./default-theme/
-RUN zip default-theme.zip ./default-theme/*
-COPY ./admin-theme ./admin-theme/
-RUN zip admin-theme.zip ./admin-theme/*
+WORKDIR /themes/default-theme
+COPY ./default-theme ./
+RUN zip -r ../default-theme.zip ./*
+WORKDIR /themes/admin-theme
+COPY ./admin-theme ./
+RUN zip -r ../admin-theme.zip ./*
 
 FROM  mcr.microsoft.com/dotnet/aspnet:8.0-alpine as final
 WORKDIR /app
