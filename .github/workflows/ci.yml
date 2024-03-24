@@ -1,9 +1,11 @@
 name: Continuous Integration
 on:
   push:
-    branches: [ "main" ]
+    branches:
+      - main
   pull_request:
-    branches: [ "main" ]
+    branches:
+      - main
   workflow_dispatch:
 env:
   MWL_TEST_RETHINK_URI: rethinkdb://localhost/mwl_test
@@ -15,9 +17,9 @@ jobs:
     strategy:
       matrix:
         dotnet-version:
-        - "6.0"
-        - "7.0"
-        - "8.0"
+          - "6.0"
+          - "7.0"
+          - "8.0"
 
     services:
       postgres:
@@ -34,22 +36,21 @@ jobs:
       rethink:
         image: rethinkdb:latest
         ports:
-        - 28015:28015
-        - 29015:29015
+          - 28015:28015
     
     steps:
-    - name: Check Out Code
-      uses: actions/checkout@v4
-    - name: Setup .NET Core SDK
-      uses: actions/setup-dotnet@v4.0.0
-      with:
-        dotnet-version: 8.x
-    - name: Restore dependencies
-      run: dotnet restore src/MyWebLog.sln
-    - name: Build (${{ matrix.dotnet-version }})
-      run: dotnet build src/MyWebLog.sln -f net${{ matrix.dotnet-version }}
-    - name: Test (${{ matrix.dotnet-version }})
-      run: cd src/MyWebLog.Tests; dotnet run -f net${{ matrix.dotnet-version }}
+      - name: Check Out Code
+        uses: actions/checkout@v4
+      - name: Setup .NET Core SDK
+        uses: actions/setup-dotnet@v4.0.0
+        with:
+          dotnet-version: 8.x
+      - name: Restore dependencies
+        run: dotnet restore src/MyWebLog.sln
+      - name: Build (${{ matrix.dotnet-version }})
+        run: dotnet build src/MyWebLog.sln -f net${{ matrix.dotnet-version }}
+      - name: Test (${{ matrix.dotnet-version }})
+        run: cd src/MyWebLog.Tests; dotnet run -f net${{ matrix.dotnet-version }}
 
   publish:
     name: Publish Packages
