@@ -93,6 +93,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: release-packages
-            path: |
-              *x64.zip
-              *.bz2
+          path: |
+            *x64.zip
+            *.bz2
