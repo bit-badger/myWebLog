@@ -238,7 +238,7 @@ let chapters (post: Post) : HttpHandler = fun next ctx ->
             jsonFile["fileName"] <- absoluteUrl ep.Media ctx
             if defaultArg ep.ChapterWaypoints false then jsonFile["waypoints"] <- true
             jsonFile["chapters"] <- chapterData
-            json jsonFile next ctx
+            (setContentType JSON_CHAPTERS >=> json jsonFile) next ctx
         | None ->
             match ep.ChapterFile with
             | Some file -> redirectTo true file next ctx

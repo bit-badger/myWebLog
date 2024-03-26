@@ -268,6 +268,9 @@ let redirectToGet url : HttpHandler = fun _ ctx -> task {
     return! redirectTo false (ctx.WebLog.RelativeUrl(Permalink url)) earlyReturn ctx
 }
 
+/// The MIME type for podcast episode JSON chapters
+let JSON_CHAPTERS = "application/json+chapters"
+
 
 /// Handlers for error conditions
 module Error =

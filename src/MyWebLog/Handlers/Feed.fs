@@ -163,17 +163,24 @@ let private addEpisode (webLog: WebLog) (podcast: PodcastOptions) (episode: Epis
     episode.Subtitle |> Option.iter (fun it -> item.ElementExtensions.Add("subtitle", Namespace.iTunes, it))
     episode.FormatDuration() |> Option.iter (fun it -> item.ElementExtensions.Add("duration", Namespace.iTunes, it))
     
-    match episode.ChapterFile with
-    | Some chapters ->
-        let url = toAbsolute webLog chapters
-        let typ =
-            match episode.ChapterType with
-            | Some mime -> Some mime
-            | None when chapters.EndsWith ".json" -> Some "application/json+chapters"
-            | None -> None
+    let chapterUrl, chapterMimeType =
+        match episode.Chapters, episode.ChapterFile with
+        | Some _, _ ->
+            Some $"{webLog.AbsoluteUrl post.Permalink}?chapters", Some JSON_CHAPTERS
+        | None, Some chapters ->
+            let typ =
+                match episode.ChapterType with
+                | Some mime -> Some mime
+                | None when chapters.EndsWith ".json" -> Some JSON_CHAPTERS
+                | None -> None
+            Some (toAbsolute webLog chapters), typ
+        | None, None -> None, None
+    
+    match chapterUrl with
+    | Some url ->
         let elt = xmlDoc.CreateElement("podcast", "chapters", Namespace.podcast)
         elt.SetAttribute("url", url)
-        typ |> Option.iter (fun it -> elt.SetAttribute("type", it))
+        chapterMimeType |> Option.iter (fun it -> elt.SetAttribute("type", it))
         item.ElementExtensions.Add elt
     | None -> ()
     
