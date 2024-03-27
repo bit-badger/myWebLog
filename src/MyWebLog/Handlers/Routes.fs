@@ -11,28 +11,33 @@ module CatchAll =
     open MyWebLog.ViewModels
     
     /// Sequence where the first returned value is the proper handler for the link
-    let private deriveAction (ctx : HttpContext) : HttpHandler seq =
+    let private deriveAction (ctx: HttpContext) : HttpHandler seq =
         let webLog   = ctx.WebLog
         let data     = ctx.Data
         let debug    = debug "Routes.CatchAll" ctx
         let textLink =
-            let _, extra = WebLog.hostAndPath webLog
-            let url      = string ctx.Request.Path
-            (if extra = "" then url else url.Substring extra.Length).ToLowerInvariant ()
+            let extra = webLog.ExtraPath
+            let url   = string ctx.Request.Path
+            (if extra = "" then url else url[extra.Length..]).ToLowerInvariant()
         let await it = (Async.AwaitTask >> Async.RunSynchronously) it
         seq {
             debug (fun () -> $"Considering URL {textLink}")
             // Home page directory without the directory slash 
-            if textLink = "" then yield redirectTo true (WebLog.relativeUrl webLog Permalink.empty)
-            let permalink = Permalink (textLink.Substring 1)
+            if textLink = "" then yield redirectTo true (webLog.RelativeUrl Permalink.Empty)
+            let permalink = Permalink textLink[1..]
             // Current post
             match data.Post.FindByPermalink permalink webLog.Id |> await with
             | Some post ->
                 debug (fun () -> "Found post by permalink")
-                let hash = Post.preparePostList webLog [ post ] Post.ListType.SinglePost "" 1 1 data |> await
-                yield fun next ctx ->
-                       addToHash ViewContext.PageTitle post.Title hash
-                    |> themedView (defaultArg post.Template "single-post") next ctx
+                if post.Status = Published || Option.isSome ctx.UserAccessLevel then
+                    if ctx.Request.Query.ContainsKey "chapters" then
+                        yield Post.chapters post
+                    else
+                        yield fun next ctx ->
+                            Post.preparePostList webLog [ post ] Post.ListType.SinglePost "" 1 1 data
+                            |> await
+                            |> addToHash ViewContext.PageTitle post.Title
+                            |> themedView (defaultArg post.Template "single-post") next ctx
             | None -> ()
             // Current page
             match data.Page.FindByPermalink permalink webLog.Id |> await with
@@ -40,7 +45,7 @@ module CatchAll =
                 debug (fun () -> "Found page by permalink")
                 yield fun next ctx ->
                     hashForPage page.Title
-                    |> addToHash "page"             (DisplayPage.fromPage webLog page)
+                    |> addToHash "page"             (DisplayPage.FromPage webLog page)
                     |> addToHash ViewContext.IsPage true
                     |> themedView (defaultArg page.Template "single-page") next ctx
             | None -> ()
@@ -56,25 +61,25 @@ module CatchAll =
             match data.Post.FindByPermalink altLink webLog.Id |> await with
             | Some post ->
                 debug (fun () -> "Found post by trailing-slash-agnostic permalink")
-                yield redirectTo true (WebLog.relativeUrl webLog post.Permalink)
+                yield redirectTo true (webLog.RelativeUrl post.Permalink)
             | None -> ()
             // Page differing only by trailing slash
             match data.Page.FindByPermalink altLink webLog.Id |> await with
             | Some page ->
                 debug (fun () -> "Found page by trailing-slash-agnostic permalink")
-                yield redirectTo true (WebLog.relativeUrl webLog page.Permalink)
+                yield redirectTo true (webLog.RelativeUrl page.Permalink)
             | None -> ()
             // Prior post
             match data.Post.FindCurrentPermalink [ permalink; altLink ] webLog.Id |> await with
             | Some link ->
                 debug (fun () -> "Found post by prior permalink")
-                yield redirectTo true (WebLog.relativeUrl webLog link)
+                yield redirectTo true (webLog.RelativeUrl link)
             | None -> ()
             // Prior page
             match data.Page.FindCurrentPermalink [ permalink; altLink ] webLog.Id |> await with
             | Some link ->
                 debug (fun () -> "Found page by prior permalink")
-                yield redirectTo true (WebLog.relativeUrl webLog link)
+                yield redirectTo true (webLog.RelativeUrl link)
             | None -> ()
             debug (fun () -> "No content found")
         }
@@ -88,13 +93,13 @@ module CatchAll =
 module Asset =
     
     // GET /theme/{theme}/{**path}
-    let serve (urlParts : string seq) : HttpHandler = fun next ctx -> task {
+    let serve (urlParts: string seq) : HttpHandler = fun next ctx -> task {
         let path = urlParts |> Seq.skip 1 |> Seq.head
-        match! ctx.Data.ThemeAsset.FindById (ThemeAssetId.ofString path) with
+        match! ctx.Data.ThemeAsset.FindById(ThemeAssetId.Parse path) with
         | Some asset ->
             match Upload.checkModified asset.UpdatedOn ctx with
             | Some threeOhFour -> return! threeOhFour next ctx
-            | None -> return! Upload.sendFile (asset.UpdatedOn.ToDateTimeUtc ()) path asset.Data next ctx
+            | None -> return! Upload.sendFile (asset.UpdatedOn.ToDateTimeUtc()) path asset.Data next ctx
         | None -> return! Error.notFound next ctx
     }
 
@@ -107,9 +112,8 @@ let router : HttpHandler = choose [
     subRoute "/admin" (requireUser >=> choose [
         GET_HEAD >=> choose [
             route    "/administration" >=> Admin.Dashboard.admin
-            subRoute "/categor" (choose [
+            subRoute "/categor" (requireAccess WebLogAdmin >=> choose [
                 route  "ies"       >=> Admin.Category.all
-                route  "ies/bare"  >=> Admin.Category.bare
                 routef "y/%s/edit"     Admin.Category.edit
             ])
             route    "/dashboard" >=> Admin.Dashboard.user
@@ -129,17 +133,23 @@ let router : HttpHandler = choose [
                 routef "/%s/permalinks"              Post.editPermalinks
                 routef "/%s/revision/%s/preview"     Post.previewRevision
                 routef "/%s/revisions"               Post.editRevisions
+                routef "/%s/chapter/%i"              Post.editChapter
+                routef "/%s/chapters"                Post.manageChapters
             ])
-            subRoute "/settings" (choose [
-                route  ""             >=> Admin.WebLog.settings
-                routef "/rss/%s/edit"     Feed.editCustomFeed
-                subRoute "/user" (choose [
-                    route  "s"        >=> User.all
-                    routef "/%s/edit"     User.edit
+            subRoute "/settings" (requireAccess WebLogAdmin >=> choose [
+                route    ""             >=> Admin.WebLog.settings
+                routef   "/rss/%s/edit"     Feed.editCustomFeed
+                subRoute "/redirect-rules" (choose [
+                    route  ""    >=> Admin.RedirectRules.all
+                    routef "/%i"     Admin.RedirectRules.edit
                 ])
                 subRoute "/tag-mapping" (choose [
                     route  "s"        >=> Admin.TagMapping.all
                     routef "/%s/edit"     Admin.TagMapping.edit
+                ])
+                subRoute "/user" (choose [
+                    route  "s"        >=> User.all
+                    routef "/%s/edit"     User.edit
                 ])
             ])
             subRoute "/theme" (choose [
@@ -156,7 +166,7 @@ let router : HttpHandler = choose [
                 routef "/theme/%s/refresh"   Admin.Cache.refreshTheme
                 routef "/web-log/%s/refresh" Admin.Cache.refreshWebLog
             ])
-            subRoute "/category" (choose [
+            subRoute "/category" (requireAccess WebLogAdmin >=> choose [
                 route  "/save"      >=> Admin.Category.save
                 routef "/%s/delete"     Admin.Category.delete
             ])
@@ -164,43 +174,56 @@ let router : HttpHandler = choose [
             subRoute "/page" (choose [
                 route  "/save"                   >=> Page.save
                 route  "/permalinks"             >=> Page.savePermalinks
-                routef "/%s/delete"                  Page.delete
-                routef "/%s/revision/%s/delete"      Page.deleteRevision
                 routef "/%s/revision/%s/restore"     Page.restoreRevision
-                routef "/%s/revisions/purge"         Page.purgeRevisions
             ])
             subRoute "/post" (choose [
                 route  "/save"                   >=> Post.save
                 route  "/permalinks"             >=> Post.savePermalinks
-                routef "/%s/delete"                  Post.delete
-                routef "/%s/revision/%s/delete"      Post.deleteRevision
+                routef "/%s/chapter/%i"              Post.saveChapter
                 routef "/%s/revision/%s/restore"     Post.restoreRevision
-                routef "/%s/revisions/purge"         Post.purgeRevisions
             ])
-            subRoute "/settings" (choose [
-                route ""     >=> Admin.WebLog.saveSettings
+            subRoute "/settings" (requireAccess WebLogAdmin >=> choose [
+                route "" >=> Admin.WebLog.saveSettings
                 subRoute "/rss" (choose [
-                    route  ""           >=> Feed.saveSettings
-                    route  "/save"      >=> Feed.saveCustomFeed
-                    routef "/%s/delete"     Feed.deleteCustomFeed
+                    route  ""      >=> Feed.saveSettings
+                    route  "/save" >=> Feed.saveCustomFeed
                 ])
-                subRoute "/tag-mapping" (choose [
-                    route  "/save"      >=> Admin.TagMapping.save
-                    routef "/%s/delete"     Admin.TagMapping.delete
+                subRoute "/redirect-rules" (choose [
+                    routef "/%i"      Admin.RedirectRules.save
+                    routef "/%i/up"   Admin.RedirectRules.moveUp
+                    routef "/%i/down" Admin.RedirectRules.moveDown
                 ])
-                subRoute "/user" (choose [
-                    route  "/save"      >=> User.save
-                    routef "/%s/delete"     User.delete
-                ])
+                route "/tag-mapping/save" >=> Admin.TagMapping.save
+                route "/user/save"        >=> User.save
             ])
             subRoute "/theme" (choose [
                 route  "/new"       >=> Admin.Theme.save
                 routef "/%s/delete"     Admin.Theme.delete
             ])
-            subRoute "/upload" (choose [
-                route   "/save"        >=> Upload.save
-                routexp "/delete/(.*)"     Upload.deleteFromDisk
-                routef  "/%s/delete"       Upload.deleteFromDb
+            route "/upload/save" >=> Upload.save
+        ]
+        DELETE >=> validateCsrf >=> choose [
+            routef "/category/%s" Admin.Category.delete
+            subRoute "/page" (choose [
+                routef "/%s"             Page.delete
+                routef "/%s/revision/%s" Page.deleteRevision
+                routef "/%s/revisions"   Page.purgeRevisions
+            ])
+            subRoute "/post" (choose [
+                routef "/%s"             Post.delete
+                routef "/%s/chapter/%i"  Post.deleteChapter
+                routef "/%s/revision/%s" Post.deleteRevision
+                routef "/%s/revisions"   Post.purgeRevisions
+            ])
+            subRoute "/settings" (requireAccess WebLogAdmin >=> choose [
+                routef "/redirect-rules/%i" Admin.RedirectRules.delete
+                routef "/rss/%s"            Feed.deleteCustomFeed
+                routef "/tag-mapping/%s"    Admin.TagMapping.delete
+                routef "/user/%s"           User.delete
+            ])
+            subRoute "/upload" (requireAccess WebLogAdmin >=> choose [
+                routexp "/disk/(.*)" Upload.deleteFromDisk
+                routef  "/%s"        Upload.deleteFromDb
             ])
         ]
     ])
@@ -229,7 +252,7 @@ let routerWithPath extraPath : HttpHandler =
 
 /// Handler to apply Giraffe routing with a possible sub-route
 let handleRoute : HttpHandler = fun next ctx ->
-    let _, extraPath = WebLog.hostAndPath ctx.WebLog
+    let extraPath = ctx.WebLog.ExtraPath
     (if extraPath = "" then router else routerWithPath extraPath) next ctx
 
 

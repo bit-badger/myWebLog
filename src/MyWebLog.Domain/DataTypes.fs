@@ -1,485 +1,440 @@
 ﻿namespace MyWebLog
 
-open System
 open MyWebLog
 open NodaTime
 
 /// A category under which a post may be identified
 [<CLIMutable; NoComparison; NoEquality>]
-type Category =
-    {   /// The ID of the category
-        Id : CategoryId
+type Category = {
+    /// The ID of the category
+    Id: CategoryId
 
-        /// The ID of the web log to which the category belongs
-        WebLogId : WebLogId
+    /// The ID of the web log to which the category belongs
+    WebLogId: WebLogId
 
-        /// The displayed name
-        Name : string
+    /// The displayed name
+    Name: string
 
-        /// The slug (used in category URLs)
-        Slug : string
+    /// The slug (used in category URLs)
+    Slug: string
 
-        /// A longer description of the category
-        Description : string option
+    /// A longer description of the category
+    Description: string option
 
-        /// The parent ID of this category (if a subcategory)
-        ParentId : CategoryId option
-    }
-
-/// Functions to support categories
-module Category =
+    /// The parent ID of this category (if a subcategory)
+    ParentId: CategoryId option
+} with
     
     /// An empty category
-    let empty =
-        {   Id          = CategoryId.empty
-            WebLogId    = WebLogId.empty
-            Name        = ""
-            Slug        = ""
-            Description = None
-            ParentId    = None
-        }
+    static member Empty =
+        { Id          = CategoryId.Empty
+          WebLogId    = WebLogId.Empty
+          Name        = ""
+          Slug        = ""
+          Description = None
+          ParentId    = None }
 
 
 /// A comment on a post
 [<CLIMutable; NoComparison; NoEquality>]
-type Comment =
-    {   /// The ID of the comment
-        Id : CommentId
+type Comment = {
+    /// The ID of the comment
+    Id: CommentId
 
-        /// The ID of the post to which this comment applies
-        PostId : PostId
+    /// The ID of the post to which this comment applies
+    PostId: PostId
 
-        /// The ID of the comment to which this comment is a reply
-        InReplyToId : CommentId option
+    /// The ID of the comment to which this comment is a reply
+    InReplyToId: CommentId option
 
-        /// The name of the commentor
-        Name : string
+    /// The name of the commentor
+    Name: string
 
-        /// The e-mail address of the commentor
-        Email : string
+    /// The e-mail address of the commentor
+    Email: string
 
-        /// The URL of the commentor's personal website
-        Url : string option
+    /// The URL of the commentor's personal website
+    Url: string option
 
-        /// The status of the comment
-        Status : CommentStatus
+    /// The status of the comment
+    Status: CommentStatus
 
-        /// When the comment was posted
-        PostedOn : Instant
+    /// When the comment was posted
+    PostedOn: Instant
 
-        /// The text of the comment
-        Text : string
-    }
-
-/// Functions to support comments
-module Comment =
+    /// The text of the comment
+    Text: string
+} with
     
     /// An empty comment
-    let empty =
-        {   Id          = CommentId.empty
-            PostId      = PostId.empty
-            InReplyToId = None
-            Name        = ""
-            Email       = ""
-            Url         = None
-            Status      = Pending
-            PostedOn    = Noda.epoch
-            Text        = ""
-        }
+    static member Empty =
+        { Id          = CommentId.Empty
+          PostId      = PostId.Empty
+          InReplyToId = None
+          Name        = ""
+          Email       = ""
+          Url         = None
+          Status      = Pending
+          PostedOn    = Noda.epoch
+          Text        = "" }
 
 
 /// A page (text not associated with a date/time)
 [<CLIMutable; NoComparison; NoEquality>]
-type Page =
-    {   /// The ID of this page
-        Id : PageId
+type Page = {
+    /// The ID of this page
+    Id: PageId
 
-        /// The ID of the web log to which this page belongs
-        WebLogId : WebLogId
+    /// The ID of the web log to which this page belongs
+    WebLogId: WebLogId
 
-        /// The ID of the author of this page
-        AuthorId : WebLogUserId
+    /// The ID of the author of this page
+    AuthorId: WebLogUserId
 
-        /// The title of the page
-        Title : string
+    /// The title of the page
+    Title: string
 
-        /// The link at which this page is displayed
-        Permalink : Permalink
+    /// The link at which this page is displayed
+    Permalink: Permalink
 
-        /// When this page was published
-        PublishedOn : Instant
+    /// When this page was published
+    PublishedOn: Instant
 
-        /// When this page was last updated
-        UpdatedOn : Instant
+    /// When this page was last updated
+    UpdatedOn: Instant
 
-        /// Whether this page shows as part of the web log's navigation
-        IsInPageList : bool
+    /// Whether this page shows as part of the web log's navigation
+    IsInPageList: bool
 
-        /// The template to use when rendering this page
-        Template : string option
+    /// The template to use when rendering this page
+    Template: string option
 
-        /// The current text of the page
-        Text : string
+    /// The current text of the page
+    Text: string
 
-        /// Metadata for this page
-        Metadata : MetaItem list
-        
-        /// Permalinks at which this page may have been previously served (useful for migrated content)
-        PriorPermalinks : Permalink list
+    /// Metadata for this page
+    Metadata: MetaItem list
+    
+    /// Permalinks at which this page may have been previously served (useful for migrated content)
+    PriorPermalinks: Permalink list
 
-        /// Revisions of this page
-        Revisions : Revision list
-    }
-
-/// Functions to support pages
-module Page =
+    /// Revisions of this page
+    Revisions: Revision list
+} with
     
     /// An empty page
-    let empty =
-        {   Id              = PageId.empty
-            WebLogId        = WebLogId.empty
-            AuthorId        = WebLogUserId.empty
-            Title           = ""
-            Permalink       = Permalink.empty
-            PublishedOn     = Noda.epoch
-            UpdatedOn       = Noda.epoch
-            IsInPageList    = false
-            Template        = None
-            Text            = ""
-            Metadata        = []
-            PriorPermalinks = []
-            Revisions       = []
-        }
+    static member Empty =
+        { Id              = PageId.Empty
+          WebLogId        = WebLogId.Empty
+          AuthorId        = WebLogUserId.Empty
+          Title           = ""
+          Permalink       = Permalink.Empty
+          PublishedOn     = Noda.epoch
+          UpdatedOn       = Noda.epoch
+          IsInPageList    = false
+          Template        = None
+          Text            = ""
+          Metadata        = []
+          PriorPermalinks = []
+          Revisions       = [] }
 
 
 /// A web log post
 [<CLIMutable; NoComparison; NoEquality>]
-type Post =
-    {   /// The ID of this post
-        Id : PostId
+type Post = {
+    /// The ID of this post
+    Id: PostId
 
-        /// The ID of the web log to which this post belongs
-        WebLogId : WebLogId
+    /// The ID of the web log to which this post belongs
+    WebLogId: WebLogId
 
-        /// The ID of the author of this post
-        AuthorId : WebLogUserId
+    /// The ID of the author of this post
+    AuthorId: WebLogUserId
 
-        /// The status
-        Status : PostStatus
+    /// The status
+    Status: PostStatus
 
-        /// The title
-        Title : string
+    /// The title
+    Title: string
 
-        /// The link at which the post resides
-        Permalink : Permalink
+    /// The link at which the post resides
+    Permalink: Permalink
 
-        /// The instant on which the post was originally published
-        PublishedOn : Instant option
+    /// The instant on which the post was originally published
+    PublishedOn: Instant option
 
-        /// The instant on which the post was last updated
-        UpdatedOn : Instant
+    /// The instant on which the post was last updated
+    UpdatedOn: Instant
 
-        /// The template to use in displaying the post
-        Template : string option
-        
-        /// The text of the post in HTML (ready to display) format
-        Text : string
+    /// The template to use in displaying the post
+    Template: string option
+    
+    /// The text of the post in HTML (ready to display) format
+    Text: string
 
-        /// The Ids of the categories to which this is assigned
-        CategoryIds : CategoryId list
+    /// The Ids of the categories to which this is assigned
+    CategoryIds: CategoryId list
 
-        /// The tags for the post
-        Tags : string list
+    /// The tags for the post
+    Tags: string list
 
-        /// Podcast episode information for this post
-        Episode : Episode option
-        
-        /// Metadata for the post
-        Metadata : MetaItem list
-        
-        /// Permalinks at which this post may have been previously served (useful for migrated content)
-        PriorPermalinks : Permalink list
+    /// Podcast episode information for this post
+    Episode: Episode option
+    
+    /// Metadata for the post
+    Metadata: MetaItem list
+    
+    /// Permalinks at which this post may have been previously served (useful for migrated content)
+    PriorPermalinks: Permalink list
 
-        /// The revisions for this post
-        Revisions : Revision list
-    }
-
-/// Functions to support posts
-module Post =
+    /// The revisions for this post
+    Revisions: Revision list
+} with
     
     /// An empty post
-    let empty =
-        {   Id              = PostId.empty
-            WebLogId        = WebLogId.empty
-            AuthorId        = WebLogUserId.empty
-            Status          = Draft
-            Title           = ""
-            Permalink       = Permalink.empty
-            PublishedOn     = None
-            UpdatedOn       = Noda.epoch
-            Text            = ""
-            Template        = None
-            CategoryIds     = []
-            Tags            = []
-            Episode         = None
-            Metadata        = []
-            PriorPermalinks = []
-            Revisions       = []
-        }
+    static member Empty =
+        { Id              = PostId.Empty
+          WebLogId        = WebLogId.Empty
+          AuthorId        = WebLogUserId.Empty
+          Status          = Draft
+          Title           = ""
+          Permalink       = Permalink.Empty
+          PublishedOn     = None
+          UpdatedOn       = Noda.epoch
+          Text            = ""
+          Template        = None
+          CategoryIds     = []
+          Tags            = []
+          Episode         = None
+          Metadata        = []
+          PriorPermalinks = []
+          Revisions       = [] }
 
 
 /// A mapping between a tag and its URL value, used to translate restricted characters (ex. "#1" -> "number-1")
-type TagMap =
-    {   /// The ID of this tag mapping
-        Id : TagMapId
-        
-        /// The ID of the web log to which this tag mapping belongs
-        WebLogId : WebLogId
-        
-        /// The tag which should be mapped to a different value in links
-        Tag : string
-        
-        /// The value by which the tag should be linked
-        UrlValue : string
-    }
-
-/// Functions to support tag mappings
-module TagMap =
+[<CLIMutable; NoComparison; NoEquality>]
+type TagMap = {
+    /// The ID of this tag mapping
+    Id: TagMapId
+    
+    /// The ID of the web log to which this tag mapping belongs
+    WebLogId: WebLogId
+    
+    /// The tag which should be mapped to a different value in links
+    Tag: string
+    
+    /// The value by which the tag should be linked
+    UrlValue: string
+} with
     
     /// An empty tag mapping
-    let empty =
-        {   Id       = TagMapId.empty
-            WebLogId = WebLogId.empty
-            Tag      = ""
-            UrlValue = ""
-        }
+    static member Empty =
+        { Id = TagMapId.Empty; WebLogId = WebLogId.Empty; Tag = ""; UrlValue = "" }
 
 
 /// A theme
-type Theme =
-    {   /// The ID / path of the theme
-        Id : ThemeId
-        
-        /// A long name of the theme
-        Name : string
-        
-        /// The version of the theme
-        Version : string
-        
-        /// The templates for this theme
-        Templates: ThemeTemplate list
-    }
-
-/// Functions to support themes
-module Theme =
+[<CLIMutable; NoComparison; NoEquality>]
+type Theme = {
+    /// The ID / path of the theme
+    Id: ThemeId
+    
+    /// A long name of the theme
+    Name: string
+    
+    /// The version of the theme
+    Version: string
+    
+    /// The templates for this theme
+    Templates: ThemeTemplate list
+} with
     
     /// An empty theme
-    let empty =
-        {   Id        = ThemeId ""
-            Name      = ""
-            Version   = ""
-            Templates = []
-        }
+    static member Empty =
+        { Id = ThemeId.Empty; Name = ""; Version = ""; Templates = [] }
 
 
 /// A theme asset (a file served as part of a theme, at /themes/[theme]/[asset-path])
-type ThemeAsset =
-    {
-        /// The ID of the asset (consists of theme and path)
-        Id : ThemeAssetId
-        
-        /// The updated date (set from the file date from the ZIP archive)
-        UpdatedOn : Instant
-        
-        /// The data for the asset
-        Data : byte[]
-    }
-
-/// Functions to support theme assets
-module ThemeAsset =
+[<CLIMutable; NoComparison; NoEquality>]
+type ThemeAsset = {
+    /// The ID of the asset (consists of theme and path)
+    Id: ThemeAssetId
+    
+    /// The updated date (set from the file date from the ZIP archive)
+    UpdatedOn: Instant
+    
+    /// The data for the asset
+    Data: byte array
+} with
     
     /// An empty theme asset
-    let empty =
-        {   Id        = ThemeAssetId (ThemeId "", "")
-            UpdatedOn = Noda.epoch
-            Data      = [||]
-        }
+    static member Empty =
+        { Id = ThemeAssetId.Empty; UpdatedOn = Noda.epoch; Data = [||] }
 
 
 /// An uploaded file
-type Upload =
-    {   /// The ID of the upload
-        Id : UploadId
-        
-        /// The ID of the web log to which this upload belongs
-        WebLogId : WebLogId
-        
-        /// The link at which this upload is served
-        Path : Permalink
-        
-        /// The updated date/time for this upload
-        UpdatedOn : Instant
-        
-        /// The data for the upload
-        Data : byte[]
-    }
-
-/// Functions to support uploaded files
-module Upload =
+[<CLIMutable; NoComparison; NoEquality>]
+type Upload = {
+    /// The ID of the upload
+    Id: UploadId
+    
+    /// The ID of the web log to which this upload belongs
+    WebLogId: WebLogId
+    
+    /// The link at which this upload is served
+    Path: Permalink
+    
+    /// The updated date/time for this upload
+    UpdatedOn: Instant
+    
+    /// The data for the upload
+    Data: byte array
+} with
     
     /// An empty upload
-    let empty =
-        {   Id        = UploadId.empty
-            WebLogId  = WebLogId.empty
-            Path      = Permalink.empty
-            UpdatedOn = Noda.epoch
-            Data      = [||]
-        }
+    static member Empty =
+        { Id = UploadId.Empty; WebLogId = WebLogId.Empty; Path = Permalink.Empty; UpdatedOn = Noda.epoch; Data = [||] }
 
+
+open Newtonsoft.Json
 
 /// A web log
 [<CLIMutable; NoComparison; NoEquality>]
-type WebLog =
-    {   /// The ID of the web log
-        Id : WebLogId
+type WebLog = {
+    /// The ID of the web log
+    Id: WebLogId
 
-        /// The name of the web log
-        Name : string
+    /// The name of the web log
+    Name: string
 
-        /// The slug of the web log
-        Slug : string
-        
-        /// A subtitle for the web log
-        Subtitle : string option
+    /// The slug of the web log
+    Slug: string
+    
+    /// A subtitle for the web log
+    Subtitle: string option
 
-        /// The default page ("posts" or a page Id)
-        DefaultPage : string
+    /// The default page ("posts" or a page Id)
+    DefaultPage: string
 
-        /// The number of posts to display on pages of posts
-        PostsPerPage : int
+    /// The number of posts to display on pages of posts
+    PostsPerPage: int
 
-        /// The ID of the theme (also the path within /themes)
-        ThemeId : ThemeId
+    /// The ID of the theme (also the path within /themes)
+    ThemeId: ThemeId
 
-        /// The URL base
-        UrlBase : string
+    /// The URL base
+    UrlBase: string
 
-        /// The time zone in which dates/times should be displayed
-        TimeZone : string
-        
-        /// The RSS options for this web log
-        Rss : RssOptions
-        
-        /// Whether to automatically load htmx
-        AutoHtmx : bool
-        
-        /// Where uploads are placed
-        Uploads : UploadDestination
-    }
+    /// The time zone in which dates/times should be displayed
+    TimeZone: string
+    
+    /// The RSS options for this web log
+    Rss: RssOptions
+    
+    /// Whether to automatically load htmx
+    AutoHtmx: bool
+    
+    /// Where uploads are placed
+    Uploads: UploadDestination
 
-/// Functions to support web logs
-module WebLog =
+    /// Redirect rules for this weblog
+    RedirectRules: RedirectRule list
+} with
     
     /// An empty web log
-    let empty =
-        {   Id           = WebLogId.empty
-            Name         = ""
-            Slug         = ""
-            Subtitle     = None
-            DefaultPage  = ""
-            PostsPerPage = 10
-            ThemeId      = ThemeId "default"
-            UrlBase      = ""
-            TimeZone     = ""
-            Rss          = RssOptions.empty
-            AutoHtmx     = false
-            Uploads      = Database
-        }
+    static member Empty =
+        { Id            = WebLogId.Empty
+          Name          = ""
+          Slug          = ""
+          Subtitle      = None
+          DefaultPage   = ""
+          PostsPerPage  = 10
+          ThemeId       = ThemeId "default"
+          UrlBase       = ""
+          TimeZone      = ""
+          Rss           = RssOptions.Empty
+          AutoHtmx      = false
+          Uploads       = Database
+          RedirectRules = [] }
     
-    /// Get the host (including scheme) and extra path from the URL base
-    let hostAndPath webLog =
-        let scheme = webLog.UrlBase.Split "://"
-        let host   = scheme[1].Split "/"
-        $"{scheme[0]}://{host[0]}", if host.Length > 1 then $"""/{String.Join ("/", host |> Array.skip 1)}""" else ""
+    /// Any extra path where this web log is hosted (blank if web log is hosted at the root of the domain)
+    [<JsonIgnore>]
+    member this.ExtraPath =
+        let pathParts = this.UrlBase.Split "://"
+        if pathParts.Length < 2 then
+            ""
+        else
+            let path = pathParts[1].Split "/"
+            if path.Length > 1 then $"""/{path |> Array.skip 1 |> String.concat "/"}""" else ""
     
     /// Generate an absolute URL for the given link
-    let absoluteUrl webLog permalink =
-        $"{webLog.UrlBase}/{Permalink.toString permalink}"
-
+    member this.AbsoluteUrl(permalink: Permalink) =
+        $"{this.UrlBase}/{permalink}"
+    
     /// Generate a relative URL for the given link
-    let relativeUrl webLog permalink =
-        let _, leadPath = hostAndPath webLog
-        $"{leadPath}/{Permalink.toString permalink}"
+    member this.RelativeUrl(permalink: Permalink) =
+        $"{this.ExtraPath}/{permalink}"
     
     /// Convert an Instant (UTC reference) to the web log's local date/time
-    let localTime webLog (date : Instant) =
-        match DateTimeZoneProviders.Tzdb[webLog.TimeZone] with
-        | null -> date.ToDateTimeUtc ()
-        | tz -> date.InZone(tz).ToDateTimeUnspecified ()
+    member this.LocalTime(date: Instant) =
+        DateTimeZoneProviders.Tzdb.GetZoneOrNull this.TimeZone
+        |> Option.ofObj
+        |> Option.map (fun tz -> date.InZone(tz).ToDateTimeUnspecified())
+        |> Option.defaultValue (date.ToDateTimeUtc())
 
 
 /// A user of the web log
 [<CLIMutable; NoComparison; NoEquality>]
-type WebLogUser =
-    {   /// The ID of the user
-        Id : WebLogUserId
+type WebLogUser = {
+    /// The ID of the user
+    Id: WebLogUserId
 
-        /// The ID of the web log to which this user belongs
-        WebLogId : WebLogId
+    /// The ID of the web log to which this user belongs
+    WebLogId: WebLogId
 
-        /// The user name (e-mail address)
-        Email : string
+    /// The user name (e-mail address)
+    Email: string
 
-        /// The user's first name
-        FirstName : string
+    /// The user's first name
+    FirstName: string
 
-        /// The user's last name
-        LastName : string
+    /// The user's last name
+    LastName: string
 
-        /// The user's preferred name
-        PreferredName : string
+    /// The user's preferred name
+    PreferredName: string
 
-        /// The hash of the user's password
-        PasswordHash : string
+    /// The hash of the user's password
+    PasswordHash: string
 
-        /// The URL of the user's personal site
-        Url : string option
+    /// The URL of the user's personal site
+    Url: string option
 
-        /// The user's access level
-        AccessLevel : AccessLevel
-        
-        /// When the user was created
-        CreatedOn : Instant
-        
-        /// When the user last logged on
-        LastSeenOn : Instant option
-    }
-
-/// Functions to support web log users
-module WebLogUser =
+    /// The user's access level
+    AccessLevel: AccessLevel
+    
+    /// When the user was created
+    CreatedOn: Instant
+    
+    /// When the user last logged on
+    LastSeenOn: Instant option
+} with
     
     /// An empty web log user
-    let empty =
-        {   Id            = WebLogUserId.empty
-            WebLogId      = WebLogId.empty
-            Email         = ""
-            FirstName     = ""
-            LastName      = ""
-            PreferredName = ""
-            PasswordHash  = ""
-            Url           = None
-            AccessLevel   = Author
-            CreatedOn     = Noda.epoch
-            LastSeenOn    = None
-        }
+    static member Empty =
+        { Id            = WebLogUserId.Empty
+          WebLogId      = WebLogId.Empty
+          Email         = ""
+          FirstName     = ""
+          LastName      = ""
+          PreferredName = ""
+          PasswordHash  = ""
+          Url           = None
+          AccessLevel   = Author
+          CreatedOn     = Noda.epoch
+          LastSeenOn    = None }
     
     /// Get the user's displayed name
-    let displayName user =
-        let name =
-            seq { match user.PreferredName with "" -> user.FirstName | n -> n; " "; user.LastName }
-            |> Seq.reduce (+)
-        name.Trim ()
-    
-    /// Does a user have the required access level?
-    let hasAccess level user =
-        AccessLevel.hasAccess level user.AccessLevel
+    [<JsonIgnore>]
+    member this.DisplayName =
+        (seq { (match this.PreferredName with "" -> this.FirstName | n -> n); " "; this.LastName }
+         |> Seq.reduce (+)).Trim()

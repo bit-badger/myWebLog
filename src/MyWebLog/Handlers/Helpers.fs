@@ -3,13 +3,14 @@ module private MyWebLog.Handlers.Helpers
 
 open System.Text.Json
 open Microsoft.AspNetCore.Http
+open MyWebLog.Views
 
 /// Session extensions to get and set objects
 type ISession with
     
     /// Set an item in the session
-    member this.Set<'T> (key, item : 'T) =
-        this.SetString (key, JsonSerializer.Serialize item)
+    member this.Set<'T>(key, item: 'T) =
+        this.SetString(key, JsonSerializer.Serialize item)
     
     /// Get an item from the session
     member this.TryGet<'T> key =
@@ -24,6 +25,10 @@ module ViewContext =
     /// The anti cross-site request forgery (CSRF) token set to use for form submissions
     [<Literal>]
     let AntiCsrfTokens = "csrf"
+    
+    /// The unified application view context
+    [<Literal>]
+    let AppViewContext = "app"
     
     /// The categories for this web log
     [<Literal>]
@@ -126,28 +131,28 @@ module ViewContext =
 let private sessionLoadedKey = "session-loaded"
 
 /// Load the session if it has not been loaded already; ensures async access but not excessive loading
-let private loadSession (ctx : HttpContext) = task {
+let private loadSession (ctx: HttpContext) = task {
     if not (ctx.Items.ContainsKey sessionLoadedKey) then
-        do! ctx.Session.LoadAsync ()
-        ctx.Items.Add (sessionLoadedKey, "yes")
+        do! ctx.Session.LoadAsync()
+        ctx.Items.Add(sessionLoadedKey, "yes")
 }
 
 /// Ensure that the session is committed
-let private commitSession (ctx : HttpContext) = task {
-    if ctx.Items.ContainsKey sessionLoadedKey then do! ctx.Session.CommitAsync ()
+let private commitSession (ctx: HttpContext) = task {
+    if ctx.Items.ContainsKey sessionLoadedKey then do! ctx.Session.CommitAsync()
 }
 
 open MyWebLog.ViewModels
 
 /// Add a message to the user's session
-let addMessage (ctx : HttpContext) message = task {
+let addMessage (ctx: HttpContext) message = task {
     do! loadSession ctx
     let msg = match ctx.Session.TryGet<UserMessage list> ViewContext.Messages with Some it -> it | None -> []
-    ctx.Session.Set (ViewContext.Messages, message :: msg)
+    ctx.Session.Set(ViewContext.Messages, message :: msg)
 }
 
 /// Get any messages from the user's session, removing them in the process
-let messages (ctx : HttpContext) = task {
+let messages (ctx: HttpContext) = task {
     do! loadSession ctx
     match ctx.Session.TryGet<UserMessage list> ViewContext.Messages with
     | Some msg ->
@@ -160,22 +165,18 @@ open MyWebLog
 open DotLiquid
 
 /// Shorthand for creating a DotLiquid hash from an anonymous object
-let makeHash (values : obj) =
+let makeHash (values: obj) =
     Hash.FromAnonymousObject values
 
 /// Create a hash with the page title filled
-let hashForPage (title : string) =
+let hashForPage (title: string) =
     makeHash {| page_title = title |}
 
 /// Add a key to the hash, returning the modified hash
 //    (note that the hash itself is mutated; this is only used to make it pipeable)
-let addToHash key (value : obj) (hash : Hash) =
-    if hash.ContainsKey key then hash[key] <- value else hash.Add (key, value)
+let addToHash key (value: obj) (hash: Hash) =
+    if hash.ContainsKey key then hash[key] <- value else hash.Add(key, value)
     hash
-
-/// Add anti-CSRF tokens to the given hash
-let withAntiCsrf (ctx : HttpContext) =
-    addToHash ViewContext.AntiCsrfTokens ctx.CsrfTokenSet 
 
 open System.Security.Claims
 open Giraffe
@@ -185,40 +186,70 @@ open Giraffe.ViewEngine
 /// htmx script tag
 let private htmxScript = RenderView.AsString.htmlNode Htmx.Script.minified
 
-/// Populate the DotLiquid hash with standard information
-let addViewContext ctx (hash : Hash) = task {
+/// Get the current user messages, and commit the session so that they are preserved
+let private getCurrentMessages ctx = task {
     let! messages = messages ctx
     do! commitSession ctx
-    return
-        if hash.ContainsKey ViewContext.HtmxScript && hash.ContainsKey ViewContext.Messages then
-            // We have already populated everything; just update messages
-            hash[ViewContext.Messages] <- Array.concat [ hash[ViewContext.Messages] :?> UserMessage[]; messages ]
+    return messages
+}
+
+/// Generate the view context for a response
+let private generateViewContext pageTitle messages includeCsrf (ctx: HttpContext) =
+    { WebLog          = ctx.WebLog
+      UserId          = ctx.User.Claims
+                        |> Seq.tryFind (fun claim -> claim.Type = ClaimTypes.NameIdentifier)
+                        |> Option.map (fun claim -> WebLogUserId claim.Value)
+      PageTitle       = pageTitle
+      Csrf            = if includeCsrf then Some ctx.CsrfTokenSet else None
+      PageList        = PageListCache.get ctx
+      Categories      = CategoryCache.get ctx
+      CurrentPage     = ctx.Request.Path.Value[1..]
+      Messages        = messages
+      Generator       = ctx.Generator
+      HtmxScript      = htmxScript
+      IsAuthor        = ctx.HasAccessLevel Author
+      IsEditor        = ctx.HasAccessLevel Editor
+      IsWebLogAdmin   = ctx.HasAccessLevel WebLogAdmin
+      IsAdministrator = ctx.HasAccessLevel Administrator }
+
+
+/// Populate the DotLiquid hash with standard information
+let addViewContext ctx (hash: Hash) = task {
+    let! messages = getCurrentMessages ctx
+    if hash.ContainsKey ViewContext.AppViewContext then
+        let oldApp = hash[ViewContext.AppViewContext] :?> AppViewContext
+        let newApp = { oldApp with Messages = Array.concat [ oldApp.Messages; messages ] }
+        return
             hash
-        else
-            ctx.User.Claims
-            |> Seq.tryFind (fun claim -> claim.Type = ClaimTypes.NameIdentifier)
-            |> Option.map (fun claim -> addToHash ViewContext.UserId claim.Value hash)
-            |> Option.defaultValue hash
-            |> addToHash ViewContext.WebLog          ctx.WebLog
-            |> addToHash ViewContext.PageList        (PageListCache.get ctx)
-            |> addToHash ViewContext.Categories      (CategoryCache.get ctx)
-            |> addToHash ViewContext.CurrentPage     ctx.Request.Path.Value[1..]
-            |> addToHash ViewContext.Messages        messages
-            |> addToHash ViewContext.Generator       ctx.Generator
-            |> addToHash ViewContext.HtmxScript      htmxScript
-            |> addToHash ViewContext.IsLoggedOn      ctx.User.Identity.IsAuthenticated
-            |> addToHash ViewContext.IsAuthor        (ctx.HasAccessLevel Author)
-            |> addToHash ViewContext.IsEditor        (ctx.HasAccessLevel Editor)
-            |> addToHash ViewContext.IsWebLogAdmin   (ctx.HasAccessLevel WebLogAdmin)
-            |> addToHash ViewContext.IsAdministrator (ctx.HasAccessLevel Administrator)
+            |> addToHash ViewContext.AppViewContext newApp
+            |> addToHash ViewContext.Messages       newApp.Messages
+    else
+        let app =
+            generateViewContext (string hash[ViewContext.PageTitle]) messages
+                                (hash.ContainsKey ViewContext.AntiCsrfTokens) ctx
+        return
+            hash
+            |> addToHash ViewContext.UserId          (app.UserId |> Option.map string |> Option.defaultValue "")
+            |> addToHash ViewContext.WebLog          app.WebLog
+            |> addToHash ViewContext.PageList        app.PageList
+            |> addToHash ViewContext.Categories      app.Categories
+            |> addToHash ViewContext.CurrentPage     app.CurrentPage
+            |> addToHash ViewContext.Messages        app.Messages
+            |> addToHash ViewContext.Generator       app.Generator
+            |> addToHash ViewContext.HtmxScript      app.HtmxScript
+            |> addToHash ViewContext.IsLoggedOn      app.IsLoggedOn
+            |> addToHash ViewContext.IsAuthor        app.IsAuthor
+            |> addToHash ViewContext.IsEditor        app.IsEditor
+            |> addToHash ViewContext.IsWebLogAdmin   app.IsWebLogAdmin
+            |> addToHash ViewContext.IsAdministrator app.IsAdministrator
 }
 
 /// Is the request from htmx?
-let isHtmx (ctx : HttpContext) =
+let isHtmx (ctx: HttpContext) =
     ctx.Request.IsHtmx && not ctx.Request.IsHtmxRefresh
 
 /// Convert messages to headers (used for htmx responses)
-let messagesToHeaders (messages : UserMessage array) : HttpHandler =
+let messagesToHeaders (messages: UserMessage array) : HttpHandler =
     seq {
         yield!
             messages
@@ -234,8 +265,11 @@ let messagesToHeaders (messages : UserMessage array) : HttpHandler =
 /// Redirect after doing some action; commits session and issues a temporary redirect
 let redirectToGet url : HttpHandler = fun _ ctx -> task {
     do! commitSession ctx
-    return! redirectTo false (WebLog.relativeUrl ctx.WebLog (Permalink url)) earlyReturn ctx
+    return! redirectTo false (ctx.WebLog.RelativeUrl(Permalink url)) earlyReturn ctx
 }
+
+/// The MIME type for podcast episode JSON chapters
+let JSON_CHAPTERS = "application/json+chapters"
 
 
 /// Handlers for error conditions
@@ -247,24 +281,24 @@ module Error =
     let notAuthorized : HttpHandler = fun next ctx ->
         if ctx.Request.Method = "GET" then
             let redirectUrl = $"user/log-on?returnUrl={WebUtility.UrlEncode ctx.Request.Path}"
-            if isHtmx ctx then (withHxRedirect redirectUrl >=> redirectToGet redirectUrl) next ctx
-            else redirectToGet redirectUrl next ctx
+            (next, ctx)
+            ||> if isHtmx ctx then withHxRedirect redirectUrl >=> withHxRetarget "body" >=> redirectToGet redirectUrl
+                else redirectToGet redirectUrl
         else
             if isHtmx ctx then
                 let messages = [|
-                    { UserMessage.error with
-                        Message = $"You are not authorized to access the URL {ctx.Request.Path.Value}"
-                    }
+                    { UserMessage.Error with
+                        Message = $"You are not authorized to access the URL {ctx.Request.Path.Value}" }
                 |]
                 (messagesToHeaders messages >=> setStatusCode 401) earlyReturn ctx
             else setStatusCode 401 earlyReturn ctx
 
-    /// Handle 404s from the API, sending known URL paths to the Vue app so that they can be handled there
+    /// Handle 404s
     let notFound : HttpHandler =
         handleContext (fun ctx ->
             if isHtmx ctx then
                 let messages = [|
-                    { UserMessage.error with Message = $"The URL {ctx.Request.Path.Value} was not found" }
+                    { UserMessage.Error with Message = $"The URL {ctx.Request.Path.Value} was not found" }
                 |]
                 RequestErrors.notFound (messagesToHeaders messages) earlyReturn ctx
             else RequestErrors.NOT_FOUND "Not found" earlyReturn ctx)
@@ -272,13 +306,13 @@ module Error =
     let server message : HttpHandler =
         handleContext (fun ctx ->
             if isHtmx ctx then
-                let messages = [| { UserMessage.error with Message = message } |]
+                let messages = [| { UserMessage.Error with Message = message } |]
                 ServerErrors.internalError (messagesToHeaders messages) earlyReturn ctx
             else ServerErrors.INTERNAL_ERROR message earlyReturn ctx)
 
 
 /// Render a view for the specified theme, using the specified template, layout, and hash
-let viewForTheme themeId template next ctx (hash : Hash) = task {
+let viewForTheme themeId template next ctx (hash: Hash) = task {
     let! hash = addViewContext ctx hash
     
     // NOTE: DotLiquid does not support {% render %} or {% include %} in its templates, so we will do a 2-pass render;
@@ -296,13 +330,13 @@ let viewForTheme themeId template next ctx (hash : Hash) = task {
 }
 
 /// Render a bare view for the specified theme, using the specified template and hash
-let bareForTheme themeId template next ctx (hash : Hash) = task {
+let bareForTheme themeId template next ctx (hash: Hash) = task {
     let! hash        = addViewContext ctx hash
     let  withContent = task {
         if hash.ContainsKey ViewContext.Content then return Ok hash
         else
             match! TemplateCache.get themeId template ctx.Data with
-            | Ok contentTemplate -> return Ok (addToHash ViewContext.Content (contentTemplate.Render hash) hash)
+            | Ok contentTemplate -> return Ok(addToHash ViewContext.Content (contentTemplate.Render hash) hash)
             | Error message -> return Error message 
     }
     match! withContent with
@@ -311,7 +345,7 @@ let bareForTheme themeId template next ctx (hash : Hash) = task {
         match! TemplateCache.get themeId "layout-bare" ctx.Data with
         | Ok layoutTemplate ->
             return!
-                (messagesToHeaders (hash[ViewContext.Messages] :?> UserMessage[])
+                (messagesToHeaders (hash[ViewContext.Messages] :?> UserMessage array)
                  >=> htmlString (layoutTemplate.Render completeHash))
                     next ctx
         | Error message -> return! Error.server message next ctx
@@ -324,16 +358,22 @@ let themedView template next ctx hash = task {
     return! viewForTheme (hash[ViewContext.WebLog] :?> WebLog).ThemeId template next ctx hash
 }
 
-/// The ID for the admin theme
-let adminTheme = ThemeId "admin"
+/// Display a page for an admin endpoint
+let adminPage pageTitle includeCsrf next ctx (content: AppViewContext -> XmlNode list) = task {
+    let! messages = getCurrentMessages ctx
+    let  appCtx   = generateViewContext pageTitle messages includeCsrf ctx
+    let  layout   = if isHtmx ctx then Layout.partial else Layout.full
+    return! htmlString (layout content appCtx |> RenderView.AsString.htmlDocument) next ctx
+}
 
-/// Display a view for the admin theme
-let adminView template =
-    viewForTheme adminTheme template
-
-/// Display a bare view for the admin theme
-let adminBareView template =
-    bareForTheme adminTheme template
+/// Display a bare page for an admin endpoint
+let adminBarePage pageTitle includeCsrf next ctx (content: AppViewContext -> XmlNode list) = task {
+    let! messages = getCurrentMessages ctx
+    let  appCtx   = generateViewContext pageTitle messages includeCsrf ctx
+    return!
+        (    messagesToHeaders appCtx.Messages
+         >=> htmlString (Layout.bare content appCtx |> RenderView.AsString.htmlDocument)) next ctx
+}
 
 /// Validate the anti cross-site request forgery token in the current request
 let validateCsrf : HttpHandler = fun next ctx -> task {
@@ -348,59 +388,61 @@ let requireUser : HttpHandler = requiresAuthentication Error.notAuthorized
 /// Require a specific level of access for a route
 let requireAccess level : HttpHandler = fun next ctx -> task {
     match ctx.UserAccessLevel with
-    | Some userLevel when AccessLevel.hasAccess level userLevel -> return! next ctx
+    | Some userLevel when userLevel.HasAccess level -> return! next ctx
     | Some userLevel ->
         do! addMessage ctx
-                { UserMessage.warning with
-                    Message = $"The page you tried to access requires {AccessLevel.toString level} privileges"
-                    Detail = Some $"Your account only has {AccessLevel.toString userLevel} privileges"
-                }
+                { UserMessage.Warning with
+                    Message = $"The page you tried to access requires {level} privileges"
+                    Detail = Some $"Your account only has {userLevel} privileges" }
         return! Error.notAuthorized next ctx
     | None ->
         do! addMessage ctx
-                { UserMessage.warning with Message = "The page you tried to access required you to be logged on" }
+                { UserMessage.Warning with Message = "The page you tried to access required you to be logged on" }
         return! Error.notAuthorized next ctx
 }
 
 /// Determine if a user is authorized to edit a page or post, given the author        
-let canEdit authorId (ctx : HttpContext) =
+let canEdit authorId (ctx: HttpContext) =
     ctx.UserId = authorId || ctx.HasAccessLevel Editor
 
 open System.Threading.Tasks
 
 /// Create a Task with a Some result for the given object
-let someTask<'T> (it : 'T) = Task.FromResult (Some it)
+let someTask<'T> (it: 'T) = Task.FromResult(Some it)
 
-open System.Collections.Generic
+/// Create an absolute URL from a string that may already be an absolute URL
+let absoluteUrl (url: string) (ctx: HttpContext) =
+    if url.StartsWith "http" then url else ctx.WebLog.AbsoluteUrl(Permalink url)
+
+
 open MyWebLog.Data
 
-/// Get the templates available for the current web log's theme (in a key/value pair list)
-let templatesForTheme (ctx : HttpContext) (typ : string) = backgroundTask {
+/// Get the templates available for the current web log's theme (in a meta item list)
+let templatesForTheme (ctx: HttpContext) (typ: string) = backgroundTask {
     match! ctx.Data.Theme.FindByIdWithoutText ctx.WebLog.ThemeId with
     | Some theme ->
         return seq {
-            KeyValuePair.Create ("", $"- Default (single-{typ}) -")
+            { Name = ""; Value = $"- Default (single-{typ}) -" }
             yield!
                 theme.Templates
                 |> Seq.ofList
                 |> Seq.filter (fun it -> it.Name.EndsWith $"-{typ}" && it.Name <> $"single-{typ}")
-                |> Seq.map (fun it -> KeyValuePair.Create (it.Name, it.Name))
+                |> Seq.map (fun it -> { Name = it.Name; Value = it.Name })
         }
-        |> Array.ofSeq
-    | None -> return [| KeyValuePair.Create ("", $"- Default (single-{typ}) -") |]
+    | None -> return seq { { Name = ""; Value = $"- Default (single-{typ}) -" } }
 }
 
 /// Get all authors for a list of posts as metadata items
-let getAuthors (webLog : WebLog) (posts : Post list) (data : IData) =
+let getAuthors (webLog: WebLog) (posts: Post list) (data: IData) =
     posts
-    |> List.map (fun p -> p.AuthorId)
+    |> List.map _.AuthorId
     |> List.distinct
     |> data.WebLogUser.FindNames webLog.Id
 
 /// Get all tag mappings for a list of posts as metadata items
-let getTagMappings (webLog : WebLog) (posts : Post list) (data : IData) =
+let getTagMappings (webLog: WebLog) (posts: Post list) (data: IData) =
     posts
-    |> List.map (fun p -> p.Tags)
+    |> List.map _.Tags
     |> List.concat
     |> List.distinct
     |> fun tags -> data.TagMap.FindMappingForTags tags webLog.Id
@@ -416,13 +458,12 @@ let getCategoryIds slug ctx =
     |> Seq.map (fun c -> CategoryId c.Id)
     |> List.ofSeq
 
-open System
-open System.Globalization
 open NodaTime
 
 /// Parse a date/time to UTC 
-let parseToUtc (date : string) =
-    Instant.FromDateTimeUtc (DateTime.Parse (date, null, DateTimeStyles.AdjustToUniversal))
+let parseToUtc (date: string) : Instant =
+    let result = roundTrip.Parse date
+    if result.Success then result.Value else raise result.Exception
 
 open Microsoft.Extensions.DependencyInjection
 open Microsoft.Extensions.Logging
@@ -431,25 +472,24 @@ open Microsoft.Extensions.Logging
 let mutable private debugEnabled : bool option = None
 
 /// Is debug enabled for handlers?
-let private isDebugEnabled (ctx : HttpContext) =
+let private isDebugEnabled (ctx: HttpContext) =
     match debugEnabled with
     | Some flag -> flag
     | None ->
-        let fac = ctx.RequestServices.GetRequiredService<ILoggerFactory> ()
+        let fac = ctx.RequestServices.GetRequiredService<ILoggerFactory>()
         let log = fac.CreateLogger "MyWebLog.Handlers"
-        debugEnabled <- Some (log.IsEnabled LogLevel.Debug)
+        debugEnabled <- Some(log.IsEnabled LogLevel.Debug)
         debugEnabled.Value
 
 /// Log a debug message
-let debug (name : string) ctx msg =
+let debug (name: string) ctx msg =
     if isDebugEnabled ctx then
-        let fac = ctx.RequestServices.GetRequiredService<ILoggerFactory> ()
+        let fac = ctx.RequestServices.GetRequiredService<ILoggerFactory>()
         let log = fac.CreateLogger $"MyWebLog.Handlers.{name}"
-        log.LogDebug (msg ())
+        log.LogDebug(msg ())
 
 /// Log a warning message
-let warn (name : string) (ctx : HttpContext) msg =
-    let fac = ctx.RequestServices.GetRequiredService<ILoggerFactory> ()
+let warn (name: string) (ctx: HttpContext) msg =
+    let fac = ctx.RequestServices.GetRequiredService<ILoggerFactory>()
     let log = fac.CreateLogger $"MyWebLog.Handlers.{name}"
     log.LogWarning msg
-    

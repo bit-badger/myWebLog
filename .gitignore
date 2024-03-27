@@ -261,7 +261,8 @@ src/MyWebLog/wwwroot/img/daniel-j-summers
 src/MyWebLog/wwwroot/img/bit-badger
 
 .ionide
+.vscode
 src/MyWebLog/appsettings.Production.json
 
 # SQLite database files
-src/MyWebLog/*.db*
+src/MyWebLog/data/*.db*

@@ -7,6 +7,7 @@ open Newtonsoft.Json
 open NodaTime
 
 /// The result of a category deletion attempt
+[<Struct>]
 type CategoryDeleteResult =
     /// The category was deleted successfully
     | CategoryDeleted
@@ -32,7 +33,7 @@ type ICategoryData =
     abstract member Delete : CategoryId -> WebLogId -> Task<CategoryDeleteResult>
     
     /// Find all categories for a web log, sorted alphabetically and grouped by hierarchy
-    abstract member FindAllForView : WebLogId -> Task<DisplayCategory[]>
+    abstract member FindAllForView : WebLogId -> Task<DisplayCategory array>
     
     /// Find a category by its ID
     abstract member FindById : CategoryId -> WebLogId -> Task<Category option>
@@ -53,7 +54,7 @@ type IPageData =
     /// Add a page
     abstract member Add : Page -> Task<unit>
     
-    /// Get all pages for the web log (excluding meta items, text, revisions, and prior permalinks)
+    /// Get all pages for the web log (excluding text, metadata, revisions, and prior permalinks)
     abstract member All : WebLogId -> Task<Page list>
     
     /// Count all pages for the given web log
@@ -84,7 +85,7 @@ type IPageData =
     abstract member FindListed : WebLogId -> Task<Page list>
     
     /// Find a page of pages (displayed in admin section) (excluding meta items, revisions and prior permalinks)
-    abstract member FindPageOfPages : WebLogId -> pageNbr : int -> Task<Page list>
+    abstract member FindPageOfPages : WebLogId -> pageNbr: int -> Task<Page list>
     
     /// Restore pages from a backup
     abstract member Restore : Page list -> Task<unit>
@@ -125,20 +126,20 @@ type IPostData =
     
     /// Find posts to be displayed on a category list page (excluding revisions and prior permalinks)
     abstract member FindPageOfCategorizedPosts :
-        WebLogId -> CategoryId list -> pageNbr : int -> postsPerPage : int -> Task<Post list>
+        WebLogId -> CategoryId list -> pageNbr: int -> postsPerPage: int -> Task<Post list>
     
-    /// Find posts to be displayed on an admin page (excluding revisions and prior permalinks)
-    abstract member FindPageOfPosts : WebLogId -> pageNbr : int -> postsPerPage : int -> Task<Post list>
+    /// Find posts to be displayed on an admin page (excluding text, revisions, and prior permalinks)
+    abstract member FindPageOfPosts : WebLogId -> pageNbr: int -> postsPerPage: int -> Task<Post list>
     
     /// Find posts to be displayed on a page (excluding revisions and prior permalinks)
-    abstract member FindPageOfPublishedPosts : WebLogId -> pageNbr : int -> postsPerPage : int -> Task<Post list>
+    abstract member FindPageOfPublishedPosts : WebLogId -> pageNbr: int -> postsPerPage: int -> Task<Post list>
     
     /// Find posts to be displayed on a tag list page (excluding revisions and prior permalinks)
     abstract member FindPageOfTaggedPosts :
-        WebLogId -> tag : string -> pageNbr : int -> postsPerPage : int -> Task<Post list>
+        WebLogId -> tag : string -> pageNbr: int -> postsPerPage: int -> Task<Post list>
     
     /// Find the next older and newer post for the given published date/time (excluding revisions and prior permalinks)
-    abstract member FindSurroundingPosts : WebLogId -> publishedOn : Instant -> Task<Post option * Post option>
+    abstract member FindSurroundingPosts : WebLogId -> publishedOn: Instant -> Task<Post option * Post option>
     
     /// Restore posts from a backup
     abstract member Restore : Post list -> Task<unit>
@@ -258,6 +259,9 @@ type IWebLogData =
     
     /// Find a web log by its ID
     abstract member FindById : WebLogId -> Task<WebLog option>
+    
+    /// Update redirect rules for a web log
+    abstract member UpdateRedirectRules : WebLog -> Task<unit>
     
     /// Update RSS options for a web log
     abstract member UpdateRssOptions : WebLog -> Task<unit>

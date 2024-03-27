@@ -9,6 +9,12 @@
   <ItemGroup>
     <Content Include="appsettings*.json" CopyToOutputDirectory="Always" />
     <Compile Include="Caches.fs" />
+    <Compile Include="Views\Helpers.fs" />
+    <Compile Include="Views\Admin.fs" />
+    <Compile Include="Views\Page.fs" />
+    <Compile Include="Views\Post.fs" />
+    <Compile Include="Views\User.fs" />
+    <Compile Include="Views\WebLog.fs" />
     <Compile Include="Handlers\Helpers.fs" />
     <Compile Include="Handlers\Admin.fs" />
     <Compile Include="Handlers\Feed.fs" />
@@ -23,13 +29,15 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="DotLiquid" Version="2.2.682" />
-    <PackageReference Include="Giraffe" Version="6.0.0" />
-    <PackageReference Include="Giraffe.Htmx" Version="1.8.5" />
-    <PackageReference Include="Giraffe.ViewEngine.Htmx" Version="1.8.5" />
-    <PackageReference Include="NeoSmart.Caching.Sqlite" Version="6.0.1" />
+    <PackageReference Include="BitBadger.AspNetCore.CanonicalDomains" Version="1.0.0" />
+    <PackageReference Include="DotLiquid" Version="2.2.692" />
+    <PackageReference Include="Giraffe" Version="6.3.0" />
+    <PackageReference Include="Giraffe.Htmx" Version="1.9.11" />
+    <PackageReference Include="Giraffe.ViewEngine.Htmx" Version="1.9.11" />
+    <PackageReference Include="NeoSmart.Caching.Sqlite.AspNetCore" Version="8.0.0" />
     <PackageReference Include="RethinkDB.DistributedCache" Version="1.0.0-rc1" />
-    <PackageReference Include="System.ServiceModel.Syndication" Version="7.0.0" />
+    <PackageReference Include="System.ServiceModel.Syndication" Version="8.0.0" />
+    <PackageReference Update="FSharp.Core" Version="8.0.200" />
   </ItemGroup>
 
   <ItemGroup>
@@ -39,6 +47,12 @@
 
   <ItemGroup>
     <None Include=".\wwwroot\upload\*" CopyToOutputDirectory="Always" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>MyWebLog.Tests</_Parameter1>
+    </AssemblyAttribute>
   </ItemGroup>
 
 </Project>

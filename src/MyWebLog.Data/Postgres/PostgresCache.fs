@@ -2,38 +2,37 @@ namespace MyWebLog.Data.Postgres
 
 open System.Threading
 open System.Threading.Tasks
-open BitBadger.Npgsql.FSharp.Documents
+open BitBadger.Documents.Postgres
 open Microsoft.Extensions.Caching.Distributed
 open NodaTime
-open Npgsql.FSharp
 
 /// Helper types and functions for the cache
 [<AutoOpen>]
 module private Helpers =
     
     /// The cache entry
-    type Entry =
-        {   /// The ID of the cache entry
-            Id : string
-            
-            /// The value to be cached
-            Payload : byte[]
-            
-            /// When this entry will expire
-            ExpireAt : Instant
-            
-            /// The duration by which the expiration should be pushed out when being refreshed
-            SlidingExpiration : Duration option
-            
-            /// The must-expire-by date/time for the cache entry
-            AbsoluteExpiration : Instant option
-        }
+    type Entry = {
+        /// The ID of the cache entry
+        Id: string
+        
+        /// The value to be cached
+        Payload: byte array
+        
+        /// When this entry will expire
+        ExpireAt: Instant
+        
+        /// The duration by which the expiration should be pushed out when being refreshed
+        SlidingExpiration: Duration option
+        
+        /// The must-expire-by date/time for the cache entry
+        AbsoluteExpiration: Instant option
+    }
     
     /// Run a task synchronously
-    let sync<'T> (it : Task<'T>) = it |> (Async.AwaitTask >> Async.RunSynchronously)
+    let sync<'T> (it: Task<'T>) = it |> (Async.AwaitTask >> Async.RunSynchronously)
     
     /// Get the current instant
-    let getNow () = SystemClock.Instance.GetCurrentInstant ()
+    let getNow () = SystemClock.Instance.GetCurrentInstant()
     
     /// Create a parameter for the expire-at time
     let expireParam =
@@ -49,9 +48,11 @@ type DistributedCache () =
         task {
             let! exists =
                 Custom.scalar
-                    $"SELECT EXISTS
-                        (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'session')
-                      AS {existsName}" [] Map.toExists
+                    "SELECT EXISTS
+                       (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'session')
+                     AS it"
+                    []
+                    toExists
             if not exists then
                 do! Custom.nonQuery
                         "CREATE TABLE session (
@@ -69,13 +70,15 @@ type DistributedCache () =
     let getEntry key = backgroundTask {
         let idParam = "@id", Sql.string key
         let! tryEntry =
-            Custom.single "SELECT * FROM session WHERE id = @id" [ idParam ]
-                          (fun row ->
-                              {   Id                 = row.string                     "id"
-                                  Payload            = row.bytea                      "payload"
-                                  ExpireAt           = row.fieldValue<Instant>        "expire_at"
-                                  SlidingExpiration  = row.fieldValueOrNone<Duration> "sliding_expiration"
-                                  AbsoluteExpiration = row.fieldValueOrNone<Instant>  "absolute_expiration"   })
+            Custom.single
+                "SELECT * FROM session WHERE id = @id"
+                [ idParam ]
+                (fun row ->
+                      { Id                 = row.string                     "id"
+                        Payload            = row.bytea                      "payload"
+                        ExpireAt           = row.fieldValue<Instant>        "expire_at"
+                        SlidingExpiration  = row.fieldValueOrNone<Duration> "sliding_expiration"
+                        AbsoluteExpiration = row.fieldValueOrNone<Instant>  "absolute_expiration" })
         match tryEntry with
         | Some entry ->
             let now      = getNow ()
@@ -88,8 +91,9 @@ type DistributedCache () =
                     true, { entry with ExpireAt = absExp }
                 else true, { entry with ExpireAt = now.Plus slideExp }
             if needsRefresh then
-                do! Custom.nonQuery "UPDATE session SET expire_at = @expireAt WHERE id = @id"
-                                    [ expireParam item.ExpireAt; idParam ]
+                do! Custom.nonQuery
+                        "UPDATE session SET expire_at = @expireAt WHERE id = @id"
+                        [ expireParam item.ExpireAt; idParam ]
                 ()
             return if item.ExpireAt > now then Some entry else None
         | None -> return None
@@ -101,17 +105,17 @@ type DistributedCache () =
     /// Purge expired entries every 30 minutes
     let purge () = backgroundTask {
         let now = getNow ()
-        if lastPurge.Plus (Duration.FromMinutes 30L) < now then
+        if lastPurge.Plus(Duration.FromMinutes 30L) < now then
             do! Custom.nonQuery "DELETE FROM session WHERE expire_at < @expireAt" [ expireParam now ]
             lastPurge <- now
     }
     
     /// Remove a cache entry
     let removeEntry key =
-        Delete.byId "session" key
+        Custom.nonQuery "DELETE FROM session WHERE id = @id" [ "@id", Sql.string key ]
     
     /// Save an entry
-    let saveEntry (opts : DistributedCacheEntryOptions) key payload =
+    let saveEntry (opts: DistributedCacheEntryOptions) key payload =
         let now = getNow ()
         let expireAt, slideExp, absExp =
             if opts.SlidingExpiration.HasValue then
@@ -121,7 +125,7 @@ type DistributedCache () =
                 let exp = Instant.FromDateTimeOffset opts.AbsoluteExpiration.Value
                 exp, None, Some exp
             elif opts.AbsoluteExpirationRelativeToNow.HasValue then
-                let exp = now.Plus (Duration.FromTimeSpan opts.AbsoluteExpirationRelativeToNow.Value)
+                let exp = now.Plus(Duration.FromTimeSpan opts.AbsoluteExpirationRelativeToNow.Value)
                 exp, None, Some exp
             else
                 // Default to 1 hour sliding expiration
@@ -146,7 +150,7 @@ type DistributedCache () =
     // ~~~ IMPLEMENTATION FUNCTIONS ~~~
     
     /// Retrieve the data for a cache entry
-    let get key (_ : CancellationToken) = backgroundTask {
+    let get key (_: CancellationToken) = backgroundTask {
         match! getEntry key with
         | Some entry ->
             do! purge ()
@@ -155,29 +159,29 @@ type DistributedCache () =
     }
     
     /// Refresh an entry
-    let refresh key (cancelToken : CancellationToken) = backgroundTask {
+    let refresh key (cancelToken: CancellationToken) = backgroundTask {
         let! _ = get key cancelToken
         ()
     }
     
     /// Remove an entry
-    let remove key (_ : CancellationToken) = backgroundTask {
+    let remove key (_: CancellationToken) = backgroundTask {
         do! removeEntry key
         do! purge ()
     }
     
     /// Set an entry
-    let set key value options (_ : CancellationToken) = backgroundTask {
+    let set key value options (_: CancellationToken) = backgroundTask {
         do! saveEntry options key value
         do! purge ()
     }
     
     interface IDistributedCache with
         member _.Get key = get key CancellationToken.None |> sync
-        member _.GetAsync (key, token) = get key token
+        member _.GetAsync(key, token) = get key token
         member _.Refresh key = refresh key CancellationToken.None |> sync
-        member _.RefreshAsync (key, token) = refresh key token
+        member _.RefreshAsync(key, token) = refresh key token
         member _.Remove key = remove key CancellationToken.None |> sync
-        member _.RemoveAsync (key, token) = remove key token
-        member _.Set (key, value, options) = set key value options CancellationToken.None |> sync
-        member _.SetAsync (key, value, options, token) = set key value options token
+        member _.RemoveAsync(key, token) = remove key token
+        member _.Set(key, value, options) = set key value options CancellationToken.None |> sync
+        member _.SetAsync(key, value, options, token) = set key value options token

@@ -1,0 +1,38 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Domain\SupportTypesTests.fs" />
+    <Compile Include="Domain\DataTypesTests.fs" />
+    <Compile Include="Domain\ViewModelsTests.fs" />
+    <Compile Include="Data\ConvertersTests.fs" />
+    <Compile Include="Data\UtilsTests.fs" />
+    <Compile Include="Data\CategoryDataTests.fs" />
+    <Compile Include="Data\PageDataTests.fs" />
+    <Compile Include="Data\PostDataTests.fs" />
+    <Compile Include="Data\TagMapDataTests.fs" />
+    <Compile Include="Data\ThemeDataTests.fs" />
+    <Compile Include="Data\UploadDataTests.fs" />
+    <Compile Include="Data\WebLogUserDataTests.fs" />
+    <Compile Include="Data\WebLogDataTests.fs" />
+    <Compile Include="Data\RethinkDbDataTests.fs" />
+    <Compile Include="Data\SQLiteDataTests.fs" />
+    <Compile Include="Data\PostgresDataTests.fs" />
+    <Compile Include="Program.fs" />
+    <None Include="root-weblog.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Expecto" Version="10.2.1" />
+    <PackageReference Include="ThrowawayDb.Postgres" Version="1.4.0" />
+    <PackageReference Update="FSharp.Core" Version="8.0.200" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MyWebLog\MyWebLog.fsproj" />
+  </ItemGroup>
+
+</Project>

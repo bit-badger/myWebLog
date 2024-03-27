@@ -1,93 +1,78 @@
 namespace MyWebLog.Data.SQLite
 
 open System.IO
+open BitBadger.Documents.Sqlite
 open Microsoft.Data.Sqlite
+open Microsoft.Extensions.Logging
 open MyWebLog
 open MyWebLog.Data
 
-/// SQLite myWebLog web log data implementation        
-type SQLiteUploadData (conn : SqliteConnection) =
+/// SQLite myWebLog web log data implementation
+type SQLiteUploadData(conn: SqliteConnection, log: ILogger) =
 
-    /// Add parameters for uploaded file INSERT and UPDATE statements
-    let addUploadParameters (cmd : SqliteCommand) (upload : Upload) =
-        [   cmd.Parameters.AddWithValue ("@id",         UploadId.toString upload.Id)
-            cmd.Parameters.AddWithValue ("@webLogId",   WebLogId.toString upload.WebLogId)
-            cmd.Parameters.AddWithValue ("@path",       Permalink.toString upload.Path)
-            cmd.Parameters.AddWithValue ("@updatedOn",  instantParam upload.UpdatedOn)
-            cmd.Parameters.AddWithValue ("@dataLength", upload.Data.Length)
-        ] |> ignore
-    
     /// Save an uploaded file
-    let add upload = backgroundTask {
-        use cmd = conn.CreateCommand ()
-        cmd.CommandText <-
-            "INSERT INTO upload (
-                id, web_log_id, path, updated_on, data
-            ) VALUES (
-                @id, @webLogId, @path, @updatedOn, ZEROBLOB(@dataLength)
-            )"
-        addUploadParameters cmd upload
-        do! write cmd
-        
-        cmd.CommandText <- "SELECT ROWID FROM upload WHERE id = @id"
-        let! rowId = cmd.ExecuteScalarAsync ()
-        
-        use dataStream = new MemoryStream (upload.Data)
-        use blobStream = new SqliteBlob (conn, "upload", "data", rowId :?> int64)
+    let add (upload: Upload) = backgroundTask {
+        log.LogTrace "Upload.add"
+        do! conn.customNonQuery
+                $"INSERT INTO {Table.Upload} (
+                    id, web_log_id, path, updated_on, data
+                  ) VALUES (
+                    @id, @webLogId, @path, @updatedOn, ZEROBLOB(@dataLength)
+                  )"
+                [ idParam     upload.Id
+                  webLogParam upload.WebLogId
+                  sqlParam "@path"       (string upload.Path)
+                  sqlParam "@updatedOn"  (instantParam upload.UpdatedOn)
+                  sqlParam "@dataLength" upload.Data.Length ]
+        let! rowId =
+            conn.customScalar $"SELECT ROWID FROM {Table.Upload} WHERE id = @id" [ idParam upload.Id ] _.GetInt64(0)
+        use dataStream = new MemoryStream(upload.Data)
+        use blobStream = new SqliteBlob(conn, Table.Upload, "data", rowId)
         do! dataStream.CopyToAsync blobStream
     }
     
     /// Delete an uploaded file by its ID
-    let delete uploadId webLogId = backgroundTask {
-        use cmd = conn.CreateCommand ()
-        cmd.CommandText <-
-            "SELECT id, web_log_id, path, updated_on
-               FROM upload
-              WHERE id         = @id
-                AND web_log_id = @webLogId"
-        addWebLogId cmd webLogId
-        cmd.Parameters.AddWithValue ("@id", UploadId.toString uploadId) |> ignore
-        let! rdr = cmd.ExecuteReaderAsync ()
-        if (rdr.Read ()) then
-            let upload = Map.toUpload false rdr
-            do! rdr.CloseAsync ()
-            cmd.CommandText <- "DELETE FROM upload WHERE id = @id AND web_log_id = @webLogId"
-            do! write cmd
-            return Ok (Permalink.toString upload.Path)
-        else
-            return Error $"""Upload ID {cmd.Parameters["@id"]} not found"""
+    let delete (uploadId: UploadId) webLogId = backgroundTask {
+        log.LogTrace "Upload.delete"
+        let! upload =
+            conn.customSingle
+                $"SELECT id, web_log_id, path, updated_on FROM {Table.Upload} WHERE id = @id AND web_log_id = @webLogId"
+                [ idParam uploadId; webLogParam webLogId ]
+                (Map.toUpload false)
+        match upload with
+        | Some up ->
+            do! conn.customNonQuery $"DELETE FROM {Table.Upload} WHERE id = @id" [ idParam up.Id ]
+            return Ok (string up.Path)
+        | None -> return Error $"Upload ID {string uploadId} not found"
     }
     
     /// Find an uploaded file by its path for the given web log
-    let findByPath (path : string) webLogId = backgroundTask {
-        use cmd = conn.CreateCommand ()
-        cmd.CommandText <- "SELECT *, ROWID FROM upload WHERE web_log_id = @webLogId AND path = @path"
-        addWebLogId cmd webLogId
-        cmd.Parameters.AddWithValue ("@path", path) |> ignore
-        let! rdr = cmd.ExecuteReaderAsync ()
-        return if rdr.Read () then Some (Map.toUpload true rdr) else None
-    }
+    let findByPath (path: string) webLogId =
+        log.LogTrace "Upload.findByPath"
+        conn.customSingle
+            $"SELECT *, ROWID FROM {Table.Upload} WHERE web_log_id = @webLogId AND path = @path"
+            [ webLogParam webLogId; sqlParam "@path" path ]
+            (Map.toUpload true)
     
     /// Find all uploaded files for the given web log (excludes data)
-    let findByWebLog webLogId = backgroundTask {
-        use cmd = conn.CreateCommand ()
-        cmd.CommandText <- "SELECT id, web_log_id, path, updated_on FROM upload WHERE web_log_id = @webLogId"
-        addWebLogId cmd webLogId
-        let! rdr = cmd.ExecuteReaderAsync ()
-        return toList (Map.toUpload false) rdr
-    }
+    let findByWebLog webLogId =
+        log.LogTrace "Upload.findByWebLog"
+        conn.customList
+            $"SELECT id, web_log_id, path, updated_on FROM {Table.Upload} WHERE web_log_id = @webLogId"
+            [ webLogParam webLogId ]
+            (Map.toUpload false)
     
     /// Find all uploaded files for the given web log
-    let findByWebLogWithData webLogId = backgroundTask {
-        use cmd = conn.CreateCommand ()
-        cmd.CommandText <- "SELECT *, ROWID FROM upload WHERE web_log_id = @webLogId"
-        addWebLogId cmd webLogId
-        let! rdr = cmd.ExecuteReaderAsync ()
-        return toList (Map.toUpload true) rdr
-    }
+    let findByWebLogWithData webLogId =
+        log.LogTrace "Upload.findByWebLogWithData"
+        conn.customList
+            $"SELECT *, ROWID FROM {Table.Upload} WHERE web_log_id = @webLogId"
+            [ webLogParam webLogId ]
+            (Map.toUpload true)
     
     /// Restore uploads from a backup
     let restore uploads = backgroundTask {
+        log.LogTrace "Upload.restore"
         for upload in uploads do do! add upload
     }
     

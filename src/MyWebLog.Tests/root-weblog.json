@@ -1,0 +1,380 @@
+{
+  "WebLog": {
+    "Id": "uSitJEuD3UyzWC9jgOHc8g",
+    "Name": "Root WebLog",
+    "Slug": "root-weblog",
+    "Subtitle": "This is the main one",
+    "DefaultPage": "posts",
+    "PostsPerPage": 9,
+    "ThemeId": "default",
+    "UrlBase": "http://localhost:8081",
+    "TimeZone": "America/Denver",
+    "Rss": {
+      "IsFeedEnabled": true,
+      "FeedName": "feed",
+      "ItemsInFeed": 7,
+      "IsCategoryEnabled": true,
+      "IsTagEnabled": true,
+      "Copyright": "CC40-NC-BY",
+      "CustomFeeds": [
+        {
+          "Id": "isPQ6drbDEydxohQzaiYtQ",
+          "Source": "tag:podcast",
+          "Path": "podcast-feed",
+          "Podcast": {
+            "Title": "Root Podcast",
+            "ItemsInFeed": 23,
+            "Summary": "All things that happen in the domain root",
+            "DisplayedAuthor": "Podcaster Extraordinaire",
+            "Email": "podcaster@example.com",
+            "ImageUrl": "images/cover-art.png",
+            "AppleCategory": "Fiction",
+            "AppleSubcategory": "Drama",
+            "Explicit": "no",
+            "DefaultMediaType": "audio/mpeg",
+            "MediaBaseUrl": "https://media.example.com/root/",
+            "PodcastGuid": "10fd7f79-c719-4e1d-9da7-10405dd4fd96",
+            "FundingUrl": "https://example.com/support-us",
+            "FundingText": "Support Our Work",
+            "Medium": "newsletter"
+          }
+        }
+      ]
+    },
+    "AutoHtmx": true,
+    "Uploads": "Database",
+    "RedirectRules": []
+  },
+  "Users": [
+    {
+      "Id": "5EM2rimH9kONpmd2zQkiVA",
+      "WebLogId": "uSitJEuD3UyzWC9jgOHc8g",
+      "Email": "root@example.com",
+      "FirstName": "Root",
+      "LastName": "Owner",
+      "PreferredName": "Admin",
+      "PasswordHash": "AQAAAAIAAYagAAAAEEnq9J9lKZoMQZaTOJHKIQo44skDdzDigzqS+o6myMop38YuHfm/vNs9b/WpYjsOxg==",
+      "AccessLevel": "Administrator",
+      "CreatedOn": "2024-01-20T21:49:03Z",
+      "LastSeenOn": "2024-01-20T22:25:03Z"
+    },
+    {
+      "Id": "GPbJaSOwTkKt14ZKYyveKA",
+      "WebLogId": "uSitJEuD3UyzWC9jgOHc8g",
+      "Email": "editor@example.com",
+      "FirstName": "Ed",
+      "LastName": "It-Or",
+      "PreferredName": "Edits",
+      "PasswordHash": "AQAAAAIAAYagAAAAEA8E3NwJkZO+q35FTmUT0wMNB8IpBOSVACKQcccXpaWfZJMRmZzjPEzd4j/f9h+rEA==",
+      "AccessLevel": "Editor",
+      "CreatedOn": "2024-01-20T21:58:42Z"
+    },
+    {
+      "Id": "iIRNLSeY0EanxRPyqGuwVg",
+      "WebLogId": "uSitJEuD3UyzWC9jgOHc8g",
+      "Email": "author@example.com",
+      "FirstName": "Author",
+      "LastName": "Dude",
+      "PreferredName": "Mister",
+      "PasswordHash": "AQAAAAIAAYagAAAAEBYNf1sR/pjaX2dZgqlvpH/Tqpz2h/CG3rsk/wH2ReTysjpK/gxSqht7IULWXM7KHQ==",
+      "Url": "https://example.com/author",
+      "AccessLevel": "Author",
+      "CreatedOn": "2024-01-20T21:53:27Z"
+    }
+  ],
+  "Theme": {
+    "Id": "default",
+    "Name": "myWebLog Default Theme",
+    "Version": "2.1.0",
+    "Templates": [
+      {
+        "Name": "single-post",
+        "Text": "{%- assign post = model.posts | first -%}\n<h1>{{ post.title }}</h1>\n<h4 class=\"item-meta text-muted\">\n  {% if post.published_on -%}\n    Published {{ post.published_on | date: \"dddd, MMMM d, yyyy\" }}\n    at {{ post.published_on | date: \"h:mm tt\" | downcase }}\n  {%- else -%}\n    **DRAFT**\n  {% endif %}\n  by {{ model.authors | value: post.author_id }}\n  {%- if is_editor or is_author and user_id == post.author_id %}\n    &bull; <a hx-boost=false href=\"{{ post | edit_post_link }}\">Edit Post</a>\n  {%- endif %}\n</h4>\n<div>\n  <article class=\"container mt-3\">\n    <div>{{ post.text }}</div>\n    {%- assign cat_count = post.category_ids | size -%}\n    {% if cat_count > 0 -%}\n      <h4 class=\"item-meta text-muted\">\n        Categorized under\n        {% for cat_id in post.category_ids -%}\n          {% assign cat = categories | where: \"Id\", cat_id | first %}\n          <span class=text-nowrap>\n            <a href=\"{{ cat | category_link }}\" title=\"Categorized under &ldquo;{{ cat.name | escape }}&rdquo;\">\n              {{ cat.name }}\n            </a>\n          </span>\n          {% unless forloop.last %} &bull; {% endunless %}\n        {%- endfor %}\n      </h4>\n    {%- endif %}\n    {%- assign tag_count = post.tags | size -%}\n    {% if tag_count > 0 -%}\n      <h4 class=\"item-meta text-muted\">\n        Tagged\n        {% for tag in post.tags %}\n          <span class=text-nowrap>\n            <a href=\"{{ tag | tag_link }}\" title=\"Posts tagged &ldquo;{{ tag | escape }}&rdquo;\" rel=\"tag\">{{ tag }}</a>\n          </span>\n          {% unless forloop.last %} &bull; {% endunless %}\n        {%- endfor %}\n      </h4>\n    {%- endif %}\n  </article>\n  <div>\n    <nav aria-label=pagination>\n      <ul class=\"pagination justify-content-evenly mt-5\">\n      {% if model.newer_link -%}\n        <li class=page-item>\n        <a class=page-link href=\"{{ model.newer_link.value | relative_link }}\">{{ model.newer_name.value }}</a>\n        <span class=text-muted>&laquo; Previous Post</span>\n      {% endif %}\n      {% if model.older_link -%}\n        <li class=\"page-item text-end\">\n        <a class=page-link href=\"{{ model.older_link.value | relative_link }}\">{{ model.older_name.value }}</a>\n        <span class=text-muted>Next Post &raquo;</span>\n      {%- endif -%}\n      </ul>\n    </nav>\n  </div>\n</div>\n"
+      },
+      {
+        "Name": "single-page",
+        "Text": "<h2 class=py-3>{{ page.title }}</h2>\n<article class=\"container\">{{ page.text }}</article>\n"
+      },
+      {
+        "Name": "layout",
+        "Text": "<!DOCTYPE html>\n<html lang=en>\n  <meta charset=utf-8>\n  <meta name=viewport content=\"width=device-width\">\n  <link rel=stylesheet href=https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css\n        integrity=sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3 crossorigin=anonymous>\n  <title>{{ page_title | strip_html }}{% if page_title %} &laquo; {% endif %}{{ web_log.name | strip_html }}</title>\n  {% page_head -%}\n  <header>\n    <nav class=\"navbar navbar-light bg-light navbar-expand-md justify-content-start px-2\">\n      <div class=container-fluid>\n        <a class=navbar-brand href=\"{{ \"\" | relative_link }}\">{{ web_log.name }}</a>\n        <button class=navbar-toggler type=button data-bs-toggle=collapse data-bs-target=#navbarText\n                aria-controls=navbarText aria-expanded=false aria-label=\"Toggle navigation\">\n          <span class=navbar-toggler-icon></span>\n        </button>\n        <div class=\"collapse navbar-collapse\" id=navbarText>\n          {% if web_log.subtitle -%}\n            <span class=navbar-text>{{ web_log.subtitle.value }}</span>\n          {%- endif %}\n          <ul class=navbar-nav>\n          {% unless web_log.default_page == \"posts\" %}{{ \"page/1\" | nav_link: \"Posts\" }}{% endunless %}\n          {% if page_list -%}\n            {% for pg in page_list %}{{ pg.permalink | nav_link: pg.title }}{% endfor %}\n          {%- endif %}\n          </ul>\n          {% user_links %}\n        </div>\n      </div>\n    </nav>\n  </header>\n  <main class=mx-3>\n    {% if messages %}\n      <div class=messages>\n        {% for msg in messages %}\n          <div role=alert class=\"alert alert-{{ msg.level }} alert-dismissible fade show\">\n            {{ msg.message }}\n            <button type=button class=btn-close data-bs-dismiss=alert aria-label=Close></button>\n            {% if msg.detail %}<hr><p>{{ msg.detail.value }}{% endif %}\n          </div>\n        {% endfor %}\n      </div>\n    {% endif %}\n    {{ content }}  \n  </main>\n  <footer>\n    <hr>\n    <div class=\"container-fluid text-end\">\n      <img src=\"{{ \"themes/admin/logo-dark.png\" | relative_link }}\" alt=myWebLog width=120 height=34>\n    </div>\n  </footer>\n  <script src=https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js\n          integrity=sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p\n          crossorigin=anonymous></script>\n</html>\n"
+      },
+      {
+        "Name": "index",
+        "Text": "{%- if is_category or is_tag %}\n  <h1 class=index-title>{{ page_title }}</h1>\n  {%- if subtitle %}<h4 class=text-muted>{{ subtitle }}</h4>{% endif -%}\n{% endif %}\n{%- assign post_count = model.posts | size -%}\n{%- if post_count > 0 %}\n  <section class=\"container mt-3\" aria-label=\"The posts for the page\">\n    {%- for post in model.posts %}\n      <article>\n        <h1>\n          <a href=\"{{ post | relative_link }}\" title=\"Permanent link to &quot;{{ post.title | escape }}&quot;\">\n            {{ post.title }}\n          </a>\n        </h1>\n        <p>\n        Published on {{ post.published_on | date: \"MMMM d, yyyy\" }}\n        at {{ post.published_on | date: \"h:mmtt\" | downcase }}\n        by {{ model.authors | value: post.author_id }}\n        {{ post.text }}\n        {%- assign category_count = post.category_ids | size -%}\n        {%- assign tag_count = post.tags | size -%}\n        {% if category_count > 0 or tag_count > 0 %}\n          <footer>\n            <p>\n            {%- if category_count > 0 -%}\n              Categorized under:\n              {% for cat in post.category_ids -%}\n                {%- assign this_cat = categories | where: \"Id\", cat | first -%}\n                {{ this_cat.name }}{% unless forloop.last %}, {% endunless %}\n                {%- assign cat_names = this_cat.name | concat: cat_names -%}\n              {%- endfor -%}\n              {%- assign cat_names = \"\" -%}\n              <br>\n            {% endif -%}\n            {%- if tag_count > 0 %}\n              Tagged: {{ post.tags | join: \", \" }}\n            {% endif -%}\n          </footer>\n        {% endif %}\n        <hr>\n      </article>\n    {% endfor %}\n  </section>\n  <nav aria-label=pagination>\n    <ul class=\"pagination justify-content-evenly mt-2\">\n    {% if model.newer_link -%}\n      <li class=page-item><a class=page-link href=\"{{ model.newer_link.value }}\">&laquo; Newer Posts</a>\n    {% endif %}\n    {% if model.older_link -%}\n      <li class=page-item><a class=page-link href=\"{{ model.older_link.value }}\">Older Posts &raquo;</a>\n    {%- endif -%}\n    </ul>\n  </nav>\n{%- else %}\n  <article><p class=\"text-center mt-3\">No posts found</article>\n{%- endif %}\n"
+      }
+    ]
+  },
+  "Assets": [
+    {
+      "Id": "default/style.css",
+      "UpdatedOn": "2023-07-02T20:36:28Z",
+      "Data": "Lm1lc3NhZ2VzIHsKICBtYXgtd2lkdGg6IDYwcmVtOwogIG1hcmdpbjogYXV0bzsKfQpibG9ja3F1b3RlIHsKICBib3JkZXItbGVmdDogc29saWQgNHB4IGxpZ2h0Z3JheTsKICBwYWRkaW5nLWxlZnQ6IDFyZW07Cn0KLml0ZW0tbWV0YSB7CiAgZm9udC1zaXplOiAxLjFyZW07CiAgZm9udC13ZWlnaHQ6IG5vcm1hbDs7Cn0KLml0ZW0tbWV0YTo6YmVmb3JlIHsKICBjb250ZW50OiAiwrsiOwogIHZlcnRpY2FsLWFsaWduOiB0ZXh0LXRvcDsKfQphOmxpbmssIGE6dmlzaXRlZCB7CiAgdGV4dC1kZWNvcmF0aW9uOiBub25lOwp9CmE6aG92ZXIgewogIHRleHQtZGVjb3JhdGlvbjogdW5kZXJsaW5lOwp9Cg=="
+    }
+  ],
+  "Categories": [
+    {
+      "Id": "S5JflPsJ9EG7gA2LD4m92A",
+      "WebLogId": "uSitJEuD3UyzWC9jgOHc8g",
+      "Name": "Favorites",
+      "Slug": "favorites",
+      "Description": "Favorite posts"
+    },
+    {
+      "Id": "jw6N69YtTEWVHAO33jHU-w",
+      "WebLogId": "uSitJEuD3UyzWC9jgOHc8g",
+      "Name": "Spitball",
+      "Slug": "spitball",
+      "Description": "Posts that may or may not work"
+    },
+    {
+      "Id": "ScVpyu1e7UiP7bDdge3ZEw",
+      "WebLogId": "uSitJEuD3UyzWC9jgOHc8g",
+      "Name": "Moonshot",
+      "Slug": "moonshot",
+      "ParentId": "jw6N69YtTEWVHAO33jHU-w"
+    }
+  ],
+  "TagMappings": [
+    {
+      "Id": "Icm027noqE-rPHKZA98vAw",
+      "WebLogId": "uSitJEuD3UyzWC9jgOHc8g",
+      "Tag": "f#",
+      "UrlValue": "f-sharp"
+    },
+    {
+      "Id": "GdryXh-S0kGsNBs2RIacGA",
+      "WebLogId": "uSitJEuD3UyzWC9jgOHc8g",
+      "Tag": "ghoti",
+      "UrlValue": "fish"
+    }
+  ],
+  "Pages": [
+    {
+      "Id": "hgc_BLEZ50SoAWLuPNISvA",
+      "WebLogId": "uSitJEuD3UyzWC9jgOHc8g",
+      "AuthorId": "5EM2rimH9kONpmd2zQkiVA",
+      "Title": "Page Title",
+      "Permalink": "a-cool-page.html",
+      "PublishedOn": "2024-01-20T22:14:28Z",
+      "UpdatedOn": "2024-01-20T22:14:28Z",
+      "IsInPageList": false,
+      "Text": "<h1 id=\"a-cool-page\">A Cool Page</h1>\n<p>It really is cool!</p>\n",
+      "Metadata": [
+        {
+          "Name": "Cool",
+          "Value": "true"
+        },
+        {
+          "Name": "Warm",
+          "Value": "false"
+        }
+      ],
+      "PriorPermalinks": [
+        "a-cool-pg.html"
+      ],
+      "Revisions": [
+        {
+          "AsOf": "2024-01-20T22:14:28Z",
+          "Text": "Markdown: # A Cool Page\n\nIt really is cool!"
+        }
+      ]
+    },
+    {
+      "Id": "KouRjvSmm0Wz6TMD8xf67A",
+      "WebLogId": "uSitJEuD3UyzWC9jgOHc8g",
+      "AuthorId": "5EM2rimH9kONpmd2zQkiVA",
+      "Title": "Yet Another Page",
+      "Permalink": "this-again.html",
+      "PublishedOn": "2024-01-20T22:15:08Z",
+      "UpdatedOn": "2024-01-20T22:15:08Z",
+      "IsInPageList": true,
+      "Text": "<h1>Page 2</h1>\n\n<p>It's a trip.",
+      "Metadata": [],
+      "PriorPermalinks": [],
+      "Revisions": [
+        {
+          "AsOf": "2024-01-20T22:15:08Z",
+          "Text": "HTML: <h1>Page 2</h1>\n\n<p>It's a trip."
+        }
+      ]
+    }
+  ],
+  "Posts": [
+    {
+      "Id": "RCsCU2puYEmkpzotoi8p4g",
+      "WebLogId": "uSitJEuD3UyzWC9jgOHc8g",
+      "AuthorId": "5EM2rimH9kONpmd2zQkiVA",
+      "Status": "Published",
+      "Title": "Test Post 1",
+      "Permalink": "2024/test-post-1.html",
+      "PublishedOn": "2024-01-20T22:17:29Z",
+      "UpdatedOn": "2024-01-20T22:17:29Z",
+      "Text": "<h2 id=\"introduction\">Introduction</h2>\n<p>Visit <a href=\"https://example.com\">my web site</a> or <a href=\"/a-fine-page.html\">my local page</a> for more information.</p>\n",
+      "CategoryIds": [
+        "ScVpyu1e7UiP7bDdge3ZEw"
+      ],
+      "Tags": [
+        "f#",
+        "howdy",
+        "intro"
+      ],
+      "Metadata": [],
+      "PriorPermalinks": [],
+      "Revisions": [
+        {
+          "AsOf": "2024-01-20T22:17:29Z",
+          "Text": "Markdown: ## Introduction\n\nVisit [my web site](https://example.com) or [my local page](/a-fine-page.html) for more information."
+        }
+      ]
+    },
+    {
+      "Id": "osxMfWGlAkyugUbJ1-xD1g",
+      "WebLogId": "uSitJEuD3UyzWC9jgOHc8g",
+      "AuthorId": "5EM2rimH9kONpmd2zQkiVA",
+      "Status": "Published",
+      "Title": "Episode 1",
+      "Permalink": "2024/episode-1.html",
+      "PublishedOn": "2024-01-20T22:24:01Z",
+      "UpdatedOn": "2024-01-20T22:24:01Z",
+      "Text": "<p>It's the launch of my new podcast - y'all come listen!",
+      "CategoryIds": [
+        "S5JflPsJ9EG7gA2LD4m92A"
+      ],
+      "Tags": [
+        "general",
+        "podcast"
+      ],
+      "Episode": {
+        "Media": "episode-1.mp3",
+        "Length": 124302,
+        "Duration": "0:12:22",
+        "ImageUrl": "images/ep1-cover.png",
+        "Subtitle": "An introduction to this podcast",
+        "Explicit": "clean",
+        "ChapterFile": "uploads/chapters.json",
+        "TranscriptUrl": "uploads/transcript.srt",
+        "TranscriptType": "application/srt",
+        "TranscriptLang": "en",
+        "TranscriptCaptions": true,
+        "SeasonNumber": 1,
+        "SeasonDescription": "The First Season",
+        "EpisodeNumber": 1.0,
+        "EpisodeDescription": "The first episode ever!"
+      },
+      "Metadata": [
+        {
+          "Name": "Density",
+          "Value": "Non-existent"
+        },
+        {
+          "Name": "Intensity",
+          "Value": "Low"
+        }
+      ],
+      "PriorPermalinks": [
+        "2024/ep-1.html"
+      ],
+      "Revisions": [
+        {
+          "AsOf": "2024-01-20T22:24:01Z",
+          "Text": "HTML: <p>It's the launch of my new podcast - y'all come listen!"
+        }
+      ]
+    },
+    {
+      "Id": "l4_Eh4aFO06SqqJjOymNzA",
+      "WebLogId": "uSitJEuD3UyzWC9jgOHc8g",
+      "AuthorId": "iIRNLSeY0EanxRPyqGuwVg",
+      "Status": "Published",
+      "Title": "Episode 2",
+      "Permalink": "2024/episode-2.html",
+      "PublishedOn": "2024-01-20T22:31:32Z",
+      "UpdatedOn": "2024-01-20T22:31:32Z",
+      "Text": "<p>m i n i m a l",
+      "CategoryIds": [],
+      "Tags": [
+        "podcast"
+      ],
+      "Episode": {
+        "Media": "episode-2.mp3",
+        "Length": 12873952,
+        "Duration": "1:03:24",
+        "SeasonNumber": 1,
+        "SeasonDescription": "The First Season",
+        "EpisodeNumber": 2.0,
+        "EpisodeDescription": "A long update"
+      },
+      "Metadata": [],
+      "PriorPermalinks": [],
+      "Revisions": [
+        {
+          "AsOf": "2024-01-20T22:31:32Z",
+          "Text": "HTML: <p>m i n i m a l"
+        }
+      ]
+    },
+    {
+      "Id": "QweKbWQiOkqqrjEdgP9wwg",
+      "WebLogId": "uSitJEuD3UyzWC9jgOHc8g",
+      "AuthorId": "5EM2rimH9kONpmd2zQkiVA",
+      "Status": "Published",
+      "Title": "Something May Happen",
+      "Permalink": "2024/something.html",
+      "PublishedOn": "2024-01-20T22:32:59Z",
+      "UpdatedOn": "2024-01-20T22:32:59Z",
+      "Text": "<h2>Hmm</h2>",
+      "CategoryIds": [
+        "jw6N69YtTEWVHAO33jHU-w"
+      ],
+      "Tags": [
+        "f#",
+        "ghoti",
+        "speculation"
+      ],
+      "Metadata": [],
+      "PriorPermalinks": [
+        "2024/some-thing.html"
+      ],
+      "Revisions": [
+        {
+          "AsOf": "2024-01-20T22:32:59Z",
+          "Text": "HTML: <h2>Hmm</h2>"
+        }
+      ]
+    },
+    {
+      "Id": "VweKbWQiOkqqrjEdgP9wwg",
+      "WebLogId": "uSitJEuD3UyzWC9jgOHc8g",
+      "AuthorId": "5EM2rimH9kONpmd2zQkiVA",
+      "Status": "Draft",
+      "Title": "An Incomplete Thought",
+      "Permalink": "2024/still-cooking.html",
+      "UpdatedOn": "2024-01-24T22:35:00Z",
+      "Text": "<p>Think think think",
+      "CategoryIds": [
+        "jw6N69YtTEWVHAO33jHU-w"
+      ],
+      "Tags": [
+        "speculation"
+      ],
+      "Metadata": [],
+      "PriorPermalinks": [],
+      "Revisions": [
+        {
+          "AsOf": "2024-01-24T22:35:00Z",
+          "Text": "HTML: <p>Think think think"
+        }
+      ]
+    }
+  ],
+  "Uploads": [
+    {
+      "Id": "XweKbWQiOkqqrjEdgP9wwg",
+      "WebLogId": "uSitJEuD3UyzWC9jgOHc8g",
+      "Path": "2022/06/favicon.ico",
+      "UpdatedOn": "2022-06-23T21:15:40Z",
+      "Data": "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"
+    }
+  ]
+}

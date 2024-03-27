@@ -1,0 +1,99 @@
+name: Continuous Integration
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+env:
+  MWL_TEST_RETHINK_URI: rethinkdb://localhost/mwl_test
+jobs:
+  build_and_test:
+    name: Build / Test
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        dotnet-version:
+          - "6.0"
+          - "7.0"
+          - "8.0"
+
+    services:
+      postgres:
+        image: postgres:latest
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      rethink:
+        image: rethinkdb:latest
+        ports:
+          - 28015:28015
+    
+    steps:
+      - name: Check Out Code
+        uses: actions/checkout@v4
+      - name: Setup .NET Core SDK
+        uses: actions/setup-dotnet@v4.0.0
+        with:
+          dotnet-version: 8.x
+      - name: Restore dependencies
+        run: dotnet restore src/MyWebLog.sln
+      - name: Build (${{ matrix.dotnet-version }})
+        run: dotnet build src/MyWebLog.sln -f net${{ matrix.dotnet-version }}
+      - name: Test (${{ matrix.dotnet-version }})
+        run: cd src/MyWebLog.Tests; dotnet run -f net${{ matrix.dotnet-version }}
+
+  publish:
+    name: Publish Packages
+    runs-on: ubuntu-latest
+    needs: build_and_test
+    
+    strategy:
+      matrix:
+        ver:
+          - "net6.0"
+          - "net7.0"
+          - "net8.0"
+        os:
+          - "linux-x64"
+          - "win-x64"
+        include:
+          - os: "linux-x64"
+            bz2: true
+          - os: "win-x64"
+            zip: true
+    steps:
+      - name: Check Out Code
+        uses: actions/checkout@v4
+      - name: Setup .NET Core SDK
+        uses: actions/setup-dotnet@v4.0.0
+        with:
+          dotnet-version: 8.x
+      - name: Publish (Release)
+        run: dotnet publish -c Release -f ${{ matrix.ver }} -r ${{ matrix.os }} src/MyWebLog/MyWebLog.fsproj
+      - name: Zip Admin Theme
+        run: cd src/admin-theme; zip -r ../MyWebLog/bin/Release/${{ matrix.ver }}/${{ matrix.os }}/publish/admin-theme.zip *; cd ../..
+      - name: Zip Default Theme
+        run: cd src/default-theme; zip -r ../MyWebLog/bin/Release/${{ matrix.ver }}/${{ matrix.os }}/publish/default-theme.zip *; cd ../..
+      - if: ${{ matrix.bz2 }}
+        name: Create .tar.bz2 Archive
+        run: tar cfj myWebLog-${{ matrix.ver }}-${{ matrix.os }}.tar.bz2 -C src/MyWebLog/bin/Release/${{ matrix.ver }}/${{ matrix.os }}/publish .
+      - if: ${{ matrix.zip }}
+        name: Create .zip Archive
+        run: cd src/MyWebLog/bin/Release/${{ matrix.ver }}/${{ matrix.os }}/publish; zip -r myWebLog-${{ matrix.ver }}-${{ matrix.os }}.zip *; cp myWeb*.zip ../../../../../../..; cd ../../../../../../..
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-${{ matrix.ver }}-${{ matrix.os }}
+          path: |
+            *x64.zip
+            *.bz2

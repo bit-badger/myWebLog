@@ -33,7 +33,7 @@ let zipTheme (name : string) (_ : TargetParameter) =
     |> Zip.zipSpec $"{releasePath}/{name}-theme.zip"
 
 /// Frameworks supported by this build
-let frameworks = [ "net6.0"; "net7.0" ]
+let frameworks = [ "net6.0"; "net7.0"; "net8.0" ]
 
 /// Publish the project for the given runtime ID    
 let publishFor rid (_ : TargetParameter) =

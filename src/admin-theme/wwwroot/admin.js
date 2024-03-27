@@ -146,7 +146,7 @@ this.Admin = {
     newRow.appendChild(nameCol)
     newRow.appendChild(valueCol)
 
-    document.getElementById("metaItems").appendChild(newRow)
+    document.getElementById("meta_items").appendChild(newRow)
     this.nextMetaIndex++
   },
   
@@ -213,21 +213,43 @@ this.Admin = {
   },
 
   /**
+   * Set the chapter type for a podcast episode
+   * @param {"none"|"internal"|"external"} src The source for chapters for this episode
+   */
+  setChapterSource(src) {
+    document.getElementById("ContainsWaypoints").disabled = src === "none"
+    const isDisabled = src === "none" || src === "internal"
+    const chapterFile = document.getElementById("ChapterFile")
+    chapterFile.disabled = isDisabled
+    chapterFile.required = !isDisabled
+    document.getElementById("ChapterType").disabled = isDisabled
+    const link = document.getElementById("ChapterEditLink")
+    if (link) link.style.display = src === "none" || src === "external" ? "none" : ""
+  },
+  
+  /**
    * Enable or disable podcast fields
    */
   toggleEpisodeFields() {
-    const disabled = !document.getElementById("isEpisode").checked
-    ;[ "media", "mediaType", "length", "duration", "subtitle", "imageUrl", "explicit", "chapterFile", "chapterType",
-       "transcriptUrl", "transcriptType", "transcriptLang", "transcriptCaptions", "seasonNumber", "seasonDescription",
-       "episodeNumber", "episodeDescription"
-    ].forEach(it => document.getElementById(it).disabled = disabled)
+    const disabled = !document.getElementById("IsEpisode").checked
+    let fields = [
+      "Media", "MediaType", "Length", "Duration", "Subtitle", "ImageUrl", "Explicit", "TranscriptUrl", "TranscriptType",
+      "TranscriptLang", "TranscriptCaptions", "SeasonNumber", "SeasonDescription", "EpisodeNumber", "EpisodeDescription"
+    ]
+    if (disabled) {
+      fields.push("ChapterFile", "ChapterType", "ContainsWaypoints")
+    } else {
+      const src = [...document.getElementsByName("ChapterSource")].filter(it => it.checked)[0].value
+      this.setChapterSource(src)
+    }
+    fields.forEach(it => document.getElementById(it).disabled = disabled)
   },
   
   /**
    * Check to enable or disable podcast fields
    */
   checkPodcast() {
-    document.getElementById("podcastFields").disabled = !document.getElementById("isPodcast").checked
+    document.getElementById("podcastFields").disabled = !document.getElementById("IsPodcast").checked
   },
 
   /**
@@ -247,8 +269,8 @@ this.Admin = {
    * @param {string} source The source that was selected
    */
   customFeedBy(source) {
-    const categoryInput = document.getElementById("sourceValueCat")
-    const tagInput      = document.getElementById("sourceValueTag")
+    const categoryInput = document.getElementById("SourceValueCat")
+    const tagInput      = document.getElementById("SourceValueTag")
     if (source === "category") {
       tagInput.value         = ""
       tagInput.disabled      = true
@@ -280,7 +302,19 @@ this.Admin = {
    * Require transcript type if transcript URL is present
    */
   requireTranscriptType() {
-    document.getElementById("transcriptType").required = document.getElementById("transcriptUrl").value.trim() !== ""
+    document.getElementById("TranscriptType").required = document.getElementById("TranscriptUrl").value.trim() !== ""
+  },
+
+  /**
+   * Enable/disable fields based on whether chapter location checkbox is checked
+   */
+  checkChapterLocation() {
+    const isDisabled = !document.getElementById("has_location").checked
+    ;["LocationName", "LocationGeo", "LocationOsm"].forEach(it => {
+      const elt = document.getElementById(it)
+      elt.disabled = isDisabled
+      if (isDisabled) elt.value = ""
+    })
   },
 
   /**
@@ -341,9 +375,7 @@ this.Admin = {
    */
   showPreRenderedMessages() {
     [...document.querySelectorAll(".toast")].forEach(el => {
-      if (el.getAttribute("data-mwl-shown") === "true" && el.className.indexOf("hide") >= 0) {
-        document.removeChild(el)
-      } else {
+      if (el.getAttribute("data-mwl-shown") !== "true") {
         const toast = new bootstrap.Toast(el,
             el.getAttribute("data-bs-autohide") === "false"
                 ? { autohide: false } : { delay: 6000, autohide: true })

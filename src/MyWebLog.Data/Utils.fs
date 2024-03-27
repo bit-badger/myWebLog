@@ -5,54 +5,76 @@ module internal MyWebLog.Data.Utils
 open MyWebLog
 open MyWebLog.ViewModels
 
-/// The current database version
-let currentDbVersion = "v2"
-
 /// Create a category hierarchy from the given list of categories
-let rec orderByHierarchy (cats : Category list) parentId slugBase parentNames = seq {
+let rec orderByHierarchy (cats: Category list) parentId slugBase parentNames = seq {
     for cat in cats |> List.filter (fun c -> c.ParentId = parentId) do
         let fullSlug = (match slugBase with Some it -> $"{it}/" | None -> "") + cat.Slug
-        { Id          = CategoryId.toString cat.Id
+        { Id          = string cat.Id
           Slug        = fullSlug
           Name        = cat.Name
           Description = cat.Description
           ParentNames = Array.ofList parentNames
           // Post counts are filled on a second pass
-          PostCount   = 0
-        }
+          PostCount   = 0 }
         yield! orderByHierarchy cats (Some cat.Id) (Some fullSlug) ([ cat.Name ] |> List.append parentNames)
 }
 
 /// Get lists of items removed from and added to the given lists
-let diffLists<'T, 'U when 'U : equality> oldItems newItems (f : 'T -> 'U) =
+let diffLists<'T, 'U when 'U: equality> oldItems newItems (f: 'T -> 'U) =
     let diff compList = fun item -> not (compList |> List.exists (fun other -> f item = f other))
     List.filter (diff newItems) oldItems, List.filter (diff oldItems) newItems
 
-/// Find meta items added and removed
-let diffMetaItems (oldItems : MetaItem list) newItems =
-    diffLists oldItems newItems (fun item -> $"{item.Name}|{item.Value}")
-
-/// Find the permalinks added and removed
-let diffPermalinks oldLinks newLinks =
-    diffLists oldLinks newLinks Permalink.toString
-
 /// Find the revisions added and removed
-let diffRevisions oldRevs newRevs =
-    diffLists oldRevs newRevs (fun (rev : Revision) -> $"{rev.AsOf.ToUnixTimeTicks ()}|{MarkupText.toString rev.Text}")
+let diffRevisions (oldRevs: Revision list) newRevs =
+    diffLists oldRevs newRevs (fun rev -> $"{rev.AsOf.ToUnixTimeTicks()}|{rev.Text}")
 
 open MyWebLog.Converters
 open Newtonsoft.Json
 
 /// Serialize an object to JSON
-let serialize<'T> ser (item : 'T) =
-    JsonConvert.SerializeObject (item, Json.settings ser)
+let serialize<'T> ser (item: 'T) =
+    JsonConvert.SerializeObject(item, Json.settings ser)
 
 /// Deserialize a JSON string 
-let deserialize<'T> (ser : JsonSerializer) value =
-    JsonConvert.DeserializeObject<'T> (value, Json.settings ser)
+let deserialize<'T> (ser: JsonSerializer) value =
+    JsonConvert.DeserializeObject<'T>(value, Json.settings ser)
 
-open Microsoft.Extensions.Logging
+open BitBadger.Documents
 
-/// Log a migration step
-let logMigrationStep<'T> (log : ILogger<'T>) migration message =
-    log.LogInformation $"Migrating %s{migration}: %s{message}"
+/// Create a document serializer using the given JsonSerializer
+let createDocumentSerializer ser =
+    { new IDocumentSerializer with
+        member _.Serialize<'T>(it: 'T) : string = serialize ser it
+        member _.Deserialize<'T>(it: string) : 'T = deserialize ser it
+    }
+
+/// Data migration utilities
+module Migration =
+    
+    open Microsoft.Extensions.Logging
+
+    /// The current database version
+    let currentDbVersion = "v2.1"
+
+    /// Log a migration step
+    let logStep<'T> (log: ILogger<'T>) migration message =
+        log.LogInformation $"Migrating %s{migration}: %s{message}"
+
+    /// Notify the user that a backup/restore
+    let backupAndRestoreRequired log oldVersion newVersion webLogs =
+        logStep log $"%s{oldVersion} to %s{newVersion}" "Requires Using Action"
+
+        [ "** MANUAL DATABASE UPGRADE REQUIRED **"; ""
+          $"The data structure changed between {oldVersion} and {newVersion}."
+          "To migrate your data:"
+          $" - Use a {oldVersion} executable to back up each web log"
+          " - Drop all tables from the database"
+          " - Use this executable to restore each backup"; ""
+          "Commands to back up all web logs:"
+          yield! webLogs |> List.map (fun (url, slug) -> $"./myWebLog backup %s{url} {oldVersion}.%s{slug}.json") ]
+        |> String.concat "\n"
+        |> log.LogWarning
+        
+        log.LogCritical "myWebLog will now exit"
+        exit 1 |> ignore
+        

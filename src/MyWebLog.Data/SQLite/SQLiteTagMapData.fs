@@ -1,97 +1,62 @@
 namespace MyWebLog.Data.SQLite
 
+open BitBadger.Documents
+open BitBadger.Documents.Sqlite
 open Microsoft.Data.Sqlite
+open Microsoft.Extensions.Logging
 open MyWebLog
 open MyWebLog.Data
 
-/// SQLite myWebLog tag mapping data implementation        
-type SQLiteTagMapData (conn : SqliteConnection) =
+/// SQLite myWebLog tag mapping data implementation
+type SQLiteTagMapData(conn: SqliteConnection, log: ILogger) =
 
     /// Find a tag mapping by its ID for the given web log
-    let findById tagMapId webLogId = backgroundTask {
-        use cmd = conn.CreateCommand ()
-        cmd.CommandText <- "SELECT * FROM tag_map WHERE id = @id"
-        cmd.Parameters.AddWithValue ("@id", TagMapId.toString tagMapId) |> ignore
-        use! rdr = cmd.ExecuteReaderAsync ()
-        return Helpers.verifyWebLog<TagMap> webLogId (fun tm -> tm.WebLogId) Map.toTagMap rdr
-    }
+    let findById tagMapId webLogId =
+        log.LogTrace "TagMap.findById"
+        Document.findByIdAndWebLog<TagMapId, TagMap> Table.TagMap tagMapId webLogId conn
     
     /// Delete a tag mapping for the given web log
     let delete tagMapId webLogId = backgroundTask {
+        log.LogTrace "TagMap.delete"
         match! findById tagMapId webLogId with
         | Some _ ->
-            use cmd = conn.CreateCommand ()
-            cmd.CommandText <- "DELETE FROM tag_map WHERE id = @id"
-            cmd.Parameters.AddWithValue ("@id", TagMapId.toString tagMapId) |> ignore
-            do! write cmd
+            do! conn.deleteById Table.TagMap tagMapId
             return true
         | None -> return false
     }
     
     /// Find a tag mapping by its URL value for the given web log
-    let findByUrlValue (urlValue : string) webLogId = backgroundTask {
-        use cmd = conn.CreateCommand ()
-        cmd.CommandText <- "SELECT * FROM tag_map WHERE web_log_id = @webLogId AND url_value = @urlValue"
-        addWebLogId cmd webLogId
-        cmd.Parameters.AddWithValue ("@urlValue", urlValue) |> ignore
-        use! rdr = cmd.ExecuteReaderAsync ()
-        return if rdr.Read () then Some (Map.toTagMap rdr) else None
-    }
+    let findByUrlValue (urlValue: string) webLogId =
+        log.LogTrace "TagMap.findByUrlValue"
+        let urlParam = Field.EQ (nameof TagMap.Empty.UrlValue) urlValue
+        conn.customSingle
+            $"""{Document.Query.selectByWebLog Table.TagMap} AND {Query.whereByField urlParam "@urlValue"}"""
+            (addFieldParam "@urlValue" urlParam [ webLogParam webLogId ])
+            fromData<TagMap>
     
     /// Get all tag mappings for the given web log
-    let findByWebLog webLogId = backgroundTask {
-        use cmd = conn.CreateCommand ()
-        cmd.CommandText <- "SELECT * FROM tag_map WHERE web_log_id = @webLogId ORDER BY tag"
-        addWebLogId cmd webLogId
-        use! rdr = cmd.ExecuteReaderAsync ()
-        return toList Map.toTagMap rdr
-    }
+    let findByWebLog webLogId =
+        log.LogTrace "TagMap.findByWebLog"
+        Document.findByWebLog<TagMap> Table.TagMap webLogId conn
     
     /// Find any tag mappings in a list of tags for the given web log
-    let findMappingForTags (tags : string list) webLogId = backgroundTask {
-        use cmd = conn.CreateCommand ()
-        let mapSql, mapParams = inClause "AND tag" "tag" id tags
-        cmd.CommandText <- $"
-            SELECT *
-               FROM tag_map
-              WHERE web_log_id = @webLogId
-                {mapSql}"
-        addWebLogId cmd webLogId
-        cmd.Parameters.AddRange mapParams
-        use! rdr = cmd.ExecuteReaderAsync ()
-        return toList Map.toTagMap rdr
-    }
+    let findMappingForTags (tags: string list) webLogId =
+        log.LogTrace "TagMap.findMappingForTags"
+        let mapSql, mapParams = inClause $"AND data ->> '{nameof TagMap.Empty.Tag}'" "tag" id tags
+        conn.customList
+            $"{Document.Query.selectByWebLog Table.TagMap} {mapSql}"
+            (webLogParam webLogId :: mapParams)
+            fromData<TagMap>
     
     /// Save a tag mapping
-    let save (tagMap : TagMap) = backgroundTask {
-        use cmd = conn.CreateCommand ()
-        match! findById tagMap.Id tagMap.WebLogId with
-        | Some _ ->
-            cmd.CommandText <-
-                "UPDATE tag_map
-                    SET tag       = @tag,
-                        url_value = @urlValue
-                  WHERE id         = @id
-                    AND web_log_id = @webLogId"
-        | None ->
-            cmd.CommandText <-
-                "INSERT INTO tag_map (
-                    id, web_log_id, tag, url_value
-                ) VALUES (
-                    @id, @webLogId, @tag, @urlValue
-                )"
-        addWebLogId cmd tagMap.WebLogId
-        [   cmd.Parameters.AddWithValue ("@id",       TagMapId.toString tagMap.Id)
-            cmd.Parameters.AddWithValue ("@tag",      tagMap.Tag)
-            cmd.Parameters.AddWithValue ("@urlValue", tagMap.UrlValue)
-        ] |> ignore
-        do! write cmd
-    }
+    let save (tagMap: TagMap) =
+        log.LogTrace "TagMap.save"
+        conn.save Table.TagMap tagMap
     
     /// Restore tag mappings from a backup
     let restore tagMaps = backgroundTask {
-        for tagMap in tagMaps do
-            do! save tagMap
+        log.LogTrace "TagMap.restore"
+        for tagMap in tagMaps do do! save tagMap
     }
     
     interface ITagMapData with
