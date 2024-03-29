@@ -238,6 +238,12 @@ type RethinkDbData(conn: Net.IConnection, config: DataConfig, log: ILogger<Rethi
         do! setDbVersion "v2.1"
     }
     
+    /// Migrate from v2.1 to v2.1.1
+    let migrateV2ToV2point1point1 () = backgroundTask {
+        Utils.Migration.logStep log "v2.1 to v2.1.1" "Setting database version; no migration required"
+        do! setDbVersion "v2.1.1"
+    }
+
     /// Migrate data between versions
     let migrate version = backgroundTask {
         let mutable v = defaultArg version ""
@@ -253,6 +259,10 @@ type RethinkDbData(conn: Net.IConnection, config: DataConfig, log: ILogger<Rethi
         if v = "v2" then
             do! migrateV2ToV2point1 ()
             v <- "v2.1"
+        
+        if v = "v2.1" then
+            do! migrateV2ToV2point1point1 ()
+            v <- "v2.1.1"
         
         if v <> Utils.Migration.currentDbVersion then
             log.LogWarning $"Unknown database version; assuming {Utils.Migration.currentDbVersion}"
