@@ -54,7 +54,7 @@ module Migration =
     open Microsoft.Extensions.Logging
 
     /// The current database version
-    let currentDbVersion = "v2.1"
+    let currentDbVersion = "v2.1.1"
 
     /// Log a migration step
     let logStep<'T> (log: ILogger<'T>) migration message =
