@@ -129,8 +129,10 @@ type PostgresData(log: ILogger<PostgresData>, ser: JsonSerializer) =
     }
     
     /// Set a specific database version
-    let setDbVersion version =
-        Custom.nonQuery $"DELETE FROM db_version; INSERT INTO db_version VALUES ('%s{version}')" []
+    let setDbVersion version = backgroundTask {
+        do! Custom.nonQuery $"DELETE FROM db_version; INSERT INTO db_version VALUES ('%s{version}')" []
+        return version
+    }
     
     /// Migrate from v2-rc2 to v2 (manual migration required)
     let migrateV2Rc2ToV2 () = backgroundTask {
@@ -140,11 +142,11 @@ type PostgresData(log: ILogger<PostgresData>, ser: JsonSerializer) =
         Utils.Migration.backupAndRestoreRequired log "v2-rc2" "v2" webLogs
     }
 
-    /// Migrate from v2 to v2.1
-    let migrateV2ToV2point1 () = backgroundTask {
-        let migration = "v2 to v2.1"
+    /// Migrate from v2 to v2.1.1
+    let migrateV2ToV2point1point1 () = backgroundTask {
+        let migration = "v2 to v2.1.1"
         Utils.Migration.logStep log migration "Adding empty redirect rule set to all weblogs"
-        do! Custom.nonQuery $"""UPDATE {Table.WebLog} SET data = data + '{{ "RedirectRules": [] }}'::json""" []
+        do! Custom.nonQuery $"""UPDATE {Table.WebLog} SET data = data || '{{ "RedirectRules": [] }}'::jsonb""" []
 
         let tables =
             [ Table.Category; Table.Page; Table.Post; Table.PostComment; Table.TagMap; Table.Theme; Table.WebLog
@@ -153,36 +155,60 @@ type PostgresData(log: ILogger<PostgresData>, ser: JsonSerializer) =
         Utils.Migration.logStep log migration "Adding unique indexes on ID fields"
         do! Custom.nonQuery (tables |> List.map Query.Definition.ensureKey |> String.concat "; ") []
         
-        Utils.Migration.logStep log migration "Dropping old ID columns"
-        do! Custom.nonQuery (tables |> List.map (sprintf "ALTER TABLE %s DROP COLUMN id") |> String.concat "; ") []
-        
-        Utils.Migration.logStep log migration "Adjusting indexes"
-        let toDrop = [ "page_web_log_idx"; "post_web_log_idx" ]
-        do! Custom.nonQuery (toDrop |> List.map (sprintf "DROP INDEX %s") |> String.concat "; ") []
-        
-        let toRename =
-            [ "idx_category",          "idx_category_document"
-              "idx_tag_map",           "idx_tag_map_document"
-              "idx_web_log",           "idx_web_log_document"
-              "idx_web_log_user",      "idx_web_log_user_document"
-              "page_author_idx",       "idx_page_author"
-              "page_permalink_idx",    "idx_page_permalink"
-              "post_author_idx",       "idx_post_author"
-              "post_status_idx",       "idx_post_status"
-              "post_permalink_idx",    "idx_post_permalink"
-              "post_category_idx",     "idx_post_category"
-              "post_tag_idx",          "idx_post_tag"
-              "post_comment_post_idx", "idx_post_comment_post"
-              "upload_web_log_idx",    "idx_upload_web_log"
-              "upload_path_idx",       "idx_upload_path" ]
+        Utils.Migration.logStep log migration "Removing constraints"
+        let fkToDrop =
+            [ "page_revision", "page_revision_page_id_fkey"
+              "post_revision", "post_revision_post_id_fkey"
+              "theme_asset",   "theme_asset_theme_id_fkey"
+              "upload",        "upload_web_log_id_fkey"
+              "category",      "category_pkey"
+              "page",          "page_pkey"
+              "post",          "post_pkey"
+              "post_comment",  "post_comment_pkey"
+              "tag_map",       "tag_map_pkey"
+              "theme",         "theme_pkey"
+              "web_log",       "web_log_pkey"
+              "web_log_user",  "web_log_user_pkey" ]
         do! Custom.nonQuery
-                (toRename
-                 |> List.map (fun (oldName, newName) -> $"ALTER INDEX {oldName} RENAME TO {newName}")
+                (fkToDrop
+                 |> List.map (fun (tbl, fk) -> $"ALTER TABLE {tbl} DROP CONSTRAINT {fk}")
                  |> String.concat "; ")
                 []
         
-        Utils.Migration.logStep log migration "Setting database to version 2.1"
-        do! setDbVersion "v2.1"
+        Utils.Migration.logStep log migration "Dropping old indexes"
+        let toDrop =
+            [ "idx_category"; "page_author_idx"; "page_permalink_idx"; "page_web_log_idx"; "post_author_idx"
+              "post_category_idx"; "post_permalink_idx"; "post_status_idx"; "post_tag_idx"; "post_web_log_idx"
+              "post_comment_post_idx"; "idx_tag_map"; "idx_web_log"; "idx_web_log_user" ]
+        do! Custom.nonQuery (toDrop |> List.map (sprintf "DROP INDEX %s") |> String.concat "; ") []
+        
+        Utils.Migration.logStep log migration "Dropping old ID columns"
+        do! Custom.nonQuery (tables |> List.map (sprintf "ALTER TABLE %s DROP COLUMN id") |> String.concat "; ") []
+        
+        Utils.Migration.logStep log migration "Adding new indexes"
+        let newIdx =
+            [ yield! tables |> List.map Query.Definition.ensureKey
+              Query.Definition.ensureDocumentIndex Table.Category   Optimized
+              Query.Definition.ensureDocumentIndex Table.TagMap     Optimized
+              Query.Definition.ensureDocumentIndex Table.WebLog     Optimized
+              Query.Definition.ensureDocumentIndex Table.WebLogUser Optimized
+              Query.Definition.ensureIndexOn Table.Page "author" [ nameof Page.Empty.AuthorId ]
+              Query.Definition.ensureIndexOn
+                  Table.Page "permalink" [ nameof Page.Empty.WebLogId; nameof Page.Empty.Permalink ]
+              Query.Definition.ensureIndexOn Table.Post "author" [ nameof Post.Empty.AuthorId ]
+              Query.Definition.ensureIndexOn
+                  Table.Post "permalink" [ nameof Post.Empty.WebLogId; nameof Post.Empty.Permalink ]
+              Query.Definition.ensureIndexOn
+                  Table.Post
+                  "status"
+                  [ nameof Post.Empty.WebLogId; nameof Post.Empty.Status; nameof Post.Empty.UpdatedOn ]
+              $"CREATE INDEX idx_post_category ON {Table.Post} USING GIN ((data['{nameof Post.Empty.CategoryIds}']))"
+              $"CREATE INDEX idx_post_tag      ON {Table.Post} USING GIN ((data['{nameof Post.Empty.Tags}']))"
+              Query.Definition.ensureIndexOn Table.PostComment "post" [ nameof Comment.Empty.PostId ] ]
+        do! Custom.nonQuery (newIdx |> String.concat "; ") []
+        
+        Utils.Migration.logStep log migration "Setting database to version 2.1.1"
+        return! setDbVersion "v2.1.1"
     }
 
     /// Do required data migration between versions
@@ -190,16 +216,20 @@ type PostgresData(log: ILogger<PostgresData>, ser: JsonSerializer) =
         let mutable v = defaultArg version ""
 
         if v = "v2-rc2" then 
-            do! migrateV2Rc2ToV2 ()
-            v <- "v2"
+            let! webLogs =
+                Custom.list
+                    $"SELECT url_base, slug FROM {Table.WebLog}" []
+                    (fun row -> row.string "url_base", row.string "slug")
+            Utils.Migration.backupAndRestoreRequired log "v2-rc2" "v2" webLogs
         
         if v = "v2" then
-            do! migrateV2ToV2point1 ()
-            v <- "v2.1"
+            let! ver = migrateV2ToV2point1point1 ()
+            v <- ver
         
         if v <> Utils.Migration.currentDbVersion then
             log.LogWarning $"Unknown database version; assuming {Utils.Migration.currentDbVersion}"
-            do! setDbVersion Utils.Migration.currentDbVersion
+            let! _ = setDbVersion Utils.Migration.currentDbVersion
+            ()
     }
         
     interface IData with
